@@ -1,0 +1,19 @@
+{
+  "name": "BLGF Region II Document Tracking System",
+  "short_name": "BLGF DTS",
+  "description": "Document tracking, routing, and monitoring for BLGF Region II.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f8fafc",
+  "theme_color": "#1d4ed8",
+  "icons": [
+    {
+      "src": "/blgflogo.jpg",
+      "sizes": "any",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}

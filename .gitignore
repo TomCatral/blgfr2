@@ -1,0 +1,26 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+!.env.docker.example
+
+# Runtime upload locations and machine-specific storage paths
+backend/storage/
+backend/data/storage/
+backend/data/storage-settings.json
+
+.vercel
+
+# Local build / tool caches and scratch files
+.npm-cache/
+.vercel-cli-cache/
+*.txt
+~$*.docx
+documentation_assets*/
+full_diff.txt
+working_diff.txt
+schema_diff.txt

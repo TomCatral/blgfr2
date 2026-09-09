@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("MYSQL_DATABASE_URL")
+}
+
+model Division {
+  id        String  @id @db.VarChar(64)
+  code      String  @unique @db.VarChar(20)
+  name      String  @db.VarChar(255)
+  chiefName String  @map("chief_name") @db.VarChar(255)
+  email     String? @db.VarChar(150)
+
+  @@map("divisions")
+}
+
+model User {
+  id           String   @id @db.VarChar(64)
+  username     String   @unique @db.VarChar(50)
+  sourceUsername String @map("source_username") @db.VarChar(50)
+  password     String?  @db.Text
+  temporaryPasswordExpiresAt DateTime? @map("temporary_password_expires_at") @db.DateTime(3)
+  fullName     String   @map("full_name") @db.VarChar(150)
+  email        String   @db.VarChar(150)
+  role         String   @db.VarChar(50)
+  divisionCode String   @map("division_code") @db.VarChar(20)
+  designation  String?  @db.VarChar(150)
+  contactNo    String?  @map("contact_no") @db.VarChar(50)
+  avatarUrl    String?  @map("avatar_url") @db.Text
+  permissions  Json?
+  active       Boolean  @default(true)
+  createdAt    DateTime @map("created_at") @db.DateTime(3)
+  assignedDocuments Document[]      @relation("AssignedDocumentUser")
+  createdDocuments  Document[]      @relation("CreatedDocumentUser")
+  routesSent        DocumentRoute[] @relation("RouteFromUser")
+  routesReceived    DocumentRoute[] @relation("RouteToUser")
+  employeeProfile   EmployeeProfile?
+
+  @@map("users")
+}
+
+model Document {
+  id                   String    @id @db.VarChar(64)
+  trackingNumber       String    @unique @map("tracking_number") @db.VarChar(100)
+  direction            String    @db.VarChar(20)
+  title                String    @db.VarChar(255)
+  subject              String?   @db.Text
+  category             String    @db.VarChar(100)
+  originatingOffice    String    @map("originating_office") @db.VarChar(255)
+  destinationOffice    String    @map("destination_office") @db.VarChar(255)
+  senderName           String?   @map("sender_name") @db.VarChar(150)
+  senderPosition       String?   @map("sender_position") @db.VarChar(150)
+  recipientName        String?   @map("recipient_name") @db.VarChar(150)
+  priority              String    @db.VarChar(30)
+  currentStatus         String    @map("current_status") @db.VarChar(30)
+  currentDivision       String    @map("current_division") @db.VarChar(20)
+  assignedUser          String?   @map("assigned_user") @db.VarChar(150)
+  assignedUserId        String?   @map("assigned_user_id") @db.VarChar(64)
+  dateReceived          DateTime  @map("date_received") @db.DateTime(3)
+  targetCompletionDate DateTime? @map("target_completion_date") @db.DateTime(3)
+  completedDate         DateTime? @map("completed_date") @db.DateTime(3)
+  createdBy             String    @map("created_by") @db.VarChar(150)
+  createdByUserId       String?   @map("created_by_user_id") @db.VarChar(64)
+  createdAt             DateTime  @map("created_at") @db.DateTime(3)
+  updatedAt             DateTime  @map("updated_at") @db.DateTime(3)
+  assignedUserAccount   User?     @relation("AssignedDocumentUser", fields: [assignedUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  createdByUserAccount  User?     @relation("CreatedDocumentUser", fields: [createdByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  routes                 DocumentRoute[]
+  attachments            DocumentAttachment[]
+
+  @@index([assignedUserId])
+  @@index([createdByUserId])
+  @@map("documents")
+}
+
+model DocumentRoute {
+  id              String   @id @db.VarChar(64)
+  documentId      String   @map("document_id") @db.VarChar(64)
+  stepNumber      Int      @map("step_number")
+  fromDivision    String   @map("from_division") @db.VarChar(20)
+  fromUserId      String?  @map("from_user_id") @db.VarChar(64)
+  fromUser        String   @map("from_user") @db.VarChar(150)
+  toDivision      String   @map("to_division") @db.VarChar(20)
+  toUser          String?  @map("to_user") @db.VarChar(150)
+  toUserId        String?  @map("to_user_id") @db.VarChar(64)
+  actionRequested String   @map("action_requested") @db.VarChar(255)
+  remarks         String?  @db.Text
+  statusBefore    String   @map("status_before") @db.VarChar(50)
+  statusAfter     String   @map("status_after") @db.VarChar(50)
+  createdAt       DateTime @map("created_at") @db.DateTime(3)
+  document        Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  fromUserAccount User?    @relation("RouteFromUser", fields: [fromUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  toUserAccount   User?    @relation("RouteToUser", fields: [toUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([documentId])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@map("document_routes")
+}
+
+model DocumentAttachment {
+  id         String   @id @db.VarChar(64)
+  documentId String   @map("document_id") @db.VarChar(64)
+  fileName   String   @map("file_name") @db.VarChar(255)
+  fileSize   String?  @map("file_size") @db.VarChar(50)
+  fileType   String?  @map("file_type") @db.VarChar(100)
+  uploadDate DateTime @map("upload_date") @db.DateTime(3)
+  fileData   String?  @map("file_data") @db.LongText
+  attachmentScope   String? @map("attachment_scope") @db.VarChar(20)
+  uploadedByUserId  String? @map("uploaded_by_user_id") @db.VarChar(64)
+  uploadedForRouteId String? @map("uploaded_for_route_id") @db.VarChar(64)
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([uploadedForRouteId])
+  @@map("document_attachments")
+}
+
+model AuditLog {
+  id                     String   @id @db.VarChar(64)
+  timestamp              DateTime @db.DateTime(3)
+  userId                 String   @map("user_id") @db.VarChar(64)
+  userName               String   @map("user_name") @db.VarChar(150)
+  userRole               String   @map("user_role") @db.VarChar(50)
+  action                 String   @db.VarChar(100)
+  documentTrackingNumber String?  @map("document_tracking_number") @db.VarChar(100)
+  details                String   @db.Text
+  ipAddress              String?  @map("ip_address") @db.VarChar(45)
+
+  @@map("audit_logs")
+}
+
+model EnvelopeLog {
+  id                     String   @id @db.VarChar(64)
+  timestamp              DateTime @db.DateTime(3)
+  userId                 String   @map("user_id") @db.VarChar(64)
+  userName               String   @map("user_name") @db.VarChar(150)
+  userRole               String   @map("user_role") @db.VarChar(50)
+  action                 String   @db.VarChar(100)
+  documentTrackingNumber String?  @map("document_tracking_number") @db.VarChar(100)
+  details                String   @db.Text
+  ipAddress              String?  @map("ip_address") @db.VarChar(45)
+
+  @@map("envelope_logs")
+}
+
+model EmployeeProfile {
+  id           String   @id @db.VarChar(64)
+  userId       String?  @unique @map("user_id") @db.VarChar(64)
+  fullName     String   @map("full_name") @db.VarChar(255)
+  position     String   @db.VarChar(255)
+  office       String   @db.VarChar(255)
+  officeType   String   @map("office_type") @db.VarChar(50)
+  divisionCode String?  @map("division_code") @db.VarChar(20)
+  email        String   @db.VarChar(150)
+  contactNo    String?  @map("contact_no") @db.VarChar(50)
+  address      String?  @db.Text
+  active       Boolean  @default(true)
+  createdAt    DateTime @map("created_at") @db.DateTime(3)
+  folders      Json?
+  userAccount  User?    @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@map("employee_profiles")
+}
