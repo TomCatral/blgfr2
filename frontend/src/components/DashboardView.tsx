@@ -399,7 +399,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   )}
                 >
                   <FileText className={cx("w-4 h-4")} />
-                  <span>Log New Document</span>
+                  <span>Log New Document </span>
                 </Button>
                 {canAccessDocumentSlip && (
                   <Button
