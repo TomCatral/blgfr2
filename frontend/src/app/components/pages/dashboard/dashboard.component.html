@@ -68,15 +68,6 @@
             <span>Routing Slip</span>
           </button>
         }
-
-        <button
-          type="button"
-          (click)="isUserStatusOpen.set(true)"
-          class="flex-1 sm:flex-initial bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 border border-slate-200/80 dark:border-slate-700/70 font-bold px-3.5 py-2.5 rounded-2xl text-xs flex items-center justify-center space-x-1.5 transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer"
-          title="View Active Personnel Directory">
-          <ion-icon name="people" class="w-4 h-4 text-indigo-500 dark:text-indigo-400"></ion-icon>
-          <span>Directory ({{ users.length }})</span>
-        </button>
       </div>
     </div>
   </div>
@@ -602,72 +593,7 @@
     }
   </div>
 
-  <!-- 6. User Status & Session Directory Modal -->
-  @if (isUserStatusOpen()) {
-    <div
-      class="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-md transition-all"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="user-status-title"
-      (mousedown)="onBackdropMouseDown($event, 'userStatus')">
-      <div class="w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
-        <div class="flex items-center justify-between border-b border-slate-200/80 px-6 py-4.5 dark:border-slate-800">
-          <div>
-            <h2 id="user-status-title" class="text-base font-extrabold text-slate-900 dark:text-white">
-              User Account &amp; Personnel Directory
-            </h2>
-            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              {{ users.length }} registered user account{{ users.length === 1 ? '' : 's' }} across Regional Office II
-            </p>
-          </div>
-          <div class="flex items-center gap-2.5">
-            <span
-              class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-extrabold border"
-              [ngClass]="isOnline ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/25 dark:text-emerald-300' : 'bg-rose-500/10 text-rose-700 border-rose-500/25 dark:text-rose-300'">
-              <span class="h-1.5 w-1.5 rounded-full" [ngClass]="isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'"></span>
-              <span>{{ isOnline ? 'ONLINE' : 'OFFLINE' }}</span>
-            </span>
-            <button
-              type="button"
-              (click)="isUserStatusOpen.set(false)"
-              class="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              aria-label="Close user status">
-              <ion-icon name="close" class="h-4 w-4"></ion-icon>
-            </button>
-          </div>
-        </div>
-        <div class="grid max-h-[65vh] grid-cols-1 gap-3 overflow-y-auto p-5 sm:grid-cols-2">
-          @for (user of users; track user.id) {
-            <div class="flex min-w-0 items-center gap-3.5 rounded-2xl border border-slate-200/80 p-3.5 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-800/40 hover:border-blue-500/30 transition-colors">
-              @if (user.avatarUrl) {
-                <img [src]="user.avatarUrl" [alt]="user.fullName" class="h-11 w-11 shrink-0 rounded-full border border-slate-200 object-cover dark:border-slate-700 shadow-xs">
-              } @else {
-                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-xs font-black text-white shadow-xs">
-                  {{ getUserInitials(user.fullName) || 'U' }}
-                </div>
-              }
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-1.5">
-                  <p class="truncate text-xs font-extrabold text-slate-900 dark:text-white">{{ user.fullName }}</p>
-                  @if (isCurrentUserOnline(user.id)) {
-                    <span class="rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 text-[8.5px] font-black px-1.5 py-0.2">YOU</span>
-                  }
-                </div>
-                <p class="truncate text-[10.5px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-                  {{ user.designation || user.role }} &bull; {{ user.divisionCode }}
-                </p>
-                <div class="mt-1 flex items-center gap-2 text-[9.5px] font-black">
-                  <span [ngClass]="user.active ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'">
-                    {{ user.active ? '● ACTIVE' : '○ DEACTIVATED' }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          }
-        </div>
-      </div>
-    </div>
-  }
+
 
   <!-- 7. Selected Card Filtered Documents Modal -->
   @if (selectedCard()) {
