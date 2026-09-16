@@ -240,13 +240,13 @@
     </button>
   </div>
 
-  <!-- 4. Division Workload Distribution Section (Simplified) -->
+  <!-- 4. Division Workload Distribution Section (Simple Vertical Bar Chart) -->
   @if (canViewDivisionWorkload) {
     <div class="workload-section relative overflow-hidden rounded-2xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-xs">
-      <div class="flex flex-wrap items-center justify-between gap-3 mb-3.5">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div class="flex items-center gap-2.5">
           <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400">
-            <ion-icon name="business" class="h-4 w-4"></ion-icon>
+            <ion-icon name="bar-chart" class="h-4 w-4"></ion-icon>
           </span>
           <div>
             <h3 class="font-extrabold text-sm md:text-base text-slate-900 dark:text-white leading-tight">
@@ -267,47 +267,50 @@
         </div>
       </div>
 
-      <!-- Simple, Compact Division Grid -->
-      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2.5">
-        @for (item of stats.divisionBreakdown; track item.division) {
-          <div
-            class="group/div-card relative rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 p-3 flex flex-col justify-between transition-all duration-150 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-white dark:hover:bg-slate-800/80 hover:shadow-xs"
-            [title]="getDivisionFullName(item.division) + ': ' + item.count + ' active documents (' + getDivisionPercentage(item.count) + '%)'">
-            
-            <div class="flex items-center justify-between gap-1 mb-2">
-              <span class="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 group-hover/div-card:text-blue-600 dark:group-hover/div-card:text-blue-400 transition-colors">
-                {{ item.division }}
-              </span>
-              <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500">
-                {{ getDivisionPercentage(item.count) }}%
-              </span>
-            </div>
+      <!-- Simple Vertical Bar Chart Container -->
+      <div class="relative pt-2 pb-1">
+        <div class="flex h-44 sm:h-48 w-full items-end gap-2 sm:gap-4 px-1 sm:px-2 border-b border-slate-200/80 dark:border-slate-800">
+          @for (item of stats.divisionBreakdown; track item.division) {
+            <div
+              class="group/bar flex flex-1 flex-col items-center justify-end h-full min-w-0"
+              [title]="getDivisionFullName(item.division) + ': ' + item.count + ' active documents (' + getDivisionPercentage(item.count) + '%)'">
+              
+              <!-- Value badge above bar -->
+              <div class="mb-2 flex flex-col items-center transition-transform group-hover/bar:scale-105">
+                <span class="text-xs font-black text-slate-900 dark:text-white tabular-nums group-hover/bar:text-blue-600 dark:group-hover/bar:text-blue-400 transition-colors">
+                  {{ item.count }}
+                </span>
+                <span class="text-[9.5px] font-bold text-slate-400 dark:text-slate-500">
+                  {{ getDivisionPercentage(item.count) }}%
+                </span>
+              </div>
 
-            <div class="flex items-baseline gap-1 my-1">
-              <span class="text-2xl font-black text-slate-900 dark:text-white tabular-nums tracking-tight">
-                {{ item.count }}
-              </span>
-              <span class="text-[10px] font-semibold text-slate-400 dark:text-slate-500">
-                {{ item.count === 1 ? 'doc' : 'docs' }}
-              </span>
-            </div>
+              <!-- Bar Track Container -->
+              <div class="w-full max-w-[44px] h-28 sm:h-32 rounded-t-lg bg-slate-100/90 dark:bg-slate-800/60 p-0.5 flex items-end justify-center relative overflow-hidden transition-colors group-hover/bar:bg-slate-200/80 dark:group-hover/bar:bg-slate-800">
+                <!-- Bar Fill -->
+                <div
+                  class="w-full rounded-t-md transition-all duration-300"
+                  [class.bg-blue-600]="item.count > 0"
+                  [class.dark:bg-blue-500]="item.count > 0"
+                  [class.bg-transparent]="item.count === 0"
+                  [style.height.%]="barPercentage(item.count)">
+                </div>
+              </div>
 
-            <!-- Slim, Clean Progress Bar -->
-            <div class="w-full h-1.5 rounded-full bg-slate-200/70 dark:bg-slate-700/60 overflow-hidden mt-1.5">
-              <div
-                class="h-full rounded-full transition-all duration-300"
-                [class.bg-blue-600]="item.count > 0"
-                [class.dark:bg-blue-500]="item.count > 0"
-                [class.bg-transparent]="item.count === 0"
-                [style.width.%]="getDivisionPercentage(item.count)">
+              <!-- Division Code & Name label below bar -->
+              <div class="mt-2 text-center w-full">
+                <span
+                  class="block text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider truncate w-full group-hover/bar:text-blue-600 dark:group-hover/bar:text-blue-400 transition-colors"
+                  [title]="getDivisionFullName(item.division)">
+                  {{ item.division }}
+                </span>
+                <span class="block text-[9.5px] text-slate-400 dark:text-slate-500 truncate font-medium max-w-[85px] mx-auto">
+                  {{ getDivisionFullName(item.division) }}
+                </span>
               </div>
             </div>
-
-            <p class="text-[9.5px] font-medium text-slate-400 dark:text-slate-500 truncate mt-2" [title]="getDivisionFullName(item.division)">
-              {{ getDivisionFullName(item.division) }}
-            </p>
-          </div>
-        }
+          }
+        </div>
       </div>
     </div>
   }

@@ -110,6 +110,12 @@ export class DashboardComponent implements OnChanges {
     return Math.round((count / total) * 100);
   }
 
+  barPercentage(count: number): number {
+    if (!this.stats?.divisionBreakdown?.length || count === 0) return 0;
+    const max = Math.max(...this.stats.divisionBreakdown.map(d => d.count), 1);
+    return Math.max(8, Math.round((count / max) * 100));
+  }
+
   readonly divisionNames: Record<string, string> = {
     ORD: 'Office of the Regional Director',
     AD: 'Administrative Division',
