@@ -61,7 +61,7 @@
     }
   </button>
 
-  @if (parent.getFlowNodeSnapshot(recipient.id).ended) {
+  @if (parent.canShowFlowNodeEnd(recipient.id)) {
     <div class="flow-connector" aria-hidden="true">
       <span class="flow-connector-stem"></span>
       <span class="flow-connector-arrow"></span>
@@ -69,7 +69,7 @@
     <div class="flow-ended-container">
       <div class="flow-ended-badge" role="status">
         <ion-icon name="checkmark-circle"></ion-icon>
-        <p>End - Part completed</p>
+        <p>End - Transaction completed</p>
       </div>
 
       @if (parent.getFlowNodeHandoffInstruction(recipient.id); as instruction) {

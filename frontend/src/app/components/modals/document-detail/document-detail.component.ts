@@ -504,7 +504,7 @@ export class DocumentDetailComponent implements OnChanges {
       fields.push({ label: 'Routing Notes', value: regRemarks });
     }
 
-    if (isCompleted) {
+    if (this.document.currentStatus === 'COMPLETED' && isCompleted) {
       const handoff = this.getFlowNodeHandoffInstruction(route.id);
       if (handoff) {
         fields.push({ label: 'Handoff Instructions', value: handoff });
@@ -515,6 +515,9 @@ export class DocumentDetailComponent implements OnChanges {
   });
 
   completedHandoffs = computed(() => {
+    if (this.document.currentStatus !== 'COMPLETED') {
+      return [];
+    }
     const results: {
       routeId: string;
       completedBy: string;
@@ -605,6 +608,9 @@ export class DocumentDetailComponent implements OnChanges {
   });
 
   finalHandoffInstructions = computed(() => {
+    if (this.document.currentStatus !== 'COMPLETED') {
+      return '';
+    }
     const override = this.overrideFinalInstructions();
     if (override !== null && override.trim()) {
       return override.trim();
@@ -669,7 +675,7 @@ export class DocumentDetailComponent implements OnChanges {
           ['Office', route.toDivision],
           ['Requested action', route.actionRequested],
           ['Routing Notes', this.getFlowNodeRegularRemarks(route.id) || ''],
-          ['Handoff Instructions', (snapshot.ended || snapshot.status === 'Completed') ? (this.getFlowNodeHandoffInstruction(route.id) || '') : ''],
+          ['Handoff Instructions', (this.document.currentStatus === 'COMPLETED' && (snapshot.ended || snapshot.status === 'Completed')) ? (this.getFlowNodeHandoffInstruction(route.id) || '') : ''],
           ['Decision', decision ? formatReadableStatus(getRouteDecision(decision)) : 'Pending'],
         ]
           .filter(([, value]) => value && !/^(N\/A|None)$/i.test(value))
@@ -1153,13 +1159,19 @@ export class DocumentDetailComponent implements OnChanges {
   }
 
   getFlowNodeHandoffInstruction(id: string): string | null {
+    // Only show instruction when the entire document transaction is completed!
+    if (this.document.currentStatus !== 'COMPLETED') {
+      return null;
+    }
+
     const route = this.flowRecipients().find((r) => r.id === id);
     if (!route) return null;
 
     const snap = this.getFlowNodeSnapshot(id);
-    // CRITICAL: Only show instruction when completed!
     if (!snap.ended && snap.status !== 'Completed') {
-      return null;
+      const finalRoute = this.finalReleaseRoute();
+      const isFinal = finalRoute && (this.matchesPerson(finalRoute.fromUserId, finalRoute.fromUser, route.toUserId, route.toUser) || finalRoute.id === route.id);
+      if (!isFinal) return null;
     }
 
     // 1. Check if completed activity done by this recipient has Handoff Instructions
@@ -1193,6 +1205,29 @@ export class DocumentDetailComponent implements OnChanges {
     }
 
     return null;
+  }
+
+  canShowFlowNodeEnd(id: string): boolean {
+    if (this.document.currentStatus !== 'COMPLETED') {
+      return false;
+    }
+    // Cannot show end badge if this recipient forwarded to child recipients
+    if (this.getFlowNodeChildren(id).length > 0) {
+      return false;
+    }
+    const snap = this.getFlowNodeSnapshot(id);
+    if (snap.ended || snap.status === 'Completed') {
+      return true;
+    }
+    const finalRoute = this.finalReleaseRoute();
+    if (finalRoute && finalRoute.id === id) {
+      return true;
+    }
+    const recipients = this.flowRecipients();
+    if (recipients.length > 0 && recipients[recipients.length - 1].id === id) {
+      return true;
+    }
+    return false;
   }
 
   getFlowNodeChildren(id: string): DocumentRouteStep[] {
