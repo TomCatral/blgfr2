@@ -527,13 +527,6 @@ export class DocumentDetailComponent implements OnChanges {
       fields.push({ label: 'Routing Notes', value: regRemarks });
     }
 
-    if (this.document.currentStatus === 'COMPLETED' && isCompleted) {
-      const handoff = this.getFlowNodeHandoffInstruction(route.id);
-      if (handoff) {
-        fields.push({ label: 'Handoff Instructions', value: handoff });
-      }
-    }
-
     return fields.filter((field) => field.value && !/^(N\/A|None)$/i.test(field.value));
   });
 
@@ -881,6 +874,7 @@ export class DocumentDetailComponent implements OnChanges {
 
   selectFlowRecipient(id: string): void {
     this.selectedFlowRecipient.set(id);
+    this.isEditingFinalInstructions.set(false);
   }
 
   scrollToFlow(): void {
@@ -998,7 +992,8 @@ export class DocumentDetailComponent implements OnChanges {
   }
 
   startEditingFinalInstructions(): void {
-    const current = this.finalHandoffInstructions();
+    const route = this.selectedRoute();
+    const current = (route ? this.getFlowNodeHandoffInstruction(route.id) : null) || this.finalHandoffInstructions();
     const isDefault =
       current === 'Pickup location was not recorded. Contact the completing office for the next instruction.' ||
       current.includes('Pickup location was not recorded.');
@@ -1018,8 +1013,9 @@ export class DocumentDetailComponent implements OnChanges {
     this.finalInstructionsDraft.set('');
   }
 
-  async copyInstructionsToClipboard(): Promise<void> {
-    const text = this.finalHandoffInstructions();
+  async copyInstructionsToClipboard(customText?: string): Promise<void> {
+    const route = this.selectedRoute();
+    const text = customText || (route ? this.getFlowNodeHandoffInstruction(route.id) : null) || this.finalHandoffInstructions();
     if (!text) return;
     try {
       if (navigator.clipboard && window.isSecureContext) {
@@ -1045,23 +1041,36 @@ export class DocumentDetailComponent implements OnChanges {
   async saveFinalInstructions(): Promise<void> {
     const text = this.finalInstructionsDraft().trim();
     if (!text) return;
+    const currentSelectedRoute = this.selectedRoute();
+    const routeId = currentSelectedRoute?.id;
     this.isSavingFinalInstructions.set(true);
     try {
       await firstValueFrom(
-        this.api.updateFinalInstructions(this.document.id, text, this.currentUser?.id),
+        this.api.updateFinalInstructions(this.document.id, text, this.currentUser?.id, routeId),
       );
       this.document.finalInstructions = text;
       this.overrideFinalInstructions.set(text);
 
       const routes = [...(this.document.routes || [])];
-      const finalIndex = [...routes].reverse().findIndex((r) => r.statusAfter === 'COMPLETED');
-      if (finalIndex !== -1) {
-        const actualIndex = routes.length - 1 - finalIndex;
-        routes[actualIndex] = {
-          ...routes[actualIndex],
-          remarks: `Handoff Instructions: ${text}`,
-        };
-        this.document.routes = routes;
+      if (routeId) {
+        const targetIndex = routes.findIndex((r) => r.id === routeId);
+        if (targetIndex !== -1) {
+          routes[targetIndex] = {
+            ...routes[targetIndex],
+            remarks: `Handoff Instructions: ${text}`,
+          };
+          this.document.routes = routes;
+        }
+      } else {
+        const finalIndex = [...routes].reverse().findIndex((r) => r.statusAfter === 'COMPLETED');
+        if (finalIndex !== -1) {
+          const actualIndex = routes.length - 1 - finalIndex;
+          routes[actualIndex] = {
+            ...routes[actualIndex],
+            remarks: `Handoff Instructions: ${text}`,
+          };
+          this.document.routes = routes;
+        }
       }
       this.isEditingFinalInstructions.set(false);
       this.saveInstructionSuccess.set(true);

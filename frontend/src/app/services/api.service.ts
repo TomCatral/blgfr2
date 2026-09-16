@@ -191,10 +191,10 @@ export class ApiService {
     return this.put<DocumentRecord>(`/documents/${id}`, data);
   }
 
-  updateFinalInstructions(documentId: string, instructions: string, actingUserId?: string): Observable<{ success: boolean; document: DocumentRecord; instructions: string }> {
+  updateFinalInstructions(documentId: string, instructions: string, actingUserId?: string, routeId?: string): Observable<{ success: boolean; document: DocumentRecord; instructions: string }> {
     return this.patch<{ success: boolean; document: DocumentRecord; instructions: string }>(
       `/documents/${documentId}/final-instructions`,
-      { instructions, actingUserId },
+      { instructions, actingUserId, routeId },
     );
   }
 

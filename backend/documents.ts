@@ -1228,40 +1228,53 @@ export function createDocumentsRouter(
       return res.status(400).json({ error: 'Instruction cannot be empty.' });
     }
 
-    // Update the final completed route if one exists, or latest route, or synthesize completion route
+    // Update the targeted route if routeId specified, or final completed route, or latest route, or synthesize completion route
     const routes = doc.routes ? [...doc.routes] : [];
-    const finalRouteIndex = [...routes].reverse().findIndex((r) => r.statusAfter === 'COMPLETED');
+    const routeId = req.body.routeId ? String(req.body.routeId) : undefined;
 
-    if (finalRouteIndex !== -1) {
-      const actualIndex = routes.length - 1 - finalRouteIndex;
-      routes[actualIndex] = {
-        ...routes[actualIndex],
-        remarks: `Handoff Instructions: ${instructions}`,
-      };
-      doc.routes = routes;
-    } else if (routes.length > 0) {
-      routes[routes.length - 1] = {
-        ...routes[routes.length - 1],
-        remarks: `Handoff Instructions: ${instructions}`,
-      };
-      doc.routes = routes;
+    if (routeId) {
+      const targetIndex = routes.findIndex((r) => r.id === routeId);
+      if (targetIndex !== -1) {
+        routes[targetIndex] = {
+          ...routes[targetIndex],
+          remarks: `Handoff Instructions: ${instructions}`,
+        };
+        doc.routes = routes;
+      }
     } else {
-      routes.push({
-        id: `route-${randomUUID()}`,
-        documentId: doc.id,
-        stepNumber: 1,
-        routeNo: doc.routeNo || doc.trackingNumber,
-        fromDivision: actingUser.divisionCode,
-        fromUserId: actingUser.id,
-        fromUser: actingUser.fullName,
-        toDivision: doc.currentDivision || actingUser.divisionCode,
-        actionRequested: 'Completed & Finalized',
-        remarks: `Handoff Instructions: ${instructions}`,
-        statusBefore: 'COMPLETED',
-        statusAfter: 'COMPLETED',
-        createdAt: new Date().toISOString(),
-      });
-      doc.routes = routes;
+      const finalRouteIndex = [...routes].reverse().findIndex((r) => r.statusAfter === 'COMPLETED');
+
+      if (finalRouteIndex !== -1) {
+        const actualIndex = routes.length - 1 - finalRouteIndex;
+        routes[actualIndex] = {
+          ...routes[actualIndex],
+          remarks: `Handoff Instructions: ${instructions}`,
+        };
+        doc.routes = routes;
+      } else if (routes.length > 0) {
+        routes[routes.length - 1] = {
+          ...routes[routes.length - 1],
+          remarks: `Handoff Instructions: ${instructions}`,
+        };
+        doc.routes = routes;
+      } else {
+        routes.push({
+          id: `route-${randomUUID()}`,
+          documentId: doc.id,
+          stepNumber: 1,
+          routeNo: doc.routeNo || doc.trackingNumber,
+          fromDivision: actingUser.divisionCode,
+          fromUserId: actingUser.id,
+          fromUser: actingUser.fullName,
+          toDivision: doc.currentDivision || actingUser.divisionCode,
+          actionRequested: 'Completed & Finalized',
+          remarks: `Handoff Instructions: ${instructions}`,
+          statusBefore: 'COMPLETED',
+          statusAfter: 'COMPLETED',
+          createdAt: new Date().toISOString(),
+        });
+        doc.routes = routes;
+      }
     }
 
     doc.finalInstructions = instructions;

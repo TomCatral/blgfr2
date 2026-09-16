@@ -68,6 +68,7 @@ export class RouteDocumentComponent implements OnChanges {
 
   private api = inject(ApiService);
 
+  routeMode: 'FORWARD' | 'COMPLETE' = 'FORWARD';
   toDivision: DivisionCode | 'ALL' | '' = '';
   additionalDivisions: DivisionCode[] = [];
   showAddDivision = false;
@@ -86,14 +87,62 @@ export class RouteDocumentComponent implements OnChanges {
   readonly statusOptions = STATUS_OPTIONS;
   readonly availableDivisions = AVAILABLE_DIVISIONS;
 
+  readonly remarkPresets = [
+    'For appropriate action and review',
+    'Please verify and endorse to RD',
+    'Urgent - for immediate disposition',
+    'Returned with corrections noted',
+    'For signature and release',
+  ];
+
+  readonly handoffPresets = [
+    { label: 'Central Storage', text: 'Transaction completed and original copy archived in BLGF Records Central Storage.' },
+    { label: 'Records Unit (Room 204)', text: 'Claim original copy at Records Unit, Room 204. Look for Ms. Rona, present official ID.' },
+    { label: 'Endorsement Released', text: 'Official endorsement and signed release copy transmitted to originating client.' },
+    { label: 'Division Archives', text: 'Document process finalized and signed copy stored in Division Archives.' },
+  ];
+
+  setRouteMode(mode: 'FORWARD' | 'COMPLETE'): void {
+    this.routeMode = mode;
+    if (mode === 'COMPLETE') {
+      this.newStatus = 'COMPLETED';
+    } else if (this.newStatus === 'COMPLETED') {
+      this.newStatus = 'IN_PROGRESS';
+    }
+  }
+
+  onStatusChange(status: string): void {
+    this.newStatus = status;
+    if (status === 'COMPLETED') {
+      this.routeMode = 'COMPLETE';
+    } else {
+      this.routeMode = 'FORWARD';
+    }
+  }
+
+  applyRemarkPreset(preset: string): void {
+    if (!this.remarks.trim()) {
+      this.remarks = preset;
+    } else if (!this.remarks.includes(preset)) {
+      this.remarks = `${this.remarks.trim()} - ${preset}`;
+    }
+  }
+
+  applyHandoffPreset(presetText: string): void {
+    this.handoffInstructions = presetText;
+  }
+
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['document'] || changes['isOpen']) {
+      this.routeMode = 'FORWARD';
       this.selectedUserIds = [];
       this.toDivision = '';
       this.additionalDivisions = [];
       this.showAddDivision = false;
       this.replyFile = null;
+      this.remarks = '';
       this.handoffInstructions = '';
+      this.newStatus = 'IN_PROGRESS';
       this.formError = '';
     }
   }
@@ -278,14 +327,16 @@ export class RouteDocumentComponent implements OnChanges {
   getSubmitLabel(): string {
     if (this.isSubmitting && !this.isUploadingReply) return 'Saving, please wait...';
     if (this.isUploadingReply) return 'Uploading Reply...';
-    if (this.newStatus === 'COMPLETED') return 'Complete My Part';
-    return `Route to ${this.selectedUserIds.length} ${this.selectedUserIds.length === 1 ? 'Recipient' : 'Recipients'}`;
+    if (this.newStatus === 'COMPLETED') return 'Complete & Finalize Transaction';
+    if (this.selectedUserIds.length === 0) return 'Select Recipient to Route';
+    return `Forward & Route (${this.selectedUserIds.length} Recipient${this.selectedUserIds.length === 1 ? '' : 's'})`;
   }
 
   isSubmitDisabled(): boolean {
     if (!this.document || !this.currentUser) return true;
     if (this.isEnded) return true;
     if (this.isSubmitting || this.isUploadingReply) return true;
+    if (this.newStatus === 'COMPLETED') return !this.handoffInstructions.trim();
     if (this.newStatus !== 'COMPLETED' && this.selectedUserIds.length === 0) return true;
     return false;
   }
@@ -315,7 +366,9 @@ export class RouteDocumentComponent implements OnChanges {
       alert('Enter the completion and document handoff instructions.');
       return;
     }
-    if (!this.actionRequested) {
+    if (this.newStatus === 'COMPLETED' && !this.actionRequested) {
+      this.actionRequested = 'Completed & Finalized';
+    } else if (!this.actionRequested) {
       alert('Select an Action Requested before routing.');
       return;
     }

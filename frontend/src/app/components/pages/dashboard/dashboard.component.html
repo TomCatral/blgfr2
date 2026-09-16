@@ -333,70 +333,14 @@
         </p>
       </div>
 
-      <!-- Controls: Filters, Search, View All -->
-      <div class="flex flex-wrap items-center gap-2.5">
-        <!-- Direction Tabs -->
-        <div class="inline-flex rounded-xl bg-slate-100/90 dark:bg-slate-800/90 p-1 text-[11px] font-bold border border-slate-200/80 dark:border-slate-700/80">
-          <button
-            type="button"
-            (click)="setRecentFilter('ALL')"
-            [class.bg-white]="recentDocFilter() === 'ALL'"
-            [class.dark:bg-slate-700]="recentDocFilter() === 'ALL'"
-            [class.text-blue-600]="recentDocFilter() === 'ALL'"
-            [class.dark:text-white]="recentDocFilter() === 'ALL'"
-            [class.shadow-xs]="recentDocFilter() === 'ALL'"
-            class="rounded-lg px-2.5 py-1 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer">
-            All ({{ recentTransactions().length }})
-          </button>
-          <button
-            type="button"
-            (click)="setRecentFilter('INCOMING')"
-            [class.bg-white]="recentDocFilter() === 'INCOMING'"
-            [class.dark:bg-slate-700]="recentDocFilter() === 'INCOMING'"
-            [class.text-emerald-600]="recentDocFilter() === 'INCOMING'"
-            [class.dark:text-emerald-400]="recentDocFilter() === 'INCOMING'"
-            [class.shadow-xs]="recentDocFilter() === 'INCOMING'"
-            class="rounded-lg px-2.5 py-1 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer">
-            Incoming ({{ incomingRecentCount() }})
-          </button>
-          <button
-            type="button"
-            (click)="setRecentFilter('OUTGOING')"
-            [class.bg-white]="recentDocFilter() === 'OUTGOING'"
-            [class.dark:bg-slate-700]="recentDocFilter() === 'OUTGOING'"
-            [class.text-blue-600]="recentDocFilter() === 'OUTGOING'"
-            [class.dark:text-blue-400]="recentDocFilter() === 'OUTGOING'"
-            [class.shadow-xs]="recentDocFilter() === 'OUTGOING'"
-            class="rounded-lg px-2.5 py-1 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer">
-            Outgoing ({{ outgoingRecentCount() }})
-          </button>
-        </div>
-
-        <!-- Search Input -->
-        <div class="relative min-w-[190px] max-w-[240px]">
-          <ion-icon name="search" class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400"></ion-icon>
-          <input
-            type="text"
-            [ngModel]="searchQuery()"
-            (ngModelChange)="onSearchQueryChange($event)"
-            placeholder="Search activity..."
-            class="w-full rounded-xl border border-slate-200/90 dark:border-slate-700/90 bg-slate-50/80 dark:bg-slate-800/80 pl-8 pr-7 py-1 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
-          @if (searchQuery()) {
-            <button
-              type="button"
-              (click)="clearSearch()"
-              class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-              <ion-icon name="close-circle" class="h-3.5 w-3.5"></ion-icon>
-            </button>
-          }
-        </div>
-
+      <!-- Controls: View All -->
+      <div class="flex items-center gap-2.5">
         <!-- View all button -->
         <button
           type="button"
           (click)="onNavigateToView('incoming')"
           class="group text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-extrabold flex items-center space-x-1.5 transition-colors cursor-pointer">
-          <span>View All</span>
+          <span>View All Documents</span>
           <ion-icon name="arrow-forward" class="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform"></ion-icon>
         </button>
       </div>

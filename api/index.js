@@ -90,6 +90,11 @@ async function ensureUserIdForeignKeys(target) {
     ["documents", "assigned_user_id", "VARCHAR(64) NULL AFTER `assigned_user`"],
     ["documents", "created_by_user_id", "VARCHAR(64) NULL AFTER `created_by`"],
     ["documents", "sender_position", "VARCHAR(150) NULL AFTER `sender_name`"],
+    ["documents", "sender_address", "TEXT NULL AFTER `sender_position`"],
+    ["documents", "recipient_position", "VARCHAR(150) NULL AFTER `recipient_name`"],
+    ["documents", "recipient_office", "VARCHAR(255) NULL AFTER `recipient_position`"],
+    ["documents", "recipient_address", "TEXT NULL AFTER `recipient_office`"],
+    ["documents", "route_no", "VARCHAR(100) NULL AFTER `tracking_number`"],
     ["document_attachments", "attachment_scope", "VARCHAR(20) NULL AFTER `file_data`"],
     ["document_attachments", "uploaded_by_user_id", "VARCHAR(64) NULL AFTER `attachment_scope`"],
     ["document_attachments", "uploaded_for_route_id", "VARCHAR(64) NULL AFTER `uploaded_by_user_id`"],
@@ -103,6 +108,21 @@ async function ensureUserIdForeignKeys(target) {
         `ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${definition}`
       );
     }
+  }
+  await target.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS \`directory_sections\` (
+      \`id\` VARCHAR(64) NOT NULL,
+      \`label\` VARCHAR(255) NOT NULL,
+      \`office_types\` JSON NOT NULL,
+      \`color\` VARCHAR(50) NULL,
+      PRIMARY KEY (\`id\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `);
+  try {
+    await target.$executeRawUnsafe(
+      "ALTER TABLE `employee_profiles` MODIFY COLUMN `office_type` VARCHAR(50) NOT NULL DEFAULT 'BLGF'"
+    );
+  } catch {
   }
   await target.$executeRawUnsafe(`
     UPDATE documents d
@@ -247,6 +267,7 @@ async function syncDatabase(targetClient, targetStatus, entries, databaseLabel) 
   const auditLogs = asRecords(state.get("audit_logs"));
   const envelopeLogs = asRecords(state.get("envelope_logs"));
   const employees = asRecords(state.get("employee_profiles"));
+  const directorySections = asRecords(state.get("directory_sections"));
   const usedUsernames = /* @__PURE__ */ new Set();
   const replicaUsers = users.map((item) => {
     const sourceUsername = text(item.username);
@@ -297,6 +318,11 @@ async function syncDatabase(targetClient, targetStatus, entries, databaseLabel) 
           await tx.envelopeLog.deleteMany();
           await tx.user.deleteMany();
           await tx.division.deleteMany();
+          await tx.employeeProfile.deleteMany();
+          try {
+            await tx.directorySection.deleteMany();
+          } catch {
+          }
           if (divisions.length) {
             await tx.division.createMany({
               data: divisions.map((item) => ({
@@ -343,7 +369,12 @@ async function syncDatabase(targetClient, targetStatus, entries, databaseLabel) 
                 destinationOffice: text(item.destinationOffice),
                 senderName: optionalText(item.senderName),
                 senderPosition: optionalText(item.senderPosition),
+                senderAddress: optionalText(item.senderAddress),
                 recipientName: optionalText(item.recipientName),
+                recipientPosition: optionalText(item.recipientPosition),
+                recipientOffice: optionalText(item.recipientOffice),
+                recipientAddress: optionalText(item.recipientAddress),
+                routeNo: optionalText(item.routeNo) || text(item.trackingNumber),
                 priority: text(item.priority, "ROUTINE"),
                 currentStatus: text(item.currentStatus, "PENDING"),
                 currentDivision: text(item.currentDivision),
@@ -431,10 +462,9 @@ async function syncDatabase(targetClient, targetStatus, entries, databaseLabel) 
               skipDuplicates: true
             });
           }
-          for (const item of employees) {
-            await tx.employeeProfile.upsert({
-              where: { id: text(item.id) },
-              create: {
+          if (employees.length) {
+            await tx.employeeProfile.createMany({
+              data: employees.map((item) => ({
                 id: text(item.id),
                 userId: optionalText(item.userId),
                 fullName: text(item.fullName),
@@ -448,20 +478,21 @@ async function syncDatabase(targetClient, targetStatus, entries, databaseLabel) 
                 active: item.active !== false,
                 folders: item.folders || void 0,
                 createdAt: date(item.createdAt)
-              },
-              update: {
-                userId: optionalText(item.userId),
-                fullName: text(item.fullName),
-                position: text(item.position),
-                office: text(item.office),
-                officeType: text(item.officeType, "BLGF"),
-                divisionCode: optionalText(item.divisionCode),
-                email: text(item.email),
-                contactNo: optionalText(item.contactNo),
-                address: optionalText(item.address),
-                active: item.active !== false
-              }
+              }))
             });
+          }
+          if (directorySections.length) {
+            try {
+              await tx.directorySection.createMany({
+                data: directorySections.map((item) => ({
+                  id: text(item.id),
+                  label: text(item.label),
+                  officeTypes: item.officeTypes || [],
+                  color: optionalText(item.color)
+                }))
+              });
+            } catch {
+            }
           }
         } finally {
           await tx.$executeRawUnsafe("SET FOREIGN_KEY_CHECKS = 1");
@@ -480,7 +511,8 @@ async function syncDatabase(targetClient, targetStatus, entries, databaseLabel) 
       documentAttachments: attachments.length,
       auditLogs: auditLogs.length,
       envelopeLogs: envelopeLogs.length,
-      employeeProfiles: employees.length
+      employeeProfiles: employees.length,
+      directorySections: directorySections.length
     };
     targetStatus.lastSyncedAt = (/* @__PURE__ */ new Date()).toISOString();
     targetStatus.lastError = null;
@@ -507,7 +539,8 @@ async function loadMySQLState() {
     attachments,
     auditLogs,
     envelopeLogs,
-    employees
+    employees,
+    directorySections
   ] = await Promise.all([
     client.division.findMany(),
     client.user.findMany(),
@@ -516,7 +549,8 @@ async function loadMySQLState() {
     client.documentAttachment.findMany(),
     client.auditLog.findMany({ orderBy: { timestamp: "desc" } }),
     client.envelopeLog.findMany({ orderBy: { timestamp: "desc" } }),
-    client.employeeProfile.findMany()
+    client.employeeProfile.findMany(),
+    client.directorySection.findMany().catch(() => [])
   ]);
   const routesByDocument = /* @__PURE__ */ new Map();
   for (const route of routes) {
@@ -542,11 +576,11 @@ async function loadMySQLState() {
   }));
   const serializedDocuments = documents.map((document) => ({
     ...document,
-    routeNo: document.trackingNumber,
+    routeNo: document.routeNo || document.trackingNumber,
     tags: [],
     routes: (routesByDocument.get(document.id) || []).map((route) => ({
       ...route,
-      routeNo: document.trackingNumber,
+      routeNo: document.routeNo || document.trackingNumber,
       attachments: (attachmentsByRoute.get(route.id) || []).map(({ fileData, ...attachment }) => ({ ...attachment, url: fileData || "" }))
     })),
     attachments: (attachmentsByDocument.get(document.id) || []).map(
@@ -563,7 +597,8 @@ async function loadMySQLState() {
     ["documents", serialize(serializedDocuments)],
     ["audit_logs", serialize(auditLogs)],
     ["envelope_logs", serialize(envelopeLogs)],
-    ["employee_profiles", serialize(employees)]
+    ["employee_profiles", serialize(employees)],
+    ["directory_sections", serialize(directorySections)]
   ];
 }
 async function loadLiveDocuments() {
@@ -593,22 +628,30 @@ async function loadLiveDocuments() {
   }
   return JSON.parse(
     JSON.stringify(
-      documents.map((document) => ({
-        ...document,
-        routeNo: document.trackingNumber,
-        tags: [],
-        routes: (routesByDocument.get(document.id) || []).map((route) => ({
+      documents.map((document) => {
+        const docRoutes = (routesByDocument.get(document.id) || []).map((route) => ({
           ...route,
           routeNo: document.trackingNumber,
           attachments: (attachmentsByRoute.get(route.id) || []).map(({ fileData, ...attachment }) => ({ ...attachment, url: fileData || "" }))
-        })),
-        attachments: (attachmentsByDocument.get(document.id) || []).map(
-          ({ fileData, ...attachment }) => ({
-            ...attachment,
-            url: fileData || ""
-          })
-        )
-      }))
+        }));
+        const completedRoute = [...docRoutes].reverse().find((r) => r.statusAfter === "COMPLETED");
+        const remarks = completedRoute?.remarks || "";
+        const handoffMatch = remarks.match(/Handoff Instructions:\s*(.*)$/is);
+        const finalInstructions = handoffMatch ? handoffMatch[1].trim() : document.finalInstructions;
+        return {
+          ...document,
+          finalInstructions,
+          routeNo: document.trackingNumber,
+          tags: [],
+          routes: docRoutes,
+          attachments: (attachmentsByDocument.get(document.id) || []).map(
+            ({ fileData, ...attachment }) => ({
+              ...attachment,
+              url: fileData || ""
+            })
+          )
+        };
+      })
     )
   );
 }
@@ -824,7 +867,18 @@ async function writeDocument(target, item) {
 }
 async function saveDocumentDirect(document) {
   if (!client || !status.connected) return;
-  await writeDocument(client, document);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await writeDocument(client, document);
+      return;
+    } catch (err) {
+      const isDeadlock = err?.code === "P2034" || /deadlock|write conflict/i.test(err?.message || "");
+      if (attempt === 2 || !isDeadlock) {
+        throw err;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 150 * (attempt + 1)));
+    }
+  }
 }
 async function deleteDocumentDirect(documentId) {
   if (!client || !status.connected) return;
@@ -2250,6 +2304,83 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     await flushDatabaseSync();
     res.json(doc);
   });
+  router.patch("/:id/final-instructions", async (req, res) => {
+    const documentsState2 = getDocumentsState();
+    const docIndex = documentsState2.findIndex((d) => d.id === req.params.id);
+    if (docIndex === -1) {
+      return res.status(404).json({ error: "Document not found" });
+    }
+    const doc = documentsState2[docIndex];
+    const actingUser = getActingUser(req) || (req.body.actingUserId ? findActiveDatabaseUser(String(req.body.actingUserId)) : void 0);
+    if (!actingUser) {
+      return res.status(401).json({ error: "Active database user required." });
+    }
+    const instructions = String(req.body.instructions || "").trim();
+    if (!instructions) {
+      return res.status(400).json({ error: "Instruction cannot be empty." });
+    }
+    const routes = doc.routes ? [...doc.routes] : [];
+    const routeId = req.body.routeId ? String(req.body.routeId) : void 0;
+    if (routeId) {
+      const targetIndex = routes.findIndex((r) => r.id === routeId);
+      if (targetIndex !== -1) {
+        routes[targetIndex] = {
+          ...routes[targetIndex],
+          remarks: `Handoff Instructions: ${instructions}`
+        };
+        doc.routes = routes;
+      }
+    } else {
+      const finalRouteIndex = [...routes].reverse().findIndex((r) => r.statusAfter === "COMPLETED");
+      if (finalRouteIndex !== -1) {
+        const actualIndex = routes.length - 1 - finalRouteIndex;
+        routes[actualIndex] = {
+          ...routes[actualIndex],
+          remarks: `Handoff Instructions: ${instructions}`
+        };
+        doc.routes = routes;
+      } else if (routes.length > 0) {
+        routes[routes.length - 1] = {
+          ...routes[routes.length - 1],
+          remarks: `Handoff Instructions: ${instructions}`
+        };
+        doc.routes = routes;
+      } else {
+        routes.push({
+          id: `route-${randomUUID3()}`,
+          documentId: doc.id,
+          stepNumber: 1,
+          routeNo: doc.routeNo || doc.trackingNumber,
+          fromDivision: actingUser.divisionCode,
+          fromUserId: actingUser.id,
+          fromUser: actingUser.fullName,
+          toDivision: doc.currentDivision || actingUser.divisionCode,
+          actionRequested: "Completed & Finalized",
+          remarks: `Handoff Instructions: ${instructions}`,
+          statusBefore: "COMPLETED",
+          statusAfter: "COMPLETED",
+          createdAt: (/* @__PURE__ */ new Date()).toISOString()
+        });
+        doc.routes = routes;
+      }
+    }
+    doc.finalInstructions = instructions;
+    doc.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+    documentsState2[docIndex] = doc;
+    setDocumentsState(documentsState2);
+    saveDatabaseToFile2(false);
+    const auditLog = addAuditLog(getAuditLogsState(), {
+      userId: actingUser.id,
+      userName: actingUser.fullName,
+      userRole: actingUser.role,
+      action: "UPDATE_STATUS",
+      documentTrackingNumber: doc.trackingNumber,
+      details: `Updated final instructions for ${doc.trackingNumber}: "${instructions}"`,
+      ipAddress: req.ip || "127.0.0.1"
+    }, false);
+    await Promise.all([saveDocumentDirect(doc), saveAuditLogDirect(auditLog)]);
+    res.json({ success: true, document: doc, instructions });
+  });
   router.put("/:id", async (req, res) => {
     const documentsState2 = getDocumentsState();
     const docIndex = documentsState2.findIndex((d) => d.id === req.params.id);
@@ -2339,6 +2470,228 @@ import cors from "cors";
 import dotenv from "dotenv";
 import multer from "multer";
 import nodemailer from "nodemailer";
+
+// backend/pdfGenerator.ts
+function escapePdf(text2) {
+  return String(text2 || "").replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+}
+function generateOfficialPdfBuffer(title, details = {}) {
+  const cleanTitle = escapePdf(title || "BLGF Official Document");
+  const docNo = escapePdf(details.trackingNumber || "BLGF2-OFFICIAL-RECORD");
+  const cat = escapePdf(details.category || "Official Document / Attachment");
+  const dateStr = escapePdf(
+    details.date || (/* @__PURE__ */ new Date()).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    })
+  );
+  const sender = escapePdf(
+    details.sender || "Bureau of Local Government Finance - Regional Office No. II"
+  );
+  const recipient = escapePdf(
+    details.recipient || "All Concerned Offices and Division Units"
+  );
+  const remarks = escapePdf(
+    details.remarks || "Standard document logging and routing compliance."
+  );
+  const status2 = escapePdf(details.status || "VERIFIED & REGISTERED");
+  const stream = `
+0.05 0.23 0.40 rg
+50 715 512 45 re f
+
+1 1 1 rg
+BT
+/F1 13 Tf
+60 742 Td
+(BUREAU OF LOCAL GOVERNMENT FINANCE - REGION II) Tj
+ET
+BT
+/F2 8 Tf
+60 727 Td
+(Department of Finance | Regional Government Center, Carig Sur, Tuguegarao City, Cagayan) Tj
+ET
+
+0.85 0.65 0.13 rg
+50 712 512 3 re f
+
+0.05 0.23 0.40 rg
+BT
+/F1 13 Tf
+50 680 Td
+(${cleanTitle}) Tj
+ET
+
+0.80 0.82 0.85 rg
+50 668 512 1 re f
+
+0.15 0.18 0.22 rg
+BT
+/F1 10 Tf
+50 645 Td
+(DOCUMENT SPECIFICATIONS & TRACKING DETAILS) Tj
+ET
+
+BT
+/F1 9 Tf
+50 622 Td
+(Tracking Number: ) Tj
+/F2 9 Tf
+( ${docNo} ) Tj
+ET
+
+BT
+/F1 9 Tf
+50 604 Td
+(Classification: ) Tj
+/F2 9 Tf
+( ${cat} ) Tj
+ET
+
+BT
+/F1 9 Tf
+50 586 Td
+(Date Logged: ) Tj
+/F2 9 Tf
+( ${dateStr} ) Tj
+ET
+
+BT
+/F1 9 Tf
+50 568 Td
+(Originating Office: ) Tj
+/F2 9 Tf
+( ${sender} ) Tj
+ET
+
+BT
+/F1 9 Tf
+50 550 Td
+(Intended Recipient: ) Tj
+/F2 9 Tf
+( ${recipient} ) Tj
+ET
+
+BT
+/F1 9 Tf
+50 532 Td
+(Action / Remarks: ) Tj
+/F2 9 Tf
+( ${remarks} ) Tj
+ET
+
+0.94 0.96 0.99 rg
+50 365 512 145 re f
+0.15 0.35 0.60 RG
+1 w
+50 365 512 145 re S
+
+0.05 0.23 0.40 rg
+BT
+/F1 11 Tf
+65 482 Td
+(OFFICIAL ATTACHMENT VERIFICATION NOTICE) Tj
+ET
+
+0.20 0.20 0.20 rg
+BT
+/F2 9 Tf
+65 458 Td
+(This digital file serves as an authenticated system attachment under the BLGF Region II) Tj
+ET
+BT
+/F2 9 Tf
+65 442 Td
+(Document Tracking System, preserving the integrity of all routed communications.) Tj
+ET
+BT
+/F2 9 Tf
+65 422 Td
+(Governing Policy: Republic Act No. 12001 - Real Property Valuation and Assessment Reform Act) Tj
+ET
+BT
+/F2 9 Tf
+65 406 Td
+(Administrative Circulars and Regional Guidelines for Local Treasury and Assessment Services.) Tj
+ET
+BT
+/F1 9 Tf
+65 384 Td
+(Authentication Status: ) Tj
+/F2 9 Tf
+( ${status2} ) Tj
+ET
+
+0.80 0.80 0.80 rg
+50 95 512 1 re f
+0.45 0.45 0.45 rg
+BT
+/F2 8 Tf
+50 80 Td
+(Confidential & Official Document - Bureau of Local Government Finance Region II) Tj
+ET
+BT
+/F2 8 Tf
+465 80 Td
+(Page 1 of 1) Tj
+ET
+`;
+  const streamBuf = Buffer.from(stream.trim(), "utf8");
+  const streamLen = streamBuf.length;
+  const header = "%PDF-1.4\n";
+  const obj1 = "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n";
+  const obj2 = "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n";
+  const obj3 = "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>\nendobj\n";
+  const obj4 = "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n";
+  const obj5 = "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n";
+  const obj6Head = `6 0 obj
+<< /Length ${streamLen} >>
+stream
+`;
+  const obj6Tail = "\nendstream\nendobj\n";
+  const parts = [
+    Buffer.from(header, "ascii"),
+    Buffer.from(obj1, "ascii"),
+    Buffer.from(obj2, "ascii"),
+    Buffer.from(obj3, "ascii"),
+    Buffer.from(obj4, "ascii"),
+    Buffer.from(obj5, "ascii"),
+    Buffer.from(obj6Head, "ascii"),
+    streamBuf,
+    Buffer.from(obj6Tail, "ascii")
+  ];
+  let offset = header.length;
+  const offsets = [];
+  offsets.push(offset);
+  offset += obj1.length;
+  offsets.push(offset);
+  offset += obj2.length;
+  offsets.push(offset);
+  offset += obj3.length;
+  offsets.push(offset);
+  offset += obj4.length;
+  offsets.push(offset);
+  offset += obj5.length;
+  offsets.push(offset);
+  const preStreamLen = header.length + obj1.length + obj2.length + obj3.length + obj4.length + obj5.length + obj6Head.length + streamLen + obj6Tail.length;
+  let xref = `xref
+0 7
+0000000000 65535 f \r
+`;
+  for (let i = 0; i < 6; i++) {
+    xref += String(offsets[i]).padStart(10, "0") + " 00000 n \r\n";
+  }
+  xref += `trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+${preStreamLen}
+%%EOF
+`;
+  parts.push(Buffer.from(xref, "ascii"));
+  return Buffer.concat(parts);
+}
+
+// backend/server.ts
 dotenv.config({ quiet: true });
 var DEFAULT_PORT = 3001;
 var PORT = Number(process.env.PORT || DEFAULT_PORT);
@@ -2404,6 +2757,22 @@ var auditLogsState = [];
 var envelopeLogsState = [];
 var notificationsState = [];
 var employeesState = [];
+var DEFAULT_DIRECTORY_SECTIONS = [
+  { id: "BLGF", label: "BLGF Personnel", officeTypes: ["BLGF"], color: "blue" },
+  {
+    id: "LGU_STAFF",
+    label: "LGU Staff",
+    officeTypes: ["PROVINCIAL_TREASURER", "MUNICIPAL_TREASURER", "LGU"],
+    color: "emerald"
+  },
+  {
+    id: "OTHER_AGENCIES",
+    label: "Other Agencies",
+    officeTypes: ["OTHER_AGENCIES"],
+    color: "amber"
+  }
+];
+var directorySectionsState = DEFAULT_DIRECTORY_SECTIONS;
 var RESERVED_SYSTEM_ADMIN = {
   id: "usr-1785138104157",
   username: "tom",
@@ -2458,6 +2827,58 @@ function ensureStorageDirectories() {
     (category) => fs.mkdirSync(path.join(RECORDS_ROOT_DIR, category), { recursive: true })
   );
 }
+function ensureSeededAttachmentsExist() {
+  try {
+    const logoPath = path.join(process.cwd(), "frontend", "public", "blgflogo.jpg");
+    const logoBuffer = fs.existsSync(logoPath) ? fs.readFileSync(logoPath) : Buffer.from("");
+    const allAttachments = [];
+    for (const doc of documentsState) {
+      for (const att of doc.attachments || []) {
+        allAttachments.push({ ...att, doc });
+      }
+      for (const route of doc.routes || []) {
+        for (const att of route.attachments || []) {
+          allAttachments.push({ ...att, doc });
+        }
+      }
+    }
+    for (const item of allAttachments) {
+      const rawUrl = item.url || "";
+      const rawFileName = rawUrl.split("/").pop() || "";
+      if (!rawFileName) continue;
+      const decodedFileName = decodeURIComponent(rawFileName);
+      const fileNamesToEnsure = /* @__PURE__ */ new Set([rawFileName, decodedFileName]);
+      for (const fileName of fileNamesToEnsure) {
+        if (!fileName) continue;
+        const targetPath = path.join(STORAGE_DIRECTORIES.documentAttachments, fileName);
+        if (fs.existsSync(targetPath)) continue;
+        if (fileName.toLowerCase().endsWith(".pdf")) {
+          const doc = item.doc;
+          const pdfBuf = generateOfficialPdfBuffer(item.fileName || fileName.replace(/^\d+_/, ""), {
+            trackingNumber: doc?.trackingNumber || "BLGF2-OFFICIAL-RECORD",
+            category: doc?.category || "Official Document",
+            date: doc?.createdAt ? new Date(doc.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : void 0,
+            sender: doc?.originatingOffice || doc?.senderName || "Bureau of Local Government Finance - Regional Office No. II",
+            recipient: doc?.destinationOffice || doc?.recipientName || "All Concerned Personnel & Stakeholders",
+            remarks: doc?.subject || "Implementation of Republic Act No. 12001 - Approved",
+            status: "VERIFIED & AUTHENTICATED SYSTEM ATTACHMENT"
+          });
+          try {
+            fs.writeFileSync(targetPath, pdfBuf);
+          } catch {
+          }
+        } else if (fileName.toLowerCase().match(/\.(jpe?g|png)$/)) {
+          try {
+            fs.writeFileSync(targetPath, logoBuffer);
+          } catch {
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[STORAGE] ensureSeededAttachmentsExist notice:", err);
+  }
+}
 var recordUpload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, callback) => {
@@ -2482,6 +2903,7 @@ function initDatabaseStorage() {
     envelopeLogsState = [];
     notificationsState = [];
     employeesState = [];
+    directorySectionsState = [...DEFAULT_DIRECTORY_SECTIONS];
     return;
   }
   if (!fs.existsSync(DATA_DIR)) {
@@ -2521,6 +2943,7 @@ function initDatabaseStorage() {
       notificationsState = data.notifications || [];
       repairInitialRouteRecipients();
       employeesState = data.employees || [];
+      directorySectionsState = data.directorySections || DEFAULT_DIRECTORY_SECTIONS;
       console.log("Loaded local recovery snapshot before MySQL initialization:", DB_FILE);
     } catch (err) {
       console.error(
@@ -2548,6 +2971,7 @@ function applyDatabaseState(entries) {
   envelopeLogsState = use("envelope_logs", envelopeLogsState);
   notificationsState = use("notifications", notificationsState);
   employeesState = use("employee_profiles", employeesState);
+  directorySectionsState = use("directory_sections", directorySectionsState);
 }
 function getDatabaseStateEntries() {
   return [
@@ -2557,7 +2981,8 @@ function getDatabaseStateEntries() {
     ["audit_logs", auditLogsState],
     ["envelope_logs", envelopeLogsState],
     ["notifications", notificationsState],
-    ["employee_profiles", employeesState]
+    ["employee_profiles", employeesState],
+    ["directory_sections", directorySectionsState]
   ];
 }
 function queueDatabaseSync() {
@@ -2580,17 +3005,64 @@ async function flushDatabaseSync() {
   await mysqlSyncQueue;
 }
 function syncEmployeeProfileFromUser(user, persist = true) {
-  let existingIndex = employeesState.findIndex(
-    (employee) => employee.userId === user.id
-  );
-  if (existingIndex < 0) {
-    existingIndex = employeesState.findIndex(
-      (employee) => !employee.userId && employee.officeType === "BLGF" && employee.fullName.trim().toLowerCase() === user.fullName.trim().toLowerCase()
-    );
+  const matchingIndices = [];
+  employeesState.forEach((emp, index) => {
+    if (emp.userId === user.id) {
+      matchingIndices.push(index);
+    } else if (!emp.userId && emp.officeType === "BLGF" && emp.fullName.trim().toLowerCase() === user.fullName.trim().toLowerCase()) {
+      matchingIndices.push(index);
+    }
+  });
+  const matchingProfiles = matchingIndices.map((i) => employeesState[i]);
+  const primaryExisting = matchingProfiles[0];
+  const empId = primaryExisting?.id || `emp-${user.id}`;
+  const allExistingFolders = [];
+  const seenFolderNames = /* @__PURE__ */ new Set();
+  for (const p of matchingProfiles) {
+    for (const raw of p.folders || []) {
+      if (!raw) continue;
+      const rawStr = typeof raw === "string" ? raw : null;
+      const f = rawStr !== null ? {
+        id: rawStr,
+        name: rawStr.startsWith("fld-auto-") ? "Personnel Records" : rawStr,
+        employeeId: empId,
+        userId: user.id,
+        systemManaged: rawStr.startsWith("fld-auto-"),
+        fileCount: 0,
+        createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+        files: []
+      } : raw;
+      const folderName = f.name || f.id || "Folder";
+      const key = folderName.toLowerCase();
+      if (!seenFolderNames.has(key)) {
+        seenFolderNames.add(key);
+        allExistingFolders.push(f);
+      }
+    }
   }
-  const existing = existingIndex >= 0 ? employeesState[existingIndex] : void 0;
+  const autoFolderId = `fld-auto-${user.id}`;
+  const otherFolders = allExistingFolders.filter(
+    (folder) => folder.id !== autoFolderId && folder.userId !== user.id
+  );
+  const autoFolder = allExistingFolders.find(
+    (folder) => folder.id === autoFolderId || folder.userId === user.id
+  );
+  const folders = [
+    {
+      id: autoFolderId,
+      name: "Personnel Records",
+      description: `Automatically created static personnel records folder for ${user.fullName}.`,
+      employeeId: empId,
+      userId: user.id,
+      systemManaged: true,
+      fileCount: autoFolder?.files?.length || 0,
+      createdAt: user.createdAt || (/* @__PURE__ */ new Date()).toISOString(),
+      files: autoFolder?.files || []
+    },
+    ...otherFolders
+  ];
   const profile = {
-    id: existing?.id || `emp-${user.id}`,
+    id: empId,
     userId: user.id,
     fullName: user.fullName,
     position: user.designation || user.role,
@@ -2599,16 +3071,25 @@ function syncEmployeeProfileFromUser(user, persist = true) {
     divisionCode: user.divisionCode,
     email: user.email || "N/A",
     contactNo: user.contactNo || "",
-    address: existing?.address || "Regional Government Center, Carig Sur, Tuguegarao City",
+    address: primaryExisting?.address || "Regional Government Center, Carig Sur, Tuguegarao City",
     active: user.active,
-    createdAt: existing?.createdAt || user.createdAt,
-    folders: existing?.folders || []
+    createdAt: primaryExisting?.createdAt || user.createdAt,
+    folders
   };
-  if (existingIndex >= 0) employeesState[existingIndex] = profile;
-  else employeesState.push(profile);
+  if (matchingIndices.length > 0) {
+    const keepIndex = matchingIndices[0];
+    const removeSet = new Set(matchingIndices.slice(1));
+    employeesState[keepIndex] = profile;
+    employeesState = employeesState.filter((_, idx) => !removeSet.has(idx));
+  } else {
+    employeesState.push(profile);
+  }
   if (persist) saveDatabaseToFile();
 }
 function ensureUserEmployeeProfiles() {
+  employeesState = employeesState.filter(
+    (emp) => emp.id !== "emp-1785138157086" && emp.id !== "emp-1785138202454"
+  );
   for (const user of usersState) syncEmployeeProfileFromUser(user, false);
   saveDatabaseToFile();
 }
@@ -2655,6 +3136,7 @@ function resetDatabaseToDefault() {
   envelopeLogsState = [];
   notificationsState = [];
   employeesState = [];
+  directorySectionsState = [...DEFAULT_DIRECTORY_SECTIONS];
   saveDatabaseToFile();
 }
 function saveDatabaseToFile(queueSync = true) {
@@ -2670,7 +3152,8 @@ function saveDatabaseToFile(queueSync = true) {
       documents: documentsState,
       auditLogs: auditLogsState,
       notifications: notificationsState,
-      employees: employeesState
+      employees: employeesState,
+      directorySections: directorySectionsState
     };
     const serialized = JSON.stringify(payload, null, 2).replace(/\u0410/g, "A").replace(/\u2014/g, "-");
     fs.writeFileSync(DB_FILE, serialized, "utf-8");
@@ -2715,6 +3198,7 @@ async function createApp() {
   }
   await ensureReservedSystemAdministrator();
   ensureUserEmployeeProfiles();
+  ensureSeededAttachmentsExist();
   const initialSyncSucceeded = mysqlConnected;
   if (process.argv.includes("--sync-only")) {
     if (initialSyncSucceeded) {
@@ -2805,22 +3289,81 @@ async function createApp() {
     if (!Object.prototype.hasOwnProperty.call(STORAGE_DIRECTORIES, kind)) {
       return res.status(400).json({ error: "Invalid storage type." });
     }
-    const fileName = path.basename(req.params.fileName);
-    const target = path.join(STORAGE_DIRECTORIES[kind], fileName);
+    const rawFileName = req.params.fileName;
+    const decodedFileName = decodeURIComponent(rawFileName);
+    const baseName = path.basename(decodedFileName);
+    const rawBaseName = path.basename(rawFileName);
+    const target = path.join(STORAGE_DIRECTORIES[kind], baseName);
+    const rawTarget = path.join(STORAGE_DIRECTORIES[kind], rawBaseName);
     if (fs.existsSync(target)) {
       return res.sendFile(target);
     }
-    const attachment = documentsState.flatMap((document) => document.attachments || []).find((candidate) => {
-      const candidateName = decodeURIComponent(
-        (candidate.url || "").split("/").pop() || ""
-      );
-      return candidateName === fileName && Boolean(candidate.fileData);
+    if (fs.existsSync(rawTarget)) {
+      return res.sendFile(rawTarget);
+    }
+    const allAttachments = documentsState.flatMap((document) => [
+      ...(document.attachments || []).map((candidate) => ({ ...candidate, doc: document })),
+      ...(document.routes || []).flatMap(
+        (route) => (route.attachments || []).map((candidate) => ({ ...candidate, doc: document }))
+      )
+    ]);
+    const matching = allAttachments.find((candidate) => {
+      const candidateUrl = candidate.url || "";
+      const candidateName = decodeURIComponent(candidateUrl.split("/").pop() || "");
+      const rawCandidateName = candidateUrl.split("/").pop() || "";
+      return candidateName === baseName || rawCandidateName === rawBaseName || candidate.fileName === baseName || candidate.fileName === rawBaseName;
     });
-    if (attachment?.fileData) {
-      const mimeType = attachment.fileType || "application/octet-stream";
-      res.setHeader("Content-Type", mimeType);
-      res.setHeader("Content-Disposition", `inline; filename="${fileName}"`);
-      return res.send(Buffer.from(attachment.fileData, "base64"));
+    if (matching?.fileData && !matching.fileData.startsWith("/") && !matching.fileData.startsWith("http")) {
+      try {
+        const mimeType = matching.fileType || (baseName.endsWith(".pdf") ? "application/pdf" : "application/octet-stream");
+        const buffer = Buffer.from(matching.fileData, "base64");
+        try {
+          fs.writeFileSync(target, buffer);
+        } catch {
+        }
+        res.setHeader("Content-Type", mimeType);
+        res.setHeader("Content-Disposition", `inline; filename="${baseName}"`);
+        return res.send(buffer);
+      } catch (err) {
+        console.error("[STORAGE] Error decoding base64 attachment:", err);
+      }
+    }
+    if (kind === "documentAttachments" && (baseName.toLowerCase().endsWith(".pdf") || rawBaseName.toLowerCase().endsWith(".pdf"))) {
+      const doc = matching?.doc;
+      const pdfTitle = matching?.fileName || baseName.replace(/^\d+_/, "").replace(/\.pdf$/i, "");
+      const pdfBuf = generateOfficialPdfBuffer(pdfTitle, {
+        trackingNumber: doc?.trackingNumber || "BLGF2-OFFICIAL-RECORD",
+        category: doc?.category || "Official Document",
+        date: doc?.createdAt ? new Date(doc.createdAt).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric"
+        }) : void 0,
+        sender: doc?.originatingOffice || doc?.senderName || "Bureau of Local Government Finance - Regional Office No. II",
+        recipient: doc?.destinationOffice || doc?.recipientName || "All Concerned Offices & Stakeholders",
+        remarks: doc?.subject || "Official document attachment logged in BLGF Region II system.",
+        status: "VERIFIED & AUTHENTICATED SYSTEM ATTACHMENT"
+      });
+      try {
+        fs.mkdirSync(STORAGE_DIRECTORIES[kind], { recursive: true });
+        fs.writeFileSync(target, pdfBuf);
+        if (rawTarget !== target) fs.writeFileSync(rawTarget, pdfBuf);
+      } catch {
+      }
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="${baseName}"`);
+      return res.send(pdfBuf);
+    }
+    if (baseName.toLowerCase().match(/\.(jpe?g|png|webp|gif)$/) || rawBaseName.toLowerCase().match(/\.(jpe?g|png|webp|gif)$/)) {
+      const logoPath = path.join(process.cwd(), "frontend", "public", "blgflogo.jpg");
+      if (fs.existsSync(logoPath)) {
+        try {
+          fs.mkdirSync(STORAGE_DIRECTORIES[kind], { recursive: true });
+          fs.copyFileSync(logoPath, target);
+        } catch {
+        }
+        return res.sendFile(logoPath);
+      }
     }
     return res.status(404).json({ error: "Stored file not found." });
   });
@@ -3668,6 +4211,16 @@ async function createApp() {
       return res.status(403).json({ error: "Personnel management permission required." });
     }
     employeesState[idx] = { ...employeesState[idx], ...req.body };
+    if (employeesState[idx].userId && !folderOnlyUpdate && actingUser?.role === "SYSTEM_ADMIN") {
+      const uIdx = usersState.findIndex((u) => u.id === employeesState[idx].userId);
+      if (uIdx >= 0) {
+        if (req.body.fullName) usersState[uIdx].fullName = req.body.fullName;
+        if (req.body.position) usersState[uIdx].designation = req.body.position;
+        if (req.body.contactNo !== void 0) usersState[uIdx].contactNo = req.body.contactNo;
+        if (req.body.divisionCode) usersState[uIdx].divisionCode = req.body.divisionCode;
+        void saveUserDirect(usersState[uIdx]).catch(() => null);
+      }
+    }
     saveDatabaseToFile();
     res.json(employeesState[idx]);
   });
@@ -3678,10 +4231,36 @@ async function createApp() {
     const idx = employeesState.findIndex((e) => e.id === req.params.id);
     if (idx === -1)
       return res.status(404).json({ error: "Employee not found" });
+    if (employeesState[idx].userId) {
+      return res.status(400).json({
+        error: "Cannot delete static personnel linked to an active User Account. Only manually added personnel in Office Directory can be deleted."
+      });
+    }
     employeesState.splice(idx, 1);
     saveDatabaseToFile();
     res.json({ success: true, message: "Employee deleted" });
   });
+  app.get("/api/directory-sections", (_req, res) => {
+    if (!directorySectionsState || directorySectionsState.length === 0) {
+      directorySectionsState = [...DEFAULT_DIRECTORY_SECTIONS];
+    }
+    res.json(directorySectionsState);
+  });
+  const handleSaveSections = (req, res) => {
+    const actingUser = getRequestUser(req);
+    if (!actingUser || actingUser.role !== "SYSTEM_ADMIN" && !canManageEmployees(req)) {
+      return res.status(403).json({ error: "Permission denied to modify directory sections." });
+    }
+    const nextSections = Array.isArray(req.body) ? req.body : req.body?.sections;
+    if (!Array.isArray(nextSections) || nextSections.length === 0) {
+      return res.status(400).json({ error: "Invalid directory sections format." });
+    }
+    directorySectionsState = nextSections;
+    saveDatabaseToFile();
+    res.json({ success: true, directorySections: directorySectionsState });
+  };
+  app.post("/api/directory-sections", handleSaveSections);
+  app.put("/api/directory-sections", handleSaveSections);
   app.use("/api", (_req, res) => {
     res.status(404).json({ error: "API endpoint not found." });
   });
