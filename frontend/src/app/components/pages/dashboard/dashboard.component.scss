@@ -24,18 +24,6 @@
   }
 }
 
-.workload-chart-container {
-  min-height: 240px;
-}
-
-.workload-bar {
-  transition: height 400ms cubic-bezier(0.16, 1, 0.3, 1), transform 200ms ease, filter 200ms ease;
-
-  &:hover {
-    filter: brightness(1.2);
-    transform: translateY(-2px);
-  }
-}
 
 .dashboard-transactions-table {
   min-width: 980px;

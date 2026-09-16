@@ -113,8 +113,12 @@ export class DashboardComponent implements OnChanges {
   readonly divisionNames: Record<string, string> = {
     ORD: 'Office of the Regional Director',
     AD: 'Administrative Division',
+    FD: 'Financial Division',
+    LU: 'Legal Division / Unit',
+    LAOD: 'Local Assessment Operations Division',
+    LTOD: 'Local Treasury Operations Division',
+    ITMS: 'Information Technology Management System',
     MRD: 'Municipal Operations Review Division',
-    ITMS: 'Information Technology Management',
     LD: 'Legal Division',
     FMD: 'Financial Management Division',
     PFMD: 'Provincial Financial Management Division',
