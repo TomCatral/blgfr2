@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { findPreviousDelivery, hasCompletedPart, getPendingRecipients } from '../frontend/src/utils/routingRecipients.ts';
-import type { DocumentRouteStep } from '../frontend/src/types.ts';
+import { findPreviousDelivery, hasCompletedPart, getPendingRecipients } from '../frontend/src/app/utils/routing-recipients.ts';
+import type { DocumentRouteStep } from '../frontend/src/app/types.ts';
 
 const delivery = { id: 'first', toUserId: 'person-1', toUser: 'Jamie Cruz', toDivision: 'AD', actionRequested: 'For review' } as DocumentRouteStep;
 test('flags a previous delivery even when the recipient name changed', () => {

@@ -54,7 +54,12 @@ model Document {
   destinationOffice    String    @map("destination_office") @db.VarChar(255)
   senderName           String?   @map("sender_name") @db.VarChar(150)
   senderPosition       String?   @map("sender_position") @db.VarChar(150)
+  senderAddress        String?   @map("sender_address") @db.Text
   recipientName        String?   @map("recipient_name") @db.VarChar(150)
+  recipientPosition    String?   @map("recipient_position") @db.VarChar(150)
+  recipientOffice      String?   @map("recipient_office") @db.VarChar(255)
+  recipientAddress     String?   @map("recipient_address") @db.Text
+  routeNo              String?   @map("route_no") @db.VarChar(100)
   priority              String    @db.VarChar(30)
   currentStatus         String    @map("current_status") @db.VarChar(30)
   currentDivision       String    @map("current_division") @db.VarChar(20)
@@ -165,4 +170,13 @@ model EmployeeProfile {
   userAccount  User?    @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@map("employee_profiles")
+}
+
+model DirectorySection {
+  id          String   @id @db.VarChar(64)
+  label       String   @db.VarChar(255)
+  officeTypes Json     @map("office_types")
+  color       String?  @db.VarChar(50)
+
+  @@map("directory_sections")
 }

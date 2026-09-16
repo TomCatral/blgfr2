@@ -1,6 +1,6 @@
 import express from 'express';
-import { findPreviousDelivery, hasCompletedPart, getPendingRecipients } from '../frontend/src/utils/routingRecipients.js';
-import { isDocumentParticipant } from '../frontend/src/utils/documentVisibility.js';
+import { findPreviousDelivery, hasCompletedPart, getPendingRecipients } from '../frontend/src/app/utils/routing-recipients.js';
+import { isDocumentParticipant } from '../frontend/src/app/utils/document-visibility.js';
 import { randomUUID } from 'node:crypto';
 import {
   addAuditLog,
@@ -23,7 +23,8 @@ import {
   User,
   AuditLog,
   DEFAULT_ROLE_PERMISSIONS,
-} from '../frontend/src/types.js';
+  DivisionCode,
+} from '../frontend/src/app/types.js';
 
 export function createDocumentsRouter(
   getUsersState: () => User[],
@@ -98,7 +99,12 @@ export function createDocumentsRouter(
             user.active &&
             user.fullName.trim().toLowerCase() === toName.toLowerCase(),
         );
-        if (!recipient) return [];
+        const recipientDivision =
+          recipient?.divisionCode ||
+          log.details.match(/\b(?:To Division|Division):\s*([^|]+)/i)?.[1]?.trim() ||
+          document.currentDivision;
+        const recipientName = recipient?.fullName || toName;
+        const recipientId = recipient?.id;
         const actionRequested =
           log.details.match(/Action:\s*(.*?)(?:\s*\|\s*Remarks:|$)/i)?.[1] ||
           'Appropriate Action';
@@ -107,9 +113,9 @@ export function createDocumentsRouter(
             (route.fromUserId === log.userId ||
               route.fromUser.trim().toLowerCase() ===
                 log.userName.trim().toLowerCase()) &&
-            (route.toUserId === recipient.id ||
+            ((recipientId && route.toUserId === recipientId) ||
               route.toUser?.trim().toLowerCase() ===
-                recipient.fullName.trim().toLowerCase()) &&
+                recipientName.trim().toLowerCase()) &&
             route.actionRequested.trim().toLowerCase() ===
               actionRequested.trim().toLowerCase() &&
             Math.abs(
@@ -130,9 +136,9 @@ export function createDocumentsRouter(
           fromDivision: sender?.divisionCode || document.currentDivision,
           fromUserId: log.userId,
           fromUser: log.userName,
-          toDivision: recipient.divisionCode,
-          toUserId: recipient.id,
-          toUser: recipient.fullName,
+          toDivision: recipientDivision as DivisionCode,
+          toUserId: recipientId,
+          toUser: recipientName,
           actionRequested,
           remarks:
             log.details.match(/Remarks:\s*(.*?)(?:\s*\|\s*Status:|$)/i)?.[1] ||
@@ -148,52 +154,7 @@ export function createDocumentsRouter(
       : document;
   };
 
-  const hideSystemAdministratorFromTransactions = (document: DocumentRecord) => {
-    const administrators = getUsersState().filter(
-      (user) => user.role === 'SYSTEM_ADMIN',
-    );
-    const administratorIds = new Set(administrators.map((user) => user.id));
-    const administratorNames = new Set(
-      administrators.map((user) => user.fullName.trim().toLowerCase()),
-    );
-    const isAdministratorName = (name?: string) =>
-      Boolean(name && administratorNames.has(name.trim().toLowerCase()));
-
-    return {
-      ...document,
-      createdBy: isAdministratorName(document.createdBy)
-        ? 'System Administration'
-        : document.createdBy,
-      createdByUserId: administratorIds.has(document.createdByUserId || '')
-        ? undefined
-        : document.createdByUserId,
-      recipientName: isAdministratorName(document.recipientName)
-        ? ''
-        : document.recipientName,
-      assignedUser: isAdministratorName(document.assignedUser)
-        ? undefined
-        : document.assignedUser,
-      assignedUserId: administratorIds.has(document.assignedUserId || '')
-        ? undefined
-        : document.assignedUserId,
-      routes: (document.routes || [])
-        .filter(
-          (route) =>
-            !administratorIds.has(route.toUserId || '') &&
-            !isAdministratorName(route.toUser),
-        )
-        .map((route) =>
-          administratorIds.has(route.fromUserId || '') ||
-          isAdministratorName(route.fromUser)
-            ? {
-                ...route,
-                fromUserId: undefined,
-                fromUser: 'System Administration',
-              }
-            : route,
-        ),
-    };
-  };
+  const hideSystemAdministratorFromTransactions = (document: DocumentRecord) => document;
 
   // GET Documents (with search & filters)
   router.get('/', async (req, res) => {
@@ -1242,6 +1203,86 @@ export function createDocumentsRouter(
 
     await flushDatabaseSync();
     res.json(doc);
+  });
+
+  // PATCH Update Final Handoff Instructions for completed document
+  router.patch('/:id/final-instructions', async (req, res) => {
+    const documentsState = getDocumentsState();
+    const docIndex = documentsState.findIndex((d) => d.id === req.params.id);
+    if (docIndex === -1) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const doc = documentsState[docIndex];
+    const actingUser =
+      getActingUser(req) ||
+      (req.body.actingUserId
+        ? findActiveDatabaseUser(String(req.body.actingUserId))
+        : undefined);
+    if (!actingUser) {
+      return res.status(401).json({ error: 'Active database user required.' });
+    }
+
+    const instructions = String(req.body.instructions || '').trim();
+    if (!instructions) {
+      return res.status(400).json({ error: 'Instruction cannot be empty.' });
+    }
+
+    // Update the final completed route if one exists, or latest route, or synthesize completion route
+    const routes = doc.routes ? [...doc.routes] : [];
+    const finalRouteIndex = [...routes].reverse().findIndex((r) => r.statusAfter === 'COMPLETED');
+
+    if (finalRouteIndex !== -1) {
+      const actualIndex = routes.length - 1 - finalRouteIndex;
+      routes[actualIndex] = {
+        ...routes[actualIndex],
+        remarks: `Handoff Instructions: ${instructions}`,
+      };
+      doc.routes = routes;
+    } else if (routes.length > 0) {
+      routes[routes.length - 1] = {
+        ...routes[routes.length - 1],
+        remarks: `Handoff Instructions: ${instructions}`,
+      };
+      doc.routes = routes;
+    } else {
+      routes.push({
+        id: `route-${randomUUID()}`,
+        documentId: doc.id,
+        stepNumber: 1,
+        routeNo: doc.routeNo || doc.trackingNumber,
+        fromDivision: actingUser.divisionCode,
+        fromUserId: actingUser.id,
+        fromUser: actingUser.fullName,
+        toDivision: doc.currentDivision || actingUser.divisionCode,
+        actionRequested: 'Completed & Finalized',
+        remarks: `Handoff Instructions: ${instructions}`,
+        statusBefore: 'COMPLETED',
+        statusAfter: 'COMPLETED',
+        createdAt: new Date().toISOString(),
+      });
+      doc.routes = routes;
+    }
+
+    doc.finalInstructions = instructions;
+    doc.updatedAt = new Date().toISOString();
+
+    documentsState[docIndex] = doc;
+    setDocumentsState(documentsState);
+    saveDatabaseToFile(false);
+
+    const auditLog = addAuditLog(getAuditLogsState(), {
+      userId: actingUser.id,
+      userName: actingUser.fullName,
+      userRole: actingUser.role,
+      action: 'UPDATE_STATUS',
+      documentTrackingNumber: doc.trackingNumber,
+      details: `Updated final instructions for ${doc.trackingNumber}: "${instructions}"`,
+      ipAddress: req.ip || '127.0.0.1',
+    }, false);
+
+    await Promise.all([saveDocumentDirect(doc), saveAuditLogDirect(auditLog)]);
+    res.json({ success: true, document: doc, instructions });
   });
 
   // PUT Update Document Status / Details

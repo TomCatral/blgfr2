@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isDocumentParticipant } from '../frontend/src/utils/documentVisibility.ts';
-import type { DocumentRecord, User } from '../frontend/src/types.ts';
+import { isDocumentParticipant } from '../frontend/src/app/utils/document-visibility.ts';
+import type { DocumentRecord, User } from '../frontend/src/app/types.ts';
 
 const user = { id: 'router-1', fullName: 'Juan Router' } as User;
 const document = {

@@ -1,0 +1,154 @@
+<div class="login-page">
+  <button
+    type="button"
+    class="login-theme-toggle"
+    [title]="session.isDarkMode() ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+    (click)="session.toggleDarkMode()"
+  >
+    <ion-icon [name]="session.isDarkMode() ? 'sunny' : 'moon'"></ion-icon>
+  </button>
+
+  <!-- Modern ambient light mesh background -->
+  <div class="login-glow-1" aria-hidden="true"></div>
+  <div class="login-glow-2" aria-hidden="true"></div>
+  <div class="login-glow-3" aria-hidden="true"></div>
+
+  <div class="login-card">
+    <!-- Modern Header with Department Seal -->
+    <div class="login-header">
+      <div class="login-header-glow" aria-hidden="true"></div>
+      
+      <div class="login-seal-container">
+        <img src="/blgflogo.jpg" alt="BLGF Region II Seal" class="login-seal-img" />
+      </div>
+      
+      <h1 class="login-title">BUREAU OF LOCAL GOVERNMENT FINANCE</h1>
+      <p class="login-subtitle">Regional Office No. II &bull; DTS</p>
+    </div>
+
+    <div class="login-prompt">
+      Sign in with your official account to access document tracking
+    </div>
+
+    @if (errorMsg) {
+      <div class="login-alert login-alert-error">
+        <ion-icon name="alert-circle"></ion-icon>
+        <span>{{ errorMsg }}</span>
+      </div>
+    }
+    @if (successMsg) {
+      <div class="login-alert login-alert-success">
+        <ion-icon name="checkmark-circle"></ion-icon>
+        <span>{{ successMsg }}</span>
+      </div>
+    }
+
+    @if (showForgotPassword) {
+      <form class="login-form" (ngSubmit)="handleForgotPassword()">
+        <label class="login-field">
+          <span class="login-label">Administrator Username or Email</span>
+          <div class="login-input-wrap">
+            <span class="login-input-icon">
+              <ion-icon name="key"></ion-icon>
+            </span>
+            <input
+              type="text"
+              required
+              autoFocus
+              [(ngModel)]="resetIdentifier"
+              name="resetIdentifier"
+              placeholder="Enter administrator username or email"
+              class="login-input"
+            />
+          </div>
+          <span class="login-field-hint">A temporary recovery code will be dispatched to the verified email.</span>
+        </label>
+        <button
+          type="submit"
+          [disabled]="loading"
+          class="login-btn-primary"
+        >
+          @if (loading) {
+            <span class="login-spinner"></span>
+            <span>Sending Recovery Email...</span>
+          } @else {
+            <ion-icon name="mail"></ion-icon>
+            <span>Email Recovery Password</span>
+          }
+        </button>
+        <button type="button" class="login-btn-link" (click)="backToSignIn()">
+          &larr; Back to Sign In
+        </button>
+      </form>
+    } @else {
+      <form class="login-form" (ngSubmit)="handleSubmit()">
+        <label class="login-field">
+          <span class="login-label">Username</span>
+          <div class="login-input-wrap">
+            <span class="login-input-icon">
+              <ion-icon name="person"></ion-icon>
+            </span>
+            <input
+              type="text"
+              required
+              autoFocus
+              autocomplete="username"
+              [(ngModel)]="username"
+              name="username"
+              placeholder="Enter your username"
+              class="login-input"
+            />
+          </div>
+        </label>
+
+        <label class="login-field">
+          <span class="login-label">Password</span>
+          <div class="login-input-wrap">
+            <span class="login-input-icon">
+              <ion-icon name="lock-closed"></ion-icon>
+            </span>
+            <input
+              [type]="showPassword ? 'text' : 'password'"
+              required
+              autocomplete="current-password"
+              [(ngModel)]="password"
+              name="password"
+              placeholder="Enter your account password"
+              class="login-input has-toggle"
+            />
+            <button
+              type="button"
+              class="login-toggle-pw"
+              [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+              (click)="showPassword = !showPassword"
+            >
+              <ion-icon [name]="showPassword ? 'eye-off' : 'eye'"></ion-icon>
+            </button>
+          </div>
+        </label>
+
+        <button
+          type="submit"
+          [disabled]="loading"
+          class="login-btn-primary"
+        >
+          @if (loading) {
+            <span class="login-spinner"></span>
+            <span>Authenticating Credentials...</span>
+          } @else {
+            <ion-icon name="log-in"></ion-icon>
+            <span>Sign In to System</span>
+          }
+        </button>
+
+        <button type="button" class="login-btn-link" (click)="openForgotPassword()">
+          Forgot administrator password?
+        </button>
+      </form>
+    }
+
+    <footer class="login-footer">
+      Official Records & Tracking Portal &bull; Region II
+    </footer>
+  </div>
+</div>

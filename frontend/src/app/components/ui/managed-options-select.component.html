@@ -1,0 +1,81 @@
+
+    <div class="managed-select-container">
+      <select
+        class="managed-select-select"
+        [class.managed-select-alignLeft]="textAlign === 'left'"
+        [class.managed-select-alignRight]="textAlign === 'right'"
+        [value]="value"
+        [required]="required"
+        (change)="handleChange($event)"
+      >
+        <option
+          *ngFor="let option of managedOptions; let index = index"
+          [value]="option.value"
+        >
+          @if (colorCoding) {
+            {{ option.colorDot || COLOR_DOTS[index % COLOR_DOTS.length] }}
+            {{ option.label }}
+          } @else {
+            {{ option.label }}
+          }
+        </option>
+      </select>
+
+      @if (canManageOptions) {
+        <button
+          type="button"
+          aria-label="Add option"
+          class="managed-select-actionButton managed-select-addButton"
+          (click)="addOption()"
+        >
+          <ion-icon name="add"></ion-icon>
+        </button>
+
+        <button
+          type="button"
+          aria-label="Edit selected option"
+          class="managed-select-actionButton managed-select-editButton"
+          (click)="editOption()"
+        >
+          <ion-icon name="create"></ion-icon>
+        </button>
+
+        <div class="managed-select-paletteContainer">
+          @if (colorCoding) {
+            <button
+              type="button"
+              aria-label="Choose selected color"
+              class="managed-select-actionButton managed-select-paletteButton"
+              (click)="showPalette = !showPalette"
+            >
+              <ion-icon name="color-palette"></ion-icon>
+            </button>
+            @if (showPalette) {
+              <div class="managed-select-palette">
+                @for (dot of COLOR_DOTS; track dot) {
+                  <button
+                    type="button"
+                    [attr.aria-label]="'Use ' + dot + ' color'"
+                    class="managed-select-colorButton"
+                    (click)="setSelectedColor(dot)"
+                  >
+                    {{ dot }}
+                  </button>
+                }
+              </div>
+            }
+          }
+        </div>
+
+        <button
+          type="button"
+          aria-label="Delete selected option"
+          class="managed-select-actionButton managed-select-deleteButton"
+          [disabled]="managedOptions.length <= 1"
+          (click)="deleteOption()"
+        >
+          <ion-icon name="trash"></ion-icon>
+        </button>
+      }
+    </div>
+  

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isRoutingPopupSnoozed, routingPopupSnoozeKey, ROUTING_POPUP_SNOOZE_MS } from '../frontend/src/utils/routingPopupSnooze.ts';
+import { isRoutingPopupSnoozed, routingPopupSnoozeKey, ROUTING_POPUP_SNOOZE_MS } from '../frontend/src/app/utils/routing-popup-snooze.ts';
 
 test('closing suppresses the same popup for a full 24 hours', () => {
   const closedAt = 1_000_000;

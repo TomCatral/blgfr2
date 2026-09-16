@@ -1,0 +1,1008 @@
+<div class="envelope-studio-page">
+  <!-- Top Command Toolbar -->
+  <header class="studio-header">
+    <div class="studio-header-identity">
+      <button type="button" (click)="onBack()" class="btn-studio-back" title="Go back">
+        <ion-icon name="arrow-back" class="icon-std"></ion-icon>
+      </button>
+      <div class="studio-titles">
+        <div class="title-row">
+          <h1 class="studio-main-title">
+            <span class="icon-badge"><ion-icon name="mail" class="icon-accent"></ion-icon></span>
+            Outgoing Envelope Studio
+          </h1>
+          <!-- Linked Document Chip / Link Button -->
+          @if (activeDoc) {
+            <div class="linked-doc-badge" title="Linked to Document Tracking System">
+              <ion-icon name="link" class="icon-sm text-blue-500"></ion-icon>
+              <span class="linked-badge-label">DTS Doc:</span>
+              <strong class="linked-badge-route">{{ activeDoc.routeNo || activeDoc.trackingNumber }}</strong>
+              <button type="button" (click)="unlinkDocument()" class="btn-unlink-icon" title="Unlink document">
+                <ion-icon name="close" class="icon-xs"></ion-icon>
+              </button>
+            </div>
+          } @else {
+            <button type="button" (click)="openDocPicker()" class="btn-link-doc" title="Link an existing DTS document">
+              <ion-icon name="link-outline" class="icon-sm"></ion-icon>
+              <span>Link DTS Document</span>
+            </button>
+          }
+        </div>
+        <p class="studio-subtitle">
+          @if (activeDoc) {
+            <span>{{ activeDoc.subject || activeDoc.title }} &bull; {{ activeDoc.destinationOffice || 'External Destination' }}</span>
+          } @else {
+            <span>Generate standardized official mailing envelopes &amp; cut-out parcel sheets for BLGF RO2</span>
+          }
+        </p>
+      </div>
+    </div>
+
+    <!-- Toolbar Primary Actions -->
+    <div class="studio-header-actions">
+      <!-- Dispatch Status Badge -->
+      @if (logged) {
+        <div class="status-pill status-pill-success" title="Dispatch audit log has been saved">
+          <ion-icon name="checkmark-circle" class="icon-sm"></ion-icon>
+          <span>Dispatched &amp; Logged</span>
+        </div>
+      } @else {
+        <div class="status-pill status-pill-draft" title="Envelope ready for printing">
+          <ion-icon name="time" class="icon-sm"></ion-icon>
+          <span>Draft / Ready</span>
+        </div>
+      }
+
+      <!-- Templates Button -->
+      <button
+        type="button"
+        (click)="showSaveFormat = !showSaveFormat"
+        class="btn-studio-secondary"
+        title="Manage saved formats"
+      >
+        <ion-icon name="bookmark-outline" class="icon-sm"></ion-icon>
+        <span>Templates</span>
+        @if (savedFormats.length > 0) {
+          <span class="badge-count">{{ savedFormats.length }}</span>
+        }
+      </button>
+
+      <!-- Print Dropdown / Primary Buttons -->
+      <button
+        type="button"
+        (click)="printEnvelopeDirectly()"
+        class="btn-studio-primary"
+        title="Print directly onto envelope paper (#10 or DL size)"
+      >
+        <ion-icon name="print" class="icon-sm"></ion-icon>
+        <span>Print Envelope</span>
+      </button>
+
+      <button
+        type="button"
+        (click)="printFromToCutOut()"
+        class="btn-studio-slate"
+        title="Print half-bond cut-out labels with scissor guidelines"
+      >
+        <ion-icon name="cut-outline" class="icon-sm"></ion-icon>
+        <span>Print FROM/TO</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main 2-Column Grid Studio -->
+  <div class="studio-grid">
+    <!-- LEFT COLUMN: Editor & Form Controls -->
+    <div class="studio-left-column">
+      
+      <!-- Envelope Sizing & Preset Selector Card -->
+      <div class="studio-card size-selector-card">
+        <div class="card-header-compact">
+          <div class="card-header-title">
+            <ion-icon name="settings" class="icon-sm text-indigo-500"></ion-icon>
+            <h3>Envelope Dimensions &amp; Format</h3>
+          </div>
+          <span class="size-chip-active">{{ envelopeDimensions.width }} &times; {{ envelopeDimensions.height }}</span>
+        </div>
+
+        <div class="size-presets-grid">
+          <button
+            type="button"
+            class="preset-card-btn"
+            [class.active]="envelopeSize === 'NO10'"
+            (click)="selectEnvelopeSize('NO10')"
+          >
+            <div class="preset-icon-box">
+              <ion-icon name="mail-outline" class="icon-md"></ion-icon>
+            </div>
+            <div class="preset-info">
+              <span class="preset-name">#10 Standard</span>
+              <span class="preset-specs">9.5 &times; 4.125 in (Business)</span>
+            </div>
+            @if (envelopeSize === 'NO10') {
+              <ion-icon name="checkmark-circle" class="preset-checked-icon"></ion-icon>
+            }
+          </button>
+
+          <button
+            type="button"
+            class="preset-card-btn"
+            [class.active]="envelopeSize === 'DL'"
+            (click)="selectEnvelopeSize('DL')"
+          >
+            <div class="preset-icon-box">
+              <ion-icon name="mail-outline" class="icon-md"></ion-icon>
+            </div>
+            <div class="preset-info">
+              <span class="preset-name">DL International</span>
+              <span class="preset-specs">8.66 &times; 4.33 in (Letter)</span>
+            </div>
+            @if (envelopeSize === 'DL') {
+              <ion-icon name="checkmark-circle" class="preset-checked-icon"></ion-icon>
+            }
+          </button>
+
+          <button
+            type="button"
+            class="preset-card-btn"
+            [class.active]="envelopeSize === 'CUSTOM'"
+            (click)="selectEnvelopeSize('CUSTOM')"
+          >
+            <div class="preset-icon-box">
+              <ion-icon name="options-outline" class="icon-md"></ion-icon>
+            </div>
+            <div class="preset-info">
+              <span class="preset-name">Custom Size</span>
+              <span class="preset-specs">User-defined inches</span>
+            </div>
+            @if (envelopeSize === 'CUSTOM') {
+              <ion-icon name="checkmark-circle" class="preset-checked-icon"></ion-icon>
+            }
+          </button>
+        </div>
+
+        <!-- Custom Dimensions Inline Input (shown if CUSTOM) -->
+        @if (envelopeSize === 'CUSTOM' || showCustomDimensions) {
+          <div class="custom-dims-row">
+            <div class="dim-field">
+              <label>Width (inches):</label>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                step="0.01"
+                [value]="envelopeWidth"
+                (input)="onWidthInput($event)"
+                class="input-dim"
+              />
+            </div>
+            <div class="dim-field">
+              <label>Height (inches):</label>
+              <input
+                type="number"
+                min="1"
+                max="15"
+                step="0.01"
+                [value]="envelopeHeight"
+                (input)="onHeightInput($event)"
+                class="input-dim"
+              />
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Subject & Reference Card -->
+      <div class="studio-card subject-card">
+        <div class="card-header-compact">
+          <div class="card-header-title">
+            <ion-icon name="document-text" class="icon-sm text-blue-500"></ion-icon>
+            <h3>Subject / Reference <span class="required-mark">*</span></h3>
+          </div>
+          @if (activeDoc) {
+            <span class="badge-source">Synced with DTS</span>
+          }
+        </div>
+        <div class="card-body">
+          <app-autocomplete-field
+            [value]="subject"
+            [suggestions]="subjectSuggestions"
+            [ariaLabel]="'Subject or Reference'"
+            placeholder="e.g. Endorsement of Real Property Tax Assessment Report..."
+            [required]="true"
+            [className]="'studio-subject-input'"
+            (onChange)="subject = $event"
+          ></app-autocomplete-field>
+          <p class="field-hint">
+            Subject is included in envelope dispatch audit logs and saved format templates.
+          </p>
+        </div>
+      </div>
+
+      <!-- Addressees / Recipients Manager Card -->
+      <div class="studio-card addressees-card">
+        <div class="card-header-with-actions">
+          <div class="card-header-title">
+            <ion-icon name="people" class="icon-sm text-emerald-500"></ion-icon>
+            <h3>Recipients &amp; Addressees</h3>
+            <span class="badge-counter">{{ addressees.length }}</span>
+          </div>
+
+          <div class="header-action-group">
+            <button
+              type="button"
+              (click)="openDirPicker()"
+              class="btn-card-action btn-import-dir"
+              title="Batch import recipients from the active Office Directory"
+            >
+              <ion-icon name="person-add-outline" class="icon-xs"></ion-icon>
+              <span>+ Pick from Directory</span>
+            </button>
+
+            <button
+              type="button"
+              (click)="addAddressee()"
+              class="btn-card-action btn-add-blank"
+              title="Add a blank recipient form"
+            >
+              <ion-icon name="add" class="icon-xs"></ion-icon>
+              <span>+ Blank</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Addressees List -->
+        <div class="addressees-list">
+          @for (addr of addressees; track addr.id; let idx = $index) {
+            <div
+              class="addressee-item-card"
+              [class.active-preview]="previewIndex === idx"
+            >
+              <div class="addressee-card-header">
+                <div class="addressee-index-pill" (click)="goToPreview(idx)">
+                  <span class="index-num">#{{ idx + 1 }}</span>
+                  <span class="index-name">{{ addr.name || 'Untitled Recipient' }}</span>
+                  @if (previewIndex === idx) {
+                    <span class="badge-active-canvas">Active on Canvas</span>
+                  }
+                </div>
+
+                <div class="addressee-actions">
+                  <button
+                    type="button"
+                    (click)="goToPreview(idx)"
+                    class="btn-icon-action"
+                    [class.text-blue-600]="previewIndex === idx"
+                    title="Preview this envelope on the canvas"
+                  >
+                    <ion-icon name="eye" class="icon-xs"></ion-icon>
+                  </button>
+
+                  <button
+                    type="button"
+                    (click)="duplicateAddressee(addr)"
+                    class="btn-icon-action"
+                    title="Duplicate this recipient"
+                  >
+                    <ion-icon name="copy-outline" class="icon-xs"></ion-icon>
+                  </button>
+
+                  @if (addressees.length > 1) {
+                    <button
+                      type="button"
+                      (click)="removeAddressee(addr.id)"
+                      class="btn-icon-action btn-icon-danger"
+                      title="Remove this recipient"
+                    >
+                      <ion-icon name="trash-outline" class="icon-xs"></ion-icon>
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <!-- Recipient Form Inputs -->
+              <div class="addressee-fields-grid">
+                <!-- Name with inline directory suggestion -->
+                <div class="field-item col-span-1">
+                  <label class="input-label">Full Name <span class="required-mark">*</span></label>
+                  <div class="relative-autocomplete">
+                    <input
+                      type="text"
+                      [value]="addr.name"
+                      (focus)="onNameFocus(addr.id)"
+                      (blur)="onNameBlur(addr.id)"
+                      (input)="onNameInput(addr.id, $event)"
+                      placeholder="e.g. HON. JUAN DELA CRUZ"
+                      required
+                      autocomplete="off"
+                      class="studio-input"
+                    />
+                    @if (activeNameField === addr.id && addr.name.trim()) {
+                      <div class="autocomplete-popover">
+                        @for (employee of nameSuggestions(addr.id); track employee.id) {
+                          <button
+                            type="button"
+                            (mousedown)="onPickEmployee($event, addr.id, employee)"
+                            class="autocomplete-item"
+                          >
+                            <ion-icon name="person-circle" class="icon-sm text-slate-400"></ion-icon>
+                            <div class="autocomplete-text">
+                              <div class="autocomplete-name">{{ employee.fullName }}</div>
+                              <div class="autocomplete-sub">{{ employee.position }} &bull; {{ employee.office }}</div>
+                            </div>
+                          </button>
+                        }
+                        @if (nameSuggestions(addr.id).length === 0) {
+                          <div class="autocomplete-empty">No matching directory contact</div>
+                        }
+                      </div>
+                    }
+                  </div>
+                </div>
+
+                <!-- Position -->
+                <div class="field-item col-span-1">
+                  <label class="input-label">Designation / Position <span class="required-mark">*</span></label>
+                  <app-autocomplete-field
+                    [value]="addr.position"
+                    [suggestions]="positionSuggestions()"
+                    [ariaLabel]="'Addressee ' + (idx + 1) + ' Position'"
+                    placeholder="e.g. Municipal Treasurer"
+                    [required]="true"
+                    [className]="'studio-input'"
+                    (onChange)="updateAddressee(addr.id, 'position', $event)"
+                  ></app-autocomplete-field>
+                </div>
+
+                <!-- Office / Department -->
+                <div class="field-item col-span-1">
+                  <label class="input-label">Office / LGU / Agency <span class="required-mark">*</span></label>
+                  <app-autocomplete-field
+                    [multiline]="true"
+                    [rows]="2"
+                    [value]="addr.office"
+                    [suggestions]="officeSuggestions()"
+                    [ariaLabel]="'Addressee ' + (idx + 1) + ' Office or Department'"
+                    [placeholder]="officePlaceholder"
+                    [required]="true"
+                    [className]="'studio-textarea'"
+                    (onChange)="updateAddressee(addr.id, 'office', $event)"
+                  ></app-autocomplete-field>
+                </div>
+
+                <!-- Address -->
+                <div class="field-item col-span-1">
+                  <label class="input-label">Complete Postal Address <span class="required-mark">*</span></label>
+                  <app-autocomplete-field
+                    [multiline]="true"
+                    [rows]="2"
+                    [value]="addr.address"
+                    [suggestions]="addressSuggestions()"
+                    [ariaLabel]="'Addressee ' + (idx + 1) + ' Address'"
+                    [placeholder]="addressPlaceholder"
+                    [required]="true"
+                    [className]="'studio-textarea'"
+                    (onChange)="updateAddressee(addr.id, 'address', $event)"
+                  ></app-autocomplete-field>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- FROM: Sender Credentials Accordion -->
+      <div class="studio-card sender-card">
+        <div
+          class="card-header-clickable"
+          (click)="showSenderDrawer = !showSenderDrawer"
+          title="Toggle Sender Return Address"
+        >
+          <div class="card-header-title">
+            <ion-icon name="paper-plane" class="icon-sm text-indigo-500"></ion-icon>
+            <div>
+              <h3>FROM: Return Address &amp; Sender Credentials</h3>
+              <p class="card-subtitle">Included in half-bond FROM/TO cut-out sheets</p>
+            </div>
+          </div>
+          <div class="drawer-toggle-icon">
+            <ion-icon [name]="showSenderDrawer ? 'chevron-up-outline' : 'chevron-down-outline'" class="icon-sm"></ion-icon>
+          </div>
+        </div>
+
+        @if (showSenderDrawer) {
+          <div class="sender-drawer-body">
+            <!-- Division Presets Chips -->
+            <div class="division-presets-row">
+              <span class="preset-label">Quick Presets:</span>
+              <button type="button" class="chip-preset" (click)="applySenderDivision('ORD')">ORD</button>
+              <button type="button" class="chip-preset" (click)="applySenderDivision('LTOD')">LTOD</button>
+              <button type="button" class="chip-preset" (click)="applySenderDivision('LAOD')">LAOD</button>
+              <button type="button" class="chip-preset" (click)="applySenderDivision('AD')">AD</button>
+              <button type="button" class="chip-preset" (click)="applySenderDivision('FD')">FD</button>
+              <button type="button" class="chip-preset" (click)="applySenderDivision('LU')">LU</button>
+              <button type="button" class="chip-preset" (click)="applySenderDivision('DEFAULT')">Reset</button>
+            </div>
+
+            <div class="sender-fields-grid">
+              <div class="field-item">
+                <label class="input-label">Sender Full Name:</label>
+                <input
+                  type="text"
+                  required
+                  [value]="sender.name"
+                  (input)="onSenderInput('name', $event)"
+                  placeholder="e.g. Regional Director / Action Officer"
+                  class="studio-input"
+                />
+              </div>
+
+              <div class="field-item">
+                <label class="input-label">Sender Position:</label>
+                <input
+                  type="text"
+                  required
+                  [value]="sender.position"
+                  (input)="onSenderInput('position', $event)"
+                  placeholder="e.g. Regional Director"
+                  class="studio-input"
+                />
+              </div>
+
+              <div class="field-item col-span-2">
+                <label class="input-label">Sender Office / Bureau:</label>
+                <textarea
+                  required
+                  [value]="sender.office"
+                  (input)="onSenderInput('office', $event)"
+                  placeholder="Bureau of Local Government Finance - Regional Office II"
+                  rows="2"
+                  class="studio-textarea"
+                ></textarea>
+              </div>
+
+              <div class="field-item col-span-2">
+                <label class="input-label">Sender Physical Address:</label>
+                <textarea
+                  required
+                  [value]="sender.address"
+                  (input)="onSenderInput('address', $event)"
+                  placeholder="Regional Government Center, Carig Sur, Tuguegarao City"
+                  rows="2"
+                  class="studio-textarea"
+                ></textarea>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Saved Templates Accordion / Card -->
+      @if (showSaveFormat) {
+        <div class="studio-card templates-card">
+          <div class="card-header-compact">
+            <div class="card-header-title">
+              <ion-icon name="bookmark-outline" class="icon-sm text-amber-500"></ion-icon>
+              <h3>Envelope Format Templates</h3>
+            </div>
+            <button type="button" (click)="showSaveFormat = false" class="btn-close-sm">
+              <ion-icon name="close" class="icon-xs"></ion-icon>
+            </button>
+          </div>
+
+          <div class="card-body">
+            <!-- Save New Template Form -->
+            <div class="save-template-form">
+              <input
+                type="text"
+                [value]="formatName"
+                (input)="onFormatNameInput($event)"
+                placeholder="Enter template name (e.g. All Isabela Treasurers)..."
+                class="studio-input"
+              />
+              <button type="button" (click)="saveCurrentFormat()" class="btn-save-template">
+                Save Current
+              </button>
+            </div>
+
+            <!-- List of Saved Formats -->
+            <div class="saved-templates-list">
+              @for (fmt of savedFormats; track fmt.id) {
+                <div class="template-item">
+                  <button type="button" (click)="loadFormat(fmt)" class="template-load-btn">
+                    <div class="template-name">{{ fmt.name }}</div>
+                    <div class="template-meta">
+                      {{ fmt.addressees.length }} recipient(s) &bull; {{ fmt.subject || 'No subject' }}
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    (click)="deleteFormat(fmt.id)"
+                    class="btn-icon-action btn-icon-danger"
+                    title="Delete template"
+                  >
+                    <ion-icon name="trash" class="icon-xs"></ion-icon>
+                  </button>
+                </div>
+              }
+              @if (savedFormats.length === 0) {
+                <div class="empty-templates-message">
+                  No saved templates yet. Create your setup above and save it here for 1-click reuse.
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- RIGHT COLUMN: Sticky Live Canvas Studio -->
+    <div class="studio-right-column">
+      <div class="sticky-canvas-container">
+        <!-- Canvas Toolbar -->
+        <div class="canvas-header-bar">
+          <!-- View Switcher -->
+          <div class="view-mode-tabs">
+            <button
+              type="button"
+              class="tab-btn"
+              [class.active]="canvasMode === 'ENVELOPE'"
+              (click)="canvasMode = 'ENVELOPE'"
+            >
+              <ion-icon name="mail" class="icon-xs"></ion-icon>
+              <span>Direct Postal Envelope</span>
+            </button>
+            <button
+              type="button"
+              class="tab-btn"
+              [class.active]="canvasMode === 'CUTOUT'"
+              (click)="canvasMode = 'CUTOUT'"
+            >
+              <ion-icon name="cut-outline" class="icon-xs"></ion-icon>
+              <span>FROM/TO Cut-Out</span>
+            </button>
+          </div>
+
+          <!-- Sizing Pill -->
+          <div class="canvas-meta-pill">
+            <span>{{ envelopeWidth }}&Prime; &times; {{ envelopeHeight }}&Prime;</span>
+          </div>
+        </div>
+
+        <!-- Multi-Recipient Live Stepper / Pagination Bar -->
+        @if (addressees.length > 1) {
+          <div class="canvas-pagination-bar">
+            <button
+              type="button"
+              (click)="prevPreview()"
+              [disabled]="previewIndex === 0"
+              class="btn-page-nav"
+              title="Previous recipient envelope"
+            >
+              <ion-icon name="chevron-back" class="icon-sm"></ion-icon>
+            </button>
+
+            <div class="pagination-info">
+              <span class="page-count-text">
+                Envelope <strong>{{ previewIndex + 1 }}</strong> of <strong>{{ addressees.length }}</strong>
+              </span>
+              <span class="recipient-quick-name">
+                {{ currentPreviewAddressee?.name || 'No Name' }}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              (click)="nextPreview()"
+              [disabled]="previewIndex >= addressees.length - 1"
+              class="btn-page-nav"
+              title="Next recipient envelope"
+            >
+              <ion-icon name="chevron-forward" class="icon-sm"></ion-icon>
+            </button>
+          </div>
+        }
+
+        <!-- Realistic Envelope Canvas (Direct Postal View) -->
+        @if (canvasMode === 'ENVELOPE') {
+          <div class="canvas-viewport">
+            <div
+              class="mockup-envelope"
+              [style.aspect-ratio]="envelopeWidth + ' / ' + envelopeHeight"
+            >
+              <!-- Official Government Letterhead -->
+              <div class="mockup-letterhead">
+                <div class="gov-rep-line">Republic of the Philippines</div>
+                <div class="gov-dof-line">Department of Finance</div>
+                <div class="gov-agency-line">
+                  <img src="/blgflogo.jpg" alt="BLGF Logo" class="mockup-blgf-logo" />
+                  <span class="gov-agency-text">Bureau of Local Government Finance</span>
+                </div>
+                <div class="gov-regional-line">Regional Office No. II</div>
+                <div class="gov-address-line">Regional Government Center, Carig Sur, Tuguegarao City</div>
+              </div>
+
+              <!-- Recipient / TO Block -->
+              <div class="mockup-recipient-block">
+                <div class="recipient-to-heading">TO:</div>
+                <div class="recipient-details">
+                  <div class="recipient-name">
+                    {{ currentPreviewAddressee?.name || '___________________________' }}
+                  </div>
+                  <div class="recipient-position">
+                    {{ currentPreviewAddressee?.position || '___________________________' }}
+                  </div>
+                  <div class="recipient-office">
+                    {{ currentPreviewAddressee?.office || '___________________________' }}
+                  </div>
+                  <div class="recipient-address">
+                    {{ currentPreviewAddressee?.address || '___________________________' }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Subtle Postage / Stamp Guide Zone (Top-Right) -->
+              <div class="mockup-stamp-box">
+                <span>OFFICIAL MAIL<br />POSTAGE PAID</span>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Realistic Cut-Out Preview (FROM/TO View) -->
+        @if (canvasMode === 'CUTOUT') {
+          <div class="canvas-viewport cutout-viewport">
+            <div class="mockup-cutout-sheet">
+              <!-- FROM Box -->
+              <div class="cutout-box from-box">
+                <div class="cut-guide-indicator">
+                  <ion-icon name="cut-outline" class="icon-xs"></ion-icon>
+                  <span>CUT GUIDELINE &bull; FROM</span>
+                </div>
+                <div class="cutout-label-heading">FROM:</div>
+                <div class="cutout-name">{{ sender.name || 'SENDER NAME' }}</div>
+                <div class="cutout-line">{{ sender.position || 'Sender Position' }}</div>
+                <div class="cutout-line">{{ sender.office || 'Office Name' }}</div>
+                <div class="cutout-line">{{ sender.address || 'Sender Address' }}</div>
+              </div>
+
+              <!-- TO Box -->
+              <div class="cutout-box to-box">
+                <div class="cut-guide-indicator">
+                  <ion-icon name="cut-outline" class="icon-xs"></ion-icon>
+                  <span>CUT GUIDELINE &bull; TO</span>
+                </div>
+                <div class="cutout-label-heading">TO:</div>
+                <div class="cutout-name">{{ currentPreviewAddressee?.name || 'RECIPIENT NAME' }}</div>
+                <div class="cutout-line">{{ currentPreviewAddressee?.position || 'Recipient Position' }}</div>
+                <div class="cutout-line">{{ currentPreviewAddressee?.office || 'Recipient Office' }}</div>
+                <div class="cutout-line">{{ currentPreviewAddressee?.address || 'Recipient Address' }}</div>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Canvas Quick Actions Bar -->
+        <div class="canvas-footer-bar">
+          <div class="canvas-footer-info">
+            <ion-icon name="information-circle-outline" class="icon-xs text-slate-400"></ion-icon>
+            <span>Live mockup is scaled proportionally to printer output specifications.</span>
+          </div>
+
+          <div class="canvas-footer-btns">
+            <button
+              type="button"
+              (click)="printEnvelopeDirectly()"
+              class="btn-quick-print"
+              title="Print directly to standard envelope"
+            >
+              <ion-icon name="print" class="icon-xs"></ion-icon>
+              <span>Print Envelope ({{ addressees.length }} page{{ addressees.length > 1 ? 's' : '' }})</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden Print Area for High-Fidelity Paper Printing -->
+  <div class="envelope-printArea">
+    @for (addr of addressees; track addr.id) {
+      <div class="envelope-envelope" [style.--env-width]="envelopeDimensions.width" [style.--env-height]="envelopeDimensions.height">
+        <div class="envelope-letterhead">
+          <div class="envelope-governmentLine">Republic of the Philippines</div>
+          <div class="envelope-governmentLine">Department of Finance</div>
+          <div class="envelope-agencyLine">
+            <div class="envelope-agencyName">
+              <img src="/blgflogo.jpg" alt="BLGF Regional Office II logo" class="envelope-logo" />
+              Bureau of Local Government Finance, RO2
+            </div>
+          </div>
+          <div class="envelope-regionalOffice">Regional Office No. 02</div>
+          <div class="envelope-city">Carig, Tuguegarao City</div>
+        </div>
+        <div class="envelope-recipientAddress">
+          <p class="envelope-toLabel">To:</p>
+          <div>
+            <p class="envelope-printedName">{{ addr.name || '___________________________' }}</p>
+            <p class="envelope-printedPosition">{{ addr.position || '___________________________' }}</p>
+            <p class="envelope-printedLine">{{ addr.office || '___________________________' }}</p>
+            <p class="envelope-printedLine">{{ addr.address || '___________________________' }}</p>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- DTS Document Quick-Picker Modal -->
+  <app-modal-layer [isOpen]="showDocPicker" [onClose]="closeDocPicker" maxWidth="46rem">
+    <div class="modal-content-wrapper">
+      <div class="modal-header-clean">
+        <div class="modal-title-group">
+          <div class="modal-icon-badge text-blue-600 bg-blue-50">
+            <ion-icon name="link" class="icon-md"></ion-icon>
+          </div>
+          <div>
+            <h2 class="modal-heading">Link DTS Document to Envelope</h2>
+            <p class="modal-subheading">Select any document from the Document Tracking System to auto-fill details</p>
+          </div>
+        </div>
+        <button type="button" (click)="closeDocPicker()" class="btn-close-modal">
+          <ion-icon name="close" class="icon-sm"></ion-icon>
+        </button>
+      </div>
+
+      <!-- Search & Filter Controls -->
+      <div class="modal-search-row">
+        <div class="search-input-box">
+          <ion-icon name="search-outline" class="icon-sm search-icon"></ion-icon>
+          <input
+            type="text"
+            [(ngModel)]="docSearchQuery"
+            placeholder="Search by Route No, Tracking No, Subject, Recipient..."
+            class="modal-search-input"
+          />
+          @if (docSearchQuery) {
+            <button type="button" (click)="docSearchQuery = ''" class="btn-clear-search">
+              <ion-icon name="close-circle" class="icon-xs"></ion-icon>
+            </button>
+          }
+        </div>
+
+        <div class="modal-filter-pills">
+          <button
+            type="button"
+            class="filter-pill"
+            [class.active]="docFilterType === 'ALL'"
+            (click)="docFilterType = 'ALL'"
+          >
+            All ({{ documents.length }})
+          </button>
+          <button
+            type="button"
+            class="filter-pill"
+            [class.active]="docFilterType === 'OUTGOING'"
+            (click)="docFilterType = 'OUTGOING'"
+          >
+            Outgoing
+          </button>
+          <button
+            type="button"
+            class="filter-pill"
+            [class.active]="docFilterType === 'IN_PROGRESS'"
+            (click)="docFilterType = 'IN_PROGRESS'"
+          >
+            In Progress
+          </button>
+          <button
+            type="button"
+            class="filter-pill"
+            [class.active]="docFilterType === 'COMPLETED'"
+            (click)="docFilterType = 'COMPLETED'"
+          >
+            Completed
+          </button>
+        </div>
+      </div>
+
+      <!-- Document List -->
+      <div class="modal-list-scroll">
+        @for (doc of filteredDocuments; track doc.id) {
+          <div class="doc-item-row" (click)="linkDocument(doc)">
+            <div class="doc-row-left">
+              <div class="doc-route-badge">
+                <ion-icon name="document-text" class="icon-xs"></ion-icon>
+                <span>{{ doc.routeNo || doc.trackingNumber }}</span>
+              </div>
+              <div class="doc-main-info">
+                <h4 class="doc-subject">{{ doc.subject || doc.title }}</h4>
+                <div class="doc-meta-trail">
+                  <span>From: <strong>{{ doc.originatingOffice }}</strong></span>
+                  <ion-icon name="arrow-forward" class="icon-xs text-slate-400"></ion-icon>
+                  <span>To: <strong>{{ doc.recipientName ? doc.recipientName + ' (' + doc.destinationOffice + ')' : doc.destinationOffice }}</strong></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="doc-row-right">
+              <span class="status-chip">{{ doc.currentStatus }}</span>
+              <button type="button" class="btn-select-doc">
+                <span>Select</span>
+                <ion-icon name="arrow-forward" class="icon-xs"></ion-icon>
+              </button>
+            </div>
+          </div>
+        }
+        @if (filteredDocuments.length === 0) {
+          <div class="modal-empty-state">
+            <ion-icon name="search" class="icon-lg text-slate-300"></ion-icon>
+            <p>No matching DTS documents found.</p>
+          </div>
+        }
+      </div>
+    </div>
+  </app-modal-layer>
+
+  <!-- Office Directory Multi-Addressee Batch Picker Modal -->
+  <app-modal-layer [isOpen]="showDirPicker" [onClose]="closeDirPicker" maxWidth="50rem">
+    <div class="modal-content-wrapper">
+      <div class="modal-header-clean">
+        <div class="modal-title-group">
+          <div class="modal-icon-badge text-emerald-600 bg-emerald-50">
+            <ion-icon name="people" class="icon-md"></ion-icon>
+          </div>
+          <div>
+            <h2 class="modal-heading">Pick Recipients from Office Directory</h2>
+            <p class="modal-subheading">Select one or multiple contacts to automatically generate envelope address cards</p>
+          </div>
+        </div>
+        <button type="button" (click)="closeDirPicker()" class="btn-close-modal">
+          <ion-icon name="close" class="icon-sm"></ion-icon>
+        </button>
+      </div>
+
+      <!-- Directory Search & Category Filters -->
+      <div class="modal-search-row">
+        <div class="search-input-box">
+          <ion-icon name="search-outline" class="icon-sm search-icon"></ion-icon>
+          <input
+            type="text"
+            [(ngModel)]="dirSearchQuery"
+            placeholder="Search personnel by name, position, LGU, office..."
+            class="modal-search-input"
+          />
+          @if (dirSearchQuery) {
+            <button type="button" (click)="dirSearchQuery = ''" class="btn-clear-search">
+              <ion-icon name="close-circle" class="icon-xs"></ion-icon>
+            </button>
+          }
+        </div>
+
+        <div class="modal-filter-pills">
+          <button
+            type="button"
+            class="filter-pill"
+            [class.active]="dirOfficeFilter === 'ALL'"
+            (click)="dirOfficeFilter = 'ALL'"
+          >
+            All ({{ employees.length }})
+          </button>
+          <button
+            type="button"
+            class="filter-pill"
+            [class.active]="dirOfficeFilter === 'MUNICIPAL_TREASURER'"
+            (click)="dirOfficeFilter = 'MUNICIPAL_TREASURER'"
+          >
+            Mun. Treasurers
+          </button>
+          <button
+            type="button"
+            class="filter-pill"
+            [class.active]="dirOfficeFilter === 'PROVINCIAL_TREASURER'"
+            (click)="dirOfficeFilter = 'PROVINCIAL_TREASURER'"
+          >
+            Prov. Treasurers
+          </button>
+          <button
+            type="button"
+            class="filter-pill"
+            [class.active]="dirOfficeFilter === 'BLGF'"
+            (click)="dirOfficeFilter = 'BLGF'"
+          >
+            BLGF RO2
+          </button>
+          <button
+            type="button"
+            class="filter-pill"
+            [class.active]="dirOfficeFilter === 'LGU'"
+            (click)="dirOfficeFilter = 'LGU'"
+          >
+            LGUs / Others
+          </button>
+        </div>
+      </div>
+
+      <!-- Batch Selection Helper Bar -->
+      <div class="batch-select-bar">
+        <div class="batch-left">
+          <button type="button" class="btn-batch-action" (click)="selectAllFilteredEmployees()">
+            Select All Shown ({{ filteredEmployees.length }})
+          </button>
+          <button
+            type="button"
+            class="btn-batch-action"
+            [disabled]="selectedDirEmployeeIds.size === 0"
+            (click)="clearSelectedEmployees()"
+          >
+            Clear Selection
+          </button>
+        </div>
+        <div class="batch-right">
+          <span class="selected-count-badge">
+            <strong>{{ selectedDirEmployeeIds.size }}</strong> selected
+          </span>
+        </div>
+      </div>
+
+      <!-- Directory Employees Scroll List -->
+      <div class="modal-list-scroll">
+        @for (emp of filteredEmployees; track emp.id) {
+          <div
+            class="dir-item-row"
+            [class.selected]="isEmployeeSelected(emp.id)"
+            (click)="toggleEmployeeSelection(emp.id)"
+          >
+            <div class="dir-checkbox-wrap">
+              <input
+                type="checkbox"
+                [checked]="isEmployeeSelected(emp.id)"
+                (click)="$event.stopPropagation(); toggleEmployeeSelection(emp.id)"
+                class="dir-checkbox"
+              />
+            </div>
+
+            <div class="dir-avatar-badge">
+              <ion-icon name="person-circle" class="icon-md text-slate-400"></ion-icon>
+            </div>
+
+            <div class="dir-info-block">
+              <div class="dir-header-name">
+                <span class="emp-name">{{ emp.fullName }}</span>
+                <span class="emp-type-tag">{{ emp.officeType }}</span>
+              </div>
+              <div class="dir-position-text">{{ emp.position }}</div>
+              <div class="dir-office-address">
+                <span>{{ emp.office }}</span>
+                @if (emp.address) {
+                  &bull; <span class="text-slate-500">{{ emp.address }}</span>
+                }
+              </div>
+            </div>
+          </div>
+        }
+        @if (filteredEmployees.length === 0) {
+          <div class="modal-empty-state">
+            <ion-icon name="people" class="icon-lg text-slate-300"></ion-icon>
+            <p>No matching contacts found in Office Directory.</p>
+          </div>
+        }
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="modal-footer-bar">
+        <button type="button" (click)="closeDirPicker()" class="btn-modal-cancel">
+          Cancel
+        </button>
+        <button
+          type="button"
+          (click)="confirmImportFromDirectory()"
+          [disabled]="selectedDirEmployeeIds.size === 0"
+          class="btn-modal-confirm"
+        >
+          <ion-icon name="checkmark" class="icon-xs"></ion-icon>
+          <span>Add {{ selectedDirEmployeeIds.size }} Recipient(s)</span>
+        </button>
+      </div>
+    </div>
+  </app-modal-layer>
+</div>

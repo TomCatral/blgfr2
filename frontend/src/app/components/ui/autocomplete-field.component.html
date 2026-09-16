@@ -1,0 +1,43 @@
+
+    <div class="relative">
+      @if (multiline) {
+        <textarea
+          [ngModel]="value"
+          (ngModelChange)="onChange.emit($event)"
+          [placeholder]="placeholder || ''"
+          [required]="required"
+          [rows]="rows || 2"
+          [attr.aria-label]="ariaLabel || placeholder"
+          (focus)="focused = true"
+          (blur)="hideAfterDelay()"
+          [ngClass]="inputClass"
+          class="w-full rounded-lg border border-[color:var(--ui-border)] bg-[color:var(--ui-surface)] px-3 py-2 text-[14px] text-[color:var(--ui-text)] outline-none focus:border-[color:var(--ui-muted)]"
+        ></textarea>
+      } @else {
+        <input
+          [ngModel]="value"
+          (ngModelChange)="onChange.emit($event)"
+          [placeholder]="placeholder || ''"
+          [required]="required"
+          [attr.aria-label]="ariaLabel || placeholder"
+          (focus)="focused = true"
+          (blur)="hideAfterDelay()"
+          [ngClass]="inputClass"
+          class="w-full rounded-lg border border-[color:var(--ui-border)] bg-[color:var(--ui-surface)] px-3 py-2 text-[14px] text-[color:var(--ui-text)] outline-none focus:border-[color:var(--ui-muted)]"
+        />
+      }
+      @if (focused && suggestions.length && value.trim()) {
+        <div class="absolute left-0 right-0 top-full z-20 mt-1 max-h-52 overflow-y-auto rounded-lg border border-[color:var(--ui-border)] bg-[color:var(--ui-surface)] shadow-xl">
+          @for (suggestion of filteredSuggestions; track suggestion; let i = $index) {
+            <button
+              type="button"
+              class="block w-full px-3 py-2.5 text-left text-sm text-[color:var(--ui-text)] hover:bg-[color:var(--ui-soft)]"
+              (mousedown)="select($event, suggestion)"
+            >
+              {{ suggestion }}
+            </button>
+          }
+        </div>
+      }
+    </div>
+  

@@ -1,0 +1,451 @@
+
+    <app-dialog-host />
+    <app-global-input-autocomplete />
+
+    @if (showingStartupState()) {
+      <div class="grid min-h-dvh place-items-center bg-slate-50 dark:bg-slate-950">
+        <img src="/blgflogo.jpg" alt="" class="startup-logo h-13 w-13 rounded-full object-contain" />
+      </div>
+    } @else if (!currentUser()) {
+      <app-login />
+    } @else {
+      <div
+        class="app-shell font-sans"
+        [class.dark]="session.isDarkMode()"
+        [ngClass]="'antialiased selection:bg-blue-600 selection:text-white bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100' | cls"
+      >
+        <app-header
+          [currentUser]="currentUser()!"
+          [users]="state.users()"
+          [documents]="accessibleDocuments()"
+          [notifications]="state.notifications()"
+          [isDarkMode]="session.isDarkMode()"
+          [isOnline]="session.isOnline()"
+          [searchQuery]="searchQuery()"
+          (onSearchDoc)="handleSearchDoc($event)"
+          (onClearSearch)="clearSearch()"
+          (onSelectDoc)="openDetailFromHeader($event)"
+          (onOpenNotifications)="isNotifDrawerOpen.set(true)"
+          (onLogout)="handleLogout()"
+          (onToggleDarkMode)="session.toggleDarkMode()"
+          (onOpenMobileSidebar)="openMobileSidebar()"
+        />
+
+        <div class="app-workspace">
+          @if (isMobileSidebarOpen()) {
+            <div class="mobile-sidebar-backdrop fixed inset-0 z-[45] bg-slate-950/60 backdrop-blur-sm" (click)="isMobileSidebarOpen.set(false)">
+              <div class="relative z-[46] h-full w-full max-w-[280px]" (click)="stop($event)">
+                <app-sidebar
+                  [activeView]="activeView()"
+                  [currentUser]="currentUser()!"
+                  [pendingCount]="userPendingCount()"
+                  [collapsed]="false"
+                  [isMobileOpen]="true"
+                  (navigate)="navigateTo($event)"
+                  (onToggleCollapse)="toggleCollapse()"
+                  (onCloseMobile)="isMobileSidebarOpen.set(false)"
+                />
+              </div>
+            </div>
+          } @else {
+            <div class="desktop-sidebar-shell" [style.width.px]="isSidebarCollapsed() ? 64 : 248">
+              <div [ngClass]="'sticky top-0 h-full' | cls">
+                <app-sidebar
+                  [activeView]="activeView()"
+                  [currentUser]="currentUser()!"
+                  [pendingCount]="userPendingCount()"
+                  [collapsed]="isSidebarCollapsed()"
+                  (navigate)="navigateTo($event)"
+                  (onToggleCollapse)="toggleCollapse()"
+                  (onCloseMobile)="isMobileSidebarOpen.set(false)"
+                />
+              </div>
+            </div>
+          }
+
+          <main class="app-content">
+            <div class="app-view-container">
+              @if (activeView() === 'dashboard') {
+                <app-dashboard
+                  [stats]="state.stats()"
+                  [documents]="accessibleDocuments()"
+                  [currentUser]="currentUser()!"
+                  [users]="state.users()"
+                  [isOnline]="session.isOnline()"
+                  [auditLogs]="state.auditLogs()"
+                  [onSelectDoc]="openDetail"
+                  [onOpenCreateDoc]="openCreate"
+                  [onNavigateToView]="navigateTo"
+                  [onReapproveDocument]="reapproveDocument"
+                  [onSendRoutingReminder]="sendRoutingReminder"
+                />
+              }
+              @if (activeView() === 'routing-followup') {
+                <app-routing-follow-up
+                  [documents]="accessibleDocuments()"
+                  [auditLogs]="state.auditLogs()"
+                  [users]="state.users()"
+                  [currentUser]="currentUser()!"
+                  [onSelectDoc]="openDetail"
+                  [onSendReminder]="sendRoutingReminder"
+                />
+              }
+              @if (activeView() === 'incoming-report') {
+                <app-incoming-report [documents]="accessibleDocuments()" [envelopeLogs]="state.envelopeLogs()" [auditLogs]="state.auditLogs()" />
+              }
+              @if (activeView() === 'outgoing-report') {
+                <app-outgoing-report [documents]="accessibleDocuments()" [envelopeLogs]="state.envelopeLogs()" [auditLogs]="state.auditLogs()" />
+              }
+              @if (activeView() === 'envelope-report') {
+                <app-envelope-report [documents]="accessibleDocuments()" [envelopeLogs]="state.envelopeLogs()" [auditLogs]="state.auditLogs()" />
+              }
+              @if (activeView() === 'incoming' || activeView() === 'outgoing') {
+                <app-document-list
+                  [documents]="accessibleDocuments()"
+                  [initialDirection]="activeView() === 'outgoing' ? 'OUTGOING' : 'INCOMING'"
+                  [searchQuery]="searchQuery()"
+                  (onSearchChange)="searchQuery.set($event)"
+                  [currentUser]="currentUser()!"
+                  [onClearSearch]="clearSearch"
+                  [onSelectDoc]="openDetail"
+                  [onOpenRouteDoc]="openRoute"
+                  [onOpenCreateDoc]="openCreate"
+                  [onPrintSlip]="printSlip"
+                  [onDeleteDoc]="deleteDocument"
+                />
+              }
+              @if (activeView() === 'slip' && canViewSlip()) {
+                <app-document-slip
+                  [document]="slipSelectedDoc()"
+                  [documents]="accessibleDocuments()"
+                  [currentUser]="currentUser()!"
+                  [users]="state.users()"
+                  [onSelectDocument]="setSlipDoc"
+                  [onBack]="backToIncoming"
+                />
+              }
+              @if (activeView() === 'envelope') {
+                <app-outgoing-envelope
+                  [document]="null"
+                  [documents]="state.documents()"
+                  [currentUser]="currentUser()!"
+                  [onBack]="backToOutgoing"
+                  [onLogDispatch]="logEnvelopeDispatch"
+                />
+              }
+              @if (activeView() === 'qr') {
+                <app-qr-code-generator />
+              }
+              @if (activeView() === 'employees') {
+                <app-employee-profiles [currentUser]="currentUser()!" />
+              }
+              @if (activeView() === 'audit') {
+                <app-audit-logs [auditLogs]="state.auditLogs()" [title]="'Detailed Audit Logs'" [subtitle]="''" />
+              }
+              @if (activeView() === 'envelope-logs') {
+                <app-audit-logs
+                  [auditLogs]="state.envelopeLogs()"
+                  [title]="'Outgoing Envelope Dispatch Logs'"
+                  [subtitle]="'Separate record of every outgoing envelope dispatch, Document Route No., releasing user, and recipient details'"
+                />
+              }
+              @if (activeView() === 'settings') {
+                <app-user-settings [currentUser]="currentUser()!" [onUpdateUser]="selfUpdateUser" />
+              }
+              @if (activeView() === 'users') {
+                <app-user-management
+                  [users]="state.users()"
+                  [divisions]="state.divisions()"
+                  [currentUser]="currentUser()!"
+                  [onCreateUser]="createUser"
+                  [onUpdateUser]="updateUser"
+                  [onDeleteUser]="deleteUser"
+                  [onCreateDivision]="createDivision"
+                  [onUpdateDivision]="updateDivision"
+                  [onDeleteDivision]="deleteDivision"
+                />
+              }
+            </div>
+          </main>
+        </div>
+
+        <footer class="app-footer" [ngClass]="'fixed inset-x-0 bottom-0 z-40 flex h-7 items-center justify-center border-t border-blue-900 bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 px-4 text-[10px] font-medium text-slate-300' | cls">
+          DOF &bull; BLGF REGION II &bull; Document Tracking System
+        </footer>
+
+        @if (selectedDocTyped(); as doc) {
+          <app-document-detail
+            [document]="doc"
+            [showFullFlow]="true"
+            [currentUser]="currentUser()!"
+            [users]="state.users()"
+            [auditLogs]="state.auditLogs()"
+            [onClose]="closeDetail"
+            [onOpenRouteDoc]="openRoute"
+            [onPrintSlip]="printSlipFromDetail"
+            [onDeleteDoc]="deleteDocument"
+            [onRefreshDocument]="loadBackendData"
+          />
+        }
+
+        <app-create-document
+          [isOpen]="isCreateModalOpen()"
+          [currentUser]="currentUser()!"
+          [existingDocuments]="state.documents()"
+          [existingRouteNumbers]="existingRouteNumbers()"
+          [initialDirection]="activeView() === 'outgoing' ? 'OUTGOING' : 'INCOMING'"
+          [onClose]="closeCreate"
+          [onSubmit]="createDocument"
+        />
+
+        <app-route-document
+          [document]="routeModalDoc()"
+          [isOpen]="!!routeModalDoc()"
+          [currentUser]="currentUser()!"
+          [users]="state.users()"
+          [onClose]="closeRoute"
+          [onSubmit]="routeDocument"
+        />
+
+        <app-modal-layer [isOpen]="!!targetDatePopup()" [maxWidth]="'28rem'">
+          @if (targetDatePopup(); as doc) {
+            <div class="deadline-modal">
+              <div class="deadline-accent-bar" aria-hidden="true"></div>
+
+              <div class="deadline-header">
+                <div class="deadline-icon-glow">
+                  <ion-icon name="warning"></ion-icon>
+                </div>
+
+                <div class="deadline-title-group">
+                  <div class="deadline-tag-pill">
+                    <span class="deadline-pulse-dot" aria-hidden="true"></span>
+                    <span>Deadline Exceeded</span>
+                  </div>
+                  <h2 class="deadline-title">Target Completion Date Reached</h2>
+                </div>
+
+                <button
+                  type="button"
+                  class="deadline-close-btn"
+                  aria-label="Close deadline alert"
+                  (click)="acknowledgeTargetDate(doc)"
+                >
+                  <ion-icon name="close"></ion-icon>
+                </button>
+              </div>
+
+              <div class="deadline-body">
+                <p class="deadline-description">
+                  This document has passed its scheduled completion deadline. Immediate disposition, review, or routing is recommended.
+                </p>
+
+                <div class="deadline-card">
+                  <div class="deadline-card-header">
+                    <span class="deadline-field-label">Official Tracking Number</span>
+                    <span class="deadline-route-pill">
+                      <ion-icon name="qr-code-outline"></ion-icon>
+                      {{ doc.routeNo || doc.trackingNumber }}
+                    </span>
+                  </div>
+
+                  <h3 class="deadline-doc-title" [title]="doc.title">
+                    {{ doc.title }}
+                  </h3>
+
+                  <div class="deadline-banner">
+                    <div class="deadline-banner-left">
+                      <div class="deadline-banner-icon">
+                        <ion-icon name="time"></ion-icon>
+                      </div>
+                      <div class="deadline-banner-info">
+                        <span class="deadline-banner-caption">Scheduled Target</span>
+                        <span class="deadline-banner-time">
+                          {{ doc.targetCompletionDate | date: 'mediumDate' }} &bull; {{ doc.targetCompletionDate | date: 'shortTime' }}
+                        </span>
+                      </div>
+                    </div>
+                    <span class="deadline-status-badge">Overdue</span>
+                  </div>
+                </div>
+
+                <div class="deadline-actions">
+                  <button
+                    type="button"
+                    class="deadline-btn-ack"
+                    (click)="acknowledgeTargetDate(doc)"
+                  >
+                    Acknowledge
+                  </button>
+                  <button
+                    type="button"
+                    class="deadline-btn-review"
+                    (click)="reviewTargetDate(doc)"
+                  >
+                    <ion-icon name="open-outline"></ion-icon>
+                    <span>Review Document</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          }
+        </app-modal-layer>
+
+        @if (reminderPopup(); as reminder) {
+          <app-modal-layer [isOpen]="true" [maxWidth]="'28rem'" [onClose]="closeReminder">
+            <div role="dialog" aria-modal="true" aria-labelledby="routing-reminder-title" class="reminder-modal">
+              <div class="reminder-accent-bar" aria-hidden="true"></div>
+
+              <div class="reminder-header">
+                <div class="reminder-icon-glow">
+                  <ion-icon name="notifications"></ion-icon>
+                </div>
+
+                <div class="reminder-title-group">
+                  <div class="reminder-tag-pill">
+                    <span class="reminder-pulse-dot" aria-hidden="true"></span>
+                    <span>Action Reminder</span>
+                  </div>
+                  <h2 id="routing-reminder-title" class="reminder-title">{{ reminder.title }}</h2>
+                </div>
+
+                <button type="button" class="reminder-close-btn" aria-label="Close reminder" (click)="closeReminder()">
+                  <ion-icon name="close"></ion-icon>
+                </button>
+              </div>
+
+              <div class="reminder-body">
+                <p class="reminder-message">{{ reminder.message }}</p>
+
+                <div class="reminder-grid">
+                  <div class="reminder-field-card">
+                    <span class="reminder-field-caption">Reminder From</span>
+                    <span class="reminder-field-value">{{ reminder.reminderSenderName || 'Document routing officer' }}</span>
+                  </div>
+
+                  <div class="reminder-field-card reminder-action-card">
+                    <span class="reminder-field-caption">Required Action</span>
+                    <span class="reminder-field-value">{{ reminder.reminderActionRequested || 'Appropriate Action' }}</span>
+                  </div>
+                </div>
+
+                <div class="reminder-tracking-box">
+                  <span class="reminder-tracking-caption">Document Route No.</span>
+                  <span class="reminder-tracking-value">{{ reminder.trackingNumber }}</span>
+                </div>
+
+                <div class="reminder-actions">
+                  <button type="button" class="reminder-btn-secondary" (click)="closeReminder()">Close</button>
+                  <button type="button" class="reminder-btn-primary" (click)="viewReminderDocument(reminder)">
+                    <ion-icon name="document-text-outline"></ion-icon>
+                    <span>View Document</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </app-modal-layer>
+        }
+
+        @if (routingPopup(); as popup) {
+          <app-modal-layer [onClose]="closeRoutingActionPopup">
+            <div class="fixed inset-0 z-10 flex items-center justify-center p-1.5 sm:p-3">
+              <div role="dialog" aria-modal="true" aria-labelledby="routing-popup-title" class="flex w-full max-w-[600px] max-h-[calc(100dvh-32px)] flex-col overflow-hidden rounded-2xl border bg-white text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-slate-100"
+                [ngClass]="'border-slate-200 dark:border-slate-700' | cls">
+                <header class="flex items-center gap-1.5 border-b p-2.5" [ngClass]="'border-slate-200 dark:border-slate-700' | cls">
+                  <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-xl font-bold" [ngClass]="'bg-slate-100 dark:bg-slate-800' | cls">
+                    @if (popup.decisionStatus === 'APPROVED') {
+                      <ion-icon name="checkmark-circle" class="text-emerald-600 dark:text-emerald-400"></ion-icon>
+                    } @else if (popup.decisionStatus === 'DISAPPROVED') {
+                      <ion-icon name="close-circle" class="text-rose-600 dark:text-rose-400"></ion-icon>
+                    } @else {
+                      <ion-icon name="arrow-forward-circle" class="text-blue-600 dark:text-blue-400"></ion-icon>
+                    }
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <h2 id="routing-popup-title" class="text-[20px] font-bold leading-tight">{{ popup.title }}</h2>
+                    <p class="mt-0.5 text-[14px] text-slate-500">{{ popup.decisionStatus ? 'Decision: ' + popup.decisionStatus.toLowerCase() : 'Review the document and requested action.' }}</p>
+                  </div>
+                  <button type="button" class="flex min-h-11 min-w-11 items-center justify-center text-2xl text-slate-500" aria-label="Close notification" (click)="closeRoutingActionPopup()">&times;</button>
+                </header>
+                <div class="min-h-0 overflow-y-auto p-2 sm:p-3">
+                  <p class="text-[13px] text-slate-500">Document tracking number</p>
+                  <p class="mt-0.5 font-mono text-[15px] break-words">{{ routingPopupDocument()?.routeNo || popup.trackingNumber || 'Not recorded' }}</p>
+                  <h3 class="mb-2 mt-1.5 text-[20px] font-semibold leading-relaxed break-words">{{ routingPopupDocument()?.title || popup.message }}</h3>
+                  <div class="grid gap-2 border-t py-2 sm:grid-cols-2" [ngClass]="'border-slate-200 dark:border-slate-700' | cls">
+                    <div class="min-w-0">
+                      <p class="text-[13px] text-slate-500">Last forwarded to you by</p>
+                      <p class="mt-0.5 text-[15px] break-words">{{ routingPopupForwardedBy() || 'Not recorded' }}</p>
+                    </div>
+                    <div class="min-w-0">
+                      <p class="text-[13px] text-slate-500">Date & time forwarded (Philippine time)</p>
+                      <p class="mt-0.5 text-[15px] break-words">{{ routingPopupForwardedAt() || 'Not recorded' }}</p>
+                    </div>
+                    <div class="min-w-0">
+                      <p class="text-[13px] text-slate-500">Forwarding office</p>
+                      <p class="mt-0.5 text-[15px] break-words">{{ routingPopupRouteFromDivision() || 'Not recorded' }}</p>
+                    </div>
+                    <div class="min-w-0">
+                      <p class="text-[13px] text-slate-500">Original sender</p>
+                      <p class="mt-0.5 text-[15px] break-words">{{ routingPopupDocument()?.senderName || 'Not recorded' }}</p>
+                    </div>
+                    <div class="min-w-0 sm:col-span-2">
+                      <p class="text-[13px] text-slate-500">Originating office</p>
+                      <p class="mt-0.5 text-[15px] break-words">{{ routingPopupDocument()?.originatingOffice || 'Not recorded' }}</p>
+                    </div>
+                  </div>
+                  <div class="mb-2.5 rounded-lg p-2" [ngClass]="'bg-slate-100 dark:bg-slate-800' | cls">
+                    <p class="text-[13px] text-slate-500">Action requested</p>
+                    <p class="mt-0.5 text-[16px] font-semibold break-words">{{ routingPopupDocument()?.actionRequested || 'Appropriate Action' }}</p>
+                  </div>
+                  <h3 class="mb-1 text-[16px] font-semibold">Attachments ({{ routingPopupAttachments().length }})</h3>
+                  @if (routingPopupAttachments().length) {
+                    <ul class="m-0 list-none p-0">
+                      @for (attachment of routingPopupAttachments(); track attachment.id) {
+                        <li class="border-t py-1.5" [ngClass]="'border-slate-200 dark:border-slate-700' | cls">
+                          <p class="text-[15px] font-semibold leading-snug break-words">{{ attachment.fileName }}</p>
+                          <p class="mt-0.5 text-[13px] text-slate-500">{{ attachment.fileSize || 'Attached document' }}</p>
+                          <div class="mt-1 flex flex-wrap gap-1">
+                            <button type="button" class="rounded-lg border px-3.5 py-2.5 text-sm" [disabled]="!attachment.url" (click)="openPopupAttachment(attachment)" [attr.aria-label]="'View ' + attachment.fileName">View</button>
+                            <button type="button" class="rounded-lg border px-3.5 py-2.5 text-sm" [disabled]="!attachment.url" (click)="downloadPopupAttachment(attachment)" [attr.aria-label]="'Download ' + attachment.fileName">Download</button>
+                          </div>
+                        </li>
+                      }
+                    </ul>
+                  } @else {
+                    <p class="py-1 text-[14px] text-slate-500">No attachments included.</p>
+                  }
+                </div>
+                <footer class="flex flex-wrap gap-1.25 border-t bg-white p-2 dark:bg-slate-900" [ngClass]="'border-slate-200 dark:border-slate-700' | cls">
+                  @if (popup.requiresDecision) {
+                    <button
+                      type="button"
+                      class="min-h-11 flex-1 rounded-lg bg-emerald-600 px-3 text-[15px] font-bold text-white shadow-none hover:bg-emerald-500 disabled:opacity-60"
+                      [disabled]="decisionSubmittingId() === popup.id"
+                      (click)="routeDecision(popup, 'APPROVED')"
+                    >{{ decisionSubmittingId() === popup.id ? 'Saving...' : 'Approve' }}</button>
+                    <button
+                      type="button"
+                      class="min-h-11 flex-1 rounded-lg border border-rose-300 px-3 text-[15px] font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-60 dark:border-rose-800 dark:text-rose-400"
+                      [disabled]="decisionSubmittingId() === popup.id"
+                      (click)="routeDecision(popup, 'DISAPPROVED')"
+                    >Disapprove</button>
+                  }
+                  <button type="button" class="min-h-11 flex-1 rounded-lg px-3 text-[15px] font-bold" (click)="closeRoutingActionPopup()">Close for 24 hours</button>
+                </footer>
+              </div>
+            </div>
+          </app-modal-layer>
+        }
+
+        <app-notification-drawer
+          [isOpen]="isNotifDrawerOpen()"
+          [notifications]="state.notifications()"
+          [decisionSubmittingId]="decisionSubmittingId()"
+          (onClose)="isNotifDrawerOpen.set(false)"
+          (onMarkRead)="markNotifRead($event)"
+          (onDecision)="routeDecision($event.notification, $event.decision)"
+          (onSelectDoc)="selectDocByTrackingNo($event)"
+        />
+      </div>
+    }
+  

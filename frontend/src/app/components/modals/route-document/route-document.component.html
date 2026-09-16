@@ -1,0 +1,414 @@
+<app-modal-layer [isOpen]="isOpen" [onClose]="onClose" maxWidth="52rem">
+  @if (document) {
+    <div class="route-modal-shell flex flex-col overflow-hidden">
+      <!-- HEADER -->
+      <header class="route-modal-header shrink-0">
+        <div class="route-modal-header-left">
+          <div class="route-modal-header-icon-box">
+            <ion-icon name="paper-plane" class="route-modal-header-icon"></ion-icon>
+          </div>
+          <div class="route-modal-header-titles">
+            <div class="flex items-center gap-2 flex-wrap">
+              <h2 id="route-document-title" class="route-modal-title">Route Document</h2>
+              <span class="route-modal-direction-tag" [class.outgoing]="document!.direction === 'OUTGOING'">
+                {{ document!.direction || 'ROUTING' }}
+              </span>
+            </div>
+            <div class="route-modal-route-code-wrapper">
+              <span class="route-modal-route-code">{{ document!.routeNo || document!.trackingNumber }}</span>
+            </div>
+          </div>
+        </div>
+        <button type="button" (click)="onClose()" class="route-modal-close-btn" aria-label="Close dialog">
+          <ion-icon name="close" class="route-modal-close-icon"></ion-icon>
+        </button>
+      </header>
+
+      <!-- FORM WRAPPER -->
+      <form (ngSubmit)="handleSubmit()" class="route-modal-form-shell flex flex-col flex-1 min-h-0 overflow-hidden">
+        <!-- SCROLLABLE BODY -->
+        <div class="route-modal-scroll-area flex-1 overflow-y-auto">
+          @if (formError) {
+            <div class="route-modal-alert-error">
+              <ion-icon name="alert-circle" class="shrink-0 text-lg"></ion-icon>
+              <span>{{ formError }}</span>
+            </div>
+          }
+
+          @if (isEnded) {
+            <div class="route-modal-alert-ended">
+              <ion-icon name="lock-closed" class="shrink-0 text-lg"></ion-icon>
+              <div>
+                <p class="font-bold">Ended / Completed Workflow</p>
+                <p class="text-xs mt-0.5 opacity-90">Your part or this transaction is completed. Further routing is not allowed.</p>
+              </div>
+            </div>
+          }
+
+          <!-- UNIFIED EXECUTIVE DOCUMENT SUMMARY CARD -->
+          <section class="route-doc-overview-card">
+            <div class="route-doc-meta-strip">
+              <div class="route-doc-code-badge">
+                <ion-icon name="barcode-outline"></ion-icon>
+                <span>{{ document!.routeNo || document!.trackingNumber }}</span>
+              </div>
+              <div class="route-doc-status-badge">
+                <span class="status-pulse-dot"></span>
+                <span class="capitalize">{{ formatStatus(document!.currentStatus) }}</span>
+              </div>
+              <div class="route-doc-office-badge">
+                <ion-icon name="business-outline"></ion-icon>
+                <span>Office: {{ document!.currentDivision }}</span>
+              </div>
+            </div>
+
+            <div class="route-doc-content-section">
+              <h3 class="route-doc-title">{{ document!.title }}</h3>
+              @if (document!.subject) {
+                <div class="route-doc-subject-box">
+                  <p class="route-doc-subject-text">{{ document!.subject }}</p>
+                </div>
+              }
+              <div class="route-doc-sender-row">
+                <ion-icon name="send-outline" class="shrink-0 text-sm"></ion-icon>
+                <span>From: <strong>{{ document!.originatingOffice || document!.senderName || 'Not specified' }}</strong></span>
+              </div>
+            </div>
+          </section>
+
+          <!-- RECIPIENT ROUTING SECTION -->
+          <section class="route-section-block">
+            <div class="route-section-heading">
+              <div class="flex items-center gap-2">
+                <ion-icon name="people" class="text-blue-600 dark:text-blue-400 text-lg"></ion-icon>
+                <h4 class="route-section-title">Recipient Routing</h4>
+              </div>
+              <p class="route-section-subtitle">Choose destination division or specific employee handlers. People marked already routed cannot be selected again.</p>
+            </div>
+
+            <!-- ALREADY ROUTED PERSONNEL CHIPS -->
+            @if (alreadyRoutedEmployees.length > 0) {
+              <div class="route-already-routed-box">
+                <div class="already-routed-header">
+                  <div class="flex items-center gap-1.5">
+                    <ion-icon name="checkmark-done-circle" class="text-emerald-600 dark:text-emerald-400 text-base"></ion-icon>
+                    <span class="font-bold text-xs uppercase tracking-wider text-slate-700 dark:text-slate-200">Already Routed ({{ alreadyRoutedEmployees.length }})</span>
+                  </div>
+                  <span class="text-xs text-slate-500 dark:text-slate-400">Previously assigned personnel</span>
+                </div>
+                <div class="already-routed-chips-grid">
+                  @for (emp of alreadyRoutedEmployees; track emp.id) {
+                    <div class="routed-person-pill" [title]="emp.fullName + ' - ' + (emp.position || '') + ' (' + emp.divisionCode + ')'">
+                      <span class="routed-avatar">{{ getInitials(emp.fullName) }}</span>
+                      <span class="routed-name">{{ emp.fullName }}</span>
+                      <ion-icon name="checkmark-circle" class="routed-check"></ion-icon>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- RECIPIENT PICKERS (2 COLUMNS) -->
+            <div class="route-picker-grid">
+              <!-- Destination Division -->
+              <div class="route-picker-col">
+                <div class="picker-label-row">
+                  <label class="picker-label">Destination Division / Unit</label>
+                  <button
+                    type="button"
+                    [disabled]="!toDivision || toDivision === 'ALL'"
+                    (click)="showAddDivision = !showAddDivision"
+                    class="btn-add-division"
+                  >
+                    <ion-icon name="add-circle-outline"></ion-icon>
+                    <span>+ Add Division</span>
+                  </button>
+                </div>
+                <div class="select-wrapper">
+                  <select [value]="toDivision" (change)="onDivisionChange($event)" class="route-form-select">
+                    <option value="">None - Individual Recipient</option>
+                    <option value="ALL">ALL - All Divisions</option>
+                    @for (d of availableDivisions; track d.code) {
+                      <option [value]="d.code">{{ d.name }}</option>
+                    }
+                  </select>
+                </div>
+
+                @if (showAddDivision) {
+                  <div class="mt-2 select-wrapper">
+                    <select #addDivSelect (change)="onAddDivisionChange($event); addDivSelect.value = ''" class="route-form-select route-form-select-sub">
+                      <option value="">-- Select another division --</option>
+                      @for (div of filteredAdditionalDivisions; track div.code) {
+                        <option [value]="div.code">{{ div.name }}</option>
+                      }
+                    </select>
+                  </div>
+                }
+
+                @if (additionalDivisions.length > 0) {
+                  <div class="additional-division-tags">
+                    @for (division of additionalDivisions; track division) {
+                      <span class="division-pill-tag">
+                        <ion-icon name="business" class="text-xs"></ion-icon>
+                        <span>{{ division }}</span>
+                        <button type="button" (click)="removeAdditionalDivision(division)" class="tag-remove-btn" [attr.aria-label]="'Remove ' + division">
+                          <ion-icon name="close"></ion-icon>
+                        </button>
+                      </span>
+                    }
+                  </div>
+                }
+              </div>
+
+              <!-- Assigned Handler / Recipient -->
+              <div class="route-picker-col">
+                <div class="picker-label-row">
+                  <label class="picker-label">Assigned Handler / Recipient <span class="text-rose-500">*</span></label>
+                  <span class="recipient-pool-count" title="Available active users">
+                    <ion-icon name="people-outline"></ion-icon>
+                    {{ allEmployees.length }} Available
+                  </span>
+                </div>
+                <div class="select-wrapper">
+                  <select value="" (change)="onRecipientSelect($event)" class="route-form-select">
+                    <option value="">-- Add Employee Recipient --</option>
+                    @if (blgfEmployees.length > 0) {
+                      <optgroup label="BLGF Personnel">
+                        @for (emp of blgfEmployees; track emp.id) {
+                          <option [value]="emp.id" [disabled]="alreadyRouted(emp) || selectedUserIds.includes(emp.id)">
+                            {{ emp.fullName }} - {{ emp.position }}{{ alreadyRouted(emp) ? ' - [Already Routed]' : selectedUserIds.includes(emp.id) ? ' - [Selected]' : '' }}
+                          </option>
+                        }
+                      </optgroup>
+                    }
+                    @if (lguEmployees.length > 0) {
+                      <optgroup label="LGU Staff">
+                        @for (emp of lguEmployees; track emp.id) {
+                          <option [value]="emp.id" [disabled]="alreadyRouted(emp) || selectedUserIds.includes(emp.id)">
+                            {{ emp.fullName }} - {{ emp.position }}{{ alreadyRouted(emp) ? ' - [Already Routed]' : selectedUserIds.includes(emp.id) ? ' - [Selected]' : '' }}
+                          </option>
+                        }
+                      </optgroup>
+                    }
+                    @if (otherAgencyEmployees.length > 0) {
+                      <optgroup label="Other Agencies">
+                        @for (emp of otherAgencyEmployees; track emp.id) {
+                          <option [value]="emp.id" [disabled]="alreadyRouted(emp) || selectedUserIds.includes(emp.id)">
+                            {{ emp.fullName }} - {{ emp.position }}{{ alreadyRouted(emp) ? ' - [Already Routed]' : selectedUserIds.includes(emp.id) ? ' - [Selected]' : '' }}
+                          </option>
+                        }
+                      </optgroup>
+                    }
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- SELECTED RECIPIENTS PANEL -->
+            <div class="route-selected-panel">
+              <div class="selected-panel-header">
+                <div class="flex items-center gap-2">
+                  <ion-icon name="person-circle" class="text-blue-600 dark:text-blue-400 text-lg"></ion-icon>
+                  <span class="selected-panel-title">Selected Recipients</span>
+                  <span class="selected-count-badge">{{ selectedUserIds.length }}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button type="button" (click)="toggleSelectAll()" class="btn-toggle-all">
+                    {{ allSelectableSelected ? 'Clear All' : 'Select All Active' }}
+                  </button>
+                </div>
+              </div>
+
+              @if (selectedUserIds.length === 0) {
+                <div class="empty-recipients-placeholder">
+                  <ion-icon name="person-add-outline" class="empty-recipients-icon"></ion-icon>
+                  <p class="empty-recipients-text">No recipient selected yet. Pick a division or add employee handlers above.</p>
+                </div>
+              } @else {
+                <div class="selected-recipients-list">
+                  @for (id of selectedUserIds; track id) {
+                    @if (findEmployee(id); as emp) {
+                      <div class="selected-recipient-card">
+                        <div class="recipient-card-left">
+                          <div class="recipient-avatar-circle">
+                            {{ getInitials(emp.fullName) }}
+                          </div>
+                          <div class="recipient-details">
+                            <p class="recipient-fullname">{{ emp.fullName }}</p>
+                            <p class="recipient-subinfo">
+                              <span>{{ emp.position }}</span>
+                              <span class="separator-dot">&bull;</span>
+                              <span class="division-code-badge">{{ emp.divisionCode }}</span>
+                            </p>
+                          </div>
+                        </div>
+                        <button type="button" (click)="removeRecipient(id)" class="btn-remove-recipient" [attr.aria-label]="'Remove ' + emp.fullName">
+                          <ion-icon name="close"></ion-icon>
+                        </button>
+                      </div>
+                    }
+                  }
+                </div>
+              }
+            </div>
+          </section>
+
+          <!-- ACTIONS & STATUS (2 COLUMNS) -->
+          <section class="route-actions-grid">
+            <div class="route-field-card">
+              <label class="route-field-label">Action Requested <span class="text-rose-500">*</span></label>
+              <app-managed-options-select
+                [storageKey]="'blgf-action-requested-options'"
+                [options]="actionOptions"
+                [canManageOptions]="canManageOptions"
+                [required]="true"
+                [value]="actionRequested"
+                (valueChange)="actionRequested = $event"
+                class="route-managed-select-element"
+              ></app-managed-options-select>
+            </div>
+
+            <div class="route-field-card">
+              <label class="route-field-label">Update Lifecycle Status <span class="text-rose-500">*</span></label>
+              <app-managed-options-select
+                [storageKey]="'blgf-lifecycle-status-options'"
+                [options]="statusOptions"
+                [colorCoding]="true"
+                [canManageOptions]="canManageOptions"
+                [required]="true"
+                [value]="newStatus"
+                (valueChange)="newStatus = $event"
+                class="route-managed-select-element"
+              ></app-managed-options-select>
+            </div>
+          </section>
+
+          <!-- COMPLETION PANEL (when newStatus === 'COMPLETED') -->
+          @if (newStatus === 'COMPLETED') {
+            <div class="route-completion-card">
+              <div class="completion-card-header">
+                <div class="flex items-center gap-2">
+                  <div class="completion-icon-box">
+                    <ion-icon name="checkmark-done" class="text-emerald-600 dark:text-emerald-300"></ion-icon>
+                  </div>
+                  <div>
+                    <h4 class="completion-title">Completion &amp; Document Handoff Instructions</h4>
+                    <p class="completion-subtext">Provide precise instructions on physical/digital location, who to look for, and required claiming steps.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="completion-body">
+                <label class="completion-input-label">Handoff Instructions <span class="text-rose-500">*</span></label>
+                <textarea
+                  required
+                  rows="3"
+                  [attr.minlength]="10"
+                  [(ngModel)]="handoffInstructions"
+                  name="handoffInstructions"
+                  placeholder="e.g., Claim original copy at Records Unit, BLGF Regional Office II. Look for Juan Dela Cruz, present official ID, and sign logbook before release."
+                  class="completion-textarea"
+                ></textarea>
+                <div class="completion-tags-row">
+                  <span class="hint-tag"><ion-icon name="location-outline"></ion-icon> Pickup location</span>
+                  <span class="hint-tag"><ion-icon name="person-outline"></ion-icon> Contact person / office</span>
+                  <span class="hint-tag"><ion-icon name="clipboard-outline"></ion-icon> Required next step</span>
+                </div>
+              </div>
+            </div>
+          }
+
+          <!-- REPLY ATTACHMENT -->
+          <div class="route-attachment-section">
+            <label class="route-field-label">Reply Attachment <span class="text-xs text-slate-500 dark:text-slate-400 font-normal">(Optional, PDF, JPEG, PNG max 7 MB)</span></label>
+            <div class="route-attachment-dropzone" [class.has-file]="!!replyFile">
+              <label class="dropzone-label">
+                <div class="dropzone-icon-box">
+                  @if (replyFile) {
+                    <ion-icon name="document-text" class="text-rose-500 text-2xl"></ion-icon>
+                  } @else {
+                    <ion-icon name="cloud-upload-outline" class="text-blue-500 text-2xl"></ion-icon>
+                  }
+                </div>
+                <div class="dropzone-text-box">
+                  <span class="dropzone-primary-text">{{ replyFile?.name || 'Click to browse or drop reply attachment' }}</span>
+                  <span class="dropzone-sub-text">
+                    @if (replyFile) {
+                      {{ (replyFile.size / (1024 * 1024)).toFixed(2) }} MB &bull; Ready to upload on submit
+                    } @else {
+                      Supports official memoranda, signed endorsement PDFs, or resolution scans
+                    }
+                  </span>
+                </div>
+                <input type="file" accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" class="hidden-file-input" (change)="onReplyFileChange($event)" />
+              </label>
+              @if (replyFile) {
+                <button type="button" (click)="removeReplyFile($event)" class="btn-remove-attachment" aria-label="Remove attachment">
+                  <ion-icon name="trash-outline"></ion-icon>
+                </button>
+              }
+            </div>
+          </div>
+
+          <!-- REMARKS (when not completed) -->
+          @if (newStatus !== 'COMPLETED') {
+            <div class="route-remarks-section">
+              <label class="route-field-label">Routing Remarks &amp; Action Notes</label>
+              <textarea
+                rows="2"
+                placeholder="Enter specific notes, urgent reminders, or handling instructions for the recipient..."
+                [(ngModel)]="remarks"
+                name="remarks"
+                class="route-remarks-textarea"
+              ></textarea>
+            </div>
+          }
+
+          <!-- REVIEW SUMMARY CARD -->
+          <div class="route-review-card">
+            <div class="review-header">
+              <ion-icon name="shield-checkmark" class="text-blue-600 dark:text-blue-400 text-base"></ion-icon>
+              <span class="font-bold text-xs uppercase tracking-wider text-slate-700 dark:text-slate-200">Routing Summary Preview</span>
+            </div>
+            <div class="review-grid">
+              <div class="review-item">
+                <span class="review-label">Route Number</span>
+                <span class="review-val font-mono">{{ document!.routeNo || document!.trackingNumber }}</span>
+              </div>
+              <div class="review-item">
+                <span class="review-label">Recipient Outcome</span>
+                <span class="review-val">{{ reviewSendTo }}</span>
+              </div>
+              <div class="review-item">
+                <span class="review-label">Action</span>
+                <span class="review-val">{{ actionRequested || 'None selected' }}</span>
+              </div>
+              <div class="review-item">
+                <span class="review-label">Resulting Status</span>
+                <span class="review-val capitalize">{{ formatStatus(newStatus) || 'None selected' }}</span>
+              </div>
+            </div>
+            <p class="review-footnote">
+              <ion-icon name="information-circle-outline" class="text-xs"></ion-icon>
+              Routing timeline and audit trail will update immediately across all regional dashboards upon confirmation.
+            </p>
+          </div>
+        </div>
+
+        <!-- FIXED FOOTER -->
+        <footer class="route-modal-footer shrink-0">
+          <button type="button" (click)="onClose()" class="route-btn-cancel">
+            Cancel
+          </button>
+          <button type="submit" [disabled]="isSubmitDisabled()" class="route-btn-submit">
+            @if (isSubmitting || isUploadingReply) {
+              <ion-icon name="reload" class="animate-spin text-base"></ion-icon>
+            } @else {
+              <ion-icon name="paper-plane" class="text-base"></ion-icon>
+            }
+            <span>{{ getSubmitLabel() }}</span>
+          </button>
+        </footer>
+      </form>
+    </div>
+  }
+</app-modal-layer>

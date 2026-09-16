@@ -1,0 +1,193 @@
+<div class="audit-page">
+  <div class="audit-toolbar">
+    <div>
+      <h2 class="audit-title">
+        <ion-icon name="clipboard" class="audit-titleIcon"></ion-icon>
+        <span>{{ title || 'System Audit Logs & Security Trail' }}</span>
+      </h2>
+      <p class="audit-subtitle">
+        {{ subtitle || 'Immutable log trail of all user actions, document routing, and system updates in BLGF Regional Office II' }}
+      </p>
+    </div>
+
+    <div class="audit-toolbarActions">
+      @if (auditLogs.length > 0) {
+        <span class="audit-folderName">
+          {{ currentMonthLabel }}
+        </span>
+      }
+
+      <button
+        type="button"
+        (click)="exportToExcel()"
+        class="audit-excelButton"
+        title="Manually save the selected month's logs to Excel"
+      >
+        <ion-icon name="file-tray"></ion-icon>
+        <span>Manual Excel Save</span>
+      </button>
+
+      <button
+        type="button"
+        (click)="chooseAutoSaveDirectory()"
+        class="audit-folderButton"
+        title="Select the folder used for automatic monthly Excel files"
+      >
+        <ion-icon name="folder-open"></ion-icon>
+        <span>
+          {{ autoDirectory || savedFolderName ? 'Auto Folder: ' + (autoDirectory?.name || savedFolderName) : 'Select Auto-Save Folder' }}
+        </span>
+      </button>
+
+      <button
+        type="button"
+        (click)="exportToCSV()"
+        class="audit-csvButton"
+        title="Export filtered logs to CSV"
+      >
+        <ion-icon name="download" class="audit-csvIcon"></ion-icon>
+        <span>Export CSV</span>
+      </button>
+    </div>
+  </div>
+
+  @if (exportMsg) {
+    <div class="audit-successMessage">{{ exportMsg }}</div>
+  }
+  @if (autoSaveStatus) {
+    <div class="audit-infoMessage">{{ autoSaveStatus }}</div>
+  }
+
+  <div class="audit-filters">
+    <div class="audit-searchField">
+      <ion-icon name="search" class="audit-searchIcon"></ion-icon>
+      <input
+        type="text"
+        placeholder="Filter by user, Document Route No., action details..."
+        [(ngModel)]="searchQuery"
+        name="searchQuery"
+        class="audit-searchInput"
+      />
+    </div>
+
+    <div>
+      <select
+        [ngModel]="monthFilter"
+        (ngModelChange)="onMonthFilterChange($event)"
+        name="monthFilter"
+        class="audit-select"
+        aria-label="Select log month"
+      >
+        <option value="ALL">All Months</option>
+        @for (month of availableMonths; track month) {
+          <option [value]="month">{{ formatMonthOption(month) }}</option>
+        }
+      </select>
+    </div>
+
+    <div>
+      <select
+        [(ngModel)]="actionFilter"
+        name="actionFilter"
+        class="audit-select"
+      >
+        <option value="ALL">All Action Types</option>
+        <option value="CREATE_DOC">CREATE_DOC (Log New Document)</option>
+        <option value="ROUTE_DOC">ROUTE_DOC (Forward Document)</option>
+        <option value="TRANSFER_DOC">TRANSFER_DOC (Reassign Document)</option>
+        <option value="UPLOAD_ATTACHMENT">UPLOAD_ATTACHMENT (Digital File)</option>
+        <option value="UPDATE_STATUS">UPDATE_STATUS (Lifecycle Status)</option>
+        <option value="LOGIN">LOGIN (User Auth Session)</option>
+        <option value="ENVELOPE_LOG">ENVELOPE_LOG (Outgoing Envelope Dispatch)</option>
+        <option value="SQL_QUERY">DATABASE_QUERY (Legacy Database Action)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="audit-tableCard">
+    <div class="audit-tableScroll">
+      <table class="audit-table">
+        <thead>
+          <tr class="audit-tableHead">
+            <th class="audit-cell">Timestamp</th>
+            <th class="audit-cell">Actor / User</th>
+            <th class="audit-cell">Action Type</th>
+            <th class="audit-cell">Document Route No.</th>
+            <th class="audit-cell">Action Details</th>
+          </tr>
+        </thead>
+        <tbody class="audit-tableBody">
+          @if (filteredLogs.length === 0) {
+            <tr>
+              <td class="audit-emptyCell" colspan="5">
+                No audit logs found matching your criteria.
+              </td>
+            </tr>
+          } @else {
+            @for (log of pageLogs; track log.id) {
+              <tr class="audit-row">
+                <td class="audit-timestamp">
+                  {{ formatDate(log.timestamp) }}
+                </td>
+                <td class="audit-cell">
+                  <div class="audit-userName">{{ log.userName }}</div>
+                  <div class="audit-userRole">{{ log.userRole }}</div>
+                </td>
+                <td class="audit-cell">
+                  <span [ngClass]="badgeClass(log.action)">
+                    {{ log.action }}
+                  </span>
+                </td>
+                <td class="audit-routeNumber">
+                  {{ log.documentTrackingNumber || 'N/A' }}
+                </td>
+                <td class="audit-detailsCell">
+                  @if (getActionDetailItems(log.details).length > 1) {
+                    <ul class="audit-detailList">
+                      @for (detail of getActionDetailItems(log.details); track $index) {
+                        <li class="audit-breakWords">
+                          {{ detail }}
+                        </li>
+                      }
+                    </ul>
+                  } @else {
+                    <span class="audit-detailText">
+                      {{ log.details }}
+                    </span>
+                  }
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="audit-pagination">
+    <span class="audit-paginationSummary">
+      Showing {{ paginationStart }} to {{ paginationEnd }} of {{ filteredLogs.length }}
+    </span>
+    <div class="audit-paginationActions">
+      <button
+        type="button"
+        [disabled]="page === 1"
+        (click)="goToPreviousPage()"
+        class="audit-pageButton"
+      >
+        Previous
+      </button>
+      <span class="audit-pageNumber">
+        {{ page }} / {{ totalPages }}
+      </span>
+      <button
+        type="button"
+        [disabled]="page === totalPages"
+        (click)="goToNextPage()"
+        class="audit-pageButton"
+      >
+        Next
+      </button>
+    </div>
+  </div>
+</div>

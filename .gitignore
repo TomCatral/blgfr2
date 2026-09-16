@@ -24,3 +24,7 @@ documentation_assets*/
 full_diff.txt
 working_diff.txt
 schema_diff.txt
+.angular/
+frontend/.angular/
+.chrome-ui-check/
+

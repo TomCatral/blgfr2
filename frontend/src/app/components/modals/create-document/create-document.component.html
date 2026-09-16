@@ -1,0 +1,513 @@
+<app-modal-layer
+  [isOpen]="isOpen"
+  [onClose]="onClose"
+  [maxWidth]="'42rem'"
+>
+  <div class="cd-dialog">
+    <!-- Header -->
+    <div class="cd-header">
+      <div class="cd-header-identity">
+        <div class="cd-header-icon">
+          <ion-icon name="add"></ion-icon>
+        </div>
+        <div class="cd-header-text">
+          <h2 id="create-document-title" class="cd-title">New document</h2>
+          <p class="cd-subtitle">Bureau of Local Government Finance Regional Office II</p>
+        </div>
+      </div>
+      <button
+        type="button"
+        aria-label="Close new document form"
+        class="cd-close-btn"
+        (click)="onClose()"
+      >
+        <ion-icon name="close"></ion-icon>
+      </button>
+    </div>
+
+    <!-- Main Form -->
+    <form class="cd-form" (ngSubmit)="handleSubmit($event, 'none')">
+      <!-- Stepper Guide -->
+      <div class="cd-stepper-card">
+        <div class="cd-stepper">
+          <span class="cd-step">
+            <span class="cd-step-num active">1</span>
+            <span class="cd-step-name">Document info</span>
+          </span>
+          <span class="cd-step-divider"></span>
+          <span class="cd-step">
+            <span class="cd-step-num">2</span>
+            <span class="cd-step-name">Recipients</span>
+          </span>
+          <span class="cd-step-divider"></span>
+          <span class="cd-step">
+            <span class="cd-step-num">3</span>
+            <span class="cd-step-name">Save</span>
+          </span>
+        </div>
+        <p class="cd-stepper-hint">
+          Complete the required fields (*). Register Only saves the record; Register &amp; Route also starts the handoff to your selected recipients.
+        </p>
+      </div>
+
+      <!-- Transaction Direction -->
+      <div class="cd-direction-panel">
+        <label class="cd-field-label">Transaction Direction</label>
+        <div class="cd-direction-switch">
+          <button
+            type="button"
+            role="radio"
+            [attr.aria-checked]="direction() === 'INCOMING'"
+            class="cd-direction-btn"
+            [class.active]="direction() === 'INCOMING'"
+            (click)="direction.set('INCOMING'); fetchServerRouteNo()"
+          >
+            <ion-icon name="arrow-down-left"></ion-icon>
+            INCOMING DOCUMENT
+          </button>
+          <button
+            type="button"
+            role="radio"
+            [attr.aria-checked]="direction() === 'OUTGOING'"
+            class="cd-direction-btn"
+            [class.active]="direction() === 'OUTGOING'"
+            (click)="direction.set('OUTGOING'); fetchServerRouteNo()"
+          >
+            <ion-icon name="arrow-up-right"></ion-icon>
+            OUTGOING DOCUMENT
+          </button>
+        </div>
+      </div>
+
+      <!-- Tracking Number -->
+      <div>
+        <label class="cd-field-label">Document Tracking No. (Automatic)</label>
+        <div class="cd-tracking-row">
+          <div class="cd-tracking-code">
+            <ion-icon name="hashtag"></ion-icon>
+            <span>{{ displayedRouteNo() }}</span>
+          </div>
+          <button
+            type="button"
+            title="Fetch the next route number"
+            class="cd-refresh-btn"
+            (click)="fetchServerRouteNo()"
+          >
+            <ion-icon name="refresh"></ion-icon>
+          </button>
+        </div>
+        <p class="cd-field-hint">
+          Generated automatically when the document is saved. The final number may advance if another document is registered first.
+        </p>
+      </div>
+
+      <!-- Document Details Section Header -->
+      <h3 class="cd-section-heading">
+        <span class="cd-section-icon">
+          <ion-icon name="document-text"></ion-icon>
+        </span>
+        Document Details
+      </h3>
+
+      <!-- Document Title & Category -->
+      <div class="cd-grid-2col">
+        <div>
+          <label class="cd-field-label">Category / Type *</label>
+          <app-managed-options-select
+            [storageKey]="'blgf_document_categories'"
+            [options]="categoryOptions()"
+            [value]="category()"
+            [required]="true"
+            [canManageOptions]="currentUser.role === 'SYSTEM_ADMIN'"
+            [textAlign]="'left'"
+            (valueChange)="category.set($event)"
+          ></app-managed-options-select>
+        </div>
+
+        <div>
+          <label class="cd-field-label">Document title *</label>
+          <app-autocomplete-field
+            [value]="title()"
+            (onChange)="title.set($event)"
+            [required]="true"
+            [multiline]="true"
+            [rows]="2"
+            [placeholder]="'e.g. Q2 Real Property Tax Assessment Summary'"
+            [ariaLabel]="'Document Title'"
+            [className]="'cd-textarea'"
+          ></app-autocomplete-field>
+        </div>
+      </div>
+
+      <!-- Subject Matter -->
+      <div>
+        <label class="cd-field-label">Subject Matter / Particulars *</label>
+        <app-autocomplete-field
+          [value]="subject()"
+          (onChange)="subject.set($event)"
+          [required]="true"
+          [multiline]="true"
+          [rows]="2"
+          [placeholder]="'Brief summary of document content, action requested, or background...'"
+          [ariaLabel]="'Subject Matter or Particulars'"
+          [className]="'cd-textarea'"
+        ></app-autocomplete-field>
+      </div>
+
+      <!-- Letter Origin / Sending Office -->
+      <div class="cd-panel">
+        <div class="cd-panel-title">
+          <ion-icon name="business"></ion-icon>
+          Letter Origin / Sending Office
+        </div>
+        <div class="cd-grid-2col">
+          <div>
+            <label class="cd-field-label">Letter From / Sender *</label>
+            <app-autocomplete-field
+              [value]="senderName()"
+              (onChange)="senderName.set($event)"
+              [required]="true"
+              [placeholder]="'Name of sender or signatory'"
+              [ariaLabel]="'Letter From or Sender'"
+              [className]="'cd-input'"
+            ></app-autocomplete-field>
+          </div>
+
+          <div>
+            <label class="cd-field-label">Originating Office *</label>
+            <app-autocomplete-field
+              [value]="originatingOffice()"
+              (onChange)="originatingOffice.set($event)"
+              [required]="true"
+              [placeholder]="'e.g. Provincial Treasury Office'"
+              [ariaLabel]="'Originating Office'"
+              [className]="'cd-input'"
+            ></app-autocomplete-field>
+          </div>
+
+          <div>
+            <label class="cd-field-label">Position</label>
+            <app-autocomplete-field
+              [value]="senderPosition()"
+              (onChange)="senderPosition.set($event)"
+              [placeholder]="'e.g. Provincial Treasurer'"
+              [ariaLabel]="'Sender Position'"
+              [className]="'cd-input'"
+            ></app-autocomplete-field>
+          </div>
+
+          <div>
+            <label class="cd-field-label">Office Address *</label>
+            <app-autocomplete-field
+              [value]="senderAddress()"
+              (onChange)="senderAddress.set($event)"
+              [required]="true"
+              [placeholder]="'Complete office or mailing address'"
+              [ariaLabel]="'Office Address'"
+              [className]="'cd-input'"
+            ></app-autocomplete-field>
+          </div>
+        </div>
+      </div>
+
+      <!-- Initial Division / Recipient Assignment -->
+      <div class="cd-panel">
+        <div class="cd-panel-title">
+          <ion-icon name="people"></ion-icon>
+          Initial Division / Recipient Assignment
+        </div>
+
+        <div>
+          <div class="cd-panel-header">
+            <label class="cd-field-label">Division Assignment *</label>
+            <button
+              type="button"
+              class="cd-btn-text"
+              [disabled]="!currentDivision() || currentDivision() === 'ALL'"
+              [title]="currentDivision() ? 'Route to another division' : 'Select the first division before adding another'"
+              (click)="showAddDivision.set(!showAddDivision())"
+            >
+              + Add Division
+            </button>
+          </div>
+
+          @if (showAddDivision()) {
+            <select
+              class="cd-select"
+              (change)="onAddDivision($event)"
+            >
+              <option value="">-- Select another division to route --</option>
+              @for (div of availableAdditionalDivisions(); track div[0]) {
+                <option [value]="div[0]">{{ div[1] }} ({{ div[0] }})</option>
+              }
+            </select>
+          }
+
+          <select
+            class="cd-select"
+            [value]="recipientUserId() || selectedRecipientIds().length > 0 ? '' : currentDivision()"
+            (change)="onDivisionChange($event)"
+          >
+            <option value="">None - Individual Recipient</option>
+            <option value="ALL">All Divisions</option>
+            @for (div of DIVISION_OPTIONS; track div[0]) {
+              <option [value]="div[0]">{{ div[1] }} ({{ div[0] }})</option>
+            }
+          </select>
+
+          @if (currentDivision()) {
+            <div class="cd-chips-row">
+              @for (div of selectedDivisionCodes(); track div; let idx = $index) {
+                <span class="cd-chip">
+                  {{ div }}
+                  <button
+                    type="button"
+                    class="cd-chip-remove"
+                    [attr.aria-label]="'Remove ' + div + ' division'"
+                    (click)="onRemoveDivision(div, idx)"
+                  >
+                    <ion-icon name="close"></ion-icon>
+                  </button>
+                </span>
+              }
+            </div>
+          }
+        </div>
+
+        <div>
+          <label class="cd-field-label">Assigned Handler / Individual Recipient *</label>
+          <div class="cd-recipient-input-row">
+            <select
+              class="cd-select"
+              [value]="recipientUserId()"
+              (change)="onRecipientSelect($event)"
+            >
+              <option value="">-- Select active BLGF user account --</option>
+              @for (user of availableRecipients(); track user.id) {
+                <option [value]="user.id">
+                  {{ user.fullName }} - {{ user.designation || user.role }}
+                </option>
+              }
+            </select>
+            <button
+              type="button"
+              class="cd-btn-add-recipient"
+              [disabled]="!recipientUserId()"
+              (click)="addRecipient()"
+            >
+              <ion-icon name="person-add"></ion-icon>
+              Add Recipient
+            </button>
+          </div>
+
+          @if (selectedRecipientIds().length > 0) {
+            <div class="cd-chips-row">
+              @for (id of selectedRecipientIds(); track id) {
+                <span class="cd-chip">
+                  {{ getEmployeeName(id) }}
+                  <button
+                    type="button"
+                    class="cd-chip-remove"
+                    [attr.aria-label]="'Remove ' + getEmployeeName(id)"
+                    (click)="removeRecipient(id)"
+                  >
+                    <ion-icon name="close"></ion-icon>
+                  </button>
+                </span>
+              }
+            </div>
+          }
+        </div>
+
+        @if (recipientName()) {
+          <div class="cd-selected-recipient-summary">
+            <div><strong>Selected:</strong> {{ recipientName() }}</div>
+            @if (recipientPosition()) {
+              <div><strong>Position:</strong> {{ recipientPosition() }}</div>
+            }
+            @if (recipientOffice()) {
+              <div><strong>Office:</strong> {{ recipientOffice() }}</div>
+            }
+            @if (recipientAddress()) {
+              <div><strong>Address:</strong> {{ recipientAddress() }}</div>
+            }
+          </div>
+        }
+
+        @if (!recipientUserId() && selectedRecipientIds().length === 0 && currentDivision()) {
+          <div class="cd-division-members-box">
+            <div class="cd-division-members-header">
+              <p class="cd-division-members-title">
+                Recipients from {{ currentDivision() === 'ALL' ? 'All Divisions' : selectedDivisionLabels() }}
+              </p>
+              <span class="cd-count-badge">
+                {{ holdingDivisionRecipients().length }}
+              </span>
+            </div>
+            @if (holdingDivisionRecipients().length > 0) {
+              <div class="cd-chips-row">
+                @for (user of holdingDivisionRecipients(); track user.id) {
+                  <span class="cd-chip cd-chip-member">
+                    {{ user.fullName }}{{ user.designation ? ' - ' + user.designation : '' }}
+                    <button
+                      type="button"
+                      class="cd-chip-remove"
+                      title="Remove employee from this route"
+                      [attr.aria-label]="'Remove ' + user.fullName + ' from recipients'"
+                      (click)="excludeRecipient(user.id)"
+                    >
+                      <ion-icon name="close"></ion-icon>
+                    </button>
+                  </span>
+                }
+              </div>
+            } @else {
+              <p class="cd-field-hint">No active users are assigned to this division.</p>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Action Requested -->
+      <div>
+        <label class="cd-field-label">Action Requested *</label>
+        <app-managed-options-select
+          [storageKey]="'blgf-action-requested-options'"
+          [options]="actionOptions"
+          [value]="initialAction()"
+          [required]="true"
+          [canManageOptions]="canManageWorkflowOptions()"
+          (valueChange)="initialAction.set($event)"
+        ></app-managed-options-select>
+      </div>
+
+      <!-- Priority Level & Target Completion Date -->
+      <div class="cd-grid-2col">
+        <div>
+          <div class="cd-label-badge-row">
+            <label class="cd-field-label">Priority Level *</label>
+            @if (priority()) {
+              <span class="cd-priority-badge" [ngClass]="priorityBadgeClasses(priority())">
+                {{ priority().replace('_', ' ') }}
+              </span>
+            }
+          </div>
+          <app-managed-options-select
+            [storageKey]="'blgf-priority-options'"
+            [options]="priorityOptions"
+            [value]="priority()"
+            [required]="true"
+            [canManageOptions]="canManageWorkflowOptions()"
+            (valueChange)="onPriorityChange($event)"
+          ></app-managed-options-select>
+        </div>
+
+        <div>
+          <label class="cd-field-label">Target Completion Date *</label>
+          <input
+            type="date"
+            required
+            [value]="targetCompletionDate()"
+            (change)="onTargetDateChange($event)"
+            class="cd-date-input"
+          />
+        </div>
+      </div>
+
+      <!-- Supporting Documents Section -->
+      <div>
+        <label class="cd-field-label">Supporting Documents</label>
+        <label class="cd-dropzone">
+          <div class="cd-dropzone-icon">
+            <ion-icon name="cloud-upload"></ion-icon>
+          </div>
+          <div class="cd-dropzone-info">
+            <p class="cd-dropzone-title">Select files from your device</p>
+            <p class="cd-dropzone-sub">PDF, Word, Excel, PNG or JPG files</p>
+          </div>
+          <span class="cd-browse-text">Browse files</span>
+          <input
+            type="file"
+            multiple
+            hidden
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+            (change)="onFilePicked($event)"
+          />
+        </label>
+
+        @if (attachments().length > 0) {
+          <div class="cd-file-list">
+            @for (att of attachments(); track att.id) {
+              <div class="cd-file-item">
+                <ion-icon name="document-text"></ion-icon>
+                <div class="cd-file-meta">
+                  <p class="cd-file-name">{{ att.fileName }}</p>
+                  <p class="cd-file-size">{{ att.fileSize }}</p>
+                </div>
+                <button
+                  type="button"
+                  class="cd-file-remove"
+                  [attr.aria-label]="'Remove ' + att.fileName"
+                  (click)="removeAttachment(att.id)"
+                >
+                  <ion-icon name="trash"></ion-icon>
+                </button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Remarks / Instructions -->
+      <div>
+        <label class="cd-field-label">Initial Routing Instructions / Remarks</label>
+        <app-autocomplete-field
+          [value]="remarks()"
+          (onChange)="remarks.set($event)"
+          [placeholder]="'e.g. Received via mail courier, complete with annexes...'"
+          [ariaLabel]="'Initial Routing Instructions or Remarks'"
+          [className]="'cd-textarea'"
+        ></app-autocomplete-field>
+      </div>
+
+      <!-- Sticky Action Footer -->
+      <div class="cd-footer">
+        <button
+          type="button"
+          class="cd-btn-cancel"
+          (click)="onClose()"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          [disabled]="submitting()"
+          class="cd-btn-secondary"
+          title="Register document without routing"
+        >
+          @if (submitting()) {
+            <span class="cd-spinner dark-spinner"></span>
+            <span>Saving...</span>
+          } @else {
+            Register Only
+          }
+        </button>
+        <button
+          type="button"
+          [disabled]="submitting()"
+          class="cd-btn-primary"
+          title="Register and open routing dispatch window"
+          (click)="handleSubmit($event, 'route')"
+        >
+          @if (submitting()) {
+            <span class="cd-spinner"></span>
+            <span>Saving...</span>
+          } @else {
+            <ion-icon name="paper-plane"></ion-icon>
+            Register &amp; Route
+          }
+        </button>
+      </div>
+    </form>
+  </div>
+</app-modal-layer>

@@ -16,7 +16,6 @@
     "server.ts",
     "services/**/*.ts",
     "utils/**/*.ts",
-    "../api/**/*.ts",
-    "../frontend/src/types.ts"
+    "../api/**/*.ts"
   ]
 }

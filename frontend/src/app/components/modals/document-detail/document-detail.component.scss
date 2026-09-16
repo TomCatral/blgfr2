@@ -1,0 +1,184 @@
+/* ==========================================================================
+   Document Detail Modal - BLGF RO2 DTS
+   Wide Executive Layout with High-Fidelity Routing Flow Visualizer
+   ========================================================================== */
+
+.document-detail-panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 1.5rem !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05), 0 24px 64px rgba(15, 23, 42, 0.16) !important;
+  max-height: calc(100dvh - 2rem);
+  overflow: hidden;
+  background: var(--ui-surface, #ffffff);
+  color: var(--ui-text, #0f172a);
+}
+
+.document-detail-content {
+  flex: 1;
+  max-height: calc(88vh - 4.5rem);
+  overflow-y: auto;
+  scroll-behavior: smooth;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.35);
+    border-radius: 9999px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.55);
+  }
+}
+
+.document-detail-hero {
+  border-radius: 1.25rem;
+  border: 1px solid var(--ui-border, #e2e8f0);
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.doc-hero-eyebrow {
+  color: #2563eb;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.doc-hero-sub {
+  color: #64748b;
+}
+
+.doc-hero-chip {
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-radius: 9999px;
+  font-weight: 800;
+}
+
+.doc-hero-btn {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
+  transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.36);
+  }
+
+  &:active {
+    transform: translateY(0) scale(0.98);
+  }
+}
+
+/* Wide Responsive Flow Tree Grid */
+.flow-roots-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--roots-count, 1), minmax(300px, 1fr));
+  gap: 1.25rem;
+  align-items: start;
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0.25rem 1rem;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: rgba(148, 163, 184, 0.08);
+    border-radius: 9999px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.35);
+    border-radius: 9999px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Dark Mode Styles
+   -------------------------------------------------------------------------- */
+:host-context(.dark) {
+  .document-detail-panel {
+    background: #090d16;
+    color: #f1f5f9;
+    border-color: #1e293b;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 24px 64px rgba(0, 0, 0, 0.6) !important;
+  }
+
+  .document-detail-hero {
+    border-color: #1e293b;
+    background: linear-gradient(135deg, #0f172a 0%, #162032 100%);
+    color: #f1f5f9;
+  }
+
+  .doc-hero-eyebrow {
+    color: #60a5fa;
+  }
+
+  .doc-hero-sub {
+    color: #94a3b8;
+  }
+
+  .doc-hero-chip {
+    background: rgba(59, 130, 246, 0.15);
+    color: #93c5fd;
+    border-color: rgba(59, 130, 246, 0.3);
+  }
+
+  .doc-hero-btn {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: #fff;
+
+    &:hover {
+      box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+    }
+  }
+
+  .flow-roots-grid::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.45);
+  }
+}
+
+@media screen and (max-width: 767px) {
+  .document-detail-panel {
+    border-radius: 0 !important;
+    min-height: 100dvh;
+    box-shadow: none !important;
+  }
+
+  .document-detail-content {
+    max-height: calc(100dvh - 5.5rem) !important;
+    padding: 0.875rem !important;
+  }
+
+  .flow-roots-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.tracking-title { line-height: 1.25; }
+.document-subject { line-height: 1.75; }
+.document-field-value { line-height: 1.6; }
+.attachment-name, .transaction-stage-label { line-height: 1.5; }
+.flow-root-node { transform: translateX(-50%); }
+.route-lock-help { line-height: 1.4; }
+.visually-hidden-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+

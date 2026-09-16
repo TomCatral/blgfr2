@@ -1,0 +1,219 @@
+<div [ngClass]="'page' | cls">
+  <div [ngClass]="'header' | cls">
+    <div>
+      <h2 [ngClass]="'title' | cls">
+        <ion-icon name="document-text" [ngClass]="'titleIcon' | cls"></ion-icon>
+        <span>Documents</span>
+      </h2>
+      <p [ngClass]="'subtitle' | cls">Search, filter, and manage your document records.</p>
+    </div>
+    <button type="button" [ngClass]="'createButton' | cls" (click)="onOpenCreateDoc()">
+      <ion-icon name="add" [ngClass]="'buttonIcon' | cls"></ion-icon>
+      <span>{{ createLabel }}</span>
+    </button>
+  </div>
+
+  @if (normalizedQuery()) {
+    <div [ngClass]="'searchBanner' | cls">
+      <ion-icon name="search" [ngClass]="'searchBannerIcon' | cls"></ion-icon>
+      <div class="page-title-content">
+        <h3 [ngClass]="'searchBannerTitle' | cls">Search results for &ldquo;{{ searchQuery.trim() }}&rdquo;</h3>
+        <p [ngClass]="'searchBannerText' | cls">
+          {{ filteredDocs().length }} matching document{{ filteredDocs().length === 1 ? '' : 's' }} by tracking number, title, handler &amp; details
+        </p>
+      </div>
+      @if (canClearSearch) {
+        <button type="button" [ngClass]="'searchClearButton' | cls" (click)="clearLocalSearch()">
+          <ion-icon name="close" [ngClass]="'smallIcon' | cls"></ion-icon>
+          <span>Clear search</span>
+        </button>
+      }
+    </div>
+  }
+
+  <div [ngClass]="'filters' | cls">
+    <div [ngClass]="'filterHeader' | cls">
+      <div [ngClass]="'directionTabs' | cls">
+        @for (dir of directions; track dir) {
+          <button type="button" [ngClass]="dirTabClass(dir)" (click)="setDirection(dir)">
+            @if (dir === 'INCOMING') {
+              <ion-icon name="arrow-down-left" [ngClass]="'tabIcon' | cls"></ion-icon>
+            }
+            @if (dir === 'OUTGOING') {
+              <ion-icon name="arrow-up-right" [ngClass]="'tabIcon' | cls"></ion-icon>
+            }
+            <span>{{ dirLabel(dir) }}</span>
+          </button>
+        }
+      </div>
+      <p [ngClass]="'resultCount' | cls">
+        Showing <strong [ngClass]="'resultValue' | cls">{{ filteredDocs().length }}</strong> record(s)
+      </p>
+    </div>
+
+    <div [ngClass]="'filterGrid' | cls">
+      <div class="doc-search-wrap">
+        <ion-icon name="search" class="doc-search-icon"></ion-icon>
+        <input
+          type="text"
+          class="doc-search-input"
+          placeholder="Filter by tracking no, title, handler, division..."
+          [ngModel]="searchQuery"
+          (ngModelChange)="onLocalSearchChange($event)"
+        />
+        @if (searchQuery.trim()) {
+          <button
+            type="button"
+            class="doc-search-clear"
+            aria-label="Clear search"
+            (click)="clearLocalSearch()"
+          >
+            <ion-icon name="close-circle"></ion-icon>
+          </button>
+        }
+      </div>
+
+      <select [ngClass]="'select' | cls" [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
+        <option value="ALL">All Statuses</option>
+        <option value="PENDING">Pending</option>
+        <option value="IN_PROGRESS">In Progress</option>
+        <option value="FOR_SIGNATURE">For Signature</option>
+        <option value="COMPLETED">Completed</option>
+        <option value="RETURNED">Returned</option>
+        <option value="ON_HOLD">On Hold</option>
+      </select>
+
+      <select [ngClass]="'select' | cls" [ngModel]="divisionFilter()" (ngModelChange)="divisionFilter.set($event)">
+        <option value="ALL">All Divisions</option>
+        <option value="ORD">ORD</option>
+        <option value="LTOD">LTOD</option>
+        <option value="LAOD">LAOD</option>
+        <option value="AD">AD</option>
+        <option value="LU">LU</option>
+      </select>
+
+      <select [ngClass]="'select' | cls" [ngModel]="priorityFilter()" (ngModelChange)="priorityFilter.set($event)">
+        <option value="ALL">All Priorities</option>
+        <option value="ROUTINE">Routine</option>
+        <option value="URGENT">Urgent</option>
+        <option value="VERY_URGENT">Very Urgent!</option>
+        <option value="CONFIDENTIAL">Confidential</option>
+      </select>
+    </div>
+  </div>
+
+  <div [ngClass]="'tableCard' | cls">
+    @if (filteredDocs().length === 0) {
+      <div [ngClass]="'empty' | cls">
+        <ion-icon name="document-text" [ngClass]="'emptyIcon' | cls"></ion-icon>
+        <h3 [ngClass]="'emptyTitle' | cls">No documents match filter criteria</h3>
+        <p [ngClass]="'emptyText' | cls">Try resetting search query or adjusting filters.</p>
+      </div>
+    } @else {
+      <div [ngClass]="'tableScroll' | cls" tabindex="0" role="region" aria-label="Document records. Scroll horizontally to view all columns.">
+        <table [ngClass]="'table' | cls">
+          <thead>
+            <tr [ngClass]="'tableHeadRow' | cls">
+              <td [ngClass]="'cell' | cls">Document Route No. / Type</td>
+              <td [ngClass]="'cell' | cls">Priority</td>
+              <td [ngClass]="'cell' | cls">Document Title &amp; Subject</td>
+              <td [ngClass]="'cell' | cls">Progress</td>
+              <td [ngClass]="'cell' | cls">Status</td>
+              <td [ngClass]="'cell' | cls">Division</td>
+              <td [ngClass]="'cell' | cls">Dates</td>
+              <td [ngClass]="'actionsHead' | cls">Actions</td>
+            </tr>
+          </thead>
+          <tbody [ngClass]="'tableBody' | cls">
+            @for (doc of filteredDocs(); track doc.id) {
+              <tr [ngClass]="'tableRow' | cls">
+                <td [ngClass]="'routeCell' | cls">
+                  <div [ngClass]="'routeLink' | cls" (click)="onSelectDoc(doc)">
+                    <ion-icon name="qr-code" [ngClass]="'routeIcon' | cls"></ion-icon>
+                    <span [innerHTML]="highlightText(doc.routeNo, normalizedQuery())"></span>
+                  </div>
+                  <div [ngClass]="'routeMeta' | cls">
+                    <span [ngClass]="cx('directionBadge', doc.direction === 'INCOMING' ? 'incomingBadge' : 'outgoingBadge')">
+                      {{ doc.direction }}
+                    </span>
+                    @if ((doc.attachments || []).length > 0) {
+                      <span [ngClass]="'attachmentCount' | cls">
+                        <ion-icon name="attach" [ngClass]="'attachmentIcon' | cls"></ion-icon>
+                        <span>{{ doc.attachments.length }}</span>
+                      </span>
+                    }
+                  </div>
+                </td>
+                <td [ngClass]="'cell' | cls">
+                  <span [ngClass]="priorityClass(doc)">{{ prioLabel(doc) }}</span>
+                </td>
+                <td [ngClass]="'documentCell' | cls">
+                  <div [ngClass]="'documentTitle' | cls" [innerHTML]="highlightText(doc.title, normalizedQuery())"></div>
+                  <div [ngClass]="'subject' | cls">{{ doc.subject }}</div>
+                  <div [ngClass]="'category' | cls">
+                    <ion-icon name="pricetag" [ngClass]="'smallIcon' | cls"></ion-icon>
+                    <span>{{ doc.category }}</span>
+                  </div>
+                  <div [ngClass]="'latestAction' | cls">Action: {{ latestAction(doc) }}</div>
+                </td>
+                <td [ngClass]="'progressCell' | cls">
+                  <div [ngClass]="'progressLabels' | cls">
+                    <span [ngClass]="cx('progressValue', 'progress_' + doc.currentStatus)">
+                      {{ getProgress(doc).percentage }}%
+                    </span>
+                    <span [ngClass]="'progressStage' | cls">{{ getProgress(doc).stageName }}</span>
+                  </div>
+                  <div [ngClass]="'progressTrack' | cls">
+                    <div [ngClass]="cx('progressBar', 'progress_' + doc.currentStatus)" [style.width.%]="getProgress(doc).percentage"></div>
+                  </div>
+                </td>
+                <td [ngClass]="'cell' | cls">
+                  <span [ngClass]="cx('statusBadge', 'status_' + doc.currentStatus)">
+                    <span [ngClass]="'statusDot' | cls"></span>
+                    <span>{{ statusLabel(doc) }}</span>
+                  </span>
+                </td>
+                <td [ngClass]="'cell' | cls">
+                  <div [ngClass]="'division' | cls">{{ doc.currentDivision }}</div>
+                  <div [ngClass]="'assignee' | cls">{{ doc.assignedUser || 'Unassigned' }}</div>
+                </td>
+                <td [ngClass]="'dateCell' | cls">
+                  <div [ngClass]="'receivedDate' | cls">
+                    <ion-icon name="calendar" [ngClass]="'smallIcon' | cls"></ion-icon>
+                    <span>{{ formatShortDate(doc.dateReceived) }}</span>
+                  </div>
+                  <div [ngClass]="'dueDate' | cls">Due: {{ formatShortDate(doc.targetCompletionDate) }}</div>
+                </td>
+                <td [ngClass]="'actionsCell' | cls">
+                  <button type="button" [ngClass]="'viewButton' | cls" (click)="onSelectDoc(doc)" [attr.aria-label]="'View ' + doc.routeNo">
+                    <ion-icon name="eye" [ngClass]="'actionIcon' | cls"></ion-icon>
+                  </button>
+                  @if (canRoute(doc)) {
+                    <button type="button" [ngClass]="'routeButton' | cls" (click)="onOpenRouteDoc(doc)" [attr.aria-label]="'Route ' + doc.routeNo">
+                      <ion-icon name="paper-plane" [ngClass]="'actionIcon' | cls"></ion-icon>
+                    </button>
+                  }
+                  @if (canAccessSlip) {
+                    <button type="button" [ngClass]="'slipButton' | cls" (click)="onPrintSlip(doc)" [attr.aria-label]="'Print routing slip for ' + doc.routeNo">
+                      <ion-icon name="print" [ngClass]="'actionIcon' | cls"></ion-icon>
+                    </button>
+                  }
+                  @if (canDeleteDoc) {
+                    <button
+                      type="button"
+                      [ngClass]="'deleteButton' | cls"
+                      (click)="onDeleteDoc(doc)"
+                      [attr.aria-label]="'Delete ' + doc.routeNo"
+                    >
+                      <ion-icon name="trash" [ngClass]="'actionIcon' | cls"></ion-icon>
+                    </button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>

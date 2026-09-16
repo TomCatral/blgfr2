@@ -1,0 +1,144 @@
+
+    <div [ngClass]="'routing-followup-page' | cls">
+      <header [ngClass]="'routing-followup-hero' | cls">
+        <div [ngClass]="'routing-followup-heroContent' | cls">
+          <div>
+            <div [ngClass]="'routing-followup-eyebrow' | cls">
+              <ion-icon name="git-network"></ion-icon>
+              Routing Monitoring
+            </div>
+            <h1 [ngClass]="'routing-followup-heroTitle' | cls">Routing Follow-up</h1>
+            <p [ngClass]="'routing-followup-heroDescription' | cls">
+              Monitor pending documents and remind handlers who have not taken action.
+            </p>
+          </div>
+          <div [ngClass]="'routing-followup-summary' | cls">
+            <div [ngClass]="'routing-followup-summaryCount' | cls">{{ routingProgress.length }}</div>
+            <div [ngClass]="'routing-followup-summaryLabel' | cls">Routing records</div>
+            <div [ngClass]="'routing-followup-summaryPending' | cls">{{ pendingRoutes.length }} awaiting action</div>
+          </div>
+        </div>
+      </header>
+
+      <section [ngClass]="'routing-followup-panel' | cls">
+        <div [ngClass]="'routing-followup-toolbar' | cls">
+          <div [ngClass]="'routing-followup-searchWrap' | cls">
+            <ion-icon name="search" size="small" [ngClass]="'routing-followup-searchIcon' | cls"></ion-icon>
+            <input
+              type="text"
+              [value]="searchQuery()"
+              (input)="onSearchInput($event)"
+              placeholder="Search route number, document, handler, status..."
+              aria-label="Search routing follow-up records"
+              [ngClass]="'routing-followup-searchInput' | cls"
+            >
+            @if (searchQuery()) {
+              <button type="button" (click)="onClearSearch()" aria-label="Clear routing search" [ngClass]="'routing-followup-clearButton' | cls">
+                <ion-icon name="close" size="small"></ion-icon>
+              </button>
+            }
+          </div>
+          <span [ngClass]="'routing-followup-resultCount' | cls">
+            {{ filteredRoutingProgress.length }} result{{ filteredRoutingProgress.length === 1 ? '' : 's' }}
+          </span>
+        </div>
+        <div [ngClass]="'routing-followup-panelHeading' | cls">
+          <ion-icon name="time" size="small" [ngClass]="'routing-followup-clockIcon' | cls"></ion-icon>
+          <h2 [ngClass]="'routing-followup-panelTitle' | cls">
+            All Routing Progress - longest in status first
+          </h2>
+        </div>
+        <div [ngClass]="'routing-followup-records' | cls">
+          @if (filteredRoutingProgress.length > 0) {
+            @for (item of paginatedRoutingProgress; track item.document.id + '-' + item.route.id) {
+              <article [ngClass]="'routing-followup-record' | cls">
+                <div [ngClass]="'routing-followup-recordContent' | cls">
+                  <div [ngClass]="'routing-followup-badges' | cls">
+                    <span [ngClass]="'routing-followup-routeNumber' | cls">{{ item.document.routeNo || item.document.trackingNumber }}</span>
+                    <span [ngClass]="statusBadgeClass(item)">{{ item.status }}</span>
+                    <span [ngClass]="'routing-followup-elapsedBadge' | cls">{{ elapsedText(item.statusSince) }}</span>
+                    <span [ngClass]="'routing-followup-remindedBadge' + (reminderHistory(item.document, recordHandler(item.route)).length > 0 ? ' routing-followup-remindedActive' : '')">
+                      <ion-icon name="notifications" size="small"></ion-icon>
+                      Reminded {{ reminderHistory(item.document, recordHandler(item.route)).length }}x
+                    </span>
+                  </div>
+                  <h3 [ngClass]="'routing-followup-recordTitle' | cls">{{ item.document.title }}</h3>
+                  @if (item.document.subject && item.document.subject.trim()) {
+                    <div [ngClass]="'routing-followup-content' | cls">
+                      <strong>Content</strong>
+                      <p>{{ item.document.subject }}</p>
+                    </div>
+                  }
+                  @if (reminderHistory(item.document, recordHandler(item.route)).length > 0) {
+                    <div [ngClass]="'routing-followup-reminders' | cls">
+                      <div [ngClass]="'routing-followup-reminderTitle' | cls">
+                        <ion-icon name="notifications-outline" class="mr-1 inline-block align-middle"></ion-icon>
+                        Reminders ({{ reminderHistory(item.document, recordHandler(item.route)).length }})
+                      </div>
+                      <ul [ngClass]="'routing-followup-reminderList' | cls">
+                        @for (reminder of reminderHistory(item.document, recordHandler(item.route)); track reminder.id; let index = $index) {
+                          <li>
+                            <span class="rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-bold px-1.5 py-0.5 text-[10px]">#{{ index + 1 }}</span>
+                            <span class="font-semibold text-slate-800 dark:text-slate-200">{{ reminder.userName }}</span>
+                            <time class="text-slate-400">&bull; {{ formatDate(reminder.timestamp) }}</time>
+                            <span class="text-slate-600 dark:text-slate-300">- {{ reminderMessage(reminder) }}</span>
+                          </li>
+                        }
+                      </ul>
+                    </div>
+                  }
+                </div>
+                <div [ngClass]="'routing-followup-actions' | cls">
+                  <button type="button" (click)="onSelectDoc(item.document)" [ngClass]="'routing-followup-viewButton' | cls">
+                    <ion-icon name="eye" size="small"></ion-icon>
+                    View
+                  </button>
+                  @if (canSendReminder) {
+                    <button type="button" (click)="onSendReminder(item.document, item.route)" [ngClass]="'routing-followup-reminderButton' | cls">
+                      <ion-icon name="notifications" size="small"></ion-icon>
+                      Send Reminder
+                    </button>
+                  }
+                </div>
+              </article>
+            }
+          } @else {
+            <div [ngClass]="'routing-followup-empty' | cls">
+              @if (searchQuery()) {
+                No routing records match "{{ searchQuery() }}".
+              } @else {
+                No routing progress records are available.
+              }
+            </div>
+          }
+        </div>
+        @if (filteredRoutingProgress.length > recordsPerPage) {
+          <div [ngClass]="'routing-followup-pagination' | cls">
+            <span>
+              Page {{ currentPage() }} of {{ pageCount }} &bull; {{ filteredRoutingProgress.length }} routing records
+            </span>
+            <div [ngClass]="'routing-followup-paginationActions' | cls">
+              <button
+                type="button"
+                [disabled]="currentPage() === 1"
+                (click)="previousPage()"
+                [ngClass]="'routing-followup-pageButton' | cls"
+              >
+                <ion-icon name="chevron-back" size="small"></ion-icon>
+                Previous
+              </button>
+              <button
+                type="button"
+                [disabled]="currentPage() === pageCount"
+                (click)="nextPage()"
+                [ngClass]="'routing-followup-nextButton' | cls"
+              >
+                Next
+                <ion-icon name="chevron-forward" size="small"></ion-icon>
+              </button>
+            </div>
+          </div>
+        }
+      </section>
+    </div>
+  

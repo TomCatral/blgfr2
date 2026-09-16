@@ -1,0 +1,103 @@
+<li class="flow-node-item">
+  @if (flowNumber.includes('.')) {
+    <span class="flow-branch-line" aria-hidden="true"></span>
+    <span class="flow-branch-arrow" aria-hidden="true"></span>
+  }
+  <button
+    type="button"
+    class="flow-node-btn"
+    [attr.aria-pressed]="parent.selectedRoute().id === recipient.id"
+    aria-controls="flow-recipient-details"
+    (click)="parent.selectFlowRecipient(recipient.id)"
+  >
+    <div class="flow-node-header">
+      <div class="flow-node-header-main">
+        <div class="flow-node-identity">
+          <span class="flow-step-tag" [ngClass]="parent.getFlowNodeStepClass(recipient.id) | cls">
+            Step {{ flowNumber }}
+          </span>
+          <span class="flow-user-name">
+            {{ parent.resolveUserName(recipient.toUserId, recipient.toUser) || recipient.toDivision }}
+          </span>
+          <span class="flow-division-tag">
+            {{ recipient.toDivision }}
+          </span>
+          @if (parent.isParticipantInStep(recipient)) {
+            <span class="flow-you-badge">
+              <ion-icon name="person"></ion-icon> You
+            </span>
+          }
+        </div>
+        <div class="flow-action-meta">
+          <span class="flow-action-label">Action:</span>
+          <span class="flow-action-tag">
+            {{ recipient.actionRequested || 'Document Handoff' }}
+          </span>
+        </div>
+      </div>
+      <span [ngClass]="parent.getFlowNodeStatusChipClass(recipient.id) | cls" class="flow-status-chip">
+        {{ parent.getFlowNodeStatusLabel(recipient.id) }}
+      </span>
+    </div>
+
+    @if (parent.getFlowNodeRegularRemarks(recipient.id); as regRemarks) {
+      <div class="flow-remarks-quote">
+        "{{ regRemarks }}"
+      </div>
+    }
+
+    <!-- 3-stage Progress indicator -->
+    <div class="flow-stages-grid" [attr.aria-label]="'Progress for ' + parent.resolveUserName(recipient.toUserId, recipient.toUser) + ': ' + parent.getFlowNodeSnapshot(recipient.id).status">
+      @for (pl of parent.getFlowNodeProgress(recipient.id); track pl.label) {
+        <span class="flow-stage-pill" [ngClass]="pl.className | cls">{{ pl.label }}</span>
+      }
+    </div>
+
+    @if (parent.getFlowNodeDisapproval(recipient.id)) {
+      <div class="flow-disapproval-box">
+        <span class="flow-disapproval-title">Reason for disapproval</span>
+        <span class="flow-disapproval-text">{{ parent.getFlowNodeDisapproval(recipient.id) }}</span>
+      </div>
+    }
+  </button>
+
+  @if (parent.getFlowNodeSnapshot(recipient.id).ended) {
+    <div class="flow-connector" aria-hidden="true">
+      <span class="flow-connector-stem"></span>
+      <span class="flow-connector-arrow"></span>
+    </div>
+    <div class="flow-ended-container">
+      <div class="flow-ended-badge" role="status">
+        <ion-icon name="checkmark-circle"></ion-icon>
+        <p>End - Part completed</p>
+      </div>
+
+      @if (parent.getFlowNodeHandoffInstruction(recipient.id); as instruction) {
+        <div class="flow-handoff-instruction-card" role="note" aria-label="Handoff instructions">
+          <div class="flow-handoff-header">
+            <ion-icon name="location-outline" class="flow-handoff-icon"></ion-icon>
+            <span class="flow-handoff-title">Handoff Instructions</span>
+          </div>
+          <p class="flow-handoff-body">
+            &ldquo;{{ instruction }}&rdquo;
+          </p>
+          <div class="flow-handoff-user">
+            Completed by {{ parent.resolveUserName(recipient.toUserId, recipient.toUser) || recipient.toDivision }}
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  @if (parent.getFlowNodeChildren(recipient.id).length > 0) {
+    <div class="flow-connector" aria-hidden="true">
+      <span class="flow-connector-stem"></span>
+      <span class="flow-connector-arrow"></span>
+    </div>
+    <ul class="flow-children-list" [attr.aria-label]="'Forwarded by ' + parent.resolveUserName(recipient.toUserId, recipient.toUser)">
+      @for (child of parent.getFlowNodeChildren(recipient.id); track child.id; let i = $index) {
+        <app-flow-node [recipient]="child" [flowNumber]="flowNumber + '.' + (i + 1)" [parent]="parent" />
+      }
+    </ul>
+  }
+</li>

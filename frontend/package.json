@@ -1,0 +1,42 @@
+{
+  "name": "blgf-frontend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve --proxy-config proxy.conf.json",
+    "dev": "ng serve --proxy-config proxy.conf.json",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "lint": "tsc --noEmit -p tsconfig.app.json"
+  },
+  "dependencies": {
+    "@angular/common": "^19.2.0",
+    "@angular/compiler": "^19.2.0",
+    "@angular/core": "^19.2.0",
+    "@angular/forms": "^19.2.0",
+    "@angular/platform-browser": "^19.2.0",
+    "@angular/platform-browser-dynamic": "^19.2.0",
+    "@angular/router": "^19.2.0",
+    "@ionic/angular": "^8.5.0",
+    "html5-qrcode": "^2.3.8",
+    "ionicons": "^7.4.0",
+    "qrcode": "^1.5.4",
+    "rxjs": "~7.8.1",
+    "tailwindcss": "^4.3.3",
+    "tslib": "^2.8.1",
+    "xlsx": "^0.18.5",
+    "zone.js": "~0.15.0"
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "^19.2.0",
+    "@angular/cli": "^19.2.0",
+    "@angular/compiler-cli": "^19.2.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.10.0",
+    "@types/qrcode": "^1.5.5",
+    "@types/xlsx": "0.0.36",
+    "typescript": "~5.8.2"
+  }
+}

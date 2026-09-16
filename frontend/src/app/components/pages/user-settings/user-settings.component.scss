@@ -1,0 +1,613 @@
+.settings-page {
+  max-width: 64rem;
+  margin: 0 auto;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.settings-profileHero,
+.settings-section {
+  border: 1px solid var(--ui-border, #e2e8f0);
+  border-radius: 1.25rem;
+  background: #fff;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+}
+
+.settings-profileHero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding: 1.75rem;
+}
+
+.settings-profileIdentity {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.settings-avatarWrap {
+  position: relative;
+}
+
+.settings-avatar {
+  display: flex;
+  width: 4rem;
+  height: 4rem;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 3px solid #fff;
+  border-radius: 1.25rem;
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  color: #fff;
+  font-size: 1.35rem;
+  font-weight: 900;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+}
+
+.settings-avatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.settings-avatarOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 1.25rem;
+  background: rgba(15, 23, 42, 0.7);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 160ms ease;
+}
+
+.settings-avatarWrap:hover .settings-avatarOverlay,
+.settings-avatarOverlay:focus-visible {
+  opacity: 1;
+}
+
+.settings-cameraIcon {
+  width: 1.25rem;
+  color: #fff;
+}
+
+.settings-hiddenInput {
+  display: none;
+}
+
+.settings-nameRow {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.settings-profileName {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.settings-roleBadge {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 9999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.625rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.settings-designation {
+  margin: 0.2rem 0 0;
+  color: #64748b;
+  font-size: 0.8125rem;
+}
+
+.settings-removeAvatar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
+  padding: 0.2rem 0;
+  border: 0;
+  background: transparent;
+  color: #f43f5e;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+.settings-removeAvatar:hover {
+  color: #be123c;
+}
+
+.settings-tinyIcon {
+  width: 0.75rem;
+}
+
+.settings-accountSummary {
+  align-self: stretch;
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--ui-border, #e2e8f0);
+  border-radius: 1rem;
+  background: #f8fafc;
+  font-size: 0.75rem;
+}
+
+.settings-summaryLabel {
+  color: #64748b;
+  font-weight: 600;
+}
+.settings-summaryValue {
+  color: #0f172a;
+  font-weight: 700;
+}
+.settings-accountId {
+  color: #64748b;
+  font: 700 0.65rem ui-monospace, monospace;
+}
+
+.settings-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--ui-border, #e2e8f0);
+}
+
+.settings-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.1rem;
+  border: 1px solid var(--ui-border, #e2e8f0);
+  border-radius: 0.75rem;
+  background: #fff;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.settings-tab:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+.settings-tabActive {
+  border-color: #2563eb;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
+}
+.settings-tabActive:hover {
+  color: #fff;
+}
+
+.settings-smallIcon {
+  width: 1rem;
+}
+
+.settings-success,
+.settings-error {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.settings-success {
+  border: 1px solid #a7f3d0;
+  background: #ecfdf5;
+  color: #065f46;
+}
+.settings-error {
+  border: 1px solid #fecdd3;
+  background: #fff1f2;
+  color: #9f1239;
+}
+.settings-successIcon,
+.settings-errorIcon {
+  flex: none;
+  width: 1.1rem;
+}
+.settings-successIcon { color: #059669; }
+.settings-errorIcon { color: #e11d48; }
+
+.settings-section {
+  display: grid;
+  gap: 1.5rem;
+  padding: 1.75rem;
+}
+
+.settings-sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding-bottom: 0.875rem;
+  border-bottom: 1px solid var(--ui-border, #e2e8f0);
+}
+.settings-sectionIcon {
+  width: 1.25rem;
+  color: #2563eb;
+}
+.settings-sectionTitle {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.875rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.settings-photoPanel {
+  padding: 1.25rem;
+  border: 1px solid var(--ui-border, #e2e8f0);
+  border-radius: 1rem;
+  background: #f8fafc;
+}
+.settings-photoContent {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+.settings-largeAvatar {
+  display: flex;
+  width: 5rem;
+  height: 5rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 900;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
+}
+.settings-photoText {
+  flex: 1;
+}
+.settings-photoTitle {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.8125rem;
+  font-weight: 800;
+}
+.settings-photoHelp {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+  font-size: 0.72rem;
+}
+.settings-photoActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.875rem;
+}
+
+.settings-uploadButton,
+.settings-removePhotoButton,
+.settings-saveButton,
+.settings-passwordButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.settings-uploadButton,
+.settings-removePhotoButton {
+  padding: 0.55rem 1rem;
+  font-size: 0.78rem;
+}
+.settings-uploadButton {
+  border: 0;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+}
+.settings-uploadButton:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+.settings-removePhotoButton {
+  border: 1px solid #fecdd3;
+  background: #fff;
+  color: #e11d48;
+}
+.settings-removePhotoButton:hover {
+  background: #fff1f2;
+}
+
+.settings-compactIcon {
+  width: 0.875rem;
+}
+
+.settings-formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  font-size: 0.75rem;
+}
+.settings-fieldLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+  color: #475569;
+  font-weight: 700;
+}
+.settings-fieldIcon {
+  width: 0.875rem;
+  color: #475569;
+}
+.settings-input,
+.settings-strongInput,
+.settings-mediumInput,
+.settings-idInput,
+.settings-passwordInput {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--ui-border, #e2e8f0);
+  border-radius: 0.75rem;
+  outline: 0;
+  background: #f8fafc;
+  color: #0f172a;
+  min-height: 42px;
+  transition: all 160ms ease;
+}
+.settings-strongInput { font-weight: 700; }
+.settings-mediumInput { font-weight: 500; }
+.settings-idInput { font-family: ui-monospace, monospace; }
+.settings-idInput:disabled { opacity: 0.6; cursor: not-allowed; }
+.settings-input:focus,
+.settings-strongInput:focus,
+.settings-mediumInput:focus,
+.settings-passwordInput:focus {
+  border-color: #2563eb;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.settings-saveRow,
+.settings-passwordSaveRow {
+  display: flex;
+  padding-top: 0.75rem;
+}
+.settings-saveRow { justify-content: flex-end; }
+.settings-saveButton,
+.settings-passwordButton {
+  padding: 0.625rem 1.35rem;
+  border: 0;
+  color: #fff;
+  font-size: 0.78rem;
+}
+.settings-saveButton {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
+}
+.settings-saveButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.36);
+}
+.settings-passwordButton {
+  background: #334155;
+}
+.settings-passwordButton:hover {
+  background: #1e293b;
+  transform: translateY(-1px);
+}
+
+.settings-securityForm {
+  max-width: 32rem;
+  display: grid;
+  gap: 1.25rem;
+  font-size: 0.75rem;
+}
+.settings-simpleLabel {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: #475569;
+  font-weight: 700;
+}
+.settings-passwordField {
+  position: relative;
+}
+.settings-passwordInput {
+  padding-right: 2.75rem;
+}
+.settings-passwordToggle {
+  position: absolute;
+  top: 0.625rem;
+  right: 0.875rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.settings-strength {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+.settings-strengthLabels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #64748b;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+.settings-uppercase { text-transform: uppercase; }
+.settings-strengthTrack {
+  width: 100%;
+  height: 0.4rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+.settings-strengthBar { height: 100%; transition: width 0.25s ease; }
+.settings-strengthEmpty { background: #cbd5e1; }
+.settings-strengthWeak { background: #f43f5e; }
+.settings-strengthMedium { background: #f59e0b; }
+.settings-strengthStrong { background: #10b981; }
+
+.settings-preferences {
+  display: grid;
+  gap: 1rem;
+  font-size: 0.75rem;
+}
+.settings-preference {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--ui-border, #e2e8f0);
+  border-radius: 1rem;
+  background: #f8fafc;
+}
+.settings-preferenceTitle {
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 0.8125rem;
+}
+.settings-preferenceHelp {
+  color: #64748b;
+  font-size: 0.72rem;
+  margin-top: 0.15rem;
+}
+.settings-checkbox {
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+:host-context(.dark) {
+  .settings-profileHero,
+  .settings-section {
+    border-color: rgba(51, 65, 85, 0.75);
+    background: #0e1628;
+  }
+  .settings-profileName,
+  .settings-summaryValue,
+  .settings-sectionTitle,
+  .settings-photoTitle,
+  .settings-preferenceTitle {
+    color: #f8fafc;
+  }
+  .settings-roleBadge {
+    border-color: rgba(51, 65, 85, 0.75);
+    background: rgba(37, 99, 235, 0.2);
+    color: #93c5fd;
+  }
+  .settings-designation,
+  .settings-summaryLabel,
+  .settings-photoHelp {
+    color: #94a3b8;
+  }
+  .settings-accountSummary,
+  .settings-photoPanel,
+  .settings-preference {
+    border-color: rgba(51, 65, 85, 0.65);
+    background: #162238;
+  }
+  .settings-tabs,
+  .settings-sectionHeader {
+    border-color: rgba(51, 65, 85, 0.75);
+  }
+  .settings-tab {
+    border-color: rgba(51, 65, 85, 0.75);
+    background: #0e1628;
+    color: #94a3b8;
+  }
+  .settings-tab:hover {
+    background: #1e293b;
+    color: #f1f5f9;
+  }
+  .settings-tabActive {
+    border-color: #3b82f6;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: #fff;
+  }
+  .settings-success {
+    border-color: #065f46;
+    background: rgba(2, 44, 34, 0.6);
+    color: #a7f3d0;
+  }
+  .settings-error {
+    border-color: #9f1239;
+    background: rgba(76, 5, 25, 0.6);
+    color: #fecdd3;
+  }
+  .settings-fieldLabel,
+  .settings-simpleLabel {
+    color: #cbd5e1;
+  }
+  .settings-input,
+  .settings-strongInput,
+  .settings-mediumInput,
+  .settings-idInput,
+  .settings-passwordInput {
+    border-color: rgba(51, 65, 85, 0.85);
+    background: #162238;
+    color: #f8fafc;
+  }
+  .settings-input:focus,
+  .settings-strongInput:focus,
+  .settings-mediumInput:focus,
+  .settings-passwordInput:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+  }
+  .settings-strengthTrack {
+    background: #1e293b;
+  }
+}
+
+@media (max-width: 639px) {
+  .settings-profileHero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .settings-photoContent {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .settings-formGrid {
+    grid-template-columns: 1fr;
+  }
+  .settings-tabs {
+    display: grid;
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+  .settings-tab {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .settings-saveButton,
+  .settings-passwordButton {
+    width: 100%;
+  }
+}

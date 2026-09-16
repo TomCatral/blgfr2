@@ -1,0 +1,120 @@
+.managed-select-container {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 0.375rem;
+}
+.managed-select-select {
+  min-width: 0;
+  flex: 1;
+}
+.managed-select-alignLeft {
+  text-align: left;
+  text-align-last: left;
+}
+.managed-select-alignRight {
+  text-align: right;
+  text-align-last: right;
+}
+.managed-select-actionButton,
+.managed-select-colorButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0.5rem;
+  background: var(--ui-surface, #ffffff);
+  border: 1px solid var(--ui-border, #cbd5e1);
+  border-radius: var(--ui-radius-sm, 0.5rem);
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0) scale(0.96);
+  }
+}
+.managed-select-addButton {
+  color: #059669;
+  &:hover { background: #ecfdf5; border-color: #a7f3d0; }
+}
+.managed-select-editButton {
+  color: #475569;
+  &:hover { background: #f1f5f9; border-color: #cbd5e1; }
+}
+.managed-select-paletteButton {
+  color: #7c3aed;
+  &:hover { background: #f5f3ff; border-color: #ddd6fe; }
+}
+.managed-select-deleteButton {
+  color: #dc2626;
+  &:hover { background: #fef2f2; border-color: #fecaca; }
+}
+.managed-select-actionButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+.managed-select-paletteContainer {
+  position: relative;
+}
+.managed-select-palette {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
+  padding: 0.5rem;
+  background: var(--ui-surface, #ffffff);
+  border: 1px solid var(--ui-border, #e2e8f0);
+  border-radius: var(--ui-radius-md, 0.75rem);
+  box-shadow: var(--ui-shadow, 0 10px 25px -5px rgba(0, 0, 0, 0.1));
+}
+.managed-select-colorButton {
+  padding: 0.375rem;
+  border: 0;
+  font-size: 1.125rem;
+  border-radius: var(--ui-radius-sm, 0.5rem);
+  &:hover { background: #f1f5f9; }
+}
+
+select.managed-select-select {
+  width: 100%;
+  min-height: 40px;
+  padding: 0.5rem 0.75rem;
+  background: var(--ui-surface, #ffffff);
+  border: 1px solid var(--ui-border, #cbd5e1);
+  border-radius: var(--ui-radius-md, 0.75rem);
+  color: var(--ui-text, #0f172a);
+  font-size: 0.875rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  }
+}
+
+:host-context(.dark) {
+  .managed-select-actionButton,
+  .managed-select-palette {
+    background: #1e293b;
+    border-color: #334155;
+  }
+  .managed-select-addButton:hover { background: rgba(5, 150, 105, 0.2); }
+  .managed-select-editButton:hover { background: rgba(71, 85, 105, 0.3); }
+  .managed-select-paletteButton:hover { background: rgba(124, 58, 237, 0.2); }
+  .managed-select-deleteButton:hover { background: rgba(220, 38, 38, 0.2); }
+  .managed-select-colorButton { background: transparent; }
+  .managed-select-colorButton:hover { background: #334155; }
+  select.managed-select-select {
+    background: #1e293b;
+    border-color: #334155;
+    color: #cbd5e1;
+  }
+}

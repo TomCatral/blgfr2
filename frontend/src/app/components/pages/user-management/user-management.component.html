@@ -1,0 +1,1330 @@
+<div class="ua-container">
+  <!-- 1. Executive Hero Header -->
+  <header class="ua-hero">
+    <div class="ua-hero-content">
+      <div class="ua-hero-icon-wrap">
+        <ion-icon name="shield-checkmark" class="ua-hero-icon"></ion-icon>
+      </div>
+      <div class="ua-hero-text">
+        <div class="ua-hero-title-row">
+          <h1 class="ua-hero-title">Users &amp; Access Control</h1>
+          <span class="ua-badge-live">
+            <span class="ua-live-dot"></span>
+            System Administration
+          </span>
+        </div>
+        <p class="ua-hero-subtitle">
+          Manage regional personnel accounts, role-based menu access, and office division assignments.
+        </p>
+        <div class="ua-hero-metrics">
+          <span class="ua-metric-pill">
+            <ion-icon name="people-outline"></ion-icon>
+            <strong>{{ users.length }}</strong> Total Users
+          </span>
+          <span class="ua-metric-pill ua-metric-active">
+            <span class="ua-status-dot ua-dot-online"></span>
+            <strong>{{ activeUsersCount }}</strong> Active
+          </span>
+          <span class="ua-metric-pill">
+            <ion-icon name="shield-outline"></ion-icon>
+            <strong>{{ allRoles.length }}</strong> Roles
+          </span>
+          <span class="ua-metric-pill">
+            <ion-icon name="business-outline"></ion-icon>
+            <strong>{{ divisions.length }}</strong> Divisions
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ua-hero-actions">
+      <button
+        type="button"
+        (click)="openCreateModal()"
+        class="ua-btn-primary"
+        title="Add new regional personnel account"
+      >
+        <ion-icon name="person-add-outline"></ion-icon>
+        <span>Add Personnel Account</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- 2. Segmented Navigation Tabs -->
+  <nav class="ua-tabs-nav" aria-label="User Management Sections">
+    <button
+      type="button"
+      (click)="activeTab.set('users')"
+      class="ua-tab-btn"
+      [class.active]="activeTab() === 'users'"
+    >
+      <ion-icon name="people-outline"></ion-icon>
+      <span>Personnel Accounts</span>
+      <span class="ua-tab-count" [class.active]="activeTab() === 'users'">
+        {{ filteredUsers.length }}
+      </span>
+    </button>
+
+    <button
+      type="button"
+      (click)="activeTab.set('roles')"
+      class="ua-tab-btn"
+      [class.active]="activeTab() === 'roles'"
+    >
+      <ion-icon name="shield-checkmark-outline"></ion-icon>
+      <span>Role Permission Matrix</span>
+    </button>
+
+    <button
+      type="button"
+      (click)="activeTab.set('divisions')"
+      class="ua-tab-btn"
+      [class.active]="activeTab() === 'divisions'"
+    >
+      <ion-icon name="business-outline"></ion-icon>
+      <span>Divisions</span>
+      <span class="ua-tab-count" [class.active]="activeTab() === 'divisions'">
+        {{ divisions.length }}
+      </span>
+    </button>
+  </nav>
+
+  <!-- =========================================================================
+       TAB 1: PERSONNEL ACCOUNTS
+       ========================================================================= -->
+  @if (activeTab() === 'users') {
+    <section class="ua-tab-section" aria-label="Personnel Directory">
+      <!-- Search & Filters Toolbar -->
+      <div class="ua-toolbar">
+        <div class="ua-search-wrap">
+          <ion-icon name="search-outline" class="ua-search-icon"></ion-icon>
+          <input
+            type="text"
+            [ngModel]="searchTerm()"
+            (ngModelChange)="searchTerm.set($event)"
+            placeholder="Search by name, username, email, designation, or division..."
+            class="ua-search-input"
+          />
+          @if (searchTerm()) {
+            <button
+              type="button"
+              (click)="clearSearch()"
+              class="ua-clear-search-btn"
+              aria-label="Clear search"
+            >
+              <ion-icon name="close-circle"></ion-icon>
+            </button>
+          }
+        </div>
+
+        <div class="ua-filter-group">
+          <!-- Role Filter -->
+          <div class="ua-select-wrap">
+            <ion-icon name="shield-outline" class="ua-select-icon"></ion-icon>
+            <select
+              [ngModel]="roleFilter()"
+              (ngModelChange)="roleFilter.set($event)"
+              class="ua-filter-select"
+              aria-label="Filter by role"
+            >
+              <option value="ALL">All Roles</option>
+              @for (r of allRoles; track r.role) {
+                <option [value]="r.role">{{ r.label }}</option>
+              }
+            </select>
+          </div>
+
+          <!-- Division Filter -->
+          <div class="ua-select-wrap">
+            <ion-icon name="business-outline" class="ua-select-icon"></ion-icon>
+            <select
+              [ngModel]="divisionFilter()"
+              (ngModelChange)="divisionFilter.set($event)"
+              class="ua-filter-select"
+              aria-label="Filter by division"
+            >
+              <option value="ALL">All Divisions</option>
+              <option value="ITMS">ITMS</option>
+              <option value="ORD">ORD</option>
+              <option value="AD">AD</option>
+              <option value="LAOD">LAOD</option>
+              <option value="LTOD">LTOD</option>
+              <option value="FD">FD</option>
+              <option value="LU">LU</option>
+            </select>
+          </div>
+
+          <!-- Status Filter -->
+          <div class="ua-select-wrap">
+            <ion-icon name="checkmark-circle-outline" class="ua-select-icon"></ion-icon>
+            <select
+              [ngModel]="statusFilter()"
+              (ngModelChange)="statusFilter.set($event)"
+              class="ua-filter-select"
+              aria-label="Filter by active status"
+            >
+              <option value="ALL">All Status</option>
+              <option value="ACTIVE">Active Only</option>
+              <option value="INACTIVE">Inactive Only</option>
+            </select>
+          </div>
+
+          <!-- View Mode Switcher -->
+          <div class="ua-view-switch" aria-label="Display View">
+            <button
+              type="button"
+              (click)="viewMode.set('table')"
+              class="ua-view-btn"
+              [class.active]="viewMode() === 'table'"
+              title="Table View"
+            >
+              <ion-icon name="list-outline"></ion-icon>
+            </button>
+            <button
+              type="button"
+              (click)="viewMode.set('cards')"
+              class="ua-view-btn"
+              [class.active]="viewMode() === 'cards'"
+              title="Cards Grid View"
+            >
+              <ion-icon name="grid-outline"></ion-icon>
+            </button>
+          </div>
+
+          @if (hasActiveFilters) {
+            <button
+              type="button"
+              (click)="resetFilters()"
+              class="ua-reset-btn"
+              title="Reset all active search and filters"
+            >
+              <ion-icon name="refresh-outline"></ion-icon>
+              <span>Reset</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- TABLE VIEW -->
+      @if (viewMode() === 'table') {
+        <div class="ua-table-card">
+          <div class="ua-table-responsive">
+            <table class="ua-table">
+              <thead>
+                <tr>
+                  <th class="ua-th-personnel">
+                    <span class="ua-th-content"><ion-icon name="person-outline"></ion-icon><span>Personnel Details</span></span>
+                  </th>
+                  <th class="ua-th-role">
+                    <span class="ua-th-content"><ion-icon name="ribbon-outline"></ion-icon><span>Role &amp; Privilege</span></span>
+                  </th>
+                  <th class="ua-th-division">
+                    <span class="ua-th-content"><ion-icon name="business-outline"></ion-icon><span>Division &amp; Designation</span></span>
+                  </th>
+                  <th class="ua-th-access">
+                    <span class="ua-th-content"><ion-icon name="key-outline"></ion-icon><span>Menu Access</span></span>
+                  </th>
+                  <th class="ua-th-status">
+                    <span class="ua-th-content"><ion-icon name="pulse-outline"></ion-icon><span>Account Status</span></span>
+                  </th>
+                  <th class="ua-th-actions text-right">
+                    <span class="ua-th-content justify-end"><ion-icon name="flash-outline"></ion-icon><span>Actions</span></span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (filteredUsers.length === 0) {
+                  <tr>
+                    <td colspan="6">
+                      <div class="ua-empty-table-state">
+                        <ion-icon name="search-outline"></ion-icon>
+                        <p>No personnel found matching your current search or filter criteria.</p>
+                        @if (hasActiveFilters) {
+                          <button type="button" (click)="resetFilters()" class="ua-btn-secondary ua-btn-sm">
+                            Reset Filters
+                          </button>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                } @else {
+                  @for (usr of filteredUsers; track usr.id) {
+                    <tr class="ua-row">
+                      <!-- Personnel details -->
+                      <td class="ua-td-personnel">
+                        <div class="ua-user-cell">
+                          <div class="ua-user-avatar" [ngClass]="roleAvatarClass(usr.role)">
+                            {{ usr.fullName ? usr.fullName.charAt(0) : 'U' }}
+                          </div>
+                          <div class="ua-user-meta">
+                            <div class="ua-user-name" [title]="usr.fullName">{{ usr.fullName }}</div>
+                            <div class="ua-user-sub">
+                              <span class="ua-user-handle">&#64;{{ usr.username }}</span>
+                              <span class="ua-user-sep">&bull;</span>
+                              <span class="ua-user-email" [title]="usr.email">
+                                <ion-icon name="mail-outline" class="ua-inline-icon"></ion-icon>
+                                <span>{{ usr.email || 'No email' }}</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+
+                      <!-- Role -->
+                      <td class="ua-td-role">
+                        <span class="ua-role-pill" [ngClass]="roleBadgeClass(usr.role)">
+                          <span class="ua-role-dot"></span>
+                          <span>{{ usr.role }}</span>
+                        </span>
+                      </td>
+
+                      <!-- Division & Designation -->
+                      <td class="ua-td-division">
+                        <div class="ua-div-cell">
+                          <span class="ua-div-name">{{ divisionNameFor(usr.divisionCode) }}</span>
+                          <div class="ua-div-sub">
+                            <span class="ua-div-code-badge">{{ usr.divisionCode }}</span>
+                            <span class="ua-designation-text">{{ usr.designation || 'Staff Officer' }}</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <!-- Menu Access Tags -->
+                      <td class="ua-td-access">
+                        <div class="ua-access-tags">
+                          <span class="ua-access-tag" [class.allowed]="userPerms(usr).mainMenu">
+                            <ion-icon [name]="userPerms(usr).mainMenu ? 'checkmark-circle' : 'close-circle'"></ion-icon>
+                            <span>Main Menu</span>
+                          </span>
+                          <span class="ua-access-tag" [class.allowed]="userPerms(usr).management">
+                            <ion-icon [name]="userPerms(usr).management ? 'checkmark-circle' : 'close-circle'"></ion-icon>
+                            <span>Management</span>
+                          </span>
+                        </div>
+                      </td>
+
+                      <!-- Status -->
+                      <td class="ua-td-status">
+                        <button
+                          type="button"
+                          (click)="toggleActiveUser(usr)"
+                          class="ua-status-pill"
+                          [class.is-active]="usr.active"
+                          title="Click to toggle account active / inactive status"
+                        >
+                          <span class="ua-status-dot" [class.ua-dot-online]="usr.active"></span>
+                          <span>{{ usr.active ? 'Active' : 'Inactive' }}</span>
+                        </button>
+                      </td>
+
+                      <!-- Actions -->
+                      <td class="ua-td-actions text-right">
+                        <div class="ua-action-btns">
+                          <button
+                            type="button"
+                            (click)="handleOpenEdit(usr)"
+                            class="ua-action-btn ua-action-btn-edit"
+                            title="Edit Personnel &amp; Permissions"
+                          >
+                            <ion-icon name="create-outline"></ion-icon>
+                            <span>Edit</span>
+                          </button>
+
+                          @if (usr.role !== 'SYSTEM_ADMIN' && usr.id !== currentUser.id) {
+                            <button
+                              type="button"
+                              (click)="handleDelete(usr)"
+                              class="ua-action-btn ua-action-btn-delete"
+                              title="Delete Account"
+                            >
+                              <ion-icon name="trash-outline"></ion-icon>
+                              <span>Delete</span>
+                            </button>
+                          } @else {
+                            <span class="ua-protected-badge" title="Protected System Account">
+                              <ion-icon name="shield-checkmark-outline"></ion-icon>
+                              <span>Protected</span>
+                            </span>
+                          }
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+
+      <!-- CARDS GRID VIEW -->
+      @if (viewMode() === 'cards') {
+        <div class="ua-cards-grid">
+          @for (usr of filteredUsers; track usr.id) {
+            <article class="ua-card" [ngClass]="roleAccentClass(usr.role)">
+              <div class="ua-card-accent-bar"></div>
+              <div class="ua-card-inner">
+                <div class="ua-card-header">
+                  <div class="ua-card-avatar-wrap">
+                    <div class="ua-card-avatar" [ngClass]="roleAvatarClass(usr.role)">
+                      {{ usr.fullName ? usr.fullName.charAt(0) : 'U' }}
+                    </div>
+                    <span class="ua-avatar-status" [class.active]="usr.active"></span>
+                  </div>
+
+                  <div class="ua-card-user-info">
+                    <h3 class="ua-card-name" [title]="usr.fullName">{{ usr.fullName }}</h3>
+                    <div class="ua-card-username">&#64;{{ usr.username }}</div>
+                    <div class="ua-card-role-row">
+                      <span class="ua-role-pill" [ngClass]="roleBadgeClass(usr.role)">
+                        {{ usr.role }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="ua-card-actions">
+                    <button
+                      type="button"
+                      (click)="handleOpenEdit(usr)"
+                      class="ua-action-btn ua-action-btn-edit ua-action-btn-sm"
+                      title="Edit User"
+                    >
+                      <ion-icon name="create-outline"></ion-icon>
+                      <span>Edit</span>
+                    </button>
+                    @if (usr.role !== 'SYSTEM_ADMIN' && usr.id !== currentUser.id) {
+                      <button
+                        type="button"
+                        (click)="handleDelete(usr)"
+                        class="ua-action-btn ua-action-btn-delete ua-action-btn-sm"
+                        title="Delete User"
+                      >
+                        <ion-icon name="trash-outline"></ion-icon>
+                        <span>Delete</span>
+                      </button>
+                    } @else {
+                      <span class="ua-protected-badge ua-action-btn-sm" title="Protected System Account">
+                        <ion-icon name="shield-checkmark-outline"></ion-icon>
+                        <span>Protected</span>
+                      </span>
+                    }
+                  </div>
+                </div>
+
+                <!-- Division & Designation Box -->
+                <div class="ua-card-dept-box">
+                  <ion-icon name="business-outline" class="ua-dept-icon"></ion-icon>
+                  <div class="ua-dept-text">
+                    <span class="ua-dept-label">{{ usr.divisionCode }} &bull; Division</span>
+                    <span class="ua-dept-val">{{ divisionNameFor(usr.divisionCode) }}</span>
+                    <span class="ua-dept-sub">{{ usr.designation || 'Staff Officer' }}</span>
+                  </div>
+                </div>
+
+                <!-- Contact Details -->
+                <div class="ua-card-contacts">
+                  <div class="ua-contact-row" [title]="usr.email || 'No email'">
+                    <ion-icon name="mail-outline"></ion-icon>
+                    <span class="ua-contact-truncate">{{ usr.email || 'Email not provided' }}</span>
+                  </div>
+                  @if (usr.contactNo) {
+                    <div class="ua-contact-row">
+                      <ion-icon name="call-outline"></ion-icon>
+                      <span>{{ usr.contactNo }}</span>
+                    </div>
+                  }
+                </div>
+
+                <!-- Footer with Menu Tags & Status -->
+                <div class="ua-card-footer">
+                  <div class="ua-access-tags">
+                    <span class="ua-access-tag" [class.allowed]="userPerms(usr).mainMenu" title="Main Menu Access">
+                      <ion-icon [name]="userPerms(usr).mainMenu ? 'checkmark-circle' : 'close-circle'"></ion-icon>
+                      <span>Main Menu</span>
+                    </span>
+                    <span class="ua-access-tag" [class.allowed]="userPerms(usr).management" title="Management Access">
+                      <ion-icon [name]="userPerms(usr).management ? 'checkmark-circle' : 'close-circle'"></ion-icon>
+                      <span>Management</span>
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    (click)="toggleActiveUser(usr)"
+                    class="ua-status-pill"
+                    [class.is-active]="usr.active"
+                  >
+                    <span class="ua-status-dot" [class.ua-dot-online]="usr.active"></span>
+                    <span>{{ usr.active ? 'Active' : 'Inactive' }}</span>
+                  </button>
+                </div>
+              </div>
+            </article>
+          }
+
+          @if (filteredUsers.length === 0) {
+            <div class="ua-empty-state">
+              <div class="ua-empty-icon-wrap">
+                <ion-icon name="search-outline"></ion-icon>
+              </div>
+              <h3 class="ua-empty-title">No Personnel Found</h3>
+              <p class="ua-empty-subtitle">
+                No users match your selected filters. Try adjusting your query or resetting all filters.
+              </p>
+              @if (hasActiveFilters) {
+                <button type="button" (click)="resetFilters()" class="ua-btn-primary ua-btn-sm">
+                  <ion-icon name="refresh-outline"></ion-icon>
+                  <span>Reset Filters</span>
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
+    </section>
+  }
+
+  <!-- =========================================================================
+       TAB 2: ROLE PERMISSION MATRIX
+       ========================================================================= -->
+  @if (activeTab() === 'roles') {
+    <section class="ua-tab-section" aria-label="Role Permission Matrix">
+      <!-- Matrix Header Controls -->
+      <div class="ua-matrix-header-bar">
+        <div class="ua-matrix-header-text">
+          <h2 class="ua-matrix-title">
+            <ion-icon name="shield-checkmark-outline"></ion-icon>
+            <span>Role-Based Menu &amp; Action Permissions Matrix</span>
+          </h2>
+          <p class="ua-matrix-subtitle">
+            Configure global access rights and module visibility checkboxes across all organizational roles.
+          </p>
+        </div>
+
+        <div class="ua-matrix-actions">
+          <button
+            type="button"
+            (click)="resetRolePermissions()"
+            class="ua-btn-secondary"
+            title="Revert all role permissions to BLGF system defaults"
+          >
+            <ion-icon name="refresh-outline"></ion-icon>
+            <span>Reset Defaults</span>
+          </button>
+
+          <button
+            type="button"
+            (click)="saveAllRolePermissions()"
+            class="ua-btn-primary ua-btn-emerald"
+            title="Save changes and apply immediately to all users"
+          >
+            <ion-icon name="save-outline"></ion-icon>
+            <span>Save All Permissions</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Matrix Table Card -->
+      <div class="ua-matrix-card">
+        <div class="ua-table-responsive">
+          <table class="ua-matrix-table">
+            <thead>
+              <tr class="ua-matrix-th-row">
+                <th class="ua-matrix-sticky-header">Features &amp; Menu Navigation</th>
+                @for (r of allRoles; track r.role) {
+                  <th class="ua-matrix-role-th">
+                    <div class="ua-matrix-role-code">{{ r.role }}</div>
+                    <div class="ua-matrix-role-label">{{ r.label }}</div>
+                    <div class="ua-matrix-role-count">
+                      {{ userCount(r.role) }} {{ userCount(r.role) === 1 ? 'user' : 'users' }}
+                    </div>
+                  </th>
+                }
+              </tr>
+            </thead>
+
+            <tbody>
+              <!-- SECTION A: Core Security Rights -->
+              <tr class="ua-matrix-section-row ua-sec-security">
+                <td [attr.colspan]="allRoles.length + 1">
+                  <div class="ua-sec-label">
+                    <ion-icon name="lock-closed-outline"></ion-icon>
+                    <span>Core Security &amp; Transaction Rights</span>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- View All Document Routes -->
+              <tr class="ua-matrix-data-row">
+                <td class="ua-matrix-feature-cell">
+                  <div class="ua-feature-text">
+                    <span class="ua-feature-title">View All Document Routes</span>
+                    <span class="ua-feature-desc">Access full routing history across all divisions</span>
+                  </div>
+                </td>
+                @for (r of allRoles; track r.role) {
+                  <td class="ua-matrix-toggle-cell">
+                    <button
+                      type="button"
+                      (click)="toggleCanViewAllRoutes(r.role)"
+                      class="ua-toggle-box"
+                      [class.checked]="activePerm(r.role).canViewAllRoutes"
+                      [title]="'Toggle View All Routes for ' + r.role"
+                    >
+                      <ion-icon name="checkmark"></ion-icon>
+                    </button>
+                  </td>
+                }
+              </tr>
+
+              <!-- Delete Document Permission -->
+              <tr class="ua-matrix-data-row">
+                <td class="ua-matrix-feature-cell">
+                  <div class="ua-feature-text">
+                    <span class="ua-feature-title text-rose-600">Delete Document Permission</span>
+                    <span class="ua-feature-desc">Permanent document record purging privilege</span>
+                  </div>
+                </td>
+                @for (r of allRoles; track r.role) {
+                  <td class="ua-matrix-toggle-cell">
+                    <button
+                      type="button"
+                      (click)="toggleCanDelete(r.role)"
+                      class="ua-toggle-box is-danger"
+                      [class.checked]="activePerm(r.role).canDelete"
+                      [title]="'Toggle Delete Permission for ' + r.role"
+                    >
+                      <ion-icon name="checkmark"></ion-icon>
+                    </button>
+                  </td>
+                }
+              </tr>
+
+              <!-- SECTION B: Action Permissions -->
+              <tr class="ua-matrix-section-row ua-sec-actions">
+                <td [attr.colspan]="allRoles.length + 1">
+                  <div class="ua-sec-label">
+                    <ion-icon name="flash-outline"></ion-icon>
+                    <span>Functional Action Permissions</span>
+                  </div>
+                </td>
+              </tr>
+
+              @for (action of ACTION_PERMISSIONS; track action.id) {
+                <tr class="ua-matrix-data-row">
+                  <td class="ua-matrix-feature-cell">
+                    <div class="ua-feature-text">
+                      <span class="ua-feature-title">{{ action.label }}</span>
+                    </div>
+                  </td>
+                  @for (r of allRoles; track r.role) {
+                    <td class="ua-matrix-toggle-cell">
+                      <button
+                        type="button"
+                        (click)="toggleActionPermission(r.role, action.id)"
+                        class="ua-toggle-box"
+                        [class.checked]="permittedAction(r.role, action.id)"
+                        [title]="'Toggle ' + action.label + ' for ' + r.role"
+                      >
+                        <ion-icon name="checkmark"></ion-icon>
+                      </button>
+                    </td>
+                  }
+                </tr>
+              }
+
+              <!-- SECTION C: Main Menu Section -->
+              <tr class="ua-matrix-section-row ua-sec-main">
+                <td class="ua-matrix-sticky-feature">
+                  <div class="ua-sec-label">
+                    <ion-icon name="grid-outline"></ion-icon>
+                    <span>Main Menu Master Section</span>
+                  </div>
+                </td>
+                @for (r of allRoles; track r.role) {
+                  <td class="ua-matrix-toggle-cell">
+                    <button
+                      type="button"
+                      (click)="toggleSectionPermission(r.role, 'mainMenu')"
+                      class="ua-toggle-box is-master"
+                      [class.checked]="activePerm(r.role).mainMenu"
+                      [title]="'Toggle entire Main Menu section for ' + r.role"
+                    >
+                      <ion-icon name="checkmark"></ion-icon>
+                    </button>
+                  </td>
+                }
+              </tr>
+
+              @for (item of mainMenuItems; track item.id) {
+                <tr class="ua-matrix-data-row">
+                  <td class="ua-matrix-feature-cell pl-8">
+                    <div class="ua-subitem-row">
+                      <ion-icon [name]="item.icon + '-outline'"></ion-icon>
+                      <span>{{ item.label }}</span>
+                    </div>
+                  </td>
+                  @for (r of allRoles; track r.role) {
+                    <td class="ua-matrix-toggle-cell">
+                      <button
+                        type="button"
+                        (click)="toggleViewPermission(r.role, item.id)"
+                        [disabled]="!activePerm(r.role).mainMenu"
+                        class="ua-toggle-box"
+                        [class.checked]="isMainViewAllowed(r.role, item.id)"
+                        [class.disabled]="!activePerm(r.role).mainMenu"
+                        [title]="viewToggleTitle(isMainViewAllowed(r.role, item.id), item.label, r.role)"
+                      >
+                        <ion-icon name="checkmark"></ion-icon>
+                      </button>
+                    </td>
+                  }
+                </tr>
+              }
+
+              <!-- SECTION D: Reports Section -->
+              <tr class="ua-matrix-section-row ua-sec-reports">
+                <td [attr.colspan]="allRoles.length + 1">
+                  <div class="ua-sec-label">
+                    <ion-icon name="file-tray-full-outline"></ion-icon>
+                    <span>Reports Section Access</span>
+                  </div>
+                </td>
+              </tr>
+
+              @for (item of reportMenuItems; track item.id) {
+                <tr class="ua-matrix-data-row">
+                  <td class="ua-matrix-feature-cell pl-8">
+                    <div class="ua-subitem-row">
+                      <ion-icon [name]="item.icon + '-outline'"></ion-icon>
+                      <span>{{ item.label }}</span>
+                    </div>
+                  </td>
+                  @for (r of allRoles; track r.role) {
+                    <td class="ua-matrix-toggle-cell">
+                      <button
+                        type="button"
+                        (click)="toggleViewPermission(r.role, item.id)"
+                        class="ua-toggle-box"
+                        [class.checked]="isReportViewAllowed(r.role, item.id)"
+                        [title]="viewToggleTitle(isReportViewAllowed(r.role, item.id), item.label, r.role)"
+                      >
+                        <ion-icon name="checkmark"></ion-icon>
+                      </button>
+                    </td>
+                  }
+                </tr>
+              }
+
+              <!-- SECTION E: Management Section -->
+              <tr class="ua-matrix-section-row ua-sec-mgmt">
+                <td class="ua-matrix-sticky-feature">
+                  <div class="ua-sec-label">
+                    <ion-icon name="settings-outline"></ion-icon>
+                    <span>Management Section Master</span>
+                  </div>
+                </td>
+                @for (r of allRoles; track r.role) {
+                  <td class="ua-matrix-toggle-cell">
+                    <button
+                      type="button"
+                      (click)="toggleSectionPermission(r.role, 'management')"
+                      class="ua-toggle-box is-master"
+                      [class.checked]="activePerm(r.role).management"
+                      [title]="'Toggle entire Management section for ' + r.role"
+                    >
+                      <ion-icon name="checkmark"></ion-icon>
+                    </button>
+                  </td>
+                }
+              </tr>
+
+              @for (item of managementMenuItems; track item.id) {
+                <tr class="ua-matrix-data-row">
+                  <td class="ua-matrix-feature-cell pl-8">
+                    <div class="ua-subitem-row">
+                      <ion-icon [name]="item.icon + '-outline'"></ion-icon>
+                      <span>{{ item.label }}</span>
+                    </div>
+                  </td>
+                  @for (r of allRoles; track r.role) {
+                    <td class="ua-matrix-toggle-cell">
+                      <button
+                        type="button"
+                        (click)="toggleViewPermission(r.role, item.id)"
+                        [disabled]="!activePerm(r.role).management"
+                        class="ua-toggle-box"
+                        [class.checked]="isMgmtViewAllowed(r.role, item.id)"
+                        [class.disabled]="!activePerm(r.role).management"
+                        [title]="viewToggleTitle(isMgmtViewAllowed(r.role, item.id), item.label, r.role)"
+                      >
+                        <ion-icon name="checkmark"></ion-icon>
+                      </button>
+                    </td>
+                  }
+                </tr>
+              }
+
+              <!-- SECTION F: Logs Section -->
+              <tr class="ua-matrix-section-row ua-sec-logs">
+                <td class="ua-matrix-sticky-feature">
+                  <div class="ua-sec-label">
+                    <ion-icon name="clipboard-outline"></ion-icon>
+                    <span>Logs Section Access</span>
+                  </div>
+                </td>
+                @for (r of allRoles; track r.role) {
+                  <td class="ua-matrix-toggle-cell">
+                    <button
+                      type="button"
+                      (click)="toggleSectionPermission(r.role, 'management')"
+                      class="ua-toggle-box is-master"
+                      [class.checked]="activePerm(r.role).management"
+                      [title]="'Toggle Logs access for ' + r.role"
+                    >
+                      <ion-icon name="checkmark"></ion-icon>
+                    </button>
+                  </td>
+                }
+              </tr>
+
+              @for (item of logsMenuItems; track item.id) {
+                <tr class="ua-matrix-data-row">
+                  <td class="ua-matrix-feature-cell pl-8">
+                    <div class="ua-subitem-row">
+                      <ion-icon [name]="item.icon + '-outline'"></ion-icon>
+                      <span>{{ item.label }}</span>
+                    </div>
+                  </td>
+                  @for (r of allRoles; track r.role) {
+                    <td class="ua-matrix-toggle-cell">
+                      <button
+                        type="button"
+                        (click)="toggleViewPermission(r.role, item.id)"
+                        [disabled]="!activePerm(r.role).management"
+                        class="ua-toggle-box"
+                        [class.checked]="isMgmtViewAllowed(r.role, item.id)"
+                        [class.disabled]="!activePerm(r.role).management"
+                        [title]="viewToggleTitle(isMgmtViewAllowed(r.role, item.id), item.label, r.role)"
+                      >
+                        <ion-icon name="checkmark"></ion-icon>
+                      </button>
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  }
+
+  <!-- =========================================================================
+       TAB 3: OFFICE DIVISIONS
+       ========================================================================= -->
+  @if (activeTab() === 'divisions') {
+    <section class="ua-tab-section" aria-label="Office Divisions">
+      <div class="ua-div-layout">
+        <!-- Left: Division Form -->
+        <div class="ua-div-form-card">
+          <div class="ua-div-form-header">
+            <ion-icon name="business-outline"></ion-icon>
+            <h3>{{ editingDivisionId() ? 'Edit Division Record' : 'Add Regional Division' }}</h3>
+          </div>
+
+          <form (ngSubmit)="handleDivisionSubmit()" class="ua-div-form">
+            <div class="ua-form-field">
+              <label class="ua-label">Division Code <span class="ua-req">*</span></label>
+              <select
+                [ngModel]="divisionCode()"
+                (ngModelChange)="onDivisionCodeChange($event)"
+                name="division-code"
+                class="ua-modal-select"
+              >
+                @for (code of DIVISION_CODES; track code) {
+                  <option [value]="code">{{ code }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="ua-form-field">
+              <label class="ua-label">Division Name <span class="ua-req">*</span></label>
+              <input
+                type="text"
+                required
+                [(ngModel)]="divisionName"
+                name="division-name"
+                placeholder="e.g. Local Treasury Operations Division"
+                class="ua-modal-input"
+              />
+            </div>
+
+            <div class="ua-form-field">
+              <label class="ua-label">Division Chief / Head <span class="ua-req">*</span></label>
+              <input
+                type="text"
+                required
+                [(ngModel)]="divisionHead"
+                name="division-head"
+                placeholder="e.g. Maria C. Santos"
+                class="ua-modal-input"
+              />
+            </div>
+
+            <div class="ua-div-form-actions">
+              <button type="submit" class="ua-btn-primary ua-btn-full">
+                {{ editingDivisionId() ? 'Save Changes' : 'Add Division' }}
+              </button>
+              @if (editingDivisionId()) {
+                <button
+                  type="button"
+                  (click)="resetDivisionForm()"
+                  class="ua-btn-secondary"
+                >
+                  Cancel
+                </button>
+              }
+            </div>
+          </form>
+        </div>
+
+        <!-- Right: Division List -->
+        <div class="ua-div-list-wrap">
+          <div class="ua-div-list-header">
+            <h3>Configured Divisions ({{ divisions.length }})</h3>
+            <span class="ua-div-list-sub">Regional Office Operating Units</span>
+          </div>
+
+          <div class="ua-div-cards-grid">
+            @for (division of divisions; track division.id) {
+              <div class="ua-division-card">
+                <div class="ua-division-top">
+                  <div class="ua-division-code-pill">{{ division.code }}</div>
+                  <div class="ua-division-actions">
+                    <button
+                      type="button"
+                      (click)="editDivision(division)"
+                      class="ua-action-btn ua-action-btn-edit ua-action-btn-sm"
+                      title="Edit Division"
+                    >
+                      <ion-icon name="create-outline"></ion-icon>
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      (click)="deleteDivision(division)"
+                      class="ua-action-btn ua-action-btn-delete ua-action-btn-sm"
+                      title="Delete Division"
+                    >
+                      <ion-icon name="trash-outline"></ion-icon>
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                </div>
+
+                <h4 class="ua-division-name">{{ division.name }}</h4>
+
+                <div class="ua-division-head-box">
+                  <ion-icon name="person-circle-outline"></ion-icon>
+                  <div>
+                    <span class="ua-head-label">Division Chief</span>
+                    <span class="ua-head-val">{{ division.chiefName }}</span>
+                  </div>
+                </div>
+              </div>
+            }
+
+            @if (divisions.length === 0) {
+              <div class="ua-empty-divisions">
+                <ion-icon name="business-outline"></ion-icon>
+                <p>No operating divisions saved. Enter the first division on the left.</p>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </section>
+  }
+
+  <!-- =========================================================================
+       CREATE USER MODAL
+       ========================================================================= -->
+  <app-modal-layer [isOpen]="showCreateModal()" [maxWidth]="'36rem'" [onClose]="noop">
+    <div class="ua-modal-box">
+      <div class="ua-modal-header">
+        <div class="ua-modal-icon-wrap">
+          <ion-icon name="person-add-outline"></ion-icon>
+        </div>
+        <div class="ua-modal-header-text">
+          <h3 class="ua-modal-title">Create Personnel Account</h3>
+          <p class="ua-modal-subtitle">Add a new user credential and assign role permissions.</p>
+        </div>
+        <button
+          type="button"
+          (click)="showCreateModal.set(false)"
+          class="ua-modal-close-btn"
+          aria-label="Close dialog"
+        >
+          <ion-icon name="close-outline"></ion-icon>
+        </button>
+      </div>
+
+      <form (ngSubmit)="handleCreateSubmit()" class="ua-modal-form">
+        <div class="ua-modal-grid">
+          <!-- Full Name -->
+          <div class="ua-col-span-2">
+            <label class="ua-label">Full Name <span class="ua-req">*</span></label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Juan D. Dela Cruz"
+              [(ngModel)]="fullName"
+              name="create-full-name"
+              class="ua-modal-input"
+            />
+          </div>
+
+          <!-- Username -->
+          <div>
+            <label class="ua-label">Username <span class="ua-req">*</span></label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. jdelacruz"
+              [(ngModel)]="username"
+              name="create-username"
+              class="ua-modal-input"
+            />
+          </div>
+
+          <!-- Password -->
+          <div>
+            <label class="ua-label">Account Password <span class="ua-req">*</span></label>
+            <div class="ua-password-wrap">
+              <input
+                [type]="showCreatePassword() ? 'text' : 'password'"
+                required
+                placeholder="Initial password"
+                [(ngModel)]="password"
+                name="create-password"
+                class="ua-modal-input ua-pr-10"
+              />
+              <button
+                type="button"
+                (click)="showCreatePassword.set(!showCreatePassword())"
+                class="ua-pwd-toggle-btn"
+                aria-label="Toggle password visibility"
+              >
+                <ion-icon [name]="showCreatePassword() ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+              </button>
+            </div>
+          </div>
+
+          <!-- Email -->
+          <div>
+            <label class="ua-label">Email Address</label>
+            <input
+              type="email"
+              placeholder="e.g. juan@blgf.gov.ph"
+              [(ngModel)]="email"
+              name="create-email"
+              class="ua-modal-input"
+            />
+          </div>
+
+          <!-- Contact Number -->
+          <div>
+            <label class="ua-label">Contact Number</label>
+            <input
+              type="text"
+              placeholder="e.g. 0917-123-4567"
+              [(ngModel)]="contactNo"
+              name="create-contact"
+              class="ua-modal-input"
+            />
+          </div>
+
+          <!-- Account Role -->
+          <div>
+            <label class="ua-label">Account Role <span class="ua-req">*</span></label>
+            <select
+              [ngModel]="role()"
+              (ngModelChange)="onRoleChange($event)"
+              name="create-role"
+              class="ua-modal-select"
+            >
+              @for (item of allRoles; track item.role) {
+                <option [value]="item.role">{{ item.label }} ({{ item.role }})</option>
+              }
+            </select>
+            <p class="ua-field-hint">{{ roleDescription }}</p>
+          </div>
+
+          <!-- Division -->
+          <div>
+            <label class="ua-label">Division Assignment <span class="ua-req">*</span></label>
+            <select
+              [ngModel]="divisionCode()"
+              (ngModelChange)="onDivisionCodeChange($event)"
+              name="create-division"
+              class="ua-modal-select"
+            >
+              <option value="ITMS">Information Technology Management System (ITMS)</option>
+              <option value="ORD">Office of Regional Director (ORD)</option>
+              <option value="AD">Administrative Division (AD)</option>
+              <option value="LAOD">Local Assessment Operations (LAOD)</option>
+              <option value="LTOD">Local Treasury Operations (LTOD)</option>
+              <option value="FD">Financial Division (FD)</option>
+              <option value="LU">Legal Division / Unit (LU)</option>
+            </select>
+          </div>
+
+          <!-- Designation -->
+          <div class="ua-col-span-2">
+            <label class="ua-label">Designation Title</label>
+            <input
+              type="text"
+              placeholder="e.g. Senior Treasury Operations Officer"
+              [(ngModel)]="designation"
+              name="create-designation"
+              class="ua-modal-input"
+            />
+          </div>
+
+          <!-- Menu Section Access Checkboxes -->
+          <div class="ua-col-span-2 ua-modal-overrides-box">
+            <div class="ua-overrides-title">Initial Menu Section Access:</div>
+            <div class="ua-overrides-grid">
+              <label class="ua-checkbox-card">
+                <input
+                  type="checkbox"
+                  [checked]="formPermissions().mainMenu"
+                  (change)="setFormMainMenu($event)"
+                />
+                <span class="ua-chk-label">Allow Main Menu Access</span>
+              </label>
+
+              <label class="ua-checkbox-card">
+                <input
+                  type="checkbox"
+                  [checked]="formPermissions().management"
+                  (change)="setFormManagement($event)"
+                />
+                <span class="ua-chk-label">Allow Management Access</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="ua-modal-footer">
+          <button
+            type="button"
+            (click)="showCreateModal.set(false)"
+            class="ua-btn-secondary"
+          >
+            Cancel
+          </button>
+          <button type="submit" class="ua-btn-primary">
+            <ion-icon name="person-add-outline"></ion-icon>
+            <span>Create User Account</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </app-modal-layer>
+
+  <!-- =========================================================================
+       EDIT USER MODAL
+       ========================================================================= -->
+  @if (editingUser(); as user) {
+    <app-modal-layer [isOpen]="true" [maxWidth]="'36rem'" [onClose]="noop">
+      <div class="ua-modal-box">
+        <div class="ua-modal-header">
+          <div class="ua-modal-icon-wrap is-edit">
+            <ion-icon name="create-outline"></ion-icon>
+          </div>
+          <div class="ua-modal-header-text">
+            <h3 class="ua-modal-title">Edit Account: {{ user.fullName }}</h3>
+            <p class="ua-modal-subtitle">&#64;{{ user.username }} &bull; Modify privileges, division, or reset password.</p>
+          </div>
+          <button
+            type="button"
+            (click)="editingUser.set(null)"
+            class="ua-modal-close-btn"
+            aria-label="Close dialog"
+          >
+            <ion-icon name="close-outline"></ion-icon>
+          </button>
+        </div>
+
+        <form (ngSubmit)="handleEditSubmit()" class="ua-modal-form">
+          <div class="ua-modal-grid">
+            <!-- Full Name -->
+            <div class="ua-col-span-2">
+              <label class="ua-label">Full Name <span class="ua-req">*</span></label>
+              <input
+                type="text"
+                required
+                [(ngModel)]="fullName"
+                name="edit-full-name"
+                class="ua-modal-input"
+              />
+            </div>
+
+            <!-- Username -->
+            <div>
+              <label class="ua-label">Username <span class="ua-req">*</span></label>
+              <input
+                type="text"
+                required
+                [(ngModel)]="username"
+                name="edit-username"
+                class="ua-modal-input"
+              />
+            </div>
+
+            <!-- Password -->
+            <div>
+              <label class="ua-label">New / Temporary Password</label>
+              <div class="ua-password-wrap">
+                <input
+                  [type]="showEditPassword() ? 'text' : 'password'"
+                  [(ngModel)]="password"
+                  name="edit-password"
+                  placeholder="Leave blank to keep current"
+                  autocomplete="new-password"
+                  class="ua-modal-input ua-pr-10"
+                />
+                <button
+                  type="button"
+                  (click)="showEditPassword.set(!showEditPassword())"
+                  class="ua-pwd-toggle-btn"
+                  aria-label="Toggle password visibility"
+                >
+                  <ion-icon [name]="showEditPassword() ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+                </button>
+              </div>
+              <div class="ua-pwd-actions-row">
+                <button
+                  type="button"
+                  (click)="generateTemporaryPassword()"
+                  class="ua-gen-pwd-btn"
+                >
+                  <ion-icon name="key-outline"></ion-icon>
+                  <span>Generate Temporary Password</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Email -->
+            <div>
+              <label class="ua-label">Email Address</label>
+              <input
+                type="email"
+                [(ngModel)]="email"
+                name="edit-email"
+                class="ua-modal-input"
+              />
+            </div>
+
+            <!-- Contact Number -->
+            <div>
+              <label class="ua-label">Contact Number</label>
+              <input
+                type="text"
+                [(ngModel)]="contactNo"
+                name="edit-contact"
+                class="ua-modal-input"
+              />
+            </div>
+
+            <!-- Account Role -->
+            <div>
+              <label class="ua-label">Account Role <span class="ua-req">*</span></label>
+              <select
+                [ngModel]="role()"
+                (ngModelChange)="onRoleChange($event)"
+                name="edit-role"
+                class="ua-modal-select"
+              >
+                @for (item of allRoles; track item.role) {
+                  <option [value]="item.role">{{ item.label }} ({{ item.role }})</option>
+                }
+              </select>
+              <p class="ua-field-hint">{{ roleDescription }}</p>
+            </div>
+
+            <!-- Division -->
+            <div>
+              <label class="ua-label">Division <span class="ua-req">*</span></label>
+              <select
+                [ngModel]="divisionCode()"
+                (ngModelChange)="onDivisionCodeChange($event)"
+                name="edit-division"
+                class="ua-modal-select"
+              >
+                <option value="ITMS">Information Technology Management System (ITMS)</option>
+                <option value="ORD">Office of Regional Director (ORD)</option>
+                <option value="AD">Administrative Division (AD)</option>
+                <option value="LAOD">Local Assessment Operations (LAOD)</option>
+                <option value="LTOD">Local Treasury Operations (LTOD)</option>
+                <option value="FD">Financial Division (FD)</option>
+                <option value="LU">Legal Division / Unit (LU)</option>
+              </select>
+            </div>
+
+            <!-- Designation -->
+            <div class="ua-col-span-2">
+              <label class="ua-label">Designation Title</label>
+              <input
+                type="text"
+                [(ngModel)]="designation"
+                name="edit-designation"
+                class="ua-modal-input"
+              />
+            </div>
+
+            <!-- Menu Section Access Overrides -->
+            <div class="ua-col-span-2 ua-modal-overrides-box">
+              <div class="ua-overrides-title">Custom Menu Access Overrides for this User:</div>
+              <div class="ua-overrides-grid">
+                <label class="ua-checkbox-card">
+                  <input
+                    type="checkbox"
+                    [checked]="formPermissions().mainMenu"
+                    (change)="setFormMainMenu($event)"
+                  />
+                  <span class="ua-chk-label">Allow Main Menu</span>
+                </label>
+
+                <label class="ua-checkbox-card">
+                  <input
+                    type="checkbox"
+                    [checked]="formPermissions().management"
+                    (change)="setFormManagement($event)"
+                  />
+                  <span class="ua-chk-label">Allow Management</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="ua-modal-footer">
+            <button
+              type="button"
+              (click)="editingUser.set(null)"
+              class="ua-btn-secondary"
+            >
+              Cancel
+            </button>
+            <button type="submit" class="ua-btn-primary">
+              <ion-icon name="save-outline"></ion-icon>
+              <span>Save Changes</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </app-modal-layer>
+  }
+</div>

@@ -890,7 +890,7 @@ async function disconnectMySQLReplica() {
   status.connected = false;
 }
 
-// frontend/src/types.ts
+// frontend/src/app/types.ts
 var DEFAULT_ROLE_PERMISSIONS = {
   SYSTEM_ADMIN: {
     mainMenu: true,
@@ -1318,7 +1318,7 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
 // backend/documents.ts
 import express2 from "express";
 
-// frontend/src/utils/routingRecipients.ts
+// frontend/src/app/utils/routing-recipients.ts
 function hasCompletedPart(document, recipient) {
   return document.routes?.some((route) => route.statusAfter === "COMPLETED" && (route.fromUserId && recipient.id ? route.fromUserId === recipient.id : Boolean(recipient.fullName?.trim() && route.fromUser?.trim().toLowerCase() === recipient.fullName.trim().toLowerCase() && (!recipient.divisionCode || route.fromDivision === recipient.divisionCode)))) || false;
 }
@@ -1342,7 +1342,7 @@ function findPreviousDelivery(document, recipient) {
   });
 }
 
-// frontend/src/utils/documentVisibility.ts
+// frontend/src/app/utils/document-visibility.ts
 var normalizeName = (value) => value?.trim().toLowerCase() || "";
 var matchesParticipant = (user, participantId, participantName) => participantId === user.id || !participantId && Boolean(normalizeName(participantName)) && normalizeName(participantName) === normalizeName(user.fullName);
 var auditNamesRecipient = (details, fullName) => new RegExp(
@@ -1402,10 +1402,12 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       const recipient = getUsersState().find(
         (user) => user.active && user.fullName.trim().toLowerCase() === toName.toLowerCase()
       );
-      if (!recipient) return [];
+      const recipientDivision = recipient?.divisionCode || log.details.match(/\b(?:To Division|Division):\s*([^|]+)/i)?.[1]?.trim() || document.currentDivision;
+      const recipientName = recipient?.fullName || toName;
+      const recipientId = recipient?.id;
       const actionRequested = log.details.match(/Action:\s*(.*?)(?:\s*\|\s*Remarks:|$)/i)?.[1] || "Appropriate Action";
       const duplicate = storedRoutes.some(
-        (route) => (route.fromUserId === log.userId || route.fromUser.trim().toLowerCase() === log.userName.trim().toLowerCase()) && (route.toUserId === recipient.id || route.toUser?.trim().toLowerCase() === recipient.fullName.trim().toLowerCase()) && route.actionRequested.trim().toLowerCase() === actionRequested.trim().toLowerCase() && Math.abs(
+        (route) => (route.fromUserId === log.userId || route.fromUser.trim().toLowerCase() === log.userName.trim().toLowerCase()) && (recipientId && route.toUserId === recipientId || route.toUser?.trim().toLowerCase() === recipientName.trim().toLowerCase()) && route.actionRequested.trim().toLowerCase() === actionRequested.trim().toLowerCase() && Math.abs(
           new Date(route.createdAt).getTime() - new Date(log.timestamp).getTime()
         ) < 5e3
       );
@@ -1420,9 +1422,9 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
         fromDivision: sender?.divisionCode || document.currentDivision,
         fromUserId: log.userId,
         fromUser: log.userName,
-        toDivision: recipient.divisionCode,
-        toUserId: recipient.id,
-        toUser: recipient.fullName,
+        toDivision: recipientDivision,
+        toUserId: recipientId,
+        toUser: recipientName,
         actionRequested,
         remarks: log.details.match(/Remarks:\s*(.*?)(?:\s*\|\s*Status:|$)/i)?.[1] || "",
         statusBefore: document.currentStatus,
@@ -1433,33 +1435,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     });
     return recovered.length ? { ...document, routes: [...storedRoutes, ...recovered] } : document;
   };
-  const hideSystemAdministratorFromTransactions = (document) => {
-    const administrators = getUsersState().filter(
-      (user) => user.role === "SYSTEM_ADMIN"
-    );
-    const administratorIds = new Set(administrators.map((user) => user.id));
-    const administratorNames = new Set(
-      administrators.map((user) => user.fullName.trim().toLowerCase())
-    );
-    const isAdministratorName = (name) => Boolean(name && administratorNames.has(name.trim().toLowerCase()));
-    return {
-      ...document,
-      createdBy: isAdministratorName(document.createdBy) ? "System Administration" : document.createdBy,
-      createdByUserId: administratorIds.has(document.createdByUserId || "") ? void 0 : document.createdByUserId,
-      recipientName: isAdministratorName(document.recipientName) ? "" : document.recipientName,
-      assignedUser: isAdministratorName(document.assignedUser) ? void 0 : document.assignedUser,
-      assignedUserId: administratorIds.has(document.assignedUserId || "") ? void 0 : document.assignedUserId,
-      routes: (document.routes || []).filter(
-        (route) => !administratorIds.has(route.toUserId || "") && !isAdministratorName(route.toUser)
-      ).map(
-        (route) => administratorIds.has(route.fromUserId || "") || isAdministratorName(route.fromUser) ? {
-          ...route,
-          fromUserId: void 0,
-          fromUser: "System Administration"
-        } : route
-      )
-    };
-  };
+  const hideSystemAdministratorFromTransactions = (document) => document;
   router.get("/", async (req, res) => {
     try {
       const liveDocuments = await loadLiveDocuments();
@@ -2364,7 +2340,7 @@ import dotenv from "dotenv";
 import multer from "multer";
 import nodemailer from "nodemailer";
 dotenv.config({ quiet: true });
-var DEFAULT_PORT = 3e3;
+var DEFAULT_PORT = 3001;
 var PORT = Number(process.env.PORT || DEFAULT_PORT);
 var IS_VERCEL = Boolean(process.env.VERCEL);
 var ADMIN_PASSWORD_RESET_COOLDOWN_MS = 15 * 60 * 1e3;
@@ -2520,7 +2496,7 @@ function initDatabaseStorage() {
   }
   if (fs.existsSync(DB_FILE)) {
     try {
-      const raw = fs.readFileSync(DB_FILE, "utf-8");
+      const raw = fs.readFileSync(DB_FILE, "utf-8").replace(/\u0410/g, "A").replace(/\u2014/g, "-");
       const data = JSON.parse(raw);
       divisionsState = data.divisions || [];
       usersState = (data.users || []).map(
@@ -2548,7 +2524,7 @@ function initDatabaseStorage() {
       console.log("Loaded local recovery snapshot before MySQL initialization:", DB_FILE);
     } catch (err) {
       console.error(
-        "\u26A0\uFE0F Failed to parse database file, resetting to initial seed:",
+        "[WARN] Failed to parse database file, resetting to initial seed:",
         err
       );
       resetDatabaseToDefault();
@@ -2618,7 +2594,7 @@ function syncEmployeeProfileFromUser(user, persist = true) {
     userId: user.id,
     fullName: user.fullName,
     position: user.designation || user.role,
-    office: "Bureau of Local Government Finance \u2014 Regional Office II",
+    office: "Bureau of Local Government Finance - Regional Office II",
     officeType: "BLGF",
     divisionCode: user.divisionCode,
     email: user.email || "N/A",
@@ -2696,10 +2672,11 @@ function saveDatabaseToFile(queueSync = true) {
       notifications: notificationsState,
       employees: employeesState
     };
-    fs.writeFileSync(DB_FILE, JSON.stringify(payload, null, 2), "utf-8");
+    const serialized = JSON.stringify(payload, null, 2).replace(/\u0410/g, "A").replace(/\u2014/g, "-");
+    fs.writeFileSync(DB_FILE, serialized, "utf-8");
     if (queueSync) queueDatabaseSync();
   } catch (err) {
-    console.error("\u274C Error saving database file:", err);
+    console.error("[ERROR] Error saving database file:", err);
   }
 }
 function saveEnvelopeLogsToFile() {
@@ -2725,13 +2702,20 @@ async function createApp() {
   initDatabaseStorage();
   ensureStorageDirectories();
   await connectMySQLReplica();
-  if (!getMySQLReplicaStatus().connected) {
+  const mysqlConnected = getMySQLReplicaStatus().connected;
+  if (IS_VERCEL && !mysqlConnected) {
     throw new Error("MySQL connection is unavailable.");
   }
-  applyDatabaseState(await loadMySQLState());
+  if (mysqlConnected) {
+    applyDatabaseState(await loadMySQLState());
+  } else {
+    console.warn(
+      "MySQL is unavailable; using the local JSON data store for this development session."
+    );
+  }
   await ensureReservedSystemAdministrator();
   ensureUserEmployeeProfiles();
-  const initialSyncSucceeded = true;
+  const initialSyncSucceeded = mysqlConnected;
   if (process.argv.includes("--sync-only")) {
     if (initialSyncSucceeded) {
       console.log(
@@ -2845,7 +2829,7 @@ async function createApp() {
       status: "ok",
       system: "BLGF Region II Document Tracking System API",
       databaseLoaded: true,
-      activeDatabase: "mysql",
+      activeDatabase: mysqlConnected ? "mysql" : "local-json",
       mysql: getMySQLReplicaStatus(),
       recordsCount: {
         documents: documentsState.length,
@@ -3492,7 +3476,7 @@ async function createApp() {
       const status2 = log.details.match(/Status:\s*([^|]+)/i)?.[1]?.trim();
       const recipient = log.details.match(/To:\s*([^|]+)/i)?.[1]?.trim();
       const title = decision === "APPROVED" ? `Approved by ${log.userName}` : decision === "DISAPPROVED" ? `Disapproved by ${log.userName}` : status2 === "COMPLETED" ? `Document Completed by ${log.userName}` : log.action === "CREATE_DOC" ? `Document Logged by ${log.userName}` : `Document Routed by ${log.userName}`;
-      const message = decision ? `${log.documentTrackingNumber} was ${decision.toLowerCase()} by ${log.userName}.${decision === "DISAPPROVED" ? ` Reason: ${log.details.match(/Remarks:\s*([^|]+)/i)?.[1]?.trim() || "No reason provided."}` : ""}` : `${log.documentTrackingNumber} \u2014 ${title}${recipient ? ` to ${recipient}` : ""}${status2 ? ` (${status2.replaceAll("_", " ")})` : ""}.`;
+      const message = decision ? `${log.documentTrackingNumber} was ${decision.toLowerCase()} by ${log.userName}.${decision === "DISAPPROVED" ? ` Reason: ${log.details.match(/Remarks:\s*([^|]+)/i)?.[1]?.trim() || "No reason provided."}` : ""}` : `${log.documentTrackingNumber} - ${title}${recipient ? ` to ${recipient}` : ""}${status2 ? ` (${status2.replaceAll("_", " ")})` : ""}.`;
       return {
         id: `transaction-activity-${log.id}`,
         userId,
@@ -3600,7 +3584,7 @@ async function createApp() {
     const reminder = createNotification({
       userId: recipient.id,
       title: "Routing Action Reminder",
-      message: `${message} \u2014 Sent by ${actingUser.fullName}`,
+      message: `${message} - Sent by ${actingUser.fullName}`,
       documentId: document.id,
       trackingNumber: document.routeNo || document.trackingNumber,
       type: "URGENT",
@@ -3702,22 +3686,11 @@ async function createApp() {
     res.status(404).json({ error: "API endpoint not found." });
   });
   if (IS_VERCEL) return app;
-  if (process.env.NODE_ENV !== "production") {
-    const { createServer: createViteServer } = await import("vite");
-    const vite = await createViteServer({
-      root: path.join(process.cwd(), "frontend"),
-      configFile: path.join(process.cwd(), "frontend", "vite.config.ts"),
-      server: { middlewareMode: true },
-      appType: "spa"
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist", "frontend");
-    app.use(express3.static(distPath));
-    app.get("*", (_req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
-  }
+  const distPath = path.join(process.cwd(), "dist", "frontend");
+  app.use(express3.static(distPath));
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(distPath, "index.html"));
+  });
   let activePort = PORT;
   const maxPort = process.env.PORT ? PORT : PORT + 10;
   while (true) {

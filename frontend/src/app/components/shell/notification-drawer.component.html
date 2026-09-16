@@ -1,0 +1,110 @@
+
+    @if (isOpen) {
+      <div
+        class="notification-overlay"
+        role="presentation"
+        (mousedown)="onBackdrop($event)"
+      >
+        <aside class="notification-drawer" aria-label="Notifications" aria-modal="true" role="dialog">
+          <header class="notification-header">
+            <div class="notification-headingGroup">
+              <span class="notification-drawer-icon">
+                <ion-icon name="notifications"></ion-icon>
+              </span>
+              <div>
+                <div class="notification-titleRow">
+                  <h2 class="notification-title">Notifications</h2>
+                  @if (notifications.length > 0) {
+                    <span class="notification-count">{{ notifications.length }}</span>
+                  }
+                </div>
+                <p class="notification-subtitle">Recent document activity and approvals</p>
+              </div>
+            </div>
+            <div class="notification-headerActions">
+              @if (notifications.length > 0) {
+                <button type="button" class="notification-dismissAll" title="Dismiss all notifications" (click)="dismissAll()">
+                  <ion-icon name="checkmark-done"></ion-icon>
+                  <span>Dismiss All</span>
+                </button>
+              }
+              <button type="button" class="notification-closeButton" aria-label="Close notifications" (click)="onClose.emit()">
+                <ion-icon name="close"></ion-icon>
+              </button>
+            </div>
+          </header>
+
+          <div class="notification-list">
+            @if (notifications.length === 0) {
+              <div class="notification-empty">No recent notifications</div>
+            } @else {
+              @for (notification of notifications; track notification.id) {
+                <article
+                  class="notification-notification"
+                  [class.notification-approved]="notification.decisionStatus === 'APPROVED'"
+                  [class.notification-disapproved]="notification.decisionStatus === 'DISAPPROVED'"
+                >
+                  <div class="notification-itemHeader">
+                    <div class="notification-titleRow">
+                      <span class="notification-notificationTitle">{{ notification.title }}</span>
+                      @if (notification.decisionStatus) {
+                        <span class="notification-decisionBadge" [class.notification-approvedBadge]="notification.decisionStatus === 'APPROVED'" [class.notification-disapprovedBadge]="notification.decisionStatus === 'DISAPPROVED'">
+                          <ion-icon [name]="notification.decisionStatus === 'APPROVED' ? 'checkmark-circle' : 'close-circle'"></ion-icon>
+                          {{ notification.decisionStatus }}
+                        </span>
+                      }
+                    </div>
+                    <time class="notification-date">{{ formatDate(notification.createdAt) }}</time>
+                  </div>
+
+                  <p class="notification-message">{{ notification.message }}</p>
+
+                  <div class="notification-itemActions">
+                    @if (notification.requiresDecision && !notification.decisionStatus) {
+                      <button
+                        type="button"
+                        class="notification-approveButton"
+                        [disabled]="decisionSubmittingId === notification.id"
+                        (click)="onDecision.emit({ notification, decision: 'APPROVED' })"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        type="button"
+                        class="notification-disapproveButton"
+                        [disabled]="decisionSubmittingId === notification.id"
+                        (click)="onDecision.emit({ notification, decision: 'DISAPPROVED' })"
+                      >
+                        Disapprove
+                      </button>
+                    }
+
+                    @if (notification.trackingNumber) {
+                      <button
+                        type="button"
+                        class="notification-viewButton"
+                        (click)="view(notification.trackingNumber)"
+                      >
+                        <ion-icon name="eye"></ion-icon>
+                        <span>View {{ notification.trackingNumber }}</span>
+                        <ion-icon name="arrow-forward"></ion-icon>
+                      </button>
+                    }
+
+                    <button
+                      type="button"
+                      class="notification-dismissButton"
+                      [attr.aria-label]="'Dismiss ' + notification.title"
+                      (click)="onMarkRead.emit(notification.id)"
+                    >
+                      <ion-icon name="close"></ion-icon>
+                    </button>
+                  </div>
+                </article>
+              }
+            }
+          </div>
+        </aside>
+      </div>
+    }
+  

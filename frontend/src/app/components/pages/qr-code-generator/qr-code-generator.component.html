@@ -1,0 +1,147 @@
+
+    <div class="qcg-page">
+      <div class="qcg-hero">
+        <div class="qcg-heroContent">
+          <div class="qcg-heroIcon">
+            <ion-icon name="qr-code" class="qcg-largeIcon"></ion-icon>
+          </div>
+          <div>
+            <h2 class="qcg-title">QR code generator</h2>
+            <p class="qcg-subtitle">Enter a document number, URL, or custom text to create a QR code</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="qcg-layout">
+        <div class="qcg-formColumn">
+          <div class="qcg-previewCard">
+            <div>
+              <label class="qcg-label">Manual QR code value</label>
+              <div class="qcg-inputRow">
+                <input type="text" [ngModel]="manualQrValue()" (ngModelChange)="manualQrValue.set($event)" (keydown.enter)="generateQR()" placeholder="Enter Document Route No., URL, or custom text" class="qcg-textInput" />
+                <button type="button" (click)="generateQR()" class="qcg-primaryButton">
+                  <ion-icon name="qr-code" class="qcg-buttonIcon"></ion-icon>
+                  <span>Generate QR</span>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label class="qcg-label">Preview, download, and print size</label>
+              <div class="qcg-sizeRow">
+                <input type="range" min="128" max="400" step="8" [ngModel]="qrSize()" (ngModelChange)="qrSize.set(+$event)" class="qcg-rangeInput" />
+                <input type="number" min="128" max="400" step="8" [ngModel]="qrSize()" (ngModelChange)="onSizeChange(+$event)" class="qcg-sizeInput" aria-label="QR preview size in pixels" />
+                <span class="qcg-unit">px</span>
+              </div>
+              <p class="qcg-helpText">This single setting controls the square QR in the preview, downloaded PNG, and centered Original/File Copy print layout.</p>
+            </div>
+
+            <div class="qcg-rangePanel">
+              <label class="qcg-rangeTitle">Document Route No. QR Range</label>
+              <p class="qcg-rangeHelp">Format: BLGFR2-YEAR-MONTH-IN/OUT-SEQUENCE</p>
+              <div class="qcg-rangeGrid">
+                <div>
+                  <label class="qcg-smallLabel">Direction</label>
+                  <select [ngModel]="routeDirection()" (ngModelChange)="routeDirection.set($event)" class="qcg-rangeField">
+                    <option value="IN">Incoming</option>
+                    <option value="OUT">Outgoing</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="qcg-smallLabel">Start Number</label>
+                  <input type="number" min="1" max="100" [ngModel]="rangeStart()" (ngModelChange)="rangeStart.set($event)" (blur)="onRangeStartBlur()" class="qcg-rangeField" />
+                </div>
+                <div>
+                  <label class="qcg-smallLabel">End Number</label>
+                  <input type="number" min="1" max="100" [ngModel]="rangeEnd()" (ngModelChange)="rangeEnd.set($event)" (blur)="onRangeEndBlur()" class="qcg-rangeField" />
+                </div>
+              </div>
+              <button type="button" (click)="generateRouteNumberRange()" class="qcg-rangeButton">Generate Route QR Range</button>
+              @if (generatedRange().length > 0) {
+                <button type="button" (click)="handlePrintRange()" class="qcg-printRangeButton">
+                  <ion-icon name="print" class="qcg-buttonIcon"></ion-icon>
+                  Print Generated Range - 2 Copies Each
+                </button>
+              }
+            </div>
+
+            @if (recentQrs().length > 0) {
+              <div class="qcg-recentSection">
+                <div class="qcg-sectionHeader">
+                  <h3 class="qcg-sectionTitle">Recent QR Codes</h3>
+                  <button type="button" (click)="clearRecent()" class="qcg-clearButton">
+                    <ion-icon name="trash" class="qcg-smallIcon"></ion-icon>
+                    <span>Clear</span>
+                  </button>
+                </div>
+                <div class="qcg-recentList">
+                  @for (item of recentQrs(); track $index) {
+                    <button type="button" (click)="onSelectRecent(item)" [ngClass]="'qcg-recentCode' + (qrValue() === item ? ' qcg-recentCodeActive' : '')">
+                      {{ item.length > 30 ? item.slice(0, 30) + '...' : item }}
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <div class="qcg-previewCard">
+          <div class="qcg-preview">
+            <div class="qcg-previewCanvas" [style.--canvas-qr-size.px]="qrSize()">
+              @if (qrValue()) {
+                <div class="qcg-copyGrid">
+                  @for (copyType of ['ORIGINAL COPY', 'FILE COPY']; track copyType) {
+                    <div class="qcg-copy">
+                      <span class="qcg-copyType">{{ copyType }}</span>
+                      @if (qrDataUrl()) {
+                        <img [src]="qrDataUrl()" alt="Generated QR code" class="qcg-copyImage" />
+                      }
+                      <span class="qcg-routeNumber">{{ qrValue() }}</span>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <div class="qcg-placeholder">
+                  <div class="qcg-placeholderContent">
+                    <ion-icon name="qr-code" class="qcg-placeholderIcon"></ion-icon>
+                    <p class="qcg-placeholderText">Generate a QR code</p>
+                  </div>
+                </div>
+              }
+            </div>
+            @if (qrValue()) {
+              <p class="qcg-previewCaption">Interactive side-by-side print preview</p>
+            }
+          </div>
+
+          @if (qrValue()) {
+            <div class="qcg-actions">
+              <button type="button" (click)="handleDownload()" class="qcg-actionButton">
+                <ion-icon name="download" class="qcg-downloadIcon"></ion-icon>
+                <span class="qcg-actionLabel">Download</span>
+              </button>
+              <button type="button" (click)="handleCopy()" class="qcg-actionButton">
+                @if (copied()) {
+                  <ion-icon name="checkmark-circle" class="qcg-successIcon"></ion-icon>
+                } @else {
+                  <ion-icon name="clipboard" class="qcg-copyIcon"></ion-icon>
+                }
+                <span class="qcg-actionLabel">{{ copied() ? 'Copied' : 'Copy' }}</span>
+              </button>
+              <button type="button" (click)="handlePrint()" class="qcg-actionButton">
+                <ion-icon name="print" class="qcg-successIcon"></ion-icon>
+                <span class="qcg-actionLabel">Print</span>
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="qcg-hiddenCodes" aria-hidden="true">
+        @for (item of generatedRangeDataUrls(); track $index) {
+          <img [src]="item.dataUrl" [attr.data-route-code]="item.value" />
+        }
+      </div>
+    </div>
+  

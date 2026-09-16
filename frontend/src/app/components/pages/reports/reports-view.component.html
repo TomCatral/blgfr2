@@ -1,0 +1,230 @@
+
+    <div [ngClass]="'reports-page' | cls">
+      <div [ngClass]="'reports-hero' | cls">
+        <div [ngClass]="'reports-heroContent' | cls">
+          <div>
+            <h2 [ngClass]="'reports-title' | cls">
+              <ion-icon name="file-tray" [ngClass]="'reports-titleIcon' | cls"></ion-icon>
+              {{ pageTitle() }}
+            </h2>
+            <p [ngClass]="'reports-subtitle' | cls">{{ pageSubtitle() }}</p>
+          </div>
+          <div [ngClass]="'reports-heroActions' | cls">
+            <button type="button" [ngClass]="'reports-exportButton' | cls" (click)="exportActiveReport()">
+              <ion-icon name="download" [ngClass]="'reports-buttonIcon' | cls"></ion-icon>
+              Export Current Report
+            </button>
+            <button type="button" [ngClass]="'reports-folderButton' | cls" (click)="chooseAutoSaveDirectory()">
+              <ion-icon name="folder-open" [ngClass]="'reports-buttonIcon' | cls"></ion-icon>
+              {{ folderButtonLabel() }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      @if (statusMessage()) {
+        <div [ngClass]="'reports-statusMessage' | cls">{{ statusMessage() }}</div>
+      }
+
+      @if (!reportType) {
+        <div [ngClass]="'reports-reportTabs' | cls">
+          @for (tab of reportTabs(); track tab.type) {
+            <button type="button" [ngClass]="tabClass(tab.type)" (click)="selectReport(tab.type)">
+              <div [ngClass]="'reports-tabHeader' | cls">
+                <ion-icon [name]="tab.icon" [ngClass]="'reports-tabIcon' | cls"></ion-icon>
+                <span [ngClass]="'reports-tabCount' | cls">{{ tab.count }}</span>
+              </div>
+              <div [ngClass]="'reports-tabLabel' | cls">{{ reportLabel(tab.type) }} Report</div>
+            </button>
+          }
+        </div>
+      }
+
+      <div [ngClass]="'reports-filters' | cls">
+        <div [ngClass]="'reports-searchField' | cls">
+          <ion-icon name="search" [ngClass]="'reports-searchIcon' | cls"></ion-icon>
+          <input
+            [ngClass]="'reports-searchInput' | cls"
+            [ngModel]="searchQuery()"
+            (ngModelChange)="searchQuery.set($event)"
+            placeholder="Search route number, title, sender, recipient, or details..."
+          />
+        </div>
+        <select [ngClass]="'reports-monthSelect' | cls" [ngModel]="monthFilter()" (ngModelChange)="monthFilter.set($event)">
+          <option value="ALL">All Months</option>
+          @for (month of availableMonths(); track month) {
+            <option [value]="month">{{ monthLabel(month) }}</option>
+          }
+        </select>
+      </div>
+
+      <div [ngClass]="'reports-tableCard' | cls">
+        <div [ngClass]="'reports-tableTitle' | cls">
+          {{ reportLabel(activeReport()) }} &bull; {{ visibleCount() }} record(s)
+        </div>
+        <div [ngClass]="'reports-tableScroll' | cls">
+          @if (activeReport() === 'ENVELOPE') {
+            <table [ngClass]="'reports-envelopeTable' | cls">
+              <thead [ngClass]="'reports-tableHead' | cls">
+                <tr>
+                  <th [ngClass]="'reports-cell' | cls">Timestamp</th>
+                  <th [ngClass]="'reports-cell' | cls">Route No.</th>
+                  <th [ngClass]="'reports-cell' | cls">Released By</th>
+                  <th [ngClass]="'reports-cell' | cls">Dispatch Details</th>
+                </tr>
+              </thead>
+              <tbody [ngClass]="'reports-tableBody' | cls">
+                @for (log of filteredEnvelopeLogs(); track log.id) {
+                  <tr [ngClass]="'reports-row' | cls">
+                    <td [ngClass]="'reports-nowrapCell' | cls">{{ formatDate(log.timestamp) }}</td>
+                    <td [ngClass]="'reports-routeCell' | cls">{{ log.documentTrackingNumber || 'N/A' }}</td>
+                    <td [ngClass]="'reports-strongCell' | cls">{{ log.userName }}</td>
+                    <td [ngClass]="'reports-detailsCell' | cls">
+                      @if (getDispatchDetailItems(log.details).length > 1) {
+                        <ul class="reports-detailBulletList">
+                          @for (detail of getDispatchDetailItems(log.details); track $index) {
+                            <li class="reports-detailBulletItem">{{ detail }}</li>
+                          }
+                        </ul>
+                      } @else {
+                        {{ log.details }}
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          } @else {
+            <table [ngClass]="'reports-documentTable' | cls">
+              <thead [ngClass]="'reports-tableHead' | cls">
+                <tr>
+                  <th [ngClass]="'reports-cell' | cls">Route No.</th>
+                  <th [ngClass]="'reports-cell' | cls">Date Received</th>
+                  <th [ngClass]="'reports-cell' | cls">Title / Subject</th>
+                  <th [ngClass]="'reports-cell' | cls">From Office</th>
+                  <th [ngClass]="'reports-cell' | cls">Initial Receiver</th>
+                  <th [ngClass]="'reports-cell' | cls">Current Holder</th>
+                  <th [ngClass]="'reports-cell' | cls">Final Outcome</th>
+                  <th [ngClass]="'reports-cell' | cls">Completion & Document Handoff</th>
+                  <th [ngClass]="'reports-cell' | cls">Last Activity</th>
+                  <th [ngClass]="'reports-cell' | cls">Full History</th>
+                </tr>
+              </thead>
+              <tbody [ngClass]="'reports-tableBody' | cls">
+                @for (document of filteredDocuments(); track document.id) {
+                  @let latestRoute = latestRouteOf(document);
+                  @let events = eventsFor(document);
+                  @let lastEvent = events.length ? events[events.length - 1] : null;
+                  @let finalOutcome = finalOutcomeOf(document, events);
+                  @let completionNotes = completionNotesOf(document);
+                  @let handoff = handoffOf(document);
+                  <tr [ngClass]="'reports-row' | cls">
+                    <td [ngClass]="'reports-routeCell' | cls">{{ document.routeNo || document.trackingNumber }}</td>
+                    <td [ngClass]="'reports-nowrapCell' | cls">{{ formatDate(document.dateReceived) }}</td>
+                    <td [ngClass]="'reports-titleCell' | cls">
+                      <div [ngClass]="'reports-documentTitle' | cls">{{ document.title }}</div>
+                      <div [ngClass]="'reports-mutedLine' | cls">{{ document.subject }}</div>
+                    </td>
+                    <td [ngClass]="'reports-cell' | cls">{{ document.originatingOffice }}</td>
+                    <td [ngClass]="'reports-strongCell' | cls">{{ document.createdBy }}</td>
+                    <td [ngClass]="'reports-cell' | cls">
+                      <div [ngClass]="'reports-bold' | cls">
+                        {{ latestRoute?.toUser || document.assignedUser || 'Unassigned' }}
+                      </div>
+                      <div [ngClass]="'reports-mutedLine' | cls">
+                        {{ latestRoute?.toDivision || document.currentDivision }}
+                      </div>
+                    </td>
+                    <td [ngClass]="'reports-cell' | cls">
+                      <span [ngClass]="outcomeBadgeClass(finalOutcome)">{{ finalOutcome }}</span>
+                    </td>
+                    <td [ngClass]="'reports-handoffCell' | cls">
+                      @if (document.currentStatus === 'COMPLETED') {
+                        <div [ngClass]="'reports-handoff' | cls">
+                          <div>
+                            <span [ngClass]="'reports-detailLabel' | cls">Instructions:</span>
+                            <strong [ngClass]="'reports-instructions' | cls">{{ handoff.instructions }}</strong>
+                          </div>
+                          <div>
+                            <span [ngClass]="'reports-detailLabel' | cls">Completed by:</span>
+                            <strong>{{ handoff.completedBy }}</strong>
+                          </div>
+                          <div>
+                            <span [ngClass]="'reports-detailLabel' | cls">Office:</span>
+                            <strong>{{ handoff.completedOffice }}</strong>
+                          </div>
+                          <div>
+                            <span [ngClass]="'reports-detailLabel' | cls">Completed on:</span>
+                            <strong>{{ handoff.completedOn }}</strong>
+                          </div>
+                          @if (completionNotes) {
+                            <div [ngClass]="'reports-completionNotes' | cls">
+                              <span [ngClass]="'reports-detailLabel' | cls">Notes:</span>
+                              {{ completionNotes }}
+                            </div>
+                          }
+                        </div>
+                      } @else {
+                        <span [ngClass]="'reports-muted' | cls">Available when document is completed</span>
+                      }
+                    </td>
+                    <td [ngClass]="'reports-activityCell' | cls">
+                      @if (lastEvent) {
+                        <div [ngClass]="'reports-bold' | cls">
+                          {{ lastEvent.event }} by {{ lastEvent.actor }}
+                        </div>
+                        <div [ngClass]="'reports-mutedLine' | cls">{{ formatDate(lastEvent.timestamp) }}</div>
+                      } @else {
+                        No activity recorded
+                      }
+                    </td>
+                    <td [ngClass]="'reports-cell' | cls">
+                      <button type="button" [ngClass]="'reports-historyButton' | cls" (click)="toggleHistory(document.id)">
+                        {{ expandedRouteId() === document.id ? 'Hide History' : 'View History (' + events.length + ')' }}
+                      </button>
+                    </td>
+                  </tr>
+                  @if (expandedRouteId() === document.id) {
+                    <tr [ngClass]="'reports-historyRow' | cls">
+                      <td colspan="10" [ngClass]="'reports-historyCell' | cls">
+                        <div [ngClass]="'reports-historyTitle' | cls">
+                          Route History - {{ document.routeNo || document.trackingNumber }}
+                        </div>
+                        @if (events.length) {
+                          <div [ngClass]="'reports-historyList' | cls">
+                            @for (event of events; track event.id; let i = $index) {
+                              <div [ngClass]="'reports-historyEvent' | cls">
+                                <div [ngClass]="'reports-eventNumber' | cls">#{{ i + 1 }}</div>
+                                <div>
+                                  <span [ngClass]="'reports-muted' | cls">Date:</span>
+                                  <div [ngClass]="'reports-bold' | cls">{{ formatDate(event.timestamp) }}</div>
+                                </div>
+                                <div>
+                                  <span [ngClass]="'reports-muted' | cls">User:</span>
+                                  <div [ngClass]="'reports-bold' | cls">{{ event.actor }}</div>
+                                </div>
+                                <div>
+                                  <span [ngClass]="'reports-muted' | cls">What happened:</span>
+                                  <div [ngClass]="eventNameClass(event.outcome)">{{ event.event }}</div>
+                                  <div [ngClass]="'reports-eventDetails' | cls">{{ event.details }}</div>
+                                </div>
+                              </div>
+                            }
+                          </div>
+                        } @else {
+                          <div [ngClass]="'reports-noEvents' | cls">No routing events recorded yet.</div>
+                        }
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          }
+          @if (visibleCount() === 0) {
+            <div [ngClass]="'reports-empty' | cls">No records match this report filter.</div>
+          }
+        </div>
+      </div>
+    </div>
+  

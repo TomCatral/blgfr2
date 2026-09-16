@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { documentFileType, isReplyAttachment } from '../frontend/src/utils/documentFiles.ts';
+import { documentFileType, isReplyAttachment } from '../frontend/src/app/utils/document-files.ts';
 
 test('accepts JPEG replies and preserves their image type', () => {
   assert.equal(isReplyAttachment({ name: 'reply.jpg', type: 'image/jpeg' }), true);

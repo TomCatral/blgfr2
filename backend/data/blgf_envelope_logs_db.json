@@ -1,1 +1,37 @@
-[]
+{
+  "logs": [
+    {
+      "id": "env-log-1",
+      "timestamp": "2026-09-14T16:00:00.000Z",
+      "userId": "usr-1785138104157",
+      "userName": "Tom Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "ENVELOPE_LOG",
+      "documentTrackingNumber": "BLGFR2-2026-08-OUT-01",
+      "details": "Recipient 1: Atty. Maria Elena R. Santos | Office 1: Provincial Treasury Office - Province of Cagayan | Subject: BLGF Memorandum on Local Revenue Generation Assessment for FY 2026 | Printed by: Tom Catral",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "env-log-2",
+      "timestamp": "2026-09-15T09:30:00.000Z",
+      "userId": "usr-1785138104157",
+      "userName": "Tom Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "ENVELOPE_LOG",
+      "documentTrackingNumber": "BLGFR2-2026-09-OUT-02",
+      "details": "Recipient 1: Mr. Michael G. Alcantara | Office 1: City Treasury Office - Tuguegarao City | Subject: Transmittal of 2026 3rd Quarter Real Property Assessment Guidelines | Printed by: Tom Catral",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "env-log-3",
+      "timestamp": "2026-09-15T14:15:00.000Z",
+      "userId": "usr-1785141914148",
+      "userName": "Jay ann M. Mangoba",
+      "userRole": "RECORDS_OFFICER",
+      "action": "ENVELOPE_LOG",
+      "documentTrackingNumber": "MANUAL-DISPATCH",
+      "details": "Recipient 1: Mr. Ferdinand V. Ramirez | Office 1: Provincial Treasury Office - Province of Isabela | Subject: Advisory on Provincial Revenue Assessment | Printed by: Jay ann M. Mangoba",
+      "ipAddress": "127.0.0.1"
+    }
+  ]
+}

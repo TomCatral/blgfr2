@@ -1,0 +1,649 @@
+    @if (document) {
+      <app-modal-layer [isOpen]="true" [onClose]="handleClose" [maxWidth]="'min(1520px, 96vw)'">
+        @if (viewingPdf(); as pdf) {
+          <div class="fixed inset-0 z-[400] flex items-center justify-center bg-slate-950/90 p-2 backdrop-blur-md sm:p-4" role="dialog" aria-modal="true" [attr.aria-label]="'PDF viewer: ' + pdf.name">
+            <div class="flex h-[calc(100dvh-1rem)] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-slate-900 sm:h-[92vh] sm:rounded-2xl">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-200 px-3 py-2.5 dark:border-slate-800 sm:px-4 sm:py-3">
+                <div class="flex min-w-0 items-center gap-2">
+                  <ion-icon name="document-text" class="h-4 w-4 shrink-0 text-slate-600"></ion-icon>
+                  <span class="truncate text-xs font-bold sm:text-sm">{{ pdf.name }}</span>
+                </div>
+                <div class="flex shrink-0 items-center gap-1">
+                  <button type="button" (click)="openPdfInNewTab()" class="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-slate-50 px-3.5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100 dark:bg-blue-950/50 dark:text-slate-300">
+                    <ion-icon name="eye" class="h-4 w-4"></ion-icon>
+                    <span class="hidden sm:inline">Open</span>
+                  </button>
+                  <button type="button" (click)="closePdfViewer()" class="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Close PDF viewer">
+                    <ion-icon name="close" class="h-5 w-5"></ion-icon>
+                  </button>
+                </div>
+              </div>
+              <div class="min-h-0 flex-1 bg-slate-200 dark:bg-slate-800">
+                <iframe [src]="safePdfUrl(pdf.url)" class="h-full w-full border-0" [title]="'PDF viewer: ' + pdf.name"></iframe>
+              </div>
+            </div>
+          </div>
+        }
+
+        <div class="document-detail-panel flex flex-col w-full overflow-hidden bg-white text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-slate-100">
+          <div class="document-detail-content max-h-[calc(88vh-4.5rem)] space-y-5 overflow-y-auto bg-slate-50/60 p-4 sm:space-y-6 sm:p-6 dark:bg-slate-950/30">
+            <header class="document-detail-hero p-4 sm:p-6" aria-labelledby="tracking-title">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div class="min-w-0">
+                    <div class="doc-hero-eyebrow flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em]">
+                      <ion-icon name="git-network" class="h-4 w-4"></ion-icon>
+                      Routing &amp; Tracking
+                    </div>
+                    <h1 id="tracking-title" class="tracking-title mt-1.5 text-2xl font-black sm:text-[28px]">Tracking Documents</h1>
+                    <p class="doc-hero-sub mt-1.5 max-w-xl text-[13px] font-medium leading-relaxed">Follow the document from registration to completion - check each recipient's latest status, response, and next action.</p>
+                  </div>
+                  <div class="flex shrink-0 flex-wrap items-center gap-2">
+                    <span class="doc-hero-chip inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-black uppercase tracking-wide">
+                      <ion-icon name="radio-button-on" class="h-3.5 w-3.5"></ion-icon>
+                      {{ document.currentStatus.replaceAll('_', ' ') }}
+                    </span>
+                    <button type="button" (click)="scrollToFlow()" class="doc-hero-btn inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-bold">
+                      View flow <ion-icon name="chevron-down" class="h-[18px] w-[18px]"></ion-icon>
+                    </button>
+                  </div>
+                </div>
+              </header>
+
+              <header class="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:p-4" aria-labelledby="document-information-title">
+                <div class="mb-2.5">
+                  <div class="min-w-0">
+                    <h2 id="document-information-title" class="overflow-wrap-anywhere text-xl font-bold">{{ document.title }}</h2>
+                    <p class="mt-0.5 text-[14px] text-slate-500">Document information &amp; files</p>
+                  </div>
+                </div>
+                <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_310px] xl:grid-cols-[minmax(0,1fr)_320px]">
+                  <div class="min-w-0">
+                    <h4 class="mb-1.5 text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Document Subject / Content</h4>
+                    <p class="document-subject mb-4 rounded-xl border border-slate-200/80 bg-slate-50/60 p-3.5 text-sm sm:text-[15px] font-medium leading-relaxed text-slate-800 dark:border-slate-800 dark:bg-slate-800/30 dark:text-slate-200 whitespace-pre-wrap overflow-wrap-anywhere">
+                      {{ document.subject || 'No detailed description provided.' }}
+                    </p>
+                    <dl class="m-0 grid gap-2.5 sm:grid-cols-2">
+                      @for (field of documentFields(); track field.label) {
+                        <div class="rounded-xl border border-slate-200/70 bg-slate-50/60 p-3 transition-colors hover:border-blue-300 dark:border-slate-800 dark:bg-slate-800/40 dark:hover:border-blue-800">
+                          <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">{{ field.label }}</dt>
+                          <dd class="document-field-value mt-1 text-[13.5px] font-bold text-slate-900 dark:text-slate-100 overflow-wrap-anywhere m-0">{{ field.value || 'Not recorded' }}</dd>
+                        </div>
+                      }
+                    </dl>
+                  </div>
+                  <section class="min-w-0 bg-slate-50 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 dark:bg-slate-800/40" aria-labelledby="document-files-title">
+                    <div class="mb-1 flex flex-wrap items-center justify-between gap-1.5">
+                      <h4 id="document-files-title" class="text-base font-semibold">Files from document logging ({{ sharedDocumentFiles().length }})</h4>
+                      @if (isDocumentParticipant()) {
+                        <label class="inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-md border border-slate-300 px-3 py-2 text-sm font-bold transition-colors hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" [class.opacity-50]="isUploading()" [class.pointer-events-none]="isUploading()">
+                          <ion-icon name="cloud-upload" class="h-[17px] w-[17px]"></ion-icon>
+                          {{ isUploading() ? 'Uploading...' : 'Add files' }}
+                          <input class="visually-hidden-file-input" type="file" multiple (change)="handleFileUpload($event)" [disabled]="isUploading()" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" tabindex="-1" />
+                        </label>
+                      }
+                    </div>
+                    <p class="mb-2 text-[13px] text-slate-500">PDF, Word, Excel, PNG, or JPG</p>
+                    @if (!sharedDocumentFiles().length) {
+                      <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-2.5 dark:border-slate-700 dark:bg-slate-800/50">
+                        <ion-icon name="attach" class="h-[22px] w-[22px] text-slate-400"></ion-icon>
+                        <p class="mt-1 text-[15px] font-semibold">No files attached</p>
+                        <p class="mt-0.5 text-sm text-slate-500">{{ isDocumentParticipant() ? 'Use Add files to attach supporting documents.' : 'No digital files are available for this document.' }}</p>
+                      </div>
+                    } @else {
+                      <ul class="m-0 list-none p-0">
+                        @for (file of sharedDocumentFiles(); track file.id) {
+                          <li class="border-t border-slate-200 py-2 dark:border-slate-700">
+                            <div class="flex items-start gap-1.25">
+                              <ion-icon name="document-text" class="mt-[3px] h-5 w-5 shrink-0 text-slate-500"></ion-icon>
+                              <div class="min-w-0">
+                                <p class="attachment-name overflow-wrap-anywhere text-[15px] font-semibold">{{ file.fileName }}</p>
+                                <p class="mt-0.5 text-[13px] text-slate-500">{{ file.fileSize || 'Size not recorded' }}{{ file.uploadDate ? ' - ' + formatDate(file.uploadDate) : '' }}</p>
+                              </div>
+                            </div>
+                            <div class="mt-1 flex flex-wrap gap-1">
+                              <button type="button" (click)="handleViewAttachment(file)" [disabled]="!file.url" class="inline-flex min-h-[44px] items-center gap-1.5 rounded-md border border-slate-300 px-3.5 py-2.5 text-sm font-bold transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800" [attr.aria-label]="'View ' + file.fileName">
+                                <ion-icon name="eye" class="h-4 w-4"></ion-icon> View
+                              </button>
+                              <button type="button" (click)="handleDownloadAttachment(file)" [disabled]="!file.url" class="inline-flex min-h-[44px] items-center gap-1.5 rounded-md border border-slate-300 px-3.5 py-2.5 text-sm font-bold transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800" [attr.aria-label]="'Download ' + file.fileName">
+                                <ion-icon name="download" class="h-4 w-4"></ion-icon> Download
+                              </button>
+                              @if (isPdfFile(file)) {
+                                <button type="button" (click)="handlePrintAttachment(file.url)" [disabled]="!file.url" class="inline-flex min-h-[44px] items-center gap-1.5 rounded-md border border-slate-300 px-3.5 py-2.5 text-sm font-bold transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800" [attr.aria-label]="'Print ' + file.fileName">
+                                  <ion-icon name="print" class="h-4 w-4"></ion-icon> Print
+                                </button>
+                              }
+                            </div>
+                            @if (!file.url) {
+                              <p class="mt-0.5 text-[13px] text-slate-500">File link unavailable.</p>
+                            }
+                          </li>
+                        }
+                      </ul>
+                    }
+                  </section>
+                </div>
+              </header>
+
+              <div class="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Document Tracking</p>
+                    <h3 class="text-base font-semibold">{{ formatReadableStatus(document.currentStatus) }}</h3>
+                  </div>
+                  <button type="button" (click)="scrollToFlow()" class="inline-flex min-h-[44px] items-center rounded-md border border-slate-300 px-3.5 py-2.5 text-sm font-bold transition-colors hover:bg-slate-50 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800">View routing timeline</button>
+                </div>
+                <ol class="my-2 grid list-none gap-1 p-0 sm:grid-cols-4" aria-label="Transaction progress">
+                  @for (stage of transactionStages(); track stage.label; let i = $index) {
+                    <li class="min-w-0" [attr.aria-current]="stage.active ? 'step' : null">
+                      <div [ngClass]="('mb-1 h-1 rounded-sm ' + stage.barClass) | cls"></div>
+                      <span class="transaction-stage-label" [ngClass]="('block text-[11px] ' + stage.textClass) | cls">{{ i + 1 }}. {{ stage.label }}</span>
+                      @if (stage.active) {
+                        <span [ngClass]="('text-[11px] ' + stage.subTextClass) | cls">{{ stage.subLabel }}</span>
+                      }
+                    </li>
+                  }
+                </ol>
+                <p class="mt-1.5 text-sm text-slate-700 dark:text-slate-300">{{ nextActionText() }}</p>
+                @if (pendingDecisionRoute()) {
+                  <div class="mt-2 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200">
+                    <ion-icon name="information-circle" class="mt-0.5 shrink-0"></ion-icon>
+                    <span><strong>Action required before routing:</strong> Review this document and select <strong>Approve</strong> or <strong>Disapprove</strong> first. After approval, the Route / Forward button will become available. If disapproved, include the reason and the document will be returned to the sender.</span>
+                  </div>
+                }
+                <dl class="m-0 mt-2 grid gap-2 sm:grid-cols-2">
+                  <div>
+                    <dt class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Assigned on document record</dt>
+                    <dd class="m-0 text-sm">{{ resolveUserName(document.assignedUserId, document.assignedUser) || 'No named handler' }} &bull; {{ document.currentDivision }}</dd>
+                  </div>
+                  <div>
+                    <dt class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Target date</dt>
+                    <dd class="m-0 text-sm">{{ document.targetCompletionDate ? formatDate(document.targetCompletionDate) : 'Not set' }}</dd>
+                  </div>
+                </dl>
+                @if (document.currentStatus === 'COMPLETED') {
+                  <div class="rounded-2xl border border-emerald-200 bg-emerald-50/90 p-4 text-sm text-emerald-950 shadow-xs dark:border-emerald-800/80 dark:bg-emerald-950/40 dark:text-emerald-100">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                      <div class="flex items-center gap-2.5">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs dark:bg-emerald-500">
+                          <ion-icon name="checkmark-done-outline" class="text-lg"></ion-icon>
+                        </div>
+                        <div>
+                          <div class="font-extrabold text-emerald-950 dark:text-emerald-100">Transaction ended</div>
+                          <div class="text-xs text-emerald-700/80 dark:text-emerald-400">Document processing finalized & ready for handoff</div>
+                        </div>
+                      </div>
+                      <div class="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-100/90 px-3 py-1 text-xs font-extrabold text-emerald-800 dark:border-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-200">
+                        <span class="h-2 w-2 rounded-full bg-emerald-600 animate-pulse dark:bg-emerald-400"></span>
+                        <span>Completed</span>
+                      </div>
+                    </div>
+
+                    @if (saveInstructionSuccess()) {
+                      <div class="mt-3 flex items-center gap-2 rounded-lg border border-emerald-400 bg-emerald-100/80 px-3 py-2 text-xs font-bold text-emerald-900 animate-fadeIn dark:border-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-200">
+                        <ion-icon name="checkmark-circle" class="text-base text-emerald-600 dark:text-emerald-400"></ion-icon>
+                        <span>Handoff instructions saved and synchronized successfully!</span>
+                      </div>
+                    }
+
+                    <div class="mt-3">
+                      <div class="rounded-xl border border-emerald-200/80 bg-white/95 p-3.5 shadow-xs dark:border-emerald-800/60 dark:bg-slate-900/80">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                          <div class="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                            <ion-icon name="location-outline" class="text-sm"></ion-icon>
+                            <span>Final action / Handoff instructions</span>
+                          </div>
+                          @if (!isEditingFinalInstructions()) {
+                            <div class="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                (click)="copyInstructionsToClipboard()"
+                                class="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                                title="Copy instructions to clipboard"
+                              >
+                                @if (copiedInstructionFeedback()) {
+                                  <ion-icon name="checkmark-outline" class="text-xs text-emerald-600 dark:text-emerald-400"></ion-icon>
+                                  <span class="text-emerald-700 dark:text-emerald-400 font-bold">Copied!</span>
+                                } @else {
+                                  <ion-icon name="copy-outline" class="text-xs"></ion-icon>
+                                  <span>Copy</span>
+                                }
+                              </button>
+                              <button
+                                type="button"
+                                (click)="startEditingFinalInstructions()"
+                                class="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 shadow-2xs transition hover:bg-emerald-100 hover:border-emerald-400 hover:text-emerald-950 dark:border-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60"
+                                title="Edit or specify pickup instructions"
+                              >
+                                <ion-icon name="create-outline" class="text-xs"></ion-icon>
+                                <span>Edit Instruction</span>
+                              </button>
+                            </div>
+                          }
+                        </div>
+
+                        @if (!isEditingFinalInstructions()) {
+                          @if (completedHandoffs().length > 0) {
+                            <div class="mt-2.5 space-y-2">
+                              @for (handoff of completedHandoffs(); track handoff.routeId) {
+                                <div class="rounded-lg border border-emerald-200/80 border-l-4 border-l-emerald-500 bg-emerald-50/50 p-3 dark:border-emerald-800/60 dark:border-l-emerald-400 dark:bg-emerald-950/25">
+                                  <div class="flex items-center justify-between gap-2 mb-1 text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                                    <span class="inline-flex items-center gap-1">
+                                      <ion-icon name="person-circle-outline" class="text-sm text-emerald-600 dark:text-emerald-400"></ion-icon>
+                                      <span>{{ handoff.completedBy }} ({{ handoff.division }})</span>
+                                      @if (handoff.isCurrentUser) {
+                                        <span class="rounded-full bg-emerald-200/80 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-800 dark:bg-emerald-800/60 dark:text-emerald-200">You</span>
+                                      }
+                                    </span>
+                                    <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                                      {{ formatDate(handoff.timestamp) }}
+                                    </span>
+                                  </div>
+                                  <div class="whitespace-pre-wrap text-sm font-semibold leading-relaxed text-slate-800 dark:text-slate-100">
+                                    {{ handoff.instruction }}
+                                  </div>
+                                </div>
+                              }
+                            </div>
+                          } @else {
+                            <div class="mt-2.5 rounded-lg border-l-4 border-emerald-500 bg-emerald-50/40 p-3 dark:border-emerald-400 dark:bg-emerald-950/20">
+                              <div class="whitespace-pre-wrap text-sm font-semibold leading-relaxed text-slate-800 dark:text-slate-100">
+                                {{ finalHandoffInstructions() }}
+                              </div>
+                            </div>
+                          }
+                        } @else {
+                          <div class="mt-3 space-y-2.5">
+                            <div>
+                              <div class="text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1.5 flex items-center gap-1">
+                                <ion-icon name="sparkles-outline" class="text-xs text-amber-500"></ion-icon>
+                                <span>Quick preset templates (click to apply):</span>
+                              </div>
+                              <div class="flex flex-wrap items-center gap-1.5">
+                                @for (preset of instructionPresets; track preset.label) {
+                                  <button
+                                    type="button"
+                                    (click)="applyInstructionPreset(preset.text)"
+                                    class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-200"
+                                    title="Click to use this template"
+                                  >
+                                    <ion-icon [name]="preset.icon" class="text-xs text-emerald-600 dark:text-emerald-400"></ion-icon>
+                                    <span>{{ preset.label }}</span>
+                                  </button>
+                                }
+                              </div>
+                            </div>
+
+                            <div class="relative">
+                              <textarea
+                                [ngModel]="finalInstructionsDraft()"
+                                (ngModelChange)="finalInstructionsDraft.set($event)"
+                                rows="3"
+                                maxlength="600"
+                                class="w-full rounded-xl border border-emerald-300 bg-white p-3 text-sm font-medium text-slate-800 shadow-inner transition focus:border-emerald-500 focus:outline-none focus:ring-3 focus:ring-emerald-500/20 dark:border-emerald-700 dark:bg-slate-800 dark:text-slate-100"
+                                placeholder="Hal. Kuhanin sa Room 204 Records Section, hanapin si Ms. Rona. Magdala ng valid ID..."
+                              ></textarea>
+                            </div>
+
+                            <div class="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+                              <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                                <span>{{ finalInstructionsDraft().length }} / 600 characters</span>
+                                @if (finalInstructionsDraft().length > 0) {
+                                  <button
+                                    type="button"
+                                    (click)="clearInstructionsDraft()"
+                                    class="inline-flex items-center gap-0.5 text-xs text-rose-600 hover:underline dark:text-rose-400"
+                                  >
+                                    <ion-icon name="close-circle-outline" class="text-xs"></ion-icon>
+                                    <span>Clear</span>
+                                  </button>
+                                }
+                              </div>
+
+                              <div class="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  (click)="cancelEditingFinalInstructions()"
+                                  class="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                                  [disabled]="isSavingFinalInstructions()"
+                                >
+                                  <ion-icon name="close-outline" class="text-xs"></ion-icon>
+                                  <span>Cancel</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  (click)="saveFinalInstructions()"
+                                  class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700 disabled:opacity-50"
+                                  [disabled]="isSavingFinalInstructions() || !finalInstructionsDraft().trim()"
+                                >
+                                  @if (isSavingFinalInstructions()) {
+                                    <ion-icon name="sync-outline" class="animate-spin text-sm"></ion-icon>
+                                    <span>Saving...</span>
+                                  } @else {
+                                    <ion-icon name="checkmark-outline" class="text-sm"></ion-icon>
+                                    <span>Save Instruction</span>
+                                  }
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    </div>
+
+                    <div class="mt-3 grid gap-2 border-t border-emerald-200/80 pt-3 text-xs text-emerald-800 sm:grid-cols-3 dark:border-emerald-800/80 dark:text-emerald-300">
+                      <span class="inline-flex items-center gap-1">
+                        <ion-icon name="person-outline" class="text-xs text-emerald-600 dark:text-emerald-400"></ion-icon>
+                        <strong>Completed by:</strong> {{ resolveUserName(finalReleaseRoute()?.fromUserId, finalReleaseRoute()?.fromUser) || 'N/A' }}
+                      </span>
+                      <span class="inline-flex items-center gap-1">
+                        <ion-icon name="business-outline" class="text-xs text-emerald-600 dark:text-emerald-400"></ion-icon>
+                        <strong>Office:</strong> {{ completedAtOffice() }}
+                      </span>
+                      <span class="inline-flex items-center gap-1">
+                        <ion-icon name="calendar-outline" class="text-xs text-emerald-600 dark:text-emerald-400"></ion-icon>
+                        <strong>Completed on:</strong> {{ finalReleaseRoute() ? formatDate(finalReleaseRoute()!.createdAt) : 'N/A' }}
+                      </span>
+                    </div>
+                  </div>
+                }
+              </div>
+
+              <section id="document-routing-history" class="border-t border-slate-200 pt-5 text-sm leading-relaxed dark:border-slate-800">
+                <!-- Enhanced Flow Header & KPIs -->
+                <div class="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5">
+                  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400">
+                          <ion-icon name="git-network" class="h-4 w-4"></ion-icon>
+                        </span>
+                        <h3 class="text-base font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-lg">Document Workflow &amp; Transaction Trail</h3>
+                      </div>
+                      <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        Tracks all routing steps, user handoffs, decisions, and system audit logs from the database.
+                      </p>
+                    </div>
+                  </div>
+
+                  <!-- Executive KPI Summary Bar -->
+                  <div class="mt-3.5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+                    <div class="rounded-xl border border-slate-200/60 bg-slate-50/70 p-2.5 dark:border-slate-800 dark:bg-slate-800/40">
+                      <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Handoffs</span>
+                      <p class="text-sm font-black text-slate-800 dark:text-slate-100">{{ (document.routes || []).length }} Recorded</p>
+                    </div>
+                    <div class="rounded-xl border border-slate-200/60 bg-slate-50/70 p-2.5 dark:border-slate-800 dark:bg-slate-800/40">
+                      <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Current Custodian</span>
+                      <p class="truncate text-sm font-black text-slate-800 dark:text-slate-100" [title]="currentCustodian().name">
+                        {{ currentCustodian().name }}
+                      </p>
+                    </div>
+                    <div class="rounded-xl border border-slate-200/60 bg-slate-50/70 p-2.5 dark:border-slate-800 dark:bg-slate-800/40">
+                      <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Office Custody</span>
+                      <p class="truncate text-sm font-black text-slate-800 dark:text-slate-100">{{ currentCustodian().office || document.currentDivision }}</p>
+                    </div>
+                    <div class="rounded-xl border border-slate-200/60 bg-slate-50/70 p-2.5 dark:border-slate-800 dark:bg-slate-800/40">
+                      <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Workflow Status</span>
+                      <p class="text-sm font-black text-blue-600 dark:text-blue-400">{{ formatReadableStatus(document.currentStatus) }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- VISUAL WORKFLOW GRAPH -->
+                  <!-- Root Card: Document Registration / Intake -->
+                  <div class="mx-auto w-full max-w-2xl rounded-2xl border border-blue-200/80 bg-gradient-to-r from-blue-50/70 via-white to-indigo-50/50 p-3 shadow-xs dark:border-blue-900/60 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800/80 sm:p-4">
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="flex items-center gap-2.5">
+                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-xs dark:bg-blue-500">
+                          <ion-icon name="document-text" class="h-5 w-5"></ion-icon>
+                        </span>
+                        <div>
+                          <div class="flex items-center gap-1.5">
+                            <span class="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-blue-800 dark:bg-blue-900 dark:text-blue-200">Start &bull; Intake</span>
+                            <span class="text-xs font-bold text-slate-700 dark:text-slate-300">{{ document.routeNo || document.trackingNumber }}</span>
+                          </div>
+                          <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                            Logged by <strong class="text-slate-800 dark:text-slate-200">{{ document.createdBy || 'Originating Office' }}</strong> &bull; {{ formatDate(document.createdAt) }}
+                          </p>
+                        </div>
+                      </div>
+                      <span class="rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-slate-700 shadow-2xs border border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700">
+                        {{ document.originatingOffice }} &rarr; {{ document.destinationOffice }}
+                      </span>
+                    </div>
+                    <div class="mt-2.5 border-t border-blue-100 pt-2 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-300">
+                      <span class="font-bold text-slate-400">Initial Remarks:</span> {{ document.subject || 'Document registered in BLGF Document Tracking System' }}
+                    </div>
+                  </div>
+
+                  <!-- Connector from Intake to Routes -->
+                  <div class="mx-auto flex w-fit flex-col items-center py-1 text-slate-400 dark:text-slate-500" aria-hidden="true">
+                    <span class="h-[20px] w-[2px] bg-slate-300 dark:bg-slate-600"></span>
+                    <span class="h-0 w-0 border-l-[5px] border-r-[5px] border-t-[7px] border-l-transparent border-r-transparent border-t-slate-400 dark:border-t-slate-500"></span>
+                  </div>
+
+                  <!-- Flow Routing Grid & Details Inspector -->
+                  <div class="mt-2 grid gap-5 xl:grid-cols-[minmax(0,1.75fr)_minmax(380px,1.2fr)] lg:grid-cols-[minmax(0,1.45fr)_minmax(340px,1.1fr)]">
+                    <nav class="rounded-2xl bg-slate-50/80 p-4 sm:p-5 border border-slate-200/80 dark:bg-slate-900/60 dark:border-slate-800 overflow-hidden flex flex-col" aria-label="Document recipient flow">
+                      <div class="mb-3 flex items-center justify-between">
+                        <div>
+                          <p class="text-sm font-extrabold text-slate-800 dark:text-slate-100">
+                            {{ flowFilterMode() === 'MY' ? 'Your Involvements & Downstream Branches' : 'Complete Routing Path' }}
+                          </p>
+                          <p class="text-[11px] text-slate-400">Click any step node to inspect recipient instructions, activity, and files.</p>
+                        </div>
+                        <span class="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                          {{ flowRecipients().length }} Step{{ flowRecipients().length === 1 ? '' : 's' }}
+                        </span>
+                      </div>
+
+                      @if (flowRoots().length > 0) {
+                        <div class="mx-auto mb-3 max-w-[280px] rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-center shadow-2xs dark:border-slate-700 dark:bg-slate-800">
+                          <p class="text-[10px] font-black uppercase tracking-wider text-slate-400">Dispatch Origin</p>
+                          <p class="truncate text-xs font-bold text-slate-800 dark:text-slate-200">{{ flowRootSenders().join(', ') || 'Originating Office' }}</p>
+                        </div>
+                      }
+
+                      @if (flowRoots().length > 1) {
+                        <div class="relative hidden h-[44px] sm:block" aria-hidden="true">
+                          <div class="absolute left-1/2 top-0 h-[14px] border-l-2 border-slate-300 dark:border-slate-600"></div>
+                          <div class="absolute top-[14px] border-t-2 border-slate-300 dark:border-slate-600" [style.left]="(50 / flowRoots().length) + '%'" [style.right]="(50 / flowRoots().length) + '%'"></div>
+                          @for (root of flowRoots(); track root.id; let ri = $index) {
+                            <div class="flow-root-node absolute left-auto top-[14px] flex flex-col items-center" [style.left]="(((ri + 0.5) / flowRoots().length) * 100) + '%'">
+                              <span class="h-[14px] w-[2px] bg-slate-300 dark:bg-slate-600"></span>
+                              <span class="h-0 w-0 border-l-[4px] border-r-[4px] border-t-[6px] border-l-transparent border-r-transparent border-t-slate-400 dark:border-t-slate-500"></span>
+                            </div>
+                          }
+                        </div>
+                      }
+
+                      <ul class="flow-roots-grid" [style.--roots-count]="flowRoots().length">
+                        @for (root of flowRoots(); track root.id) {
+                          <app-flow-node [recipient]="root" [flowNumber]="'1'" [parent]="host" />
+                        }
+                      </ul>
+                    </nav>
+
+                    <!-- Recipient Inspector Panel -->
+                    <section id="flow-recipient-details" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:sticky md:top-4" aria-label="Selected recipient details">
+                      @if (selectedRoute() && selectedSnapshot()) {
+                        <div class="border-b border-slate-100 pb-3 dark:border-slate-800">
+                          <div class="flex items-center justify-between gap-2">
+                            <span class="rounded-full bg-blue-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                              {{ selectedRoute()!.toDivision }}
+                            </span>
+                            <span class="text-xs font-bold text-slate-500 dark:text-slate-400">{{ formatDate(selectedRoute()!.createdAt) }}</span>
+                          </div>
+                          <h3 class="mt-1.5 text-base font-extrabold text-slate-900 dark:text-white">
+                            {{ resolveUserName(selectedRoute()!.toUserId, selectedRoute()!.toUser) || selectedRoute()!.toDivision }}
+                          </h3>
+                          <p class="text-xs text-slate-500 dark:text-slate-400">
+                            Handoff from <strong>{{ resolveUserName(selectedRoute()!.fromUserId, selectedRoute()!.fromUser) || selectedRoute()!.fromDivision || 'Sender' }}</strong>
+                          </p>
+                        </div>
+
+                        <dl class="mt-3 grid gap-2">
+                          @for (field of selectedDetailFields(); track field.label) {
+                            <div class="rounded-lg bg-slate-50 p-2 dark:bg-slate-800/50">
+                              <dt class="text-[11px] font-bold text-slate-400">{{ field.label }}</dt>
+                              <dd class="m-0 mt-0.5 whitespace-pre-wrap text-xs font-medium text-slate-800 dark:text-slate-200">{{ field.value }}</dd>
+                            </div>
+                          }
+                        </dl>
+
+                        @if (selectedDecision()) {
+                          <div class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-800/60 dark:bg-emerald-950/30">
+                            <div class="flex items-center gap-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                              <ion-icon name="checkmark-circle" class="h-4 w-4"></ion-icon>
+                              <span>Official Decision: {{ formatReadableStatus(getRouteDecision(selectedDecision()!)) }}</span>
+                            </div>
+                            <p class="mt-0.5 text-[11px] text-emerald-700/80 dark:text-emerald-400">{{ formatDate(selectedDecision()!.createdAt) }}</p>
+                            @if (selectedDecision()!.remarks) {
+                              <p class="mt-1 text-xs text-slate-700 dark:text-slate-300">{{ displayRouteRemarks(selectedDecision()!.remarks) }}</p>
+                            }
+                          </div>
+                        }
+
+                        <!-- Attached Files for this Step / Handoff -->
+                        @if (selectedStepFiles().length > 0) {
+                          <div class="mt-4 rounded-xl border border-blue-200/80 bg-blue-50/40 p-3 dark:border-blue-900/60 dark:bg-blue-950/20">
+                            <div class="flex items-center justify-between">
+                              <div class="flex items-center gap-1.5">
+                                <ion-icon name="attach" class="text-blue-600 dark:text-blue-400 text-sm"></ion-icon>
+                                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">Attached Files for this Step ({{ selectedStepFiles().length }})</h4>
+                              </div>
+                              <span class="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-black text-blue-800 dark:bg-blue-900 dark:text-blue-200">Step Files</span>
+                            </div>
+                            <div class="mt-2 space-y-2">
+                              @for (file of selectedStepFiles(); track file.id || file.url || file.fileName) {
+                                <div class="rounded-lg border border-slate-200/80 bg-white p-2 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
+                                  <div class="flex items-center gap-2">
+                                    <ion-icon name="document-text" class="text-blue-600 dark:text-blue-400 shrink-0 text-base"></ion-icon>
+                                    <div class="min-w-0 flex-1">
+                                      <p class="truncate text-xs font-bold text-slate-800 dark:text-slate-200" [title]="file.fileName">{{ file.fileName }}</p>
+                                      <p class="text-[10px] text-slate-400">{{ file.fileSize || 'Size not recorded' }}{{ file.uploadDate ? ' &bull; ' + formatDate(file.uploadDate) : '' }}</p>
+                                    </div>
+                                  </div>
+                                  <div class="mt-1.5 flex items-center gap-1 border-t border-slate-100 pt-1.5 dark:border-slate-800">
+                                    <button type="button" (click)="handleViewAttachment(file)" [disabled]="!file.url" class="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300">
+                                      <ion-icon name="eye" class="h-3 w-3"></ion-icon> View
+                                    </button>
+                                    <button type="button" (click)="handleDownloadAttachment(file)" [disabled]="!file.url" class="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300">
+                                      <ion-icon name="download" class="h-3 w-3"></ion-icon> Download
+                                    </button>
+                                    @if (isPdfFile(file)) {
+                                      <button type="button" (click)="handlePrintAttachment(file.url)" [disabled]="!file.url" class="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300">
+                                        <ion-icon name="print" class="h-3 w-3"></ion-icon> Print
+                                      </button>
+                                    }
+                                  </div>
+                                </div>
+                              }
+                            </div>
+                          </div>
+                        }
+
+                        <!-- Activities Substeps -->
+                        <div class="mt-4">
+                          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Recorded Actions</h4>
+                          @if (!selectedActivities().length) {
+                            <p class="mt-1 text-xs text-slate-500 italic">No additional actions recorded for this recipient yet.</p>
+                          }
+                          <ol class="mt-2 space-y-2 pl-0 list-none">
+                            @for (activity of selectedActivities(); track activity.id) {
+                              <li class="rounded-lg border border-slate-200/80 bg-slate-50/60 p-2 dark:border-slate-800 dark:bg-slate-800/40">
+                                <div class="flex items-center justify-between text-xs">
+                                  <span class="font-bold text-slate-800 dark:text-slate-200">{{ activity.status === 'COMPLETED' ? 'Part completed' : activity.destination ? 'Forwarded to ' + activity.destination : activity.action }}</span>
+                                  <span class="text-[10px] text-slate-400">{{ formatDate(activity.timestamp) }}</span>
+                                </div>
+                                @if (activity.remarks && !isNoneRemark(activity.remarks)) {
+                                  <p class="mt-1 text-xs text-slate-600 dark:text-slate-300 italic">"{{ activity.remarks }}"</p>
+                                }
+                                @if (activity.attachments && activity.attachments.length > 0) {
+                                  <div class="mt-2 space-y-1.5 border-t border-slate-200/60 pt-2 dark:border-slate-700/60">
+                                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Attached File:</span>
+                                    @for (att of activity.attachments; track att.id || att.fileName) {
+                                      <div class="flex items-center justify-between gap-1.5 rounded-md border border-slate-200 bg-white p-1.5 text-xs dark:border-slate-700 dark:bg-slate-900">
+                                        <div class="flex items-center gap-1.5 min-w-0">
+                                          <ion-icon name="document-text" class="text-blue-600 text-sm shrink-0"></ion-icon>
+                                          <span class="truncate font-semibold text-slate-800 dark:text-slate-200" [title]="att.fileName">{{ att.fileName }}</span>
+                                        </div>
+                                        <div class="flex items-center gap-1 shrink-0">
+                                          <button type="button" (click)="handleViewAttachment(att)" class="inline-flex items-center gap-0.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300">
+                                            <ion-icon name="eye" class="text-xs"></ion-icon> View
+                                          </button>
+                                          <button type="button" (click)="handleDownloadAttachment(att)" class="inline-flex items-center gap-0.5 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300">
+                                            <ion-icon name="download" class="text-xs"></ion-icon> Download
+                                          </button>
+                                        </div>
+                                      </div>
+                                    }
+                                  </div>
+                                }
+                              </li>
+                            }
+                          </ol>
+                        </div>
+
+                        <!-- Step Exchange Files -->
+                        @if (recipientResponseFiles().length > 0) {
+                          <div class="mt-4 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+                            <div class="flex items-center justify-between">
+                              <h4 class="text-xs font-bold text-slate-700 dark:text-slate-300">Exchanged Files</h4>
+                              <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                                {{ recipientResponseFiles().length }}
+                              </span>
+                            </div>
+                            <div class="mt-2 space-y-2">
+                              @for (file of recipientResponseFiles(); track file.id || file.url || file.fileName) {
+                                <div class="rounded-lg border border-slate-200/60 p-2 dark:border-slate-800">
+                                  <p class="truncate text-xs font-bold text-slate-800 dark:text-slate-200">{{ file.fileName }}</p>
+                                  <p class="text-[10px] text-slate-400">{{ attachmentMeta(file) }}</p>
+                                  <div class="mt-1.5 flex gap-1">
+                                    <button type="button" (click)="handleViewAttachment(file)" [disabled]="!file.url" class="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300">
+                                      <ion-icon name="eye" class="h-3 w-3"></ion-icon> View
+                                    </button>
+                                    <button type="button" (click)="handleDownloadAttachment(file)" [disabled]="!file.url" class="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300">
+                                      <ion-icon name="download" class="h-3 w-3"></ion-icon> Download
+                                    </button>
+                                  </div>
+                                </div>
+                              }
+                            </div>
+                          </div>
+                        }
+                      } @else {
+                        <div class="py-8 text-center text-slate-400">
+                          <ion-icon name="finger-print" class="h-8 w-8 mx-auto mb-2 opacity-60"></ion-icon>
+                          <p class="text-xs font-medium">Select a step node to inspect recipient transaction details.</p>
+                        </div>
+                      }
+                    </section>
+                  </div>
+              </section>
+            </div>
+            <div class="document-detail-footer sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white/95 p-3.5 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 sm:p-4">
+              <button type="button" (click)="handleClose()" class="rounded-xl bg-slate-100 border border-slate-200/80 px-4 py-2.5 text-sm font-bold text-slate-700 transition-all hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Close</button>
+              <div class="flex flex-wrap items-center gap-2">
+                @if (onDeleteDoc && currentUser.role === 'SYSTEM_ADMIN') {
+                  <button type="button" (click)="handleDelete()" class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs transition-all hover:bg-rose-500 active:scale-98">
+                    <ion-icon name="trash" class="h-4 w-4"></ion-icon> <span>Delete</span>
+                  </button>
+                }
+                @if (isDocumentParticipant() && canAccessDocumentSlip()) {
+                  <button type="button" (click)="handlePrintSlip()" class="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs transition-all hover:bg-emerald-500 active:scale-98">
+                    <ion-icon name="print" class="h-4 w-4"></ion-icon> <span>Print Slip</span>
+                  </button>
+                }
+                @if (pendingDecisionRoute()) {
+                  <p class="route-lock-help max-w-[300px] text-xs text-slate-500">Route / Forward is locked until you Approve or Disapprove this handoff.</p>
+                }
+                @if (canRouteDocument() || pendingDecisionRoute()) {
+                  <button type="button" [disabled]="!!pendingDecisionRoute()" (click)="handleOpenRouteDoc()" class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs transition-all hover:bg-blue-500 active:scale-98 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 dark:disabled:bg-slate-700 dark:disabled:text-slate-400">
+                    <ion-icon name="paper-plane" class="h-4 w-4"></ion-icon> <span>Route / Forward</span>
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+      </app-modal-layer>
+    }

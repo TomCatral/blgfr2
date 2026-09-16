@@ -1,0 +1,748 @@
+.startup-logo {
+  width: 52px;
+  height: 52px;
+}
+
+.mobile-sidebar-backdrop {
+  z-index: 45;
+  display: block;
+}
+
+/* ==========================================================================
+   Deadline Alert Modal (Target Date Overdue Notification)
+   Executive government document warning dialog
+   ========================================================================== */
+.deadline-modal {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  background: var(--ui-surface, #ffffff);
+  border: 1px solid var(--ui-border, rgba(226, 232, 240, 0.9));
+  box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.25), 0 0 1px rgba(15, 23, 42, 0.1);
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+}
+
+/* Glowing top accent stripe */
+.deadline-accent-bar {
+  height: 4px;
+  width: 100%;
+  background: linear-gradient(90deg, #f59e0b 0%, #ea580c 50%, #dc2626 100%);
+}
+
+/* Modal Header */
+.deadline-header {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.35rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--ui-border, #f1f5f9);
+  background: radial-gradient(circle at 12% 20%, rgba(245, 158, 11, 0.09) 0%, transparent 65%);
+}
+
+/* Glowing warning beacon */
+.deadline-icon-glow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.875rem;
+  height: 2.875rem;
+  border-radius: 0.875rem;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(234, 88, 12, 0.12) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  box-shadow: 0 8px 20px -4px rgba(245, 158, 11, 0.32);
+  flex-shrink: 0;
+  color: #d97706;
+
+  ion-icon {
+    font-size: 1.5rem;
+  }
+}
+
+.deadline-title-group {
+  flex: 1;
+  min-width: 0;
+}
+
+.deadline-tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #b45309;
+
+  .deadline-pulse-dot {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 9999px;
+    background: #ea580c;
+    animation: deadline-pulse 1.8s ease-in-out infinite;
+  }
+}
+
+@keyframes deadline-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.75);
+  }
+}
+
+.deadline-title {
+  margin: 0.3rem 0 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: var(--ui-text, #0f172a);
+  line-height: 1.35;
+}
+
+.deadline-close-btn {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.625rem;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+
+  ion-icon {
+    font-size: 1.25rem;
+  }
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: #334155;
+  }
+}
+
+/* Modal Body */
+.deadline-body {
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.deadline-description {
+  margin: 0 0 1.125rem;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: #64748b;
+}
+
+/* Document Details Card */
+.deadline-card {
+  padding: 1.125rem;
+  border-radius: 1.125rem;
+  border: 1px solid var(--ui-border, #e2e8f0);
+  background: var(--ui-surface-soft, #f8fafc);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.deadline-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.deadline-field-label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.deadline-route-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  background: rgba(37, 99, 235, 0.06);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #1d4ed8;
+
+  ion-icon {
+    font-size: 0.85rem;
+  }
+}
+
+.deadline-doc-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: var(--ui-text, #0f172a);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* Target Deadline Banner */
+.deadline-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: 0.875rem;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: linear-gradient(135deg, rgba(254, 243, 199, 0.75) 0%, rgba(255, 237, 213, 0.55) 100%);
+}
+
+.deadline-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.deadline-banner-icon {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  flex-shrink: 0;
+
+  ion-icon {
+    font-size: 1.15rem;
+  }
+}
+
+.deadline-banner-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.deadline-banner-caption {
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #b45309;
+}
+
+.deadline-banner-time {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: #92400e;
+  white-space: nowrap;
+}
+
+.deadline-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  font-size: 0.625rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #b91c1c;
+  flex-shrink: 0;
+}
+
+/* Action Buttons */
+.deadline-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.deadline-btn-ack {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #1e293b;
+  }
+}
+
+.deadline-btn-review {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.65rem 1.125rem;
+  border-radius: 0.75rem;
+  border: none;
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 55%, #4338ca 100%);
+  color: #ffffff;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  letter-spacing: 0.015em;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+
+  ion-icon {
+    font-size: 1rem;
+  }
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.42);
+  }
+
+  &:active {
+    transform: translateY(0) scale(0.98);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Dark Mode for Deadline Modal
+   -------------------------------------------------------------------------- */
+.dark {
+  .deadline-modal {
+    background: #0f172a;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7);
+  }
+
+  .deadline-header {
+    border-bottom-color: #1e293b;
+    background: radial-gradient(circle at 12% 20%, rgba(245, 158, 11, 0.14) 0%, transparent 65%);
+  }
+
+  .deadline-icon-glow {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(234, 88, 12, 0.15) 100%);
+    border-color: rgba(245, 158, 11, 0.5);
+    color: #fbbf24;
+  }
+
+  .deadline-tag-pill {
+    background: rgba(245, 158, 11, 0.18);
+    border-color: rgba(245, 158, 11, 0.4);
+    color: #fde68a;
+  }
+
+  .deadline-title {
+    color: #f8fafc;
+  }
+
+  .deadline-close-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f1f5f9;
+  }
+
+  .deadline-description {
+    color: #94a3b8;
+  }
+
+  .deadline-card {
+    background: #1e293b;
+    border-color: #334155;
+  }
+
+  .deadline-route-pill {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: rgba(59, 130, 246, 0.3);
+    color: #93c5fd;
+  }
+
+  .deadline-doc-title {
+    color: #f1f5f9;
+  }
+
+  .deadline-banner {
+    background: rgba(180, 83, 9, 0.18);
+    border-color: rgba(245, 158, 11, 0.35);
+  }
+
+  .deadline-banner-icon {
+    background: #1e293b;
+    border-color: rgba(245, 158, 11, 0.4);
+    color: #fbbf24;
+  }
+
+  .deadline-banner-caption {
+    color: #fcd34d;
+  }
+
+  .deadline-banner-time {
+    color: #fef3c7;
+  }
+
+  .deadline-status-badge {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+  }
+
+  .deadline-btn-ack {
+    background: #1e293b;
+    border-color: #334155;
+    color: #cbd5e1;
+
+    &:hover {
+      background: #334155;
+      color: #ffffff;
+    }
+  }
+}
+
+/* ==========================================================================
+   Reminder Alert Modal
+   ========================================================================== */
+.reminder-modal {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  background: var(--ui-surface, #ffffff);
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+}
+
+.reminder-accent-bar {
+  height: 4px;
+  width: 100%;
+  background: linear-gradient(90deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
+}
+
+.reminder-header {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.35rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--ui-border, #f1f5f9);
+  background: radial-gradient(circle at 12% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 65%);
+}
+
+.reminder-icon-glow {
+  display: grid;
+  place-items: center;
+  width: 2.875rem;
+  height: 2.875rem;
+  border-radius: 0.875rem;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.18) 0%, rgba(99, 102, 241, 0.12) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  box-shadow: 0 8px 20px -4px rgba(59, 130, 246, 0.3);
+  color: #2563eb;
+  flex-shrink: 0;
+
+  ion-icon {
+    font-size: 1.5rem;
+  }
+}
+
+.reminder-title-group {
+  flex: 1;
+  min-width: 0;
+}
+
+.reminder-tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #1d4ed8;
+
+  .reminder-pulse-dot {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 9999px;
+    background: #2563eb;
+    animation: deadline-pulse 1.8s ease-in-out infinite;
+  }
+}
+
+.reminder-title {
+  margin: 0.3rem 0 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: var(--ui-text, #0f172a);
+  line-height: 1.35;
+}
+
+.reminder-close-btn {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.625rem;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+
+  ion-icon {
+    font-size: 1.25rem;
+  }
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: #334155;
+  }
+}
+
+.reminder-body {
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.reminder-message {
+  margin: 0 0 1.125rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: #475569;
+}
+
+.reminder-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+
+  @media (min-width: 480px) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.reminder-field-card {
+  padding: 0.75rem 0.875rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--ui-border, #e2e8f0);
+  background: var(--ui-surface-soft, #f8fafc);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  &.reminder-action-card {
+    background: rgba(245, 158, 11, 0.08);
+    border-color: rgba(245, 158, 11, 0.25);
+
+    .reminder-field-caption {
+      color: #b45309;
+    }
+
+    .reminder-field-value {
+      color: #92400e;
+    }
+  }
+}
+
+.reminder-field-caption {
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.reminder-field-value {
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: var(--ui-text, #1e293b);
+}
+
+.reminder-tracking-box {
+  margin-top: 0.75rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--ui-border, #e2e8f0);
+  background: var(--ui-surface-soft, #f8fafc);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.reminder-tracking-caption {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.reminder-tracking-value {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: #2563eb;
+}
+
+.reminder-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.reminder-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #1e293b;
+  }
+}
+
+.reminder-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.65rem 1.125rem;
+  border-radius: 0.75rem;
+  border: none;
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 55%, #4338ca 100%);
+  color: #ffffff;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  letter-spacing: 0.015em;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+
+  ion-icon {
+    font-size: 1rem;
+  }
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.42);
+  }
+
+  &:active {
+    transform: translateY(0) scale(0.98);
+  }
+}
+
+.dark {
+  .reminder-modal {
+    background: #0f172a;
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .reminder-header {
+    border-bottom-color: #1e293b;
+    background: radial-gradient(circle at 12% 20%, rgba(59, 130, 246, 0.14) 0%, transparent 65%);
+  }
+
+  .reminder-icon-glow {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(99, 102, 241, 0.15) 100%);
+    border-color: rgba(59, 130, 246, 0.5);
+    color: #60a5fa;
+  }
+
+  .reminder-tag-pill {
+    background: rgba(59, 130, 246, 0.18);
+    border-color: rgba(59, 130, 246, 0.4);
+    color: #93c5fd;
+  }
+
+  .reminder-title {
+    color: #f8fafc;
+  }
+
+  .reminder-close-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f1f5f9;
+  }
+
+  .reminder-message {
+    color: #cbd5e1;
+  }
+
+  .reminder-field-card {
+    background: #1e293b;
+    border-color: #334155;
+
+    &.reminder-action-card {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: rgba(245, 158, 11, 0.35);
+
+      .reminder-field-caption {
+        color: #fcd34d;
+      }
+
+      .reminder-field-value {
+        color: #fef3c7;
+      }
+    }
+  }
+
+  .reminder-field-value {
+    color: #f1f5f9;
+  }
+
+  .reminder-tracking-box {
+    background: #1e293b;
+    border-color: #334155;
+  }
+
+  .reminder-tracking-value {
+    color: #93c5fd;
+  }
+
+  .reminder-btn-secondary {
+    background: #1e293b;
+    border-color: #334155;
+    color: #cbd5e1;
+
+    &:hover {
+      background: #334155;
+      color: #ffffff;
+    }
+  }
+}

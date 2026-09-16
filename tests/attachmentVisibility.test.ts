@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isSharedDocumentFile } from '../frontend/src/utils/attachmentVisibility.ts';
-import type { DocumentAttachment, DocumentRecord, AuditLog } from '../frontend/src/types.ts';
+import { isSharedDocumentFile } from '../frontend/src/app/utils/attachment-visibility.ts';
+import type { DocumentAttachment, DocumentRecord, AuditLog } from '../frontend/src/app/types.ts';
 const document = { trackingNumber: 'DOC-1', createdAt: '2026-09-08T08:00:00Z', routes: [] } as unknown as DocumentRecord;
 const file = { id: 'file', fileName: 'memo.jpg', uploadDate: '2026-09-08T07:59:00Z' } as DocumentAttachment;
 test('logging attachments remain shared even though their uploader is recorded', () => {

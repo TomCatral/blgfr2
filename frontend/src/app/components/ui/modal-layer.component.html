@@ -1,0 +1,15 @@
+
+    @if (isOpen) {
+      <div class="fixed inset-0 z-[300] overflow-y-auto bg-slate-950/45 backdrop-blur-sm _overlay_ _backdrop_">
+        <div class="mx-auto flex w-full items-start justify-center p-1 py-3 sm:py-6">
+          <div
+            class="w-full rounded-2xl border border-[color:var(--ui-border)] bg-[color:var(--ui-surface)] shadow-2xl _dialog_ _panel_"
+            [style.max-width]="maxWidth"
+            (click)="stop($event)"
+          >
+            <ng-content />
+          </div>
+        </div>
+      </div>
+    }
+  

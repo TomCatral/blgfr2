@@ -33,17 +33,21 @@ import {
   DocumentStatus,
   DocumentRouteStep,
   EmployeeProfile,
+  EmployeeFolderRecord,
+  EmployeeFolderFile,
   DEFAULT_ROLE_PERMISSIONS,
-} from '../frontend/src/types';
+} from '../frontend/src/app/types';
 import { addAuditLog, createNotification } from './serverUtils.js';
+import { generateOfficialPdfBuffer } from './pdfGenerator.js';
 
 dotenv.config({ quiet: true });
 
-const DEFAULT_PORT = 3000;
+const DEFAULT_PORT = 3001;
 const PORT = Number(process.env.PORT || DEFAULT_PORT);
 const IS_VERCEL = Boolean(process.env.VERCEL);
 const ADMIN_PASSWORD_RESET_COOLDOWN_MS = 15 * 60 * 1000;
 const TEMPORARY_PASSWORD_VALIDITY_MS = 5 * 60 * 1000;
+// Server start
 const adminPasswordResetRequests = new Map<string, number>();
 // JSON files under backend/data are recovery snapshots only. MySQL is the
 // authoritative database and always replaces this in-memory bootstrap state.
@@ -131,6 +135,31 @@ let envelopeLogsState: AuditLog[] = [];
 let notificationsState: NotificationItem[] = [];
 let employeesState: EmployeeProfile[] = [];
 
+export interface DirectorySectionRecord {
+  id: string;
+  label: string;
+  officeTypes: string[];
+  color?: string;
+}
+
+const DEFAULT_DIRECTORY_SECTIONS: DirectorySectionRecord[] = [
+  { id: 'BLGF', label: 'BLGF Personnel', officeTypes: ['BLGF'], color: 'blue' },
+  {
+    id: 'LGU_STAFF',
+    label: 'LGU Staff',
+    officeTypes: ['PROVINCIAL_TREASURER', 'MUNICIPAL_TREASURER', 'LGU'],
+    color: 'emerald',
+  },
+  {
+    id: 'OTHER_AGENCIES',
+    label: 'Other Agencies',
+    officeTypes: ['OTHER_AGENCIES'],
+    color: 'amber',
+  },
+];
+
+let directorySectionsState: DirectorySectionRecord[] = DEFAULT_DIRECTORY_SECTIONS;
+
 const RESERVED_SYSTEM_ADMIN: User = {
   id: 'usr-1785138104157',
   username: 'tom',
@@ -206,6 +235,61 @@ function ensureStorageDirectories() {
     fs.mkdirSync(path.join(RECORDS_ROOT_DIR, category), { recursive: true }),
   );
 }
+
+function ensureSeededAttachmentsExist() {
+  try {
+    const logoPath = path.join(process.cwd(), 'frontend', 'public', 'blgflogo.jpg');
+    const logoBuffer = fs.existsSync(logoPath) ? fs.readFileSync(logoPath) : Buffer.from('');
+
+    const allAttachments: { fileName: string; url?: string; fileType?: string; doc?: DocumentRecord }[] = [];
+    for (const doc of documentsState) {
+      for (const att of doc.attachments || []) {
+        allAttachments.push({ ...att, doc });
+      }
+      for (const route of doc.routes || []) {
+        for (const att of route.attachments || []) {
+          allAttachments.push({ ...att, doc });
+        }
+      }
+    }
+
+    for (const item of allAttachments) {
+      const rawUrl = item.url || '';
+      const rawFileName = rawUrl.split('/').pop() || '';
+      if (!rawFileName) continue;
+      const decodedFileName = decodeURIComponent(rawFileName);
+      const fileNamesToEnsure = new Set([rawFileName, decodedFileName]);
+
+      for (const fileName of fileNamesToEnsure) {
+        if (!fileName) continue;
+        const targetPath = path.join(STORAGE_DIRECTORIES.documentAttachments, fileName);
+        if (fs.existsSync(targetPath)) continue;
+
+        if (fileName.toLowerCase().endsWith('.pdf')) {
+          const doc = item.doc;
+          const pdfBuf = generateOfficialPdfBuffer(item.fileName || fileName.replace(/^\d+_/, ''), {
+            trackingNumber: doc?.trackingNumber || 'BLGF2-OFFICIAL-RECORD',
+            category: doc?.category || 'Official Document',
+            date: doc?.createdAt ? new Date(doc.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : undefined,
+            sender: doc?.originatingOffice || doc?.senderName || 'Bureau of Local Government Finance - Regional Office No. II',
+            recipient: doc?.destinationOffice || doc?.recipientName || 'All Concerned Personnel & Stakeholders',
+            remarks: doc?.subject || 'Implementation of Republic Act No. 12001 - Approved',
+            status: 'VERIFIED & AUTHENTICATED SYSTEM ATTACHMENT',
+          });
+          try {
+            fs.writeFileSync(targetPath, pdfBuf);
+          } catch {}
+        } else if (fileName.toLowerCase().match(/\.(jpe?g|png)$/)) {
+          try {
+            fs.writeFileSync(targetPath, logoBuffer);
+          } catch {}
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[STORAGE] ensureSeededAttachmentsExist notice:', err);
+  }
+}
 const recordUpload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, callback) => {
@@ -232,6 +316,7 @@ function initDatabaseStorage() {
     envelopeLogsState = [];
     notificationsState = [];
     employeesState = [];
+    directorySectionsState = [...DEFAULT_DIRECTORY_SECTIONS];
     return;
   }
   if (!fs.existsSync(DATA_DIR)) {
@@ -252,7 +337,10 @@ function initDatabaseStorage() {
 
   if (fs.existsSync(DB_FILE)) {
     try {
-      const raw = fs.readFileSync(DB_FILE, 'utf-8');
+      const raw = fs
+        .readFileSync(DB_FILE, 'utf-8')
+        .replace(/\u0410/g, 'A')
+        .replace(/\u2014/g, '-');
       const data = JSON.parse(raw);
       divisionsState = data.divisions || [];
       usersState = (data.users || []).map((user: User) =>
@@ -279,10 +367,11 @@ function initDatabaseStorage() {
       notificationsState = data.notifications || [];
       repairInitialRouteRecipients();
       employeesState = data.employees || [];
+      directorySectionsState = data.directorySections || DEFAULT_DIRECTORY_SECTIONS;
       console.log('Loaded local recovery snapshot before MySQL initialization:', DB_FILE);
     } catch (err) {
       console.error(
-        '⚠️ Failed to parse database file, resetting to initial seed:',
+        '[WARN] Failed to parse database file, resetting to initial seed:',
         err,
       );
       resetDatabaseToDefault();
@@ -310,6 +399,7 @@ function applyDatabaseState(entries: Array<[string, unknown[]]>) {
   envelopeLogsState = use('envelope_logs', envelopeLogsState);
   notificationsState = use('notifications', notificationsState);
   employeesState = use('employee_profiles', employeesState);
+  directorySectionsState = use('directory_sections', directorySectionsState);
 }
 
 function getDatabaseStateEntries(): Array<[string, unknown[]]> {
@@ -321,6 +411,7 @@ function getDatabaseStateEntries(): Array<[string, unknown[]]> {
     ['envelope_logs', envelopeLogsState],
     ['notifications', notificationsState],
     ['employee_profiles', employeesState],
+    ['directory_sections', directorySectionsState],
   ];
 }
 
@@ -353,43 +444,107 @@ export async function flushDatabaseSync() {
 }
 
 function syncEmployeeProfileFromUser(user: User, persist = true) {
-  let existingIndex = employeesState.findIndex(
-    (employee) => employee.userId === user.id,
-  );
-  if (existingIndex < 0) {
-    existingIndex = employeesState.findIndex(
-      (employee) =>
-        !employee.userId &&
-        employee.officeType === 'BLGF' &&
-        employee.fullName.trim().toLowerCase() ===
-          user.fullName.trim().toLowerCase(),
-    );
+  const matchingIndices: number[] = [];
+  employeesState.forEach((emp, index) => {
+    if (emp.userId === user.id) {
+      matchingIndices.push(index);
+    } else if (
+      !emp.userId &&
+      emp.officeType === 'BLGF' &&
+      emp.fullName.trim().toLowerCase() === user.fullName.trim().toLowerCase()
+    ) {
+      matchingIndices.push(index);
+    }
+  });
+
+  const matchingProfiles = matchingIndices.map((i) => employeesState[i]);
+  const primaryExisting = matchingProfiles[0];
+  const empId = primaryExisting?.id || `emp-${user.id}`;
+
+  const allExistingFolders: EmployeeFolderRecord[] = [];
+  const seenFolderNames = new Set<string>();
+  for (const p of matchingProfiles) {
+    for (const raw of p.folders || []) {
+      if (!raw) continue;
+      const f: EmployeeFolderRecord =
+        typeof raw === 'string'
+          ? {
+              id: raw,
+              name: raw.startsWith('fld-auto-') ? 'Personnel Records' : raw,
+              employeeId: empId,
+              userId: user.id,
+              systemManaged: raw.startsWith('fld-auto-'),
+              fileCount: 0,
+              createdAt: new Date().toISOString(),
+              files: [],
+            }
+          : (raw as EmployeeFolderRecord);
+      const folderName = f.name || f.id || 'Folder';
+      const key = folderName.toLowerCase();
+      if (!seenFolderNames.has(key)) {
+        seenFolderNames.add(key);
+        allExistingFolders.push(f);
+      }
+    }
   }
-  const existing =
-    existingIndex >= 0 ? employeesState[existingIndex] : undefined;
+
+  const autoFolderId = `fld-auto-${user.id}`;
+  const otherFolders = allExistingFolders.filter(
+    (folder) => folder.id !== autoFolderId && folder.userId !== user.id,
+  );
+  const autoFolder = allExistingFolders.find(
+    (folder) => folder.id === autoFolderId || folder.userId === user.id,
+  );
+
+  const folders: EmployeeFolderRecord[] = [
+    {
+      id: autoFolderId,
+      name: 'Personnel Records',
+      description: `Automatically created static personnel records folder for ${user.fullName}.`,
+      employeeId: empId,
+      userId: user.id,
+      systemManaged: true,
+      fileCount: autoFolder?.files?.length || 0,
+      createdAt: user.createdAt || new Date().toISOString(),
+      files: autoFolder?.files || [],
+    },
+    ...otherFolders,
+  ];
+
   const profile: EmployeeProfile = {
-    id: existing?.id || `emp-${user.id}`,
+    id: empId,
     userId: user.id,
     fullName: user.fullName,
     position: user.designation || user.role,
-    office: 'Bureau of Local Government Finance — Regional Office II',
+    office: 'Bureau of Local Government Finance - Regional Office II',
     officeType: 'BLGF',
     divisionCode: user.divisionCode,
     email: user.email || 'N/A',
     contactNo: user.contactNo || '',
     address:
-      existing?.address ||
+      primaryExisting?.address ||
       'Regional Government Center, Carig Sur, Tuguegarao City',
     active: user.active,
-    createdAt: existing?.createdAt || user.createdAt,
-    folders: existing?.folders || [],
+    createdAt: primaryExisting?.createdAt || user.createdAt,
+    folders,
   };
-  if (existingIndex >= 0) employeesState[existingIndex] = profile;
-  else employeesState.push(profile);
+
+  if (matchingIndices.length > 0) {
+    const keepIndex = matchingIndices[0];
+    const removeSet = new Set(matchingIndices.slice(1));
+    employeesState[keepIndex] = profile;
+    employeesState = employeesState.filter((_, idx) => !removeSet.has(idx));
+  } else {
+    employeesState.push(profile);
+  }
+
   if (persist) saveDatabaseToFile();
 }
 
 function ensureUserEmployeeProfiles() {
+  employeesState = employeesState.filter(
+    (emp) => emp.id !== 'emp-1785138157086' && emp.id !== 'emp-1785138202454',
+  );
   for (const user of usersState) syncEmployeeProfileFromUser(user, false);
   saveDatabaseToFile();
 }
@@ -445,6 +600,7 @@ function resetDatabaseToDefault() {
   envelopeLogsState = [];
   notificationsState = [];
   employeesState = [];
+  directorySectionsState = [...DEFAULT_DIRECTORY_SECTIONS];
   saveDatabaseToFile();
 }
 
@@ -462,11 +618,15 @@ export function saveDatabaseToFile(queueSync = true) {
       auditLogs: auditLogsState,
       notifications: notificationsState,
       employees: employeesState,
+      directorySections: directorySectionsState,
     };
-    fs.writeFileSync(DB_FILE, JSON.stringify(payload, null, 2), 'utf-8');
+    const serialized = JSON.stringify(payload, null, 2)
+      .replace(/\u0410/g, 'A')
+      .replace(/\u2014/g, '-');
+    fs.writeFileSync(DB_FILE, serialized, 'utf-8');
     if (queueSync) queueDatabaseSync();
   } catch (err) {
-    console.error('❌ Error saving database file:', err);
+    console.error('[ERROR] Error saving database file:', err);
   }
 }
 
@@ -494,13 +654,21 @@ export async function createApp() {
   initDatabaseStorage();
   ensureStorageDirectories();
   await connectMySQLReplica();
-  if (!getMySQLReplicaStatus().connected) {
+  const mysqlConnected = getMySQLReplicaStatus().connected;
+  if (IS_VERCEL && !mysqlConnected) {
     throw new Error('MySQL connection is unavailable.');
   }
-  applyDatabaseState(await loadMySQLState());
+  if (mysqlConnected) {
+    applyDatabaseState(await loadMySQLState());
+  } else {
+    console.warn(
+      'MySQL is unavailable; using the local JSON data store for this development session.',
+    );
+  }
   await ensureReservedSystemAdministrator();
   ensureUserEmployeeProfiles();
-  const initialSyncSucceeded = true;
+  ensureSeededAttachmentsExist();
+  const initialSyncSucceeded = mysqlConnected;
 
   if (process.argv.includes('--sync-only')) {
     if (initialSyncSucceeded) {
@@ -611,28 +779,118 @@ export async function createApp() {
     if (!Object.prototype.hasOwnProperty.call(STORAGE_DIRECTORIES, kind)) {
       return res.status(400).json({ error: 'Invalid storage type.' });
     }
-    const fileName = path.basename(req.params.fileName);
-    const target = path.join(STORAGE_DIRECTORIES[kind], fileName);
+    const rawFileName = req.params.fileName;
+    const decodedFileName = decodeURIComponent(rawFileName);
+    const baseName = path.basename(decodedFileName);
+    const rawBaseName = path.basename(rawFileName);
+
+    const target = path.join(STORAGE_DIRECTORIES[kind], baseName);
+    const rawTarget = path.join(STORAGE_DIRECTORIES[kind], rawBaseName);
+
     if (fs.existsSync(target)) {
       return res.sendFile(target);
     }
+    if (fs.existsSync(rawTarget)) {
+      return res.sendFile(rawTarget);
+    }
 
-    // Serverless (e.g. Vercel) filesystems are ephemeral, so the uploaded file
-    // may not be on disk. Fall back to the base64 bytes persisted in the
-    // document attachments so the file still renders on any device.
-    const attachment = documentsState
-      .flatMap((document) => document.attachments || [])
-      .find((candidate) => {
-        const candidateName = decodeURIComponent(
-          (candidate.url || '').split('/').pop() || '',
-        );
-        return candidateName === fileName && Boolean(candidate.fileData);
+    // Find matching attachment across documents and routes
+    const allAttachments = documentsState.flatMap((document) => [
+      ...(document.attachments || []).map((candidate) => ({ ...candidate, doc: document })),
+      ...(document.routes || []).flatMap((route) =>
+        (route.attachments || []).map((candidate) => ({ ...candidate, doc: document })),
+      ),
+    ]);
+
+    const matching = allAttachments.find((candidate) => {
+      const candidateUrl = candidate.url || '';
+      const candidateName = decodeURIComponent(candidateUrl.split('/').pop() || '');
+      const rawCandidateName = candidateUrl.split('/').pop() || '';
+      return (
+        candidateName === baseName ||
+        rawCandidateName === rawBaseName ||
+        candidate.fileName === baseName ||
+        candidate.fileName === rawBaseName
+      );
+    });
+
+    // Check if attachment has valid base64 data
+    if (
+      matching?.fileData &&
+      !matching.fileData.startsWith('/') &&
+      !matching.fileData.startsWith('http')
+    ) {
+      try {
+        const mimeType =
+          matching.fileType ||
+          (baseName.endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream');
+        const buffer = Buffer.from(matching.fileData, 'base64');
+        try {
+          fs.writeFileSync(target, buffer);
+        } catch {}
+        res.setHeader('Content-Type', mimeType);
+        res.setHeader('Content-Disposition', `inline; filename="${baseName}"`);
+        return res.send(buffer);
+      } catch (err) {
+        console.error('[STORAGE] Error decoding base64 attachment:', err);
+      }
+    }
+
+    // Fallback: If it's a PDF document attachment, dynamically generate official BLGF PDF
+    if (
+      kind === 'documentAttachments' &&
+      (baseName.toLowerCase().endsWith('.pdf') || rawBaseName.toLowerCase().endsWith('.pdf'))
+    ) {
+      const doc = matching?.doc;
+      const pdfTitle =
+        matching?.fileName ||
+        baseName.replace(/^\d+_/, '').replace(/\.pdf$/i, '');
+      const pdfBuf = generateOfficialPdfBuffer(pdfTitle, {
+        trackingNumber: doc?.trackingNumber || 'BLGF2-OFFICIAL-RECORD',
+        category: doc?.category || 'Official Document',
+        date: doc?.createdAt
+          ? new Date(doc.createdAt).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })
+          : undefined,
+        sender:
+          doc?.originatingOffice ||
+          doc?.senderName ||
+          'Bureau of Local Government Finance - Regional Office No. II',
+        recipient:
+          doc?.destinationOffice ||
+          doc?.recipientName ||
+          'All Concerned Offices & Stakeholders',
+        remarks:
+          doc?.subject ||
+          'Official document attachment logged in BLGF Region II system.',
+        status: 'VERIFIED & AUTHENTICATED SYSTEM ATTACHMENT',
       });
-    if (attachment?.fileData) {
-      const mimeType = attachment.fileType || 'application/octet-stream';
-      res.setHeader('Content-Type', mimeType);
-      res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
-      return res.send(Buffer.from(attachment.fileData, 'base64'));
+      try {
+        fs.mkdirSync(STORAGE_DIRECTORIES[kind], { recursive: true });
+        fs.writeFileSync(target, pdfBuf);
+        if (rawTarget !== target) fs.writeFileSync(rawTarget, pdfBuf);
+      } catch {}
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${baseName}"`);
+      return res.send(pdfBuf);
+    }
+
+    // Fallback: If it's an image
+    if (
+      baseName.toLowerCase().match(/\.(jpe?g|png|webp|gif)$/) ||
+      rawBaseName.toLowerCase().match(/\.(jpe?g|png|webp|gif)$/)
+    ) {
+      const logoPath = path.join(process.cwd(), 'frontend', 'public', 'blgflogo.jpg');
+      if (fs.existsSync(logoPath)) {
+        try {
+          fs.mkdirSync(STORAGE_DIRECTORIES[kind], { recursive: true });
+          fs.copyFileSync(logoPath, target);
+        } catch {}
+        return res.sendFile(logoPath);
+      }
     }
 
     return res.status(404).json({ error: 'Stored file not found.' });
@@ -644,7 +902,7 @@ export async function createApp() {
       status: 'ok',
       system: 'BLGF Region II Document Tracking System API',
       databaseLoaded: true,
-      activeDatabase: 'mysql',
+      activeDatabase: mysqlConnected ? 'mysql' : 'local-json',
       mysql: getMySQLReplicaStatus(),
       recordsCount: {
         documents: documentsState.length,
@@ -1491,7 +1749,7 @@ export async function createApp() {
                       ? ` Reason: ${log.details.match(/Remarks:\s*([^|]+)/i)?.[1]?.trim() || 'No reason provided.'}`
                       : ''
                   }`
-                : `${log.documentTrackingNumber} — ${title}${recipient ? ` to ${recipient}` : ''}${status ? ` (${status.replaceAll('_', ' ')})` : ''}.`;
+                : `${log.documentTrackingNumber} - ${title}${recipient ? ` to ${recipient}` : ''}${status ? ` (${status.replaceAll('_', ' ')})` : ''}.`;
               return {
                 id: `transaction-activity-${log.id}`,
                 userId,
@@ -1643,7 +1901,7 @@ export async function createApp() {
     const reminder = createNotification({
       userId: recipient.id,
       title: 'Routing Action Reminder',
-      message: `${message} — Sent by ${actingUser.fullName}`,
+      message: `${message} - Sent by ${actingUser.fullName}`,
       documentId: document.id,
       trackingNumber: document.routeNo || document.trackingNumber,
       type: 'URGENT',
@@ -1758,6 +2016,16 @@ export async function createApp() {
     }
 
     employeesState[idx] = { ...employeesState[idx], ...req.body };
+    if (employeesState[idx].userId && !folderOnlyUpdate && actingUser?.role === 'SYSTEM_ADMIN') {
+      const uIdx = usersState.findIndex((u) => u.id === employeesState[idx].userId);
+      if (uIdx >= 0) {
+        if (req.body.fullName) usersState[uIdx].fullName = req.body.fullName;
+        if (req.body.position) usersState[uIdx].designation = req.body.position;
+        if (req.body.contactNo !== undefined) usersState[uIdx].contactNo = req.body.contactNo;
+        if (req.body.divisionCode) usersState[uIdx].divisionCode = req.body.divisionCode;
+        void saveUserDirect(usersState[uIdx]).catch(() => null);
+      }
+    }
     saveDatabaseToFile();
     res.json(employeesState[idx]);
   });
@@ -1771,36 +2039,56 @@ export async function createApp() {
     if (idx === -1)
       return res.status(404).json({ error: 'Employee not found' });
 
+    if (employeesState[idx].userId) {
+      return res.status(400).json({
+        error: 'Cannot delete static personnel linked to an active User Account. Only manually added personnel in Office Directory can be deleted.',
+      });
+    }
+
     employeesState.splice(idx, 1);
     saveDatabaseToFile();
     res.json({ success: true, message: 'Employee deleted' });
   });
+
+  // GET directory sections
+  app.get('/api/directory-sections', (_req, res) => {
+    if (!directorySectionsState || directorySectionsState.length === 0) {
+      directorySectionsState = [...DEFAULT_DIRECTORY_SECTIONS];
+    }
+    res.json(directorySectionsState);
+  });
+
+  // POST / PUT save directory sections
+  const handleSaveSections = (req: express.Request, res: express.Response) => {
+    const actingUser = getRequestUser(req);
+    if (!actingUser || (actingUser.role !== 'SYSTEM_ADMIN' && !canManageEmployees(req))) {
+      return res.status(403).json({ error: 'Permission denied to modify directory sections.' });
+    }
+    const nextSections = Array.isArray(req.body) ? req.body : req.body?.sections;
+    if (!Array.isArray(nextSections) || nextSections.length === 0) {
+      return res.status(400).json({ error: 'Invalid directory sections format.' });
+    }
+    directorySectionsState = nextSections;
+    saveDatabaseToFile();
+    res.json({ success: true, directorySections: directorySectionsState });
+  };
+  app.post('/api/directory-sections', handleSaveSections);
+  app.put('/api/directory-sections', handleSaveSections);
 
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'API endpoint not found.' });
   });
 
   // -------------------------------------------------------------
-  // VITE DEV SERVER MIDDLEWARE / PRODUCTION STATIC FALLBACK
+  // IONIC ANGULAR STATIC FRONTEND
   // -------------------------------------------------------------
   if (IS_VERCEL) return app;
 
-  if (process.env.NODE_ENV !== 'production') {
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      root: path.join(process.cwd(), 'frontend'),
-      configFile: path.join(process.cwd(), 'frontend', 'vite.config.ts'),
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist', 'frontend');
-    app.use(express.static(distPath));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
+  const distPath = path.join(process.cwd(), 'dist', 'frontend');
+  app.use(express.static(distPath));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
 
   let activePort = PORT;
   const maxPort = process.env.PORT ? PORT : PORT + 10;

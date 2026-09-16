@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getUserRecipientFlow } from '../frontend/src/utils/recipientFlow.ts';
-import type { DocumentRouteStep } from '../frontend/src/types.ts';
+import { getUserRecipientFlow } from '../frontend/src/app/utils/recipient-flow.ts';
+import type { DocumentRouteStep } from '../frontend/src/app/types.ts';
 
 const routes = [
   { id: 'mine', toUserId: 'user-1', toUser: 'Jamie', fromUserId: 'sender' },

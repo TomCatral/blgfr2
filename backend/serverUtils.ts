@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { AuditLog, NotificationItem } from '../frontend/src/types';
+import { AuditLog, NotificationItem } from '../frontend/src/app/types';
 import { saveDatabaseToFile as sdtf } from './server.js';
 
 export function addAuditLog(

@@ -1,0 +1,437 @@
+/* AuditLogsView.module.css */
+.audit-page {
+  display: grid;
+  gap: 1.25rem;
+}
+.audit-toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: #fff;
+  border: 1px solid var(--ui-border, #e2e8f0);
+  border-radius: 1.25rem;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+}
+.audit-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.125rem;
+  font-weight: 800;
+}
+.audit-titleIcon {
+  color: #475569;
+}
+.audit-subtitle {
+  margin: 0.125rem 0 0;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.audit-toolbarActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.audit-folderName {
+  padding: 0.25rem 0.625rem;
+  color: #94a3b8;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.625rem;
+}
+.audit-excelButton,
+.audit-folderButton,
+.audit-csvButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  padding: 0.5rem 0.875rem;
+  color: #fff;
+  border: 0;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+.audit-excelButton {
+  background: #059669;
+}
+.audit-excelButton:hover {
+  background: #10b981;
+}
+.audit-folderButton {
+  background: #2563eb;
+}
+.audit-folderButton:hover {
+  background: #1d4ed8;
+}
+.audit-csvButton {
+  color: #334155;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+.audit-csvButton:hover {
+  background: #e2e8f0;
+}
+.audit-csvIcon {
+  color: #334155;
+}
+.audit-successMessage,
+.audit-infoMessage {
+  padding: 0.75rem;
+  border: 1px solid;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-align: center;
+}
+.audit-successMessage {
+  color: #065f46;
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+.audit-infoMessage {
+  color: #334155;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+.audit-filters {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  background: #fff;
+  border: 1px solid var(--ui-border, #e2e8f0);
+  border-radius: 1.25rem;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+  font-size: 0.75rem;
+}
+.audit-searchField {
+  position: relative;
+}
+.audit-searchIcon {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.875rem;
+  width: 1rem;
+  height: 1rem;
+  color: #94a3b8;
+  pointer-events: none;
+}
+.audit-searchInput,
+.audit-select {
+  width: 100%;
+  padding: 0.5rem 0.875rem;
+  color: #0f172a;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  min-height: 40px;
+}
+.audit-searchInput {
+  padding-left: 2.5rem;
+}
+.audit-searchInput:focus,
+.audit-select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+.audit-tableCard {
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--ui-border, #e2e8f0);
+  border-radius: 1.25rem;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+}
+.audit-tableScroll {
+  overflow-x: auto;
+}
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  text-align: left;
+}
+.audit-tableHead {
+  color: #64748b;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.audit-cell {
+  padding: 0.75rem;
+}
+.audit-tableBody {
+  color: #0f172a;
+}
+.audit-tableBody tr + tr {
+  border-top: 1px solid #f1f5f9;
+}
+.audit-emptyCell {
+  padding: 2rem;
+  color: #94a3b8;
+  font-weight: 500;
+  text-align: center;
+}
+.audit-row {
+  transition: background-color 150ms ease;
+}
+.audit-row:hover {
+  background: rgb(248 250 252 / 80%);
+}
+.audit-timestamp {
+  padding: 0.75rem;
+  color: #475569;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.6875rem;
+}
+.audit-userName {
+  color: #0f172a;
+  font-weight: 800;
+}
+.audit-userRole {
+  color: #64748b;
+  font-size: 0.625rem;
+  font-weight: 500;
+}
+.audit-actionBadge {
+  display: inline-flex;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid;
+  border-radius: 999px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.625rem;
+  font-weight: 800;
+}
+.audit-actionCreate {
+  color: #047857;
+  background: #d1fae5;
+  border-color: #a7f3d0;
+}
+.audit-actionRoute {
+  color: #334155;
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+.audit-actionUpdate {
+  color: #b45309;
+  background: #fef3c7;
+  border-color: #fde68a;
+}
+.audit-actionDanger {
+  color: #be123c;
+  background: #ffe4e6;
+  border-color: #fecdd3;
+}
+.audit-actionUpload {
+  color: #0e7490;
+  background: #cffafe;
+  border-color: #a5f3fc;
+}
+.audit-actionLogin {
+  color: #7e22ce;
+  background: #f3e8ff;
+  border-color: #e9d5ff;
+}
+.audit-actionEnvelope {
+  color: #a21caf;
+  background: #fae8ff;
+  border-color: #f5d0fe;
+}
+.audit-actionSql {
+  color: #334155;
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+.audit-actionDefault {
+  color: #334155;
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+.audit-routeNumber {
+  padding: 0.75rem;
+  color: #334155;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 800;
+}
+.audit-detailsCell {
+  max-width: 28rem;
+  padding: 0.75rem;
+  color: #475569;
+  font-weight: 500;
+}
+.audit-detailList {
+  margin: 0;
+  padding-left: 1.15rem;
+  list-style-type: disc;
+  line-height: 1.55;
+  white-space: normal;
+}
+.audit-detailList li + li {
+  margin-top: 0.25rem;
+}
+.audit-breakWords {
+  overflow-wrap: anywhere;
+}
+.audit-detailText {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.audit-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+.audit-paginationSummary {
+  color: #64748b;
+}
+.audit-paginationActions {
+  display: flex;
+  gap: 0.5rem;
+}
+.audit-pageButton {
+  padding: 0.375rem 0.75rem;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+.audit-pageButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.audit-pageNumber {
+  padding: 0.375rem 0.5rem;
+  font-weight: 800;
+}
+@media (min-width: 768px) {
+  .audit-toolbar {
+    flex-direction: row;
+    align-items: center;
+  }
+  .audit-filters {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .audit-searchField {
+    grid-column: span 2;
+  }
+}
+:host-context(.dark) {
+  .audit-toolbar,
+  .audit-filters,
+  .audit-tableCard {
+    background: #0e1628;
+    border-color: rgba(51, 65, 85, 0.75);
+  }
+  .audit-title,
+  .audit-userName {
+    color: #f8fafc;
+  }
+  .audit-subtitle,
+  .audit-userRole,
+  .audit-paginationSummary {
+    color: #94a3b8;
+  }
+  .audit-folderName {
+    background: #1e293b;
+    border-color: rgba(51, 65, 85, 0.75);
+  }
+  .audit-csvButton,
+  .audit-pageButton {
+    color: #cbd5e1;
+    background: #162238;
+    border-color: rgba(51, 65, 85, 0.75);
+  }
+  .audit-searchInput,
+  .audit-select {
+    color: #f8fafc;
+    background: #162238;
+    border-color: rgba(51, 65, 85, 0.85);
+  }
+  .audit-tableHead {
+    color: #94a3b8;
+    background: #162238;
+    border-color: rgba(51, 65, 85, 0.75);
+  }
+  .audit-tableBody {
+    color: #cbd5e1;
+  }
+  .audit-tableBody tr + tr {
+    border-color: rgba(51, 65, 85, 0.45);
+  }
+  .audit-row:hover {
+    background: rgba(59, 130, 246, 0.08);
+  }
+  .audit-timestamp,
+  .audit-detailsCell {
+    color: #cbd5e1;
+  }
+  .audit-titleIcon {
+    color: #60a5fa;
+  }
+  .audit-successMessage {
+    background: rgb(6 78 59 / 45%);
+    border-color: #065f46;
+    color: #6ee7b7;
+  }
+  .audit-infoMessage {
+    background: rgb(23 37 84 / 45%);
+    border-color: #1e40af;
+    color: #93c5fd;
+  }
+  .audit-routeNumber {
+    color: #60a5fa;
+  }
+  .audit-actionCreate {
+    color: #93c5fd;
+    background: rgb(30 58 138 / 45%);
+    border-color: #1e40af;
+  }
+  .audit-actionRoute,
+  .audit-actionSql,
+  .audit-actionDefault {
+    color: #94a3b8;
+    background: rgb(30 41 59 / 65%);
+    border-color: #334155;
+  }
+  .audit-actionUpdate {
+    color: #fde047;
+    background: rgb(113 63 18 / 45%);
+    border-color: #854d0e;
+  }
+  .audit-actionDanger {
+    color: #fca5a5;
+    background: rgb(127 29 29 / 45%);
+    border-color: #991b1b;
+  }
+  .audit-actionUpload {
+    color: #67e8f9;
+    background: rgb(8 51 68 / 55%);
+    border-color: #0e7490;
+  }
+  .audit-actionLogin {
+    color: #d8b4fe;
+    background: rgb(59 7 100 / 45%);
+    border-color: #7e22ce;
+  }
+  .audit-actionEnvelope {
+    color: #f0abfc;
+    background: rgb(112 26 117 / 45%);
+    border-color: #a21caf;
+  }
+}

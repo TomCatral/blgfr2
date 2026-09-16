@@ -4,7 +4,6 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "lib": ["ES2022", "DOM"],
-    "jsx": "react-jsx",
     "types": ["node"],
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -13,5 +12,5 @@
     "strict": false,
     "noEmit": true
   },
-  "include": ["api/**/*.ts", "backend/**/*.ts", "frontend/src/**/*.ts", "frontend/src/**/*.tsx"]
+  "include": ["api/**/*.ts", "backend/**/*.ts"]
 }

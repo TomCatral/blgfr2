@@ -90,6 +90,11 @@ async function ensureUserIdForeignKeys(target: PrismaClient) {
     ['documents', 'assigned_user_id', 'VARCHAR(64) NULL AFTER `assigned_user`'],
     ['documents', 'created_by_user_id', 'VARCHAR(64) NULL AFTER `created_by`'],
     ['documents', 'sender_position', 'VARCHAR(150) NULL AFTER `sender_name`'],
+    ['documents', 'sender_address', 'TEXT NULL AFTER `sender_position`'],
+    ['documents', 'recipient_position', 'VARCHAR(150) NULL AFTER `recipient_name`'],
+    ['documents', 'recipient_office', 'VARCHAR(255) NULL AFTER `recipient_position`'],
+    ['documents', 'recipient_address', 'TEXT NULL AFTER `recipient_office`'],
+    ['documents', 'route_no', 'VARCHAR(100) NULL AFTER `tracking_number`'],
     ['document_attachments', 'attachment_scope', 'VARCHAR(20) NULL AFTER `file_data`'],
     ['document_attachments', 'uploaded_by_user_id', 'VARCHAR(64) NULL AFTER `attachment_scope`'],
     ['document_attachments', 'uploaded_for_route_id', 'VARCHAR(64) NULL AFTER `uploaded_by_user_id`'],
@@ -103,6 +108,24 @@ async function ensureUserIdForeignKeys(target: PrismaClient) {
         `ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${definition}`,
       );
     }
+  }
+
+  await target.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS \`directory_sections\` (
+      \`id\` VARCHAR(64) NOT NULL,
+      \`label\` VARCHAR(255) NOT NULL,
+      \`office_types\` JSON NOT NULL,
+      \`color\` VARCHAR(50) NULL,
+      PRIMARY KEY (\`id\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `);
+
+  try {
+    await target.$executeRawUnsafe(
+      'ALTER TABLE `employee_profiles` MODIFY COLUMN `office_type` VARCHAR(50) NOT NULL DEFAULT \'BLGF\'',
+    );
+  } catch {
+    // ignore if column type alteration fails
   }
 
   // Backfill legacy name-only rows once. All runtime access checks below use IDs.
@@ -263,6 +286,7 @@ async function syncDatabase(
   const auditLogs = asRecords(state.get('audit_logs'));
   const envelopeLogs = asRecords(state.get('envelope_logs'));
   const employees = asRecords(state.get('employee_profiles'));
+  const directorySections = asRecords(state.get('directory_sections'));
   const usedUsernames = new Set<string>();
   const replicaUsers = users.map((item) => {
     const sourceUsername = text(item.username);
@@ -317,6 +341,10 @@ async function syncDatabase(
           await tx.envelopeLog.deleteMany();
           await tx.user.deleteMany();
           await tx.division.deleteMany();
+          await tx.employeeProfile.deleteMany();
+          try {
+            await tx.directorySection.deleteMany();
+          } catch {}
 
           if (divisions.length) {
             await tx.division.createMany({
@@ -370,7 +398,12 @@ async function syncDatabase(
                 destinationOffice: text(item.destinationOffice),
                 senderName: optionalText(item.senderName),
                 senderPosition: optionalText(item.senderPosition),
+                senderAddress: optionalText(item.senderAddress),
                 recipientName: optionalText(item.recipientName),
+                recipientPosition: optionalText(item.recipientPosition),
+                recipientOffice: optionalText(item.recipientOffice),
+                recipientAddress: optionalText(item.recipientAddress),
+                routeNo: optionalText(item.routeNo) || text(item.trackingNumber),
                 priority: text(item.priority, 'ROUTINE'),
                 currentStatus: text(item.currentStatus, 'PENDING'),
                 currentDivision: text(item.currentDivision),
@@ -462,10 +495,9 @@ async function syncDatabase(
               skipDuplicates: true,
             });
           }
-          for (const item of employees) {
-            await tx.employeeProfile.upsert({
-              where: { id: text(item.id) },
-              create: {
+          if (employees.length) {
+            await tx.employeeProfile.createMany({
+              data: employees.map((item) => ({
                 id: text(item.id),
                 userId: optionalText(item.userId),
                 fullName: text(item.fullName),
@@ -481,20 +513,20 @@ async function syncDatabase(
                   | Prisma.InputJsonValue
                   | undefined,
                 createdAt: date(item.createdAt),
-              },
-              update: {
-                userId: optionalText(item.userId),
-                fullName: text(item.fullName),
-                position: text(item.position),
-                office: text(item.office),
-                officeType: text(item.officeType, 'BLGF'),
-                divisionCode: optionalText(item.divisionCode),
-                email: text(item.email),
-                contactNo: optionalText(item.contactNo),
-                address: optionalText(item.address),
-                active: item.active !== false,
-              },
+              })),
             });
+          }
+          if (directorySections.length) {
+            try {
+              await tx.directorySection.createMany({
+                data: directorySections.map((item) => ({
+                  id: text(item.id),
+                  label: text(item.label),
+                  officeTypes: (item.officeTypes || []) as Prisma.InputJsonValue,
+                  color: optionalText(item.color),
+                })),
+              });
+            } catch {}
           }
         } finally {
           await tx.$executeRawUnsafe('SET FOREIGN_KEY_CHECKS = 1');
@@ -515,6 +547,7 @@ async function syncDatabase(
       auditLogs: auditLogs.length,
       envelopeLogs: envelopeLogs.length,
       employeeProfiles: employees.length,
+      directorySections: directorySections.length,
     };
     targetStatus.lastSyncedAt = new Date().toISOString();
     targetStatus.lastError = null;
@@ -544,6 +577,7 @@ export async function loadMySQLState(): Promise<ReplicaEntry[]> {
     auditLogs,
     envelopeLogs,
     employees,
+    directorySections,
   ] = await Promise.all([
     client.division.findMany(),
     client.user.findMany(),
@@ -553,6 +587,7 @@ export async function loadMySQLState(): Promise<ReplicaEntry[]> {
     client.auditLog.findMany({ orderBy: { timestamp: 'desc' } }),
     client.envelopeLog.findMany({ orderBy: { timestamp: 'desc' } }),
     client.employeeProfile.findMany(),
+    client.directorySection.findMany().catch(() => []),
   ]);
 
   const routesByDocument = new Map<string, typeof routes>();
@@ -580,11 +615,11 @@ export async function loadMySQLState(): Promise<ReplicaEntry[]> {
   }));
   const serializedDocuments = documents.map((document) => ({
     ...document,
-    routeNo: document.trackingNumber,
+    routeNo: (document as any).routeNo || document.trackingNumber,
     tags: [],
     routes: (routesByDocument.get(document.id) || []).map((route) => ({
       ...route,
-      routeNo: document.trackingNumber,
+      routeNo: (document as any).routeNo || document.trackingNumber,
       attachments: (attachmentsByRoute.get(route.id) || []).map(({ fileData, ...attachment }) => ({ ...attachment, url: fileData || '' })),
     })),
     attachments: (attachmentsByDocument.get(document.id) || []).map(
@@ -603,6 +638,7 @@ export async function loadMySQLState(): Promise<ReplicaEntry[]> {
     ['audit_logs', serialize(auditLogs)],
     ['envelope_logs', serialize(envelopeLogs)],
     ['employee_profiles', serialize(employees)],
+    ['directory_sections', serialize(directorySections)],
   ];
 }
 
@@ -633,22 +669,31 @@ export async function loadLiveDocuments() {
   }
   return JSON.parse(
     JSON.stringify(
-      documents.map((document) => ({
-        ...document,
-        routeNo: document.trackingNumber,
-        tags: [],
-        routes: (routesByDocument.get(document.id) || []).map((route) => ({
+      documents.map((document) => {
+        const docRoutes = (routesByDocument.get(document.id) || []).map((route) => ({
           ...route,
           routeNo: document.trackingNumber,
           attachments: (attachmentsByRoute.get(route.id) || []).map(({ fileData, ...attachment }) => ({ ...attachment, url: fileData || '' })),
-        })),
-        attachments: (attachmentsByDocument.get(document.id) || []).map(
-          ({ fileData, ...attachment }) => ({
-            ...attachment,
-            url: fileData || '',
-          }),
-        ),
-      })),
+        }));
+        const completedRoute = [...docRoutes].reverse().find((r) => r.statusAfter === 'COMPLETED');
+        const remarks = completedRoute?.remarks || '';
+        const handoffMatch = remarks.match(/Handoff Instructions:\s*(.*)$/is);
+        const finalInstructions = handoffMatch ? handoffMatch[1].trim() : (document as any).finalInstructions;
+
+        return {
+          ...document,
+          finalInstructions,
+          routeNo: document.trackingNumber,
+          tags: [],
+          routes: docRoutes,
+          attachments: (attachmentsByDocument.get(document.id) || []).map(
+            ({ fileData, ...attachment }) => ({
+              ...attachment,
+              url: fileData || '',
+            }),
+          ),
+        };
+      }),
     ),
   );
 }
@@ -909,7 +954,18 @@ async function writeDocument(target: PrismaClient, item: DataRecord) {
 
 export async function saveDocumentDirect(document: unknown) {
   if (!client || !status.connected) return;
-  await writeDocument(client, document as DataRecord);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await writeDocument(client, document as DataRecord);
+      return;
+    } catch (err: any) {
+      const isDeadlock = err?.code === 'P2034' || /deadlock|write conflict/i.test(err?.message || '');
+      if (attempt === 2 || !isDeadlock) {
+        throw err;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 150 * (attempt + 1)));
+    }
+  }
 }
 
 export async function deleteDocumentDirect(documentId: string) {

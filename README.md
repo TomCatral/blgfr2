@@ -6,10 +6,9 @@ Full-stack document tracking, routing, archiving, and records management system.
 
 ```text
 frontend/
-  src/                  React application
-  index.html
-  vite.config.ts
-  tsconfig.json
+  src/                  Ionic Angular application
+  angular.json
+  package.json
 
 backend/
   server.ts             Express API and production server
@@ -28,7 +27,9 @@ npm install
 npm run dev
 ```
 
-The application runs at `http://localhost:3000`.
+The command installs/builds the Ionic Angular frontend, then serves the full
+application at `http://localhost:3000`. For Ionic live reload during frontend
+work, run `npm run preview` in a second terminal while the API is running.
 
 ## Production build
 

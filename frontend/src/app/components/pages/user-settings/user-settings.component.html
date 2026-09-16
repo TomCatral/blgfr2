@@ -1,0 +1,410 @@
+
+    <div class="settings-page">
+      <div class="settings-profileHero">
+        <div class="settings-profileIdentity">
+          <div class="settings-avatarWrap">
+            <div class="settings-avatar">
+              @if (avatarUrl) {
+                <img [src]="avatarUrl" alt="Avatar" class="settings-avatarImage" />
+              } @else {
+                <span>{{ currentUser.fullName ? currentUser.fullName.charAt(0) : 'U' }}</span>
+              }
+            </div>
+            <div class="settings-avatarOverlay" (click)="openAvatarPicker()" role="button" tabindex="0" (keydown.enter)="openAvatarPicker()">
+              <ion-icon name="camera" class="settings-cameraIcon"></ion-icon>
+            </div>
+            <input #avatarFileInput type="file" accept="image/*" class="settings-hiddenInput" (change)="onAvatarFilePicked($event)" />
+          </div>
+          <div>
+            <div class="settings-nameRow">
+              <h2 class="settings-profileName">Account settings</h2>
+              <span class="settings-roleBadge">{{ roleLabel }}</span>
+            </div>
+            <p class="settings-designation">
+              Manage your personal profile, credentials, security password,
+              and notification preferences
+            </p>
+            @if (avatarUrl) {
+              <button type="button" (click)="onRemoveAvatar()" class="settings-removeAvatar">
+                <ion-icon name="trash" class="settings-tinyIcon"></ion-icon>
+                <span>Remove photo</span>
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="settings-accountSummary">
+          <div class="settings-summaryLabel">Logged in as:</div>
+          <div class="settings-preferenceTitle">
+            {{ currentUser.email || currentUser.username }}
+          </div>
+          <div class="settings-accountId">
+            Division: {{ currentUser.divisionCode }}
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-tabs">
+        <button
+          type="button"
+          (click)="setActiveTab('profile')"
+          class="settings-tab"
+          [class.settings-tabActive]="activeTab === 'profile'"
+        >
+          <ion-icon name="person" class="settings-smallIcon"></ion-icon>
+          <span>Profile Details</span>
+        </button>
+        <button
+          type="button"
+          (click)="setActiveTab('security')"
+          class="settings-tab"
+          [class.settings-tabActive]="activeTab === 'security'"
+        >
+          <ion-icon name="lock-closed" class="settings-smallIcon"></ion-icon>
+          <span>Change Password &amp; Security</span>
+        </button>
+        <button
+          type="button"
+          (click)="setActiveTab('preferences')"
+          class="settings-tab"
+          [class.settings-tabActive]="activeTab === 'preferences'"
+        >
+          <ion-icon name="notifications" class="settings-smallIcon"></ion-icon>
+          <span>System Preferences</span>
+        </button>
+      </div>
+
+      @if (activeTab === 'profile') {
+        <form (ngSubmit)="onSaveProfile()" class="settings-section">
+          <div class="settings-sectionHeader">
+            <ion-icon name="person" class="settings-sectionIcon"></ion-icon>
+            <h3 class="settings-sectionTitle">
+              Personal &amp; Official Identification
+            </h3>
+          </div>
+
+          <div class="settings-photoPanel">
+            <div class="settings-photoContent">
+              <div class="settings-largeAvatar">
+                @if (avatarUrl) {
+                  <img [src]="avatarUrl" [alt]="(fullName || 'User') + ' profile preview'" class="settings-avatarImage" />
+                } @else {
+                  <span>{{ fullName.charAt(0).toUpperCase() || 'U' }}</span>
+                }
+              </div>
+              <div class="settings-photoText">
+                <p class="settings-photoTitle">Profile Picture</p>
+                <p class="settings-photoHelp">
+                  Upload a JPG, PNG, or WebP image up to 5 MB. It will also
+                  appear in your account and logout menu after saving.
+                </p>
+                <div class="settings-photoActions">
+                  <button type="button" (click)="openAvatarPicker()" class="settings-uploadButton">
+                    <ion-icon name="camera" class="settings-compactIcon"></ion-icon>
+                    {{ avatarUrl ? 'Change Photo' : 'Upload Photo' }}
+                  </button>
+                  @if (avatarUrl) {
+                    <button type="button" (click)="onRemoveAvatar()" class="settings-removePhotoButton">
+                      <ion-icon name="trash" class="settings-compactIcon"></ion-icon>
+                      Remove
+                    </button>
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-formGrid">
+            <div>
+              <label class="settings-fieldLabel">
+                <ion-icon name="person" class="settings-fieldIcon"></ion-icon>
+                <span>Full Name:</span>
+              </label>
+              <input
+                type="text"
+                name="fullName"
+                [(ngModel)]="fullName"
+                placeholder="Enter your full name"
+                required
+                class="settings-strongInput"
+              />
+            </div>
+
+            <div>
+              <label class="settings-fieldLabel">
+                <ion-icon name="key" class="settings-fieldIcon"></ion-icon>
+                <span>Account Username:</span>
+              </label>
+              <input
+                type="text"
+                name="username"
+                [(ngModel)]="username"
+                [disabled]="currentUser.role === 'SYSTEM_ADMIN'"
+                placeholder="e.g. fcatral"
+                required
+                class="settings-idInput"
+              />
+            </div>
+
+            <div>
+              <label class="settings-fieldLabel">
+                <ion-icon name="mail" class="settings-fieldIcon"></ion-icon>
+                <span>Official Email Address:</span>
+              </label>
+              <input
+                type="text"
+                name="email"
+                [(ngModel)]="email"
+                placeholder="e.g. fcatral@blgf.gov.ph or N/A"
+                class="settings-input"
+              />
+            </div>
+
+            <div>
+              <label class="settings-fieldLabel">
+                <ion-icon name="call" class="settings-fieldIcon"></ion-icon>
+                <span>Contact Number:</span>
+              </label>
+              <input
+                type="text"
+                name="contactNo"
+                [(ngModel)]="contactNo"
+                placeholder="e.g. +63 917 123 4567"
+                class="settings-input"
+              />
+            </div>
+
+            <div>
+              <label class="settings-fieldLabel">
+                <ion-icon name="briefcase" class="settings-fieldIcon"></ion-icon>
+                <span>Official Position / Designation:</span>
+              </label>
+              <input
+                type="text"
+                name="designation"
+                [(ngModel)]="designation"
+                placeholder="e.g. Regional Director / Action Officer"
+                class="settings-mediumInput"
+              />
+            </div>
+
+            <div>
+              <label class="settings-fieldLabel">
+                <ion-icon name="business" class="settings-fieldIcon"></ion-icon>
+                <span>Assigned Division / Office:</span>
+              </label>
+              <select
+                name="divisionCode"
+                [(ngModel)]="divisionCode"
+                class="settings-strongInput"
+              >
+                <option value="ITMS">
+                  Information Technology Management System (ITMS)
+                </option>
+                <option value="ORD">
+                  Office of the Regional Director (ORD)
+                </option>
+                <option value="AD">Administrative Division (AD)</option>
+                <option value="LAOD">
+                  Local Assessment Operations Division (LAOD)
+                </option>
+                <option value="LTOD">
+                  Local Treasury Operations Division (LTOD)
+                </option>
+                <option value="FD">Financial Division (FD)</option>
+                <option value="LU">Legal Division / Unit (LU)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="settings-saveRow">
+            <button type="submit" [disabled]="saving" class="settings-saveButton">
+              <ion-icon name="save" class="settings-smallIcon"></ion-icon>
+              <span>{{ saving ? 'Saving Profile...' : 'Save Profile Changes' }}</span>
+            </button>
+          </div>
+        </form>
+      }
+
+      @if (activeTab === 'security') {
+        <form (ngSubmit)="onChangePassword()" class="settings-section">
+          <div class="settings-sectionHeader">
+            <ion-icon name="shield-checkmark" class="settings-sectionIcon"></ion-icon>
+            <h3 class="settings-sectionTitle">Change Account Password</h3>
+          </div>
+
+          <div class="settings-securityForm">
+            <div>
+              <label class="settings-simpleLabel">
+                Current Password:
+              </label>
+              <div class="settings-passwordField">
+                <input
+                  name="currentPassword"
+                  [(ngModel)]="currentPassword"
+                  [type]="showCurrentPass ? 'text' : 'password'"
+                  placeholder="Enter current account password"
+                  class="settings-passwordInput"
+                />
+                <button
+                  type="button"
+                  (click)="showCurrentPass = !showCurrentPass"
+                  class="settings-passwordToggle"
+                  aria-label="Toggle password visibility"
+                >
+                  @if (showCurrentPass) {
+                    <ion-icon name="eye-off" class="settings-smallIcon"></ion-icon>
+                  } @else {
+                    <ion-icon name="eye" class="settings-smallIcon"></ion-icon>
+                  }
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label class="settings-simpleLabel">New Password:</label>
+              <div class="settings-passwordField">
+                <input
+                  name="newPassword"
+                  [(ngModel)]="newPassword"
+                  [type]="showNewPass ? 'text' : 'password'"
+                  placeholder="At least 6 characters"
+                  class="settings-passwordInput"
+                />
+                <button
+                  type="button"
+                  (click)="showNewPass = !showNewPass"
+                  class="settings-passwordToggle"
+                  aria-label="Toggle password visibility"
+                >
+                  @if (showNewPass) {
+                    <ion-icon name="eye-off" class="settings-smallIcon"></ion-icon>
+                  } @else {
+                    <ion-icon name="eye" class="settings-smallIcon"></ion-icon>
+                  }
+                </button>
+              </div>
+
+              @if (newPassword) {
+                <div class="settings-strength">
+                  <div class="settings-strengthLabels">
+                    <span>Password Strength:</span>
+                    <span class="settings-uppercase">
+                      {{ passwordStrength().label }}
+                    </span>
+                  </div>
+                  <div class="settings-strengthTrack">
+                    <div
+                      [ngClass]="strengthBarClass()"
+                      [style.width.%]="(passwordStrength().score / 5) * 100"
+                    ></div>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <div>
+              <label class="settings-simpleLabel">
+                Confirm New Password:
+              </label>
+              <div class="settings-passwordField">
+                <input
+                  name="confirmPassword"
+                  [(ngModel)]="confirmPassword"
+                  [type]="showConfirmPass ? 'text' : 'password'"
+                  placeholder="Re-enter new password"
+                  class="settings-passwordInput"
+                />
+                <button
+                  type="button"
+                  (click)="showConfirmPass = !showConfirmPass"
+                  class="settings-passwordToggle"
+                  aria-label="Toggle password visibility"
+                >
+                  @if (showConfirmPass) {
+                    <ion-icon name="eye-off" class="settings-smallIcon"></ion-icon>
+                  } @else {
+                    <ion-icon name="eye" class="settings-smallIcon"></ion-icon>
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-passwordSaveRow">
+            <button type="submit" [disabled]="saving" class="settings-passwordButton">
+              <ion-icon name="lock-closed" class="settings-smallIcon"></ion-icon>
+              <span>{{ saving ? 'Updating Password...' : 'Update Security Password' }}</span>
+            </button>
+          </div>
+        </form>
+      }
+
+      @if (activeTab === 'preferences') {
+        <div class="settings-section">
+          <div class="settings-sectionHeader">
+            <ion-icon name="notifications" class="settings-sectionIcon"></ion-icon>
+            <h3 class="settings-sectionTitle">
+              System Notification &amp; Workflow Settings
+            </h3>
+          </div>
+
+          <div class="settings-preferences">
+            <div class="settings-preference">
+              <div>
+                <div class="settings-preferenceTitle">
+                  Email Document Routing Alerts
+                </div>
+                <div class="settings-preferenceHelp">
+                  Receive an email notification whenever a document is
+                  routed to your division.
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                name="emailNotifs"
+                [(ngModel)]="emailNotifs"
+                class="settings-checkbox"
+              />
+            </div>
+
+            <div class="settings-preference">
+              <div>
+                <div class="settings-preferenceTitle">
+                  Real-Time Routing Popups
+                </div>
+                <div class="settings-preferenceHelp">
+                  Show in-app notification toasts when urgent documents
+                  require immediate signature.
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                name="routingAlerts"
+                [(ngModel)]="routingAlerts"
+                class="settings-checkbox"
+              />
+            </div>
+
+            <div class="settings-preference">
+              <div>
+                <div class="settings-preferenceTitle">
+                  System Audio Alerts
+                </div>
+                <div class="settings-preferenceHelp">
+                  Play subtle chime sounds on document receipt and release
+                  logs.
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                name="soundEffects"
+                [(ngModel)]="soundEffects"
+                class="settings-checkbox"
+              />
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  

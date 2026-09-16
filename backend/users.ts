@@ -11,7 +11,7 @@ import {
   User,
   AuditLog,
   DEFAULT_ROLE_PERMISSIONS,
-} from '../frontend/src/types.js';
+} from '../frontend/src/app/types.js';
 
 const MAX_SYSTEM_ADMINISTRATORS = 3;
 const withoutCredentials = (user: User) => {
