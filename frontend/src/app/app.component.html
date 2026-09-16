@@ -21,6 +21,7 @@
           [notifications]="state.notifications()"
           [isDarkMode]="session.isDarkMode()"
           [isOnline]="session.isOnline()"
+          [activeView]="activeView()"
           [searchQuery]="searchQuery()"
           (onSearchDoc)="handleSearchDoc($event)"
           (onClearSearch)="clearSearch()"

@@ -31,6 +31,21 @@
               <p class="m-0 p-0 text-[10px] font-semibold text-slate-500 dark:text-slate-400 tracking-wide leading-tight">Document Workspace</p>
             </div>
           </div>
+
+          @if (currentNavItem(); as nav) {
+            <div
+              class="hidden lg:flex items-center gap-2.5 pl-3 border-l border-slate-200/80 dark:border-slate-800/80"
+              [attr.title]="'Active View: ' + nav.label + ' (' + nav.section + ')'"
+            >
+              <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-100/80 dark:border-blue-900/50 shadow-2xs">
+                <ion-icon [name]="nav.icon" class="text-sm"></ion-icon>
+              </span>
+              <div class="flex flex-col justify-center min-w-0">
+                <span class="text-[12px] font-bold text-slate-800 dark:text-slate-100 leading-tight truncate">{{ nav.label }}</span>
+                <span class="text-[9.5px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 leading-tight">{{ nav.section }}</span>
+              </div>
+            </div>
+          }
         </div>
 
         <div class="global-document-search" [ngClass]="'relative min-w-0 flex-1 max-w-lg mx-2 md:mx-6' | cls">
@@ -162,7 +177,8 @@
         <div class="header-actions" [ngClass]="'shrink-0 flex items-center gap-2 md:gap-2.5' | cls">
           <button
             type="button"
-            title="User account and session status"
+            title="Active Users &amp; Sessions Status"
+            aria-label="Active Users &amp; Sessions Status"
             (click)="isUserStatusOpen = true"
           >
             <ion-icon name="people" class="h-4 w-4"></ion-icon>
@@ -171,6 +187,7 @@
           <button
             type="button"
             [title]="isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+            [attr.aria-label]="isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
             (click)="onToggleDarkMode.emit()"
           >
             <ion-icon [name]="isDarkMode ? 'sunny' : 'moon'" [ngClass]="(isDarkMode ? 'text-amber-400' : 'text-slate-600') | cls"></ion-icon>
@@ -179,7 +196,8 @@
           <button
             type="button"
             class="relative"
-            [title]="(notifications.length > 0 ? notifications.length + ' unread' : 'No') + ' notifications'"
+            [title]="(notifications.length > 0 ? notifications.length + ' unread notifications' : 'No new notifications')"
+            [attr.aria-label]="(notifications.length > 0 ? notifications.length + ' unread notifications' : 'Notifications')"
             (click)="onOpenNotifications.emit()"
           >
             <ion-icon name="notifications" class="h-4 w-4"></ion-icon>
@@ -193,6 +211,8 @@
           <div class="relative" #menuRef>
             <button
               type="button"
+              [title]="'User Account Menu (' + currentUser.fullName + ')'"
+              [attr.aria-label]="'User Account Menu (' + currentUser.fullName + ')'"
               (click)="showUserMenu = !showUserMenu"
             >
               <div class="flex h-7 w-7 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 text-xs font-bold text-white shadow-xs ring-1 ring-blue-500/20">

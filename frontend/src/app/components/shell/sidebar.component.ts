@@ -2,9 +2,10 @@ import { Component, EventEmitter, Input, Output, CUSTOM_ELEMENTS_SCHEMA } from '
 import { NgClass } from '@angular/common';
 import { DEFAULT_ROLE_PERMISSIONS, RolePermission, User } from '../../types';
 
-interface NavigationItem {
+export interface NavigationItem {
   id: string;
   label: string;
+  miniLabel?: string;
   icon: string;
   section: 'Main Menu' | 'Reports' | 'Management' | 'Logs';
   actionPermission?: string;
@@ -12,24 +13,24 @@ interface NavigationItem {
   showsPendingCount?: boolean;
 }
 
-const NAVIGATION_ITEMS: NavigationItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: 'grid', section: 'Main Menu' },
-  { id: 'incoming', label: 'Incoming Documents', icon: 'arrow-down-left', section: 'Main Menu', showsPendingCount: true },
-  { id: 'outgoing', label: 'Outgoing Documents', icon: 'arrow-up-right', section: 'Main Menu' },
-  { id: 'routing-followup', label: 'Routing Follow-up', icon: 'notifications', section: 'Main Menu', actionPermission: 'ROUTING_MONITOR_VIEW' },
-  { id: 'slip', label: 'Document Routing Slip', icon: 'print', section: 'Main Menu' },
-  { id: 'envelope', label: 'Outgoing Envelope', icon: 'mail', section: 'Main Menu' },
-  { id: 'employees', label: 'Office Directory', icon: 'person-circle', section: 'Main Menu' },
-  { id: 'qr', label: 'QR Code Generator', icon: 'qr-code', section: 'Main Menu' },
-  { id: 'incoming-report', label: 'Incoming Report', icon: 'arrow-down-left', section: 'Reports' },
-  { id: 'outgoing-report', label: 'Outgoing Report', icon: 'arrow-up-right', section: 'Reports' },
-  { id: 'envelope-report', label: 'Envelope Report', icon: 'file-tray', section: 'Reports' },
-  { id: 'users', label: 'User Accounts', icon: 'people', section: 'Management', adminOnly: true },
-  { id: 'audit', label: 'Audit Logs', icon: 'clipboard', section: 'Logs' },
-  { id: 'envelope-logs', label: 'Envelope Dispatch Logs', icon: 'mail', section: 'Logs' },
+export const NAVIGATION_ITEMS: NavigationItem[] = [
+  { id: 'dashboard', label: 'Dashboard', miniLabel: 'Dashboard', icon: 'grid', section: 'Main Menu' },
+  { id: 'incoming', label: 'Incoming Documents', miniLabel: 'Incoming', icon: 'arrow-down-left', section: 'Main Menu', showsPendingCount: true },
+  { id: 'outgoing', label: 'Outgoing Documents', miniLabel: 'Outgoing', icon: 'arrow-up-right', section: 'Main Menu' },
+  { id: 'routing-followup', label: 'Routing Follow-up', miniLabel: 'Follow-up', icon: 'git-network', section: 'Main Menu', actionPermission: 'ROUTING_MONITOR_VIEW' },
+  { id: 'slip', label: 'Document Routing Slip', miniLabel: 'Slip', icon: 'print', section: 'Main Menu' },
+  { id: 'envelope', label: 'Outgoing Envelope', miniLabel: 'Envelope', icon: 'mail', section: 'Main Menu' },
+  { id: 'employees', label: 'Office Directory', miniLabel: 'Directory', icon: 'person-circle', section: 'Main Menu' },
+  { id: 'qr', label: 'QR Code Generator', miniLabel: 'QR Code', icon: 'qr-code', section: 'Main Menu' },
+  { id: 'incoming-report', label: 'Incoming Report', miniLabel: 'In-Report', icon: 'stats-chart', section: 'Reports' },
+  { id: 'outgoing-report', label: 'Outgoing Report', miniLabel: 'Out-Report', icon: 'bar-chart', section: 'Reports' },
+  { id: 'envelope-report', label: 'Envelope Report', miniLabel: 'Env-Report', icon: 'file-tray', section: 'Reports' },
+  { id: 'users', label: 'User Accounts', miniLabel: 'Users', icon: 'people', section: 'Management', adminOnly: true },
+  { id: 'audit', label: 'Audit Logs', miniLabel: 'Audit', icon: 'clipboard', section: 'Logs' },
+  { id: 'envelope-logs', label: 'Envelope Dispatch Logs', miniLabel: 'Env-Logs', icon: 'receipt', section: 'Logs' },
 ];
 
-const SECTIONS = ['Main Menu', 'Reports', 'Management', 'Logs'] as const;
+export const SECTIONS = ['Main Menu', 'Reports', 'Management', 'Logs'] as const;
 
 @Component({
   selector: 'app-sidebar',

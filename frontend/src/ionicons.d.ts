@@ -57,6 +57,10 @@ declare module 'ionicons/icons' {
   export const pricetag: string;
   export const print: string;
   export const qrCode: string;
+  export const receipt: string;
+  export const receiptOutline: string;
+  export const barChart: string;
+  export const statsChart: string;
   export const refresh: string;
   export const save: string;
   export const scan: string;

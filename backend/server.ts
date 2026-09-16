@@ -464,16 +464,17 @@ function syncEmployeeProfileFromUser(user: User, persist = true) {
   const allExistingFolders: EmployeeFolderRecord[] = [];
   const seenFolderNames = new Set<string>();
   for (const p of matchingProfiles) {
-    for (const raw of p.folders || []) {
+    for (const raw of (p.folders as unknown[]) || []) {
       if (!raw) continue;
+      const rawStr = typeof raw === 'string' ? raw : null;
       const f: EmployeeFolderRecord =
-        typeof raw === 'string'
+        rawStr !== null
           ? {
-              id: raw,
-              name: raw.startsWith('fld-auto-') ? 'Personnel Records' : raw,
+              id: rawStr,
+              name: rawStr.startsWith('fld-auto-') ? 'Personnel Records' : rawStr,
               employeeId: empId,
               userId: user.id,
-              systemManaged: raw.startsWith('fld-auto-'),
+              systemManaged: rawStr.startsWith('fld-auto-'),
               fileCount: 0,
               createdAt: new Date().toISOString(),
               files: [],

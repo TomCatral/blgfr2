@@ -101,6 +101,86 @@
   letter-spacing: -0.01em;
 }
 
+.blgf-sidebar-item.is-collapsed {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 52px;
+  padding: 5px 2px;
+  gap: 3px;
+  margin-bottom: 4px;
+}
+
+.blgf-sidebar-item.is-collapsed:hover {
+  transform: translateY(-1px);
+}
+
+.blgf-sidebar-item.is-collapsed > .blgf-sidebar-icon {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+}
+
+.blgf-sidebar-item.is-collapsed ion-icon {
+  width: 17px;
+  height: 17px;
+}
+
+.blgf-sidebar-mini-label {
+  display: block;
+  width: 100%;
+  max-width: 58px;
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.015em;
+  color: #64748b;
+  transition: color 150ms ease;
+}
+
+.blgf-sidebar-item:hover .blgf-sidebar-mini-label {
+  color: #0f172a;
+}
+
+.blgf-sidebar-item.is-active .blgf-sidebar-mini-label {
+  color: #1d4ed8;
+  font-weight: 800;
+}
+
+.blgf-collapsed-badge {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 9999px;
+  background: #f59e0b;
+  color: #ffffff;
+  font-size: 8.5px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.blgf-sidebar-footer.is-collapsed {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 6px 2px;
+  min-height: 52px;
+  margin: 4px;
+}
+
+
 .blgf-sidebar-footer {
   display: flex;
   flex: 0 0 auto;
@@ -171,6 +251,22 @@
   .blgf-sidebar-footer:hover {
     background: rgba(30, 41, 59, 0.55);
     border-color: rgba(51, 65, 85, 0.7);
+  }
+
+  .blgf-sidebar-mini-label {
+    color: #94a3b8;
+  }
+
+  .blgf-sidebar-item:hover .blgf-sidebar-mini-label {
+    color: #f8fafc;
+  }
+
+  .blgf-sidebar-item.is-active .blgf-sidebar-mini-label {
+    color: #93c5fd;
+  }
+
+  .blgf-collapsed-badge {
+    border-color: #0b0f19;
   }
 }
 
