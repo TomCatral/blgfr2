@@ -259,9 +259,32 @@ export class DocumentDetailComponent implements OnChanges {
     return roots.length > 0 ? roots : [recipients[0]];
   });
 
+  firstDispatchSender = computed<string>(() => {
+    // 1. Find the earliest non-decision route chronologically
+    const allRoutes = [...(this.document.routes || [])]
+      .filter((r) => !getRouteDecision(r))
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    const firstRoute = allRoutes[0];
+    if (firstRoute) {
+      const sender = this.resolveUserName(firstRoute.fromUserId, firstRoute.fromUser) || firstRoute.fromUser;
+      if (sender && sender.trim() && sender !== 'Originating Office' && sender !== 'N/A') {
+        return sender.trim();
+      }
+    }
+
+    // 2. Fallback to document creator
+    const creator = this.resolveUserName(this.document.createdByUserId, this.document.createdBy) || this.document.createdBy;
+    if (creator && creator.trim()) {
+      return creator.trim();
+    }
+
+    // 3. Fallback to originating office
+    return this.document.originatingOffice || 'Originating Office';
+  });
+
   flowRootSenders = computed<string[]>(() => {
-    const senders = this.flowRoots().map((r) => this.resolveUserName(r.fromUserId, r.fromUser) || r.fromUser || 'Sender');
-    return [...new Set(senders.filter(Boolean))];
+    return [this.firstDispatchSender()];
   });
 
   currentCustodian = computed(() => {

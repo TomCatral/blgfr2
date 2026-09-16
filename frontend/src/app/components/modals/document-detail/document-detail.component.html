@@ -439,7 +439,7 @@
                       @if (flowRoots().length > 0) {
                         <div class="mx-auto mb-3 max-w-[280px] rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-center shadow-2xs dark:border-slate-700 dark:bg-slate-800">
                           <p class="text-[10px] font-black uppercase tracking-wider text-slate-400">Dispatch Origin</p>
-                          <p class="truncate text-xs font-bold text-slate-800 dark:text-slate-200">{{ flowRootSenders().join(', ') || 'Originating Office' }}</p>
+                          <p class="truncate text-xs font-bold text-slate-800 dark:text-slate-200" [title]="firstDispatchSender()">{{ firstDispatchSender() }}</p>
                         </div>
                       }
 
