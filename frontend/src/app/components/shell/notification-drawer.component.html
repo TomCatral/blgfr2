@@ -60,7 +60,7 @@
                   <p class="notification-message">{{ notification.message }}</p>
 
                   <div class="notification-itemActions">
-                    @if (notification.requiresDecision && !notification.decisionStatus) {
+                    @if ((notification.requiresDecision || notification.title === 'Routing Action Reminder') && !notification.decisionStatus) {
                       <button
                         type="button"
                         class="notification-approveButton"

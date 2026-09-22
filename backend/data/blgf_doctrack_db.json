@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-09-16T08:24:42.639Z",
+  "updatedAt": "2026-09-16T10:40:59.151Z",
   "divisions": [
     {
       "id": "div-1785998911356",
@@ -172,7 +172,8 @@
           "incoming-report",
           "outgoing-report",
           "settings",
-          "qr"
+          "qr",
+          "employees"
         ],
         "notificationViewAllConfigured": true
       },
@@ -206,7 +207,8 @@
           "incoming-report",
           "outgoing-report",
           "settings",
-          "qr"
+          "qr",
+          "employees"
         ],
         "notificationViewAllConfigured": true
       },
@@ -240,7 +242,8 @@
           "incoming-report",
           "outgoing-report",
           "settings",
-          "qr"
+          "qr",
+          "employees"
         ],
         "notificationViewAllConfigured": true
       },
@@ -274,7 +277,8 @@
           "incoming-report",
           "outgoing-report",
           "settings",
-          "qr"
+          "qr",
+          "employees"
         ],
         "notificationViewAllConfigured": true
       },
@@ -308,7 +312,8 @@
           "incoming-report",
           "outgoing-report",
           "settings",
-          "qr"
+          "qr",
+          "employees"
         ],
         "notificationViewAllConfigured": true
       },
@@ -392,7 +397,8 @@
           "incoming-report",
           "outgoing-report",
           "settings",
-          "qr"
+          "qr",
+          "employees"
         ],
         "notificationViewAllConfigured": true
       },
@@ -1601,6 +1607,202 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "log-8045882f-eb39-4e1d-8392-bdd12e38a488",
+      "timestamp": "2026-09-16T10:11:59.193Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-b8ca52b4-b0b6-4e22-a805-0fa56892b67a",
+      "timestamp": "2026-09-16T10:11:29.916Z",
+      "userId": "usr-1785141914148",
+      "userName": "Jay ann M. Mangoba",
+      "userRole": "RECORDS_OFFICER",
+      "action": "LOGIN",
+      "details": "User Jay ann M. Mangoba (RECORDS_OFFICER) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-21fc0185-3d6c-42c4-9787-b14e1b50be17",
+      "timestamp": "2026-09-16T09:47:16.000Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "documentTrackingNumber": null,
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-b4654ff5-5058-467e-8514-03caf84e2834",
+      "timestamp": "2026-09-16T09:21:08.000Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "documentTrackingNumber": null,
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-3b42ad79-30b8-46f6-a491-743b3acbb863",
+      "timestamp": "2026-09-16T09:13:10.000Z",
+      "userId": "usr-1785230145158",
+      "userName": "Rona Lagasca",
+      "userRole": "STAFF",
+      "action": "LOGIN",
+      "documentTrackingNumber": null,
+      "details": "User Rona Lagasca (STAFF) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-0226e58c-e1d6-4f4c-b646-82d3b0794096",
+      "timestamp": "2026-09-16T09:13:04.000Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "UPDATE_USER",
+      "documentTrackingNumber": null,
+      "details": "Updated account details for Albert Sunchez",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-44889f5d-41c6-43eb-810a-1900abd90d70",
+      "timestamp": "2026-09-16T09:13:04.000Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "UPDATE_USER",
+      "documentTrackingNumber": null,
+      "details": "Updated account details for Robert Bermudez",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-4b1665e6-776f-43f2-8628-86acd4d97e8a",
+      "timestamp": "2026-09-16T09:13:04.000Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "UPDATE_USER",
+      "documentTrackingNumber": null,
+      "details": "Updated account details for Raymond C. Rosete",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-593b024d-0983-4e28-ad7c-d6120ce8d917",
+      "timestamp": "2026-09-16T09:13:04.000Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "UPDATE_USER",
+      "documentTrackingNumber": null,
+      "details": "Updated account details for Rona Lagasca",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-610e6e90-5323-447c-b7aa-593b84b03133",
+      "timestamp": "2026-09-16T09:13:04.000Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "UPDATE_USER",
+      "documentTrackingNumber": null,
+      "details": "Updated account details for Estafano T. Yu",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-6af4ad3d-6a3d-4b9c-9d1c-5b20a57304b0",
+      "timestamp": "2026-09-16T09:13:04.000Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "UPDATE_USER",
+      "documentTrackingNumber": null,
+      "details": "Updated account details for Tom tom G. Catral",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-81827546-dd65-4f5d-96a8-d676c4be9192",
+      "timestamp": "2026-09-16T09:13:04.000Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "UPDATE_USER",
+      "documentTrackingNumber": null,
+      "details": "Updated account details for Dominick Catral",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-893ce26d-4b90-4841-a217-b057f607a706",
+      "timestamp": "2026-09-16T09:13:04.000Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "UPDATE_USER",
+      "documentTrackingNumber": null,
+      "details": "Updated account details for Tom Catral",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-96afecc5-dc98-4326-b4d8-3696a3686847",
+      "timestamp": "2026-09-16T09:13:04.000Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "UPDATE_USER",
+      "documentTrackingNumber": null,
+      "details": "Updated account details for Jay ann M. Mangoba",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-9bcb697a-9868-4777-8a89-fd688dcd8396",
+      "timestamp": "2026-09-16T09:13:04.000Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "UPDATE_USER",
+      "documentTrackingNumber": null,
+      "details": "Updated account details for tomtom",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-19b5ffdf-d86f-4d7f-82d8-955c8b8a3404",
+      "timestamp": "2026-09-16T09:12:00.000Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "documentTrackingNumber": null,
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-e893142f-e07a-452f-8370-b897727b0de0",
+      "timestamp": "2026-09-16T09:11:11.000Z",
+      "userId": "usr-1785230145158",
+      "userName": "Rona Lagasca",
+      "userRole": "STAFF",
+      "action": "LOGIN",
+      "documentTrackingNumber": null,
+      "details": "User Rona Lagasca (STAFF) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-f0b8c118-c5d7-4b07-97d6-9993f374a9f8",
+      "timestamp": "2026-09-16T09:08:24.000Z",
+      "userId": "usr-1785141914148",
+      "userName": "Jay ann M. Mangoba",
+      "userRole": "RECORDS_OFFICER",
+      "action": "LOGIN",
+      "documentTrackingNumber": null,
+      "details": "User Jay ann M. Mangoba (RECORDS_OFFICER) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
     {
       "id": "log-049f05b3-326d-4c64-8971-0c979b3d16c8",
       "timestamp": "2026-09-16T03:23:16.000Z",
@@ -5009,7 +5211,7 @@
       "id": "BLGF",
       "label": "BLGF Regional Office II Personnel",
       "officeTypes": "[\"BLGF\"]",
-      "color": "blue"
+      "color": "amber"
     },
     {
       "id": "LGU_STAFF",
@@ -5021,7 +5223,7 @@
       "id": "OTHER_AGENCIES",
       "label": "Partner Regional Agencies (DILG, DBM, COA)",
       "officeTypes": "[\"OTHER_AGENCIES\"]",
-      "color": "amber"
+      "color": "rose"
     }
   ]
 }

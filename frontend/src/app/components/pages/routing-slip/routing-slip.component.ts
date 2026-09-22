@@ -12,6 +12,7 @@ import {
 } from '../../../types';
 import { formatDate } from '../../../utils/status-utils';
 import { showConfirm } from '../../../services/dialog.service';
+import { IonicModule } from '@ionic/angular';
 
 interface PrintFormatPreset {
   id: string;
@@ -148,14 +149,14 @@ const DEFAULT_PRESETS: PrintFormatPreset[] = [
 ];
 
 @Component({
-  selector: 'app-document-slip',
+  selector: 'app-routing-slip',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [FormsModule, NgClass, ClsPipe],
-  styleUrl: './document-slip.component.scss',
-  templateUrl: './document-slip.component.html',
+  imports: [IonicModule, FormsModule, NgClass, ClsPipe],
+  styleUrl: './routing-slip.component.scss',
+  templateUrl: './routing-slip.component.html',
 })
-export class DocumentSlipComponent implements OnInit, OnChanges {
+export class RoutingSlipComponent implements OnInit, OnChanges {
   @Input() document: DocumentRecord | null = null;
   @Input() documents: DocumentRecord[] = [];
   @Input() currentUser!: User;

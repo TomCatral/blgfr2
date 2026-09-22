@@ -1,14 +1,14 @@
 <app-modal-layer [isOpen]="isOpen" [onClose]="onClose" maxWidth="52rem">
   @if (document) {
-    <div class="route-modal-shell flex flex-col overflow-hidden">
+    <div class="route-modal-shell routeRouteModalShell">
       <!-- HEADER -->
-      <header class="route-modal-header shrink-0">
+      <header class="route-modal-header routeRouteModal">
         <div class="route-modal-header-left">
           <div class="route-modal-header-icon-box">
             <ion-icon name="paper-plane" class="route-modal-header-icon"></ion-icon>
           </div>
           <div class="route-modal-header-titles">
-            <div class="flex items-center gap-2 flex-wrap">
+            <div class="routeStyle">
               <h2 id="route-document-title" class="route-modal-title">Route &amp; Dispatch Document</h2>
               <span class="route-modal-direction-tag" [class.outgoing]="document!.direction === 'OUTGOING'">
                 {{ document!.direction || 'ROUTING' }}
@@ -19,28 +19,28 @@
             </div>
           </div>
         </div>
-        <button type="button" (click)="onClose()" class="route-modal-close-btn cursor-pointer" aria-label="Close dialog">
+        <button type="button" (click)="onClose()" class="route-modal-close-btn routeRouteModalCloseBtn" aria-label="Close dialog">
           <ion-icon name="close" class="route-modal-close-icon"></ion-icon>
         </button>
       </header>
 
       <!-- FORM WRAPPER -->
-      <form (ngSubmit)="handleSubmit()" class="route-modal-form-shell flex flex-col flex-1 min-h-0 overflow-hidden">
+      <form (ngSubmit)="handleSubmit()" class="route-modal-form-shell routeRouteModalForm">
         <!-- SCROLLABLE BODY -->
-        <div class="route-modal-scroll-area flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+        <div class="route-modal-scroll-area routeRouteModalScroll">
           @if (formError) {
             <div class="route-modal-alert-error">
-              <ion-icon name="alert-circle" class="shrink-0 text-lg"></ion-icon>
+              <ion-icon name="alert-circle" class="routeAlertCircleIcon"></ion-icon>
               <span>{{ formError }}</span>
             </div>
           }
 
           @if (isEnded) {
             <div class="route-modal-alert-ended">
-              <ion-icon name="lock-closed" class="shrink-0 text-lg"></ion-icon>
+              <ion-icon name="lock-closed" class="routeAlertCircleIcon"></ion-icon>
               <div>
-                <p class="font-bold">Ended / Completed Workflow</p>
-                <p class="text-xs mt-0.5 opacity-90">Your part or this transaction is completed. Further routing is not allowed.</p>
+                <p class="routeP">Ended / Completed Workflow</p>
+                <p class="route22">Your part or this transaction is completed. Further routing is not allowed.</p>
               </div>
             </div>
           }
@@ -54,7 +54,7 @@
               </div>
               <div class="route-doc-status-badge">
                 <span class="status-pulse-dot"></span>
-                <span class="capitalize">{{ formatStatus(document!.currentStatus) }}</span>
+                <span class="routeSpan">{{ formatStatus(document!.currentStatus) }}</span>
               </div>
               <div class="route-doc-office-badge">
                 <ion-icon name="business-outline"></ion-icon>
@@ -70,7 +70,7 @@
                 </div>
               }
               <div class="route-doc-sender-row">
-                <ion-icon name="send-outline" class="shrink-0 text-sm"></ion-icon>
+                <ion-icon name="send-outline" class="routeSendOutlineIcon"></ion-icon>
                 <span>From: <strong>{{ document!.originatingOffice || document!.senderName || 'Not specified' }}</strong></span>
               </div>
             </div>
@@ -78,7 +78,7 @@
 
           <!-- MODE SWITCHER (FORWARD vs COMPLETE) -->
           <div class="route-mode-switcher-container">
-            <div class="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
+            <div class="route2">
               <button
                 type="button"
                 (click)="setRouteMode('FORWARD')"
@@ -87,11 +87,11 @@
                 [class.is-inactive]="routeMode !== 'FORWARD'"
               >
                 <div class="route-mode-icon-box" [class.is-forward]="routeMode === 'FORWARD'">
-                  <ion-icon name="paper-plane" class="text-base"></ion-icon>
+                  <ion-icon name="paper-plane" class="routePaperPlaneIcon"></ion-icon>
                 </div>
-                <div class="min-w-0">
-                  <p class="text-xs font-black uppercase tracking-wider leading-tight">Forward / Route</p>
-                  <p class="text-[11px] font-medium opacity-70 leading-tight truncate">Send to next recipient or unit</p>
+                <div class="route3">
+                  <p class="route32">Forward / Route</p>
+                  <p class="route42">Send to next recipient or unit</p>
                 </div>
               </button>
 
@@ -103,11 +103,11 @@
                 [class.is-inactive]="routeMode !== 'COMPLETE'"
               >
                 <div class="route-mode-icon-box" [class.is-complete]="routeMode === 'COMPLETE'">
-                  <ion-icon name="checkmark-done" class="text-base"></ion-icon>
+                  <ion-icon name="checkmark-done" class="routePaperPlaneIcon"></ion-icon>
                 </div>
-                <div class="min-w-0">
-                  <p class="text-xs font-black uppercase tracking-wider leading-tight">Complete Transaction</p>
-                  <p class="text-[11px] font-medium opacity-85 leading-tight truncate">Finalize &amp; set handoff instructions</p>
+                <div class="route3">
+                  <p class="route32">Complete Transaction</p>
+                  <p class="route52">Finalize &amp; set handoff instructions</p>
                 </div>
               </button>
             </div>
@@ -118,8 +118,8 @@
             <!-- RECIPIENT ROUTING SECTION -->
             <section class="route-section-block">
               <div class="route-section-heading">
-                <div class="flex items-center gap-2">
-                  <ion-icon name="people" class="text-blue-600 dark:text-blue-400 text-lg"></ion-icon>
+                <div class="route4">
+                  <ion-icon name="people" class="routePeopleIcon"></ion-icon>
                   <h4 class="route-section-title">Recipient Routing</h4>
                 </div>
                 <p class="route-section-subtitle">Choose destination division or specific employee handlers. People marked already routed cannot be selected again.</p>
@@ -129,11 +129,11 @@
               @if (alreadyRoutedEmployees.length > 0) {
                 <div class="route-already-routed-box">
                   <div class="already-routed-header">
-                    <div class="flex items-center gap-1.5">
-                      <ion-icon name="checkmark-done-circle" class="text-emerald-600 dark:text-emerald-400 text-base"></ion-icon>
-                      <span class="font-bold text-xs uppercase tracking-wider text-slate-700 dark:text-slate-200">Already Routed ({{ alreadyRoutedEmployees.length }})</span>
+                    <div class="route5">
+                      <ion-icon name="checkmark-done-circle" class="routeCheckmarkDoneCircleIcon"></ion-icon>
+                      <span class="route23">Already Routed ({{ alreadyRoutedEmployees.length }})</span>
                     </div>
-                    <span class="text-xs text-slate-500 dark:text-slate-400">Previously assigned personnel</span>
+                    <span class="route33">Previously assigned personnel</span>
                   </div>
                   <div class="already-routed-chips-grid">
                     @for (emp of alreadyRoutedEmployees; track emp.id) {
@@ -157,7 +157,7 @@
                       type="button"
                       [disabled]="!toDivision || toDivision === 'ALL'"
                       (click)="showAddDivision = !showAddDivision"
-                      class="btn-add-division cursor-pointer"
+                      class="btn-add-division routeRouteModalCloseBtn"
                     >
                       <ion-icon name="add-circle-outline"></ion-icon>
                       <span>+ Add Division</span>
@@ -174,7 +174,7 @@
                   </div>
 
                   @if (showAddDivision) {
-                    <div class="mt-2 select-wrapper">
+                    <div class="select-wrapper routeSelect">
                       <select #addDivSelect (change)="onAddDivisionChange($event); addDivSelect.value = ''" class="route-form-select route-form-select-sub">
                         <option value="">-- Select another division --</option>
                         @for (div of filteredAdditionalDivisions; track div.code) {
@@ -188,7 +188,7 @@
                     <div class="additional-division-tags">
                       @for (division of additionalDivisions; track division) {
                         <span class="division-pill-tag">
-                          <ion-icon name="business" class="text-xs"></ion-icon>
+                          <ion-icon name="business" class="routeBusinessIcon"></ion-icon>
                           <span>{{ division }}</span>
                           <button type="button" (click)="removeAdditionalDivision(division)" class="tag-remove-btn" [attr.aria-label]="'Remove ' + division">
                             <ion-icon name="close"></ion-icon>
@@ -202,7 +202,7 @@
                 <!-- Assigned Handler / Recipient -->
                 <div class="route-picker-col">
                   <div class="picker-label-row">
-                    <label class="picker-label">Assigned Handler / Recipient <span class="text-rose-500">*</span></label>
+                    <label class="picker-label">Assigned Handler / Recipient <span class="route43">*</span></label>
                     <span class="recipient-pool-count" title="Available active users">
                       <ion-icon name="people-outline"></ion-icon>
                       {{ allEmployees.length }} Available
@@ -246,13 +246,13 @@
               <!-- SELECTED RECIPIENTS PANEL -->
               <div class="route-selected-panel">
                 <div class="selected-panel-header">
-                  <div class="flex items-center gap-2">
-                    <ion-icon name="person-circle" class="text-blue-600 dark:text-blue-400 text-lg"></ion-icon>
+                  <div class="route4">
+                    <ion-icon name="person-circle" class="routePeopleIcon"></ion-icon>
                     <span class="selected-panel-title">Selected Recipients</span>
                     <span class="selected-count-badge">{{ selectedUserIds.length }}</span>
                   </div>
-                  <div class="flex items-center gap-2">
-                    <button type="button" (click)="toggleSelectAll()" class="btn-toggle-all cursor-pointer">
+                  <div class="route4">
+                    <button type="button" (click)="toggleSelectAll()" class="btn-toggle-all routeRouteModalCloseBtn">
                       {{ allSelectableSelected ? 'Clear All' : 'Select All Active' }}
                     </button>
                   </div>
@@ -281,7 +281,7 @@
                               </p>
                             </div>
                           </div>
-                          <button type="button" (click)="removeRecipient(id)" class="btn-remove-recipient cursor-pointer" [attr.aria-label]="'Remove ' + emp.fullName">
+                          <button type="button" (click)="removeRecipient(id)" class="btn-remove-recipient routeRouteModalCloseBtn" [attr.aria-label]="'Remove ' + emp.fullName">
                             <ion-icon name="close"></ion-icon>
                           </button>
                         </div>
@@ -295,7 +295,7 @@
             <!-- ACTIONS & STATUS (2 COLUMNS) -->
             <section class="route-actions-grid">
               <div class="route-field-card">
-                <label class="route-field-label">Action Requested <span class="text-rose-500">*</span></label>
+                <label class="route-field-label">Action Requested <span class="route43">*</span></label>
                 <app-managed-options-select
                   [storageKey]="'blgf-action-requested-options'"
                   [options]="actionOptions"
@@ -308,7 +308,7 @@
               </div>
 
               <div class="route-field-card">
-                <label class="route-field-label">Document Status <span class="text-rose-500">*</span></label>
+                <label class="route-field-label">Document Status <span class="route43">*</span></label>
                 <app-managed-options-select
                   [storageKey]="'blgf-lifecycle-status-options'"
                   [options]="statusOptions"
@@ -324,26 +324,13 @@
 
             <!-- ROUTING REMARKS & COMMENTS (SEPARATED FROM INSTRUCTIONS!) -->
             <div class="route-remarks-section">
-              <div class="flex items-center justify-between mb-1.5">
+              <div class="route6">
                 <div>
                   <label class="route-field-label">Routing Remarks &amp; Comments</label>
-                  <p class="text-[11px] text-slate-400">Add operational remarks, review notes, or handling instructions for the recipient.</p>
+                  <p class="route62">Add operational remarks, review notes, or handling instructions for the recipient.</p>
                 </div>
               </div>
 
-              <!-- Quick Remark Presets -->
-              <div class="flex flex-wrap items-center gap-1.5 mb-2">
-                <span class="text-[10px] font-bold uppercase text-slate-400">Presets:</span>
-                @for (preset of remarkPresets; track preset) {
-                  <button
-                    type="button"
-                    (click)="applyRemarkPreset(preset)"
-                    class="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:border-blue-400 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-blue-500 cursor-pointer"
-                  >
-                    {{ preset }}
-                  </button>
-                }
-              </div>
 
               <textarea
                 rows="3"
@@ -355,41 +342,23 @@
             </div>
           } @else {
             <!-- IF COMPLETE MODE: PROMINENT EMERALD COMPLETION CARD WITH HANDOFF INSTRUCTIONS -->
-            <div class="rounded-2xl border border-emerald-200/90 bg-emerald-50/70 p-4 sm:p-5 shadow-xs dark:border-emerald-800/80 dark:bg-emerald-950/30">
-              <div class="flex items-center gap-3">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs dark:bg-emerald-500">
-                  <ion-icon name="checkmark-done" class="text-xl"></ion-icon>
+            <div class="route7">
+              <div class="route8">
+                <div class="route9">
+                  <ion-icon name="checkmark-done" class="routeCheckmarkDoneIcon"></ion-icon>
                 </div>
                 <div>
-                  <h4 class="text-base font-extrabold text-emerald-950 dark:text-emerald-100">Completion &amp; Document Handoff Instructions</h4>
-                  <p class="text-xs text-emerald-700/80 dark:text-emerald-400">Provide the final action, claiming location, and pickup guidelines for this completed transaction.</p>
+                  <h4 class="routeH4">Completion &amp; Document Handoff Instructions</h4>
+                  <p class="route72">Provide the final action, claiming location, and pickup guidelines for this completed transaction.</p>
                 </div>
               </div>
 
-              <div class="mt-4 space-y-3">
-                <!-- Preset Templates -->
-                <div>
-                  <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 mb-1.5 flex items-center gap-1">
-                    <ion-icon name="sparkles-outline" class="text-xs text-amber-500"></ion-icon>
-                    <span>Quick presets (click to apply):</span>
-                  </div>
-                  <div class="flex flex-wrap gap-1.5">
-                    @for (preset of handoffPresets; track preset.label) {
-                      <button
-                        type="button"
-                        (click)="applyHandoffPreset(preset.text)"
-                        class="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2.5 py-1 text-xs font-semibold text-emerald-900 shadow-2xs hover:bg-emerald-50 dark:border-emerald-700 dark:bg-slate-800 dark:text-emerald-200 cursor-pointer"
-                      >
-                        <ion-icon name="checkmark-circle-outline" class="text-xs text-emerald-600 dark:text-emerald-400"></ion-icon>
-                        <span>{{ preset.label }}</span>
-                      </button>
-                    }
-                  </div>
-                </div>
+              <div class="route10">
+
 
                 <div>
-                  <label class="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">
-                    Final Handoff / Claiming Instructions <span class="text-rose-500">*</span>
+                  <label class="routeLabel">
+                    Final Handoff / Claiming Instructions <span class="route43">*</span>
                   </label>
                   <textarea
                     required
@@ -398,12 +367,12 @@
                     [(ngModel)]="handoffInstructions"
                     name="handoffInstructions"
                     placeholder="e.g., Claim original copy at Records Unit, Room 204. Look for Ms. Rona, present valid official ID, and sign logbook before release."
-                    class="w-full rounded-xl border border-emerald-300 bg-white p-3 text-xs sm:text-sm font-medium text-slate-800 shadow-inner focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-emerald-700 dark:bg-slate-800 dark:text-slate-100"
+                    class="routeHandoffNotesArea"
                   ></textarea>
                 </div>
 
-                <div class="flex items-center gap-1 text-[11px] font-medium text-emerald-800 dark:text-emerald-300">
-                  <ion-icon name="information-circle-outline" class="text-sm shrink-0"></ion-icon>
+                <div class="route11">
+                  <ion-icon name="information-circle-outline" class="routeSendOutlineIcon"></ion-icon>
                   <span>This instruction will be published in the Complete Routing Path for all handlers and stakeholders.</span>
                 </div>
               </div>
@@ -412,14 +381,14 @@
 
           <!-- REPLY ATTACHMENT SECTION (AVAILABLE IN BOTH MODES) -->
           <div class="route-attachment-section">
-            <label class="route-field-label">{{ routeMode === 'COMPLETE' ? 'Final Resolution / Release Attachment' : 'Reply / Endorsement Attachment' }} <span class="text-xs text-slate-500 dark:text-slate-400 font-normal">(Optional, PDF, JPEG, PNG max 7 MB)</span></label>
+            <label class="route-field-label">{{ routeMode === 'COMPLETE' ? 'Final Resolution / Release Attachment' : 'Reply / Endorsement Attachment' }} <span class="route53">(Optional, PDF, JPEG, PNG max 7 MB)</span></label>
             <div class="route-attachment-dropzone" [class.has-file]="!!replyFile">
               <label class="dropzone-label">
                 <div class="dropzone-icon-box">
                   @if (replyFile) {
-                    <ion-icon name="document-text" class="text-rose-500 text-2xl"></ion-icon>
+                    <ion-icon name="document-text" class="routeTextIcon"></ion-icon>
                   } @else {
-                    <ion-icon name="cloud-upload-outline" class="text-blue-500 text-2xl"></ion-icon>
+                    <ion-icon name="cloud-upload-outline" class="routeCloudUploadOutlineIcon"></ion-icon>
                   }
                 </div>
                 <div class="dropzone-text-box">
@@ -435,7 +404,7 @@
                 <input type="file" accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" class="hidden-file-input" (change)="onReplyFileChange($event)" />
               </label>
               @if (replyFile) {
-                <button type="button" (click)="removeReplyFile($event)" class="btn-remove-attachment cursor-pointer" aria-label="Remove attachment">
+                <button type="button" (click)="removeReplyFile($event)" class="btn-remove-attachment routeRouteModalCloseBtn" aria-label="Remove attachment">
                   <ion-icon name="trash-outline"></ion-icon>
                 </button>
               }
@@ -445,17 +414,17 @@
           <!-- REVIEW SUMMARY CARD -->
           <div class="route-review-card">
             <div class="review-header">
-              <ion-icon name="shield-checkmark" class="text-blue-600 dark:text-blue-400 text-base"></ion-icon>
-              <span class="font-bold text-xs uppercase tracking-wider text-slate-700 dark:text-slate-200">Routing Summary Preview</span>
+              <ion-icon name="shield-checkmark" class="routeShieldCheckmarkIcon"></ion-icon>
+              <span class="route23">Routing Summary Preview</span>
             </div>
             <div class="review-grid">
               <div class="review-item">
                 <span class="review-label">Route Number</span>
-                <span class="review-val font-mono">{{ document!.routeNo || document!.trackingNumber }}</span>
+                <span class="review-val routeReviewVal">{{ document!.routeNo || document!.trackingNumber }}</span>
               </div>
               <div class="review-item">
                 <span class="review-label">Transaction Mode</span>
-                <span class="review-val font-bold" [class.text-emerald-600]="routeMode === 'COMPLETE'">{{ routeMode === 'COMPLETE' ? 'Completed & Finalized' : 'Forward to Recipient' }}</span>
+                <span class="review-val routeP" [class.text-emerald-600]="routeMode === 'COMPLETE'">{{ routeMode === 'COMPLETE' ? 'Completed & Finalized' : 'Forward to Recipient' }}</span>
               </div>
               @if (routeMode === 'FORWARD') {
                 <div class="review-item">
@@ -467,36 +436,36 @@
                   <span class="review-val">{{ actionRequested || 'None selected' }}</span>
                 </div>
               } @else {
-                <div class="review-item sm:col-span-2">
+                <div class="review-item routeReviewItem">
                   <span class="review-label">Handoff Instructions Preview</span>
-                  <span class="review-val truncate">{{ handoffInstructions || 'Not set yet' }}</span>
+                  <span class="review-val routeReviewVal2">{{ handoffInstructions || 'Not set yet' }}</span>
                 </div>
               }
             </div>
             <p class="review-footnote">
-              <ion-icon name="information-circle-outline" class="text-xs"></ion-icon>
+              <ion-icon name="information-circle-outline" class="routeBusinessIcon"></ion-icon>
               Routing timeline and audit trail will update immediately across all regional dashboards upon confirmation.
             </p>
           </div>
         </div>
 
         <!-- FIXED FOOTER -->
-        <footer class="route-modal-footer shrink-0">
-          <button type="button" (click)="onClose()" class="route-btn-cancel cursor-pointer">
+        <footer class="route-modal-footer routeRouteModal">
+          <button type="button" (click)="onClose()" class="route-btn-cancel routeRouteModalCloseBtn">
             Cancel
           </button>
           <button
             type="submit"
             [disabled]="isSubmitDisabled()"
             [class.is-complete]="routeMode === 'COMPLETE'"
-            class="route-btn-submit cursor-pointer"
+            class="route-btn-submit routeRouteModalCloseBtn"
           >
             @if (isSubmitting || isUploadingReply) {
-              <ion-icon name="reload" class="animate-spin text-base"></ion-icon>
+              <ion-icon name="reload" class="routeReloadIcon"></ion-icon>
             } @else if (routeMode === 'COMPLETE') {
-              <ion-icon name="checkmark-done" class="text-base"></ion-icon>
+              <ion-icon name="checkmark-done" class="routePaperPlaneIcon"></ion-icon>
             } @else {
-              <ion-icon name="paper-plane" class="text-base"></ion-icon>
+              <ion-icon name="paper-plane" class="routePaperPlaneIcon"></ion-icon>
             }
             <span>{{ getSubmitLabel() }}</span>
           </button>

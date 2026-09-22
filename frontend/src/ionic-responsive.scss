@@ -1,0 +1,206 @@
+/* Ionic responsive application layer. Keep layout rules here, outside templates. */
+:root {
+  --app-safe-top: env(safe-area-inset-top, 0px);
+  --app-safe-right: env(safe-area-inset-right, 0px);
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --app-safe-left: env(safe-area-inset-left, 0px);
+  --app-touch-target: 44px;
+}
+
+html,
+body,
+app-root,
+ion-app,
+ion-content.app-viewport {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+}
+
+ion-content.app-viewport {
+  --background: var(--ion-background-color, #f8fafc);
+  --padding-top: var(--app-safe-top);
+  --padding-right: var(--app-safe-right);
+  --padding-bottom: var(--app-safe-bottom);
+  --padding-left: var(--app-safe-left);
+}
+
+button,
+[role='button'],
+input,
+select,
+textarea,
+ion-button,
+ion-input,
+ion-select,
+ion-textarea {
+  touch-action: manipulation;
+}
+
+img,
+svg,
+canvas {
+  max-width: 100%;
+}
+
+.app-workspace,
+.app-main,
+.app-content,
+.app-view-container {
+  min-width: 0;
+  min-height: 0;
+}
+
+.app-content {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+table {
+  max-width: 100%;
+}
+
+@media (max-width: 767px) {
+  html,
+  body,
+  app-root.app-root,
+  .app-shell {
+    height: 100dvh;
+    min-height: 100dvh;
+  }
+
+  .app-workspace {
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .desktop-sidebar-shell {
+    display: none !important;
+  }
+
+  .app-main,
+  .app-content,
+  .app-view-container {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .app-content {
+    padding: 0.75rem !important;
+    padding-bottom: calc(0.75rem + var(--app-safe-bottom)) !important;
+  }
+
+  .app-content > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  button:not(.icon-only),
+  [role='button']:not(.icon-only),
+  ion-button {
+    min-height: var(--app-touch-target);
+  }
+
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea,
+  ion-input,
+  ion-select,
+  ion-textarea {
+    min-height: var(--app-touch-target);
+    font-size: 16px !important;
+  }
+
+  .overflow-x-auto,
+  [class*='table-wrap'],
+  [class*='tableWrap'],
+  [class*='table-container'],
+  [class*='tableContainer'] {
+    max-width: 100%;
+    overflow-x: auto !important;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table {
+    width: max-content;
+    min-width: 100%;
+  }
+
+  app-modal-layer > div,
+  [class*='modal-panel'],
+  [class*='modalPanel'],
+  [class*='modal-box'],
+  [class*='modalBox'],
+  [class*='dialog'] {
+    max-width: calc(100vw - 1rem) !important;
+    max-height: calc(100dvh - var(--app-safe-top) - var(--app-safe-bottom) - 1rem) !important;
+  }
+
+  [class*='modal-header'],
+  [class*='modalHeader'],
+  [class*='modal-footer'],
+  [class*='modalFooter'] {
+    padding-inline: 1rem !important;
+  }
+
+  [class*='grid-cols-2'],
+  [class*='grid-cols-3'],
+  [class*='grid-cols-4'],
+  [class*='grid-cols-5'],
+  [class*='grid-cols-6'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fixed.inset-0 {
+    padding-top: var(--app-safe-top);
+    padding-right: var(--app-safe-right);
+    padding-bottom: var(--app-safe-bottom);
+    padding-left: var(--app-safe-left);
+  }
+}
+
+@media (max-width: 479px) {
+  .app-content {
+    padding: 0.625rem !important;
+  }
+
+  h1 {
+    font-size: clamp(1.25rem, 7vw, 1.75rem);
+  }
+
+  h2 {
+    font-size: clamp(1.125rem, 6vw, 1.5rem);
+  }
+
+  [class*='modal-footer'],
+  [class*='modalFooter'],
+  [class*='form-actions'],
+  [class*='formActions'] {
+    flex-wrap: wrap;
+  }
+
+  [class*='modal-footer'] > button,
+  [class*='modalFooter'] > button,
+  [class*='form-actions'] > button,
+  [class*='formActions'] > button {
+    flex: 1 1 100%;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  button,
+  [role='button'],
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:active,
+  [role='button']:active,
+  a:active {
+    opacity: 0.86;
+  }
+}

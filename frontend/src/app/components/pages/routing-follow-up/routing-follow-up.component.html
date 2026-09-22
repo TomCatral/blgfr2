@@ -72,16 +72,16 @@
                   @if (reminderHistory(item.document, recordHandler(item.route)).length > 0) {
                     <div [ngClass]="'routing-followup-reminders' | cls">
                       <div [ngClass]="'routing-followup-reminderTitle' | cls">
-                        <ion-icon name="notifications-outline" class="mr-1 inline-block align-middle"></ion-icon>
+                        <ion-icon name="notifications-outline" class="followNoticesOutlineIcon"></ion-icon>
                         Reminders ({{ reminderHistory(item.document, recordHandler(item.route)).length }})
                       </div>
                       <ul [ngClass]="'routing-followup-reminderList' | cls">
                         @for (reminder of reminderHistory(item.document, recordHandler(item.route)); track reminder.id; let index = $index) {
                           <li>
-                            <span class="rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-bold px-1.5 py-0.5 text-[10px]">#{{ index + 1 }}</span>
-                            <span class="font-semibold text-slate-800 dark:text-slate-200">{{ reminder.userName }}</span>
-                            <time class="text-slate-400">&bull; {{ formatDate(reminder.timestamp) }}</time>
-                            <span class="text-slate-600 dark:text-slate-300">- {{ reminderMessage(reminder) }}</span>
+                            <span class="followSpan">#{{ index + 1 }}</span>
+                            <span class="follow2">{{ reminder.userName }}</span>
+                            <time class="followTime">&bull; {{ formatDate(reminder.timestamp) }}</time>
+                            <span class="follow3">- {{ reminderMessage(reminder) }}</span>
                           </li>
                         }
                       </ul>

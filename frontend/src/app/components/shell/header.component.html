@@ -1,62 +1,47 @@
 
     <header
       class="header-shell"
-      [ngClass]="('sticky top-0 z-30 transition-all duration-300 ' + (scrolled ? 'shadow-md shadow-slate-900/5 dark:shadow-black/40' : '')) | cls"
+      [ngClass]="('headShell1' + (scrolled ? 'headShell2' : '')) | cls"
     >
       <div
         class="app-main-header"
-        [ngClass]="'min-h-[64px] min-w-0 px-4 md:px-6 flex items-center justify-between border-b backdrop-blur-xl bg-white/85 dark:bg-[#090d16]/85 border-slate-200/80 dark:border-slate-800/70 transition-colors' | cls"
+        [ngClass]="'headAppMain' | cls"
       >
-        <div class="header-brand" [ngClass]="'min-w-0 shrink flex items-center gap-3' | cls">
+        <div class="header-brand" [ngClass]="'headBrand' | cls">
           <button
             type="button"
-            class="md:hidden inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-all"
-            [ngClass]="'border-slate-200 bg-white text-slate-700 shadow-xs hover:bg-slate-50 active:scale-95 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100' | cls"
+            class="headEmit1Btn"
+            [ngClass]="'headEmit2Btn' | cls"
             aria-label="Open navigation menu"
             title="Open navigation menu"
             (click)="onOpenMobileSidebar.emit()"
           >
-            <ion-icon name="menu" class="text-lg"></ion-icon>
+            <ion-icon name="menu" class="headMenuIcon"></ion-icon>
           </button>
           
-          <div class="header-brand-cluster hidden md:flex items-center gap-2.5 min-w-48">
-            <div class="header-brand-logo relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full p-0.5 bg-white dark:bg-slate-800 shadow-xs ring-1 ring-slate-200 dark:ring-slate-700">
-              <img src="/blgflogo.jpg" alt="BLGF Logo" class="h-full w-full rounded-full object-cover" />
+          <div class="header-brand-cluster headBrandCluster">
+            <div class="header-brand-logo headBrandLogo">
+              <img src="/blgflogo.jpg" alt="BLGF Logo" class="headImg" />
               @if (isOnline) {
-                <span class="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900 shadow-xs" title="System Online"></span>
+                <span class="headSystemOnline" title="System Online"></span>
               }
             </div>
-            <div class="header-brand-text flex flex-col justify-center min-w-0 gap-0.5">
-              <p class="m-0 p-0 text-[13px] font-black tracking-[0.05em] text-slate-900 dark:text-white leading-tight">BLGF REGION II</p>
-              <p class="m-0 p-0 text-[10px] font-semibold text-slate-500 dark:text-slate-400 tracking-wide leading-tight">Document Workspace</p>
+            <div class="header-brand-text headBrandText">
+              <p class="headP">BLGF REGION II</p>
+              <p class="head23">Document Workspace</p>
             </div>
           </div>
-
-          @if (currentNavItem(); as nav) {
-            <div
-              class="hidden lg:flex items-center gap-2.5 pl-3 border-l border-slate-200/80 dark:border-slate-800/80"
-              [attr.title]="'Active View: ' + nav.label + ' (' + nav.section + ')'"
-            >
-              <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-100/80 dark:border-blue-900/50 shadow-2xs">
-                <ion-icon [name]="nav.icon" class="text-sm"></ion-icon>
-              </span>
-              <div class="flex flex-col justify-center min-w-0">
-                <span class="text-[12px] font-bold text-slate-800 dark:text-slate-100 leading-tight truncate">{{ nav.label }}</span>
-                <span class="text-[9.5px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 leading-tight">{{ nav.section }}</span>
-              </div>
-            </div>
-          }
         </div>
 
-        <div class="global-document-search" [ngClass]="'relative min-w-0 flex-1 max-w-lg mx-2 md:mx-6' | cls">
-          <div class="relative">
-            <span class="pointer-events-none absolute left-3 top-0 flex h-full items-center text-slate-400 dark:text-slate-500">
-              <ion-icon name="search" class="text-base"></ion-icon>
+        <div class="global-document-search" [ngClass]="'headGlobalSearch' | cls">
+          <div class="headStyle">
+            <span class="headSpan">
+              <ion-icon name="search" class="headSearchIcon"></ion-icon>
             </span>
             <input
               #searchInput
               type="text"
-              class="global-search-input pl-9 pr-24"
+              class="global-search-input headGlobalSearchInput"
               placeholder="Search documents, tracking numbers, subjects..."
               [(ngModel)]="searchQuery"
               (focus)="isSearchFocused = true"
@@ -66,13 +51,13 @@
               autocomplete="off"
               data-autocomplete-managed="true"
             />
-            <span class="absolute right-1.5 top-0 flex h-full items-center gap-1">
-              <span class="hidden lg:inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-md">
+            <span class="head24">
+              <span class="head33">
                 Ctrl+K
               </span>
               <button
                 type="button"
-                class="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
+                class="headOpenScannerBtn"
                 title="Scan document barcode or QR code"
                 aria-label="Scan document barcode or QR code"
                 (click)="openScanner()"
@@ -82,7 +67,7 @@
               @if (searchQuery.trim()) {
                 <button
                   type="button"
-                  class="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  class="headClearSearchBtn"
                   aria-label="Clear search"
                   (click)="clearSearch()"
                 >
@@ -93,68 +78,67 @@
           </div>
 
           @if (isSearchFocused && searchQuery.trim()) {
-            <div class="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-[72vh] overflow-hidden rounded-2xl border bg-white/95 backdrop-blur-xl shadow-2xl transition-all"
-              [ngClass]="'border-slate-200/80 dark:border-slate-800 dark:bg-[#0f172a]/95 shadow-slate-900/15 dark:shadow-black/60' | cls">
+            <div class="head2">
               @if (searchResults.length === 0) {
-                <div class="p-7 text-center">
-                  <div class="mx-auto mb-2.5 flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
-                    <ion-icon name="search" class="text-xl"></ion-icon>
+                <div class="head3">
+                  <div class="head4">
+                    <ion-icon name="search" class="headSearch2Icon"></ion-icon>
                   </div>
-                  <p class="text-xs font-bold text-slate-700 dark:text-slate-300">No documents found</p>
-                  <p class="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">Try searching by title, route number, or subject</p>
+                  <p class="head32">No documents found</p>
+                  <p class="head42">Try searching by title, route number, or subject</p>
                 </div>
               } @else {
-                <div class="flex items-center justify-between border-b px-4 py-2.5 bg-slate-50/50 dark:bg-slate-800/50" [ngClass]="'border-slate-100 dark:border-slate-800' | cls">
-                  <span class="text-[10.5px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <div class="head1" [ngClass]="'head25' | cls">
+                  <span class="head43">
                     Results ({{ searchResults.length }})
                   </span>
-                  <button type="button" class="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" (mousedown)="viewAllResults(); $event.preventDefault()" (click)="viewAllResults()">
+                  <button type="button" class="headViewAllResultsBtn" (mousedown)="viewAllResults(); $event.preventDefault()" (click)="viewAllResults()">
                     View all results &rarr;
                   </button>
                 </div>
-                <div class="max-h-72 divide-y overflow-y-auto" [ngClass]="'divide-slate-100 dark:divide-slate-800/80' | cls">
+                <div class="head12" [ngClass]="'head232' | cls">
                   @for (result of searchResults.slice(0, 8); track result.doc.id) {
                     <button
                       type="button"
-                      class="search-result-row group"
+                      class="search-result-row headSearchResultRowBtn"
                       [class.active-result]="activeResultIndex === $index"
                       (mouseenter)="activeResultIndex = $index"
                       (mousedown)="chooseResult(result.doc); $event.preventDefault()"
                       (click)="chooseResult(result.doc)"
                     >
-                      <div class="flex items-start justify-between gap-2.5">
-                        <div class="min-w-0 flex-1">
-                          <div class="flex items-center gap-2">
-                            <span class="font-mono text-[11px] font-extrabold text-blue-600 dark:text-blue-400 truncate">
+                      <div class="head5">
+                        <div class="head6">
+                          <div class="head7">
+                            <span class="head53">
                               @for (segment of highlightSegments(result, 'routeNo'); track $index) {
-                                <span [class.bg-amber-200]="segment.highlighted" [class.dark:bg-amber-900]="segment.highlighted" class="rounded px-0.5">{{ segment.text }}</span>
+                                <span [class.bg-amber-200]="segment.highlighted" [class.dark:bg-amber-900]="segment.highlighted" class="head63">{{ segment.text }}</span>
                               }
                             </span>
-                            <span class="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[9px] font-extrabold"
-                              [ngClass]="(result.doc.direction === 'INCOMING' ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 dark:text-emerald-300' : 'bg-blue-500/10 text-blue-700 border border-blue-500/20 dark:text-blue-300') | cls">
-                              <ion-icon [name]="result.doc.direction === 'INCOMING' ? 'arrow-down-left' : 'arrow-up-right'" class="mr-0.5 h-2.5 w-2.5"></ion-icon>
+                            <span class="head111"
+                              [ngClass]="(result.doc.direction === 'INCOMING' ? 'headResultDocDirection' : 'headResultDocDirection2') | cls">
+                              <ion-icon [name]="result.doc.direction === 'INCOMING' ? 'arrow-down-left' : 'arrow-up-right'" class="headIcon"></ion-icon>
                               {{ result.doc.direction }}
                             </span>
                           </div>
-                          <div class="mt-1 flex items-center gap-1.5">
-                            <ion-icon name="document-text" class="h-3.5 w-3.5 shrink-0 text-slate-400 group-hover:text-blue-600 transition-colors"></ion-icon>
-                            <span class="truncate text-xs font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                          <div class="head8">
+                            <ion-icon name="document-text" class="headTextIcon"></ion-icon>
+                            <span class="head73">
                               @for (segment of highlightSegments(result, 'title'); track $index) {
                                 {{ segment.text }}
                               }
                             </span>
                           </div>
-                          <p class="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-400">
+                          <p class="head52">
                             @for (segment of highlightSegments(result, 'subject'); track $index) {
                               {{ segment.text }}
                             }
                           </p>
-                          <p class="mt-0.5 text-[9.5px] font-semibold text-amber-600 dark:text-amber-400 truncate">
+                          <p class="head62">
                             Action: {{ getCurrentUserAction(result.doc) }}
                           </p>
                         </div>
-                        <div class="flex shrink-0 flex-col items-end gap-1">
-                          <span class="rounded-full px-2 py-0.5 text-[9.5px] font-bold" [ngClass]="statusBadgeClass(result.doc) | cls">
+                        <div class="head9">
+                          <span class="head83" [ngClass]="statusBadgeClass(result.doc) | cls">
                             {{ result.doc.currentStatus.replaceAll('_', ' ') }}
                           </span>
                         </div>
@@ -163,8 +147,8 @@
                   }
                 </div>
                 @if (searchResults.length > 8) {
-                  <div class="border-t px-4 py-2.5 bg-slate-50/50 dark:bg-slate-800/50" [ngClass]="'border-slate-100 dark:border-slate-800' | cls">
-                    <button type="button" class="w-full py-2 text-center text-xs font-bold text-blue-600 hover:underline dark:text-blue-400" (mousedown)="viewAllResults(); $event.preventDefault()" (click)="viewAllResults()">
+                  <div class="head13" [ngClass]="'head25' | cls">
+                    <button type="button" class="headViewAllResultsBtn2" (mousedown)="viewAllResults(); $event.preventDefault()" (click)="viewAllResults()">
                       + {{ searchResults.length - 8 }} more results - View all
                     </button>
                   </div>
@@ -174,14 +158,14 @@
           }
         </div>
 
-        <div class="header-actions" [ngClass]="'shrink-0 flex items-center gap-2 md:gap-2.5' | cls">
+        <div class="header-actions" [ngClass]="'headActions' | cls">
           <button
             type="button"
             title="Active Users &amp; Sessions Status"
             aria-label="Active Users &amp; Sessions Status"
             (click)="isUserStatusOpen = true"
           >
-            <ion-icon name="people" class="h-4 w-4"></ion-icon>
+            <ion-icon name="people" class="headPeopleIcon"></ion-icon>
           </button>
 
           <button
@@ -190,94 +174,94 @@
             [attr.aria-label]="isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
             (click)="onToggleDarkMode.emit()"
           >
-            <ion-icon [name]="isDarkMode ? 'sunny' : 'moon'" [ngClass]="(isDarkMode ? 'text-amber-400' : 'text-slate-600') | cls"></ion-icon>
+            <ion-icon [name]="isDarkMode ? 'sunny' : 'moon'" [ngClass]="(isDarkMode ? 'head1Icon' : 'head2Icon') | cls"></ion-icon>
           </button>
 
           <button
             type="button"
-            class="relative"
+            class="headStyle"
             [title]="(notifications.length > 0 ? notifications.length + ' unread notifications' : 'No new notifications')"
             [attr.aria-label]="(notifications.length > 0 ? notifications.length + ' unread notifications' : 'Notifications')"
             (click)="onOpenNotifications.emit()"
           >
-            <ion-icon name="notifications" class="h-4 w-4"></ion-icon>
+            <ion-icon name="notifications" class="headPeopleIcon"></ion-icon>
             @if (notifications.length > 0) {
-              <span class="absolute -right-1 -top-1 flex h-[18px] w-[18px] animate-pulse items-center justify-center rounded-full bg-rose-500 text-[9.5px] font-extrabold text-white shadow-sm shadow-rose-500/40">
+              <span class="head93">
                 {{ notifications.length > 9 ? '9+' : notifications.length }}
               </span>
             }
           </button>
 
-          <div class="relative" #menuRef>
+          <div class="headStyle" #menuRef>
             <button
               type="button"
               [title]="'User Account Menu (' + currentUser.fullName + ')'"
               [attr.aria-label]="'User Account Menu (' + currentUser.fullName + ')'"
               (click)="showUserMenu = !showUserMenu"
             >
-              <div class="flex h-7 w-7 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 text-xs font-bold text-white shadow-xs ring-1 ring-blue-500/20">
+              <div class="head10">
                 @if (currentUser.avatarUrl) {
-                  <img [src]="currentUser.avatarUrl" [alt]="currentUser.fullName + ' profile'" class="h-full w-full object-cover" />
+                  <img [src]="currentUser.avatarUrl" [alt]="currentUser.fullName + ' profile'" class="headImg2" />
                 } @else {
                   {{ currentUser.fullName.charAt(0) || 'U' }}
                 }
               </div>
-              <span class="hidden text-xs font-bold text-slate-700 dark:text-slate-200 sm:inline truncate max-w-[110px]">{{ currentUser.fullName }}</span>
-              <ion-icon name="chevron-down" class="h-3 w-3 text-slate-400"></ion-icon>
+              <span class="head103">{{ currentUser.fullName }}</span>
+              <ion-icon name="chevron-down" class="headChevronDownIcon"></ion-icon>
             </button>
 
             @if (showUserMenu) {
-              <div class="absolute right-0 z-50 mt-2 w-72 overflow-hidden rounded-2xl border py-2 text-xs shadow-2xl backdrop-blur-xl"
-                [ngClass]="'border-slate-200/90 bg-white/95 dark:border-slate-800 dark:bg-[#0f172a]/95 shadow-slate-900/10 dark:shadow-black/50' | cls">
-                <div class="border-b px-4 py-3 text-center bg-slate-50/50 dark:bg-slate-800/30" [ngClass]="'border-slate-100 dark:border-slate-800' | cls">
-                  <p class="mb-2 text-[11px] font-extrabold text-slate-700 dark:text-slate-200 uppercase tracking-wider">Install DTS App</p>
+              <div class="head14"
+                [ngClass]="'head242' | cls">
+                <div class="head15" [ngClass]="'head25' | cls">
+                  <p class="head72">Install DTS App</p>
                   @if (!isAppInstalled) {
-                    <button type="button" class="mt-1 inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-500 shadow-sm shadow-emerald-600/20 transition-colors" (click)="handleInstallApp()">
+                    <button type="button" class="headHandleInstallAppBtn" (click)="handleInstallApp()">
                       <ion-icon name="download"></ion-icon>
                       <span>Install on Device</span>
                     </button>
                   } @else {
-                    <p class="mt-1 text-[10.5px] font-bold text-emerald-600 flex items-center justify-center gap-1">
+                    <p class="head82">
                       <ion-icon name="checkmark-circle"></ion-icon>
                       DTS App Installed
                     </p>
                   }
                 </div>
 
-                <div class="border-b px-4 py-3" [ngClass]="'border-slate-100 dark:border-slate-800' | cls">
-                  <div class="flex items-center gap-3">
-                    <div class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-sm font-bold text-white shadow-md ring-2 ring-white dark:ring-slate-800">
+                <div class="head16" [ngClass]="'head25' | cls">
+                  <div class="head11">
+                    <div class="head122">
                       @if (currentUser.avatarUrl) {
-                        <img [src]="currentUser.avatarUrl" [alt]="currentUser.fullName + ' profile'" class="h-full w-full object-cover" />
+                        <img [src]="currentUser.avatarUrl" [alt]="currentUser.fullName + ' profile'" class="headImg2" />
                       } @else {
                         {{ currentUser.fullName.charAt(0) || 'U' }}
                       }
                     </div>
-                    <div class="min-w-0 flex-1">
-                      <p class="truncate text-sm font-bold text-slate-900 dark:text-white">{{ currentUser.fullName }}</p>
-                      <p class="truncate text-[11px] text-slate-400 dark:text-slate-500">{{ currentUser.designation }}</p>
+                    <div class="head6">
+                      <p class="head92">{{ currentUser.fullName }}</p>
+                      <p class="head102">{{ currentUser.designation }}</p>
                     </div>
                   </div>
-                  <div class="mt-2.5 flex items-center gap-1.5 flex-wrap">
-                    <span class="rounded-md border px-2 py-0.5 text-[10px] font-bold" [ngClass]="(badgeClass(currentUser.role) || 'bg-slate-700 text-white border-slate-600') | cls">
+                  <div class="head132">
+                    <span class="head124" [ngClass]="(badgeClass(currentUser.role) || 'headCurrentUserRole') | cls">
                       {{ currentUser.role.replace('_', ' ') || 'STAFF' }}
                     </span>
                     @if (currentUser.divisionCode) {
-                      <span class="rounded-md border px-2 py-0.5 text-[10px] font-bold" [ngClass]="'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400' | cls">
+                      <span class="head124" [ngClass]="'head26' | cls">
                         {{ currentUser.divisionCode }}
                       </span>
                     }
                   </div>
                 </div>
 
-                <div class="border-b px-4 py-2 text-center text-[10px] font-medium text-slate-400" [ngClass]="'border-slate-100 dark:border-slate-800' | cls">
+                <div class="head17" [ngClass]="'head25' | cls">
                   Logged in as {{ currentUser.fullName }}
                 </div>
 
-                <div class="space-y-1 px-2 py-1.5">
-                  <button type="button" class="flex w-full items-center space-x-2 rounded-xl px-3 py-2 text-left text-rose-600 transition-colors hover:bg-rose-50 dark:hover:bg-rose-950/50" (click)="logoutAction()">
+                <div class="head142">
+                  <button type="button" class="headLogoutActionBtn" (click)="logoutAction()">
                     <ion-icon name="log-out"></ion-icon>
-                    <span class="text-xs font-bold">Sign Out</span>
+                    <span class="head113">Sign Out</span>
                   </button>
                 </div>
               </div>
@@ -288,37 +272,37 @@
     </header>
 
     @if (isUserStatusOpen) {
-      <div class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4" (mousedown)="isUserStatusOpen = false">
-        <div class="w-full max-w-2xl overflow-hidden rounded-2xl border bg-white shadow-2xl" [ngClass]="'border-slate-200 dark:border-slate-700 dark:bg-slate-900' | cls" (mousedown)="stop($event)">
-          <div class="flex items-center justify-between border-b px-5 py-4" [ngClass]="'border-slate-200 dark:border-slate-700' | cls">
+      <div class="head152" (mousedown)="isUserStatusOpen = false">
+        <div class="head162" (mousedown)="stop($event)">
+          <div class="head18" [ngClass]="'head252' | cls">
             <div>
-              <h2 class="text-sm font-extrabold text-slate-900 dark:text-white">Active Users & Session Directory</h2>
-              <p class="mt-0.5 text-[10.5px] text-slate-500">{{ users.length }} registered user{{ users.length === 1 ? '' : 's' }}</p>
+              <h2 class="headH2">Active Users & Session Directory</h2>
+              <p class="head112">{{ users.length }} registered user{{ users.length === 1 ? '' : 's' }}</p>
             </div>
-            <div class="flex items-center gap-2">
-              <span class="flex items-center gap-1.5 text-[10px] font-extrabold px-2 py-1 rounded-full" [ngClass]="(isOnline ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300') | cls">
-                <span class="h-1.5 w-1.5 rounded-full" [ngClass]="(isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500') | cls"></span>
+            <div class="head7">
+              <span class="head134" [ngClass]="(isOnline ? 'head233' : 'head322') | cls">
+                <span class="head144" [ngClass]="(isOnline ? 'head243' : 'head34') | cls"></span>
                 {{ isOnline ? 'ONLINE' : 'OFFLINE' }}
               </span>
-              <button type="button" class="rounded-xl p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" aria-label="Close user status" (click)="isUserStatusOpen = false">
-                <ion-icon name="close" class="text-lg"></ion-icon>
+              <button type="button" class="headCloseUserStatusBtn" aria-label="Close user status" (click)="isUserStatusOpen = false">
+                <ion-icon name="close" class="headMenuIcon"></ion-icon>
               </button>
             </div>
           </div>
-          <div class="grid max-h-[65vh] grid-cols-1 gap-2.5 overflow-y-auto p-4 sm:grid-cols-2">
+          <div class="head172">
             @for (user of users; track user.id) {
-              <div class="flex min-w-0 items-center gap-3 rounded-xl border p-3 bg-slate-50/40 dark:bg-slate-800/40" [ngClass]="'border-slate-200/80 dark:border-slate-700/80' | cls">
+              <div class="head19" [ngClass]="'head262' | cls">
                 @if (user.avatarUrl) {
-                  <img [src]="user.avatarUrl" [alt]="user.fullName" class="h-10 w-10 shrink-0 rounded-full border object-cover" [ngClass]="'border-slate-200 dark:border-slate-700' | cls" />
+                  <img [src]="user.avatarUrl" [alt]="user.fullName" class="headImg1" [ngClass]="'head252' | cls" />
                 } @else {
-                  <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border text-xs font-bold" [ngClass]="'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300' | cls">{{ initialsOf(user.fullName) }}</div>
+                  <div class="head110" [ngClass]="'head27' | cls">{{ initialsOf(user.fullName) }}</div>
                 }
-                <div class="min-w-0 flex-1">
-                  <p class="truncate text-xs font-bold text-slate-900 dark:text-white">{{ user.fullName }}</p>
-                  <p class="truncate text-[10px] text-slate-500">{{ user.designation || user.role }} &middot; {{ user.divisionCode }}</p>
-                  <div class="mt-1 flex items-center gap-2 text-[9px] font-extrabold">
-                    <span [ngClass]="(user.active ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400') | cls">{{ user.active ? 'ACTIVE' : 'DEACTIVATED' }}</span>
-                    <span [ngClass]="((user.id === currentUser.id && isOnline) ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400') | cls">{{ (user.id === currentUser.id && isOnline) ? 'CURRENT SESSION' : '' }}</span>
+                <div class="head6">
+                  <p class="head123">{{ user.fullName }}</p>
+                  <p class="head133">{{ user.designation || user.role }} &middot; {{ user.divisionCode }}</p>
+                  <div class="head182">
+                    <span [ngClass]="(user.active ? 'headUserActiveState' : 'headUserActiveState2') | cls">{{ user.active ? 'ACTIVE' : 'DEACTIVATED' }}</span>
+                    <span [ngClass]="((user.id === currentUser.id && isOnline) ? 'headUserIdState' : 'headUserIdState2') | cls">{{ (user.id === currentUser.id && isOnline) ? 'CURRENT SESSION' : '' }}</span>
                   </div>
                 </div>
               </div>
@@ -329,23 +313,23 @@
     }
 
     @if (isScannerOpen) {
-      <div class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4" (mousedown)="isScannerOpen = false">
-        <div class="w-full max-w-md overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl" (mousedown)="stop($event)">
-          <div class="flex items-center justify-between border-b border-slate-800 px-5 py-3.5">
-            <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
-              <ion-icon name="scan" class="text-blue-400"></ion-icon>
+      <div class="head192" (mousedown)="isScannerOpen = false">
+        <div class="head20" (mousedown)="stop($event)">
+          <div class="head21">
+            <h3 class="headH3">
+              <ion-icon name="scan" class="headScanIcon"></ion-icon>
               Scan Document QR
             </h3>
-            <button type="button" class="rounded-lg p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors" aria-label="Close scanner" (click)="isScannerOpen = false">
+            <button type="button" class="headCloseScannerBtn" aria-label="Close scanner" (click)="isScannerOpen = false">
               <ion-icon name="close"></ion-icon>
             </button>
           </div>
-          <div class="p-5">
-            <div id="document-search-scanner" class="w-full overflow-hidden rounded-xl bg-black aspect-square"></div>
+          <div class="head22">
+            <div id="document-search-scanner" class="headSearchScanner"></div>
             @if (scannerError) {
-              <p class="mt-3 rounded-xl bg-rose-500/10 border border-rose-500/20 px-3 py-2 text-[11px] font-bold text-rose-300">{{ scannerError }}</p>
+              <p class="head143">{{ scannerError }}</p>
             }
-            <button type="button" class="mt-4 w-full rounded-xl bg-slate-800 py-2.5 text-xs font-bold text-white hover:bg-slate-700 transition-colors" (click)="isScannerOpen = false">Cancel</button>
+            <button type="button" class="headBtn" (click)="isScannerOpen = false">Cancel</button>
           </div>
         </div>
       </div>

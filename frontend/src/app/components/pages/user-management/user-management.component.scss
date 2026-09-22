@@ -633,6 +633,44 @@
   font-size: 1rem;
   flex-shrink: 0;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+
+  .ua-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: inherit;
+  }
+
+  .ua-avatar-letter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+  }
+
+  .ua-avatar-edit-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.65);
+    color: #ffffff;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+    font-size: 1rem;
+    border-radius: inherit;
+    backdrop-filter: blur(1px);
+  }
+
+  &:hover .ua-avatar-edit-overlay {
+    opacity: 1;
+  }
 }
 
 .ua-user-meta {
@@ -1077,6 +1115,154 @@
   font-weight: 800;
   font-size: 1.25rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+
+  .ua-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: inherit;
+  }
+
+  .ua-avatar-letter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+  }
+
+  .ua-avatar-edit-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.65);
+    color: #ffffff;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+    font-size: 1.2rem;
+    border-radius: inherit;
+    backdrop-filter: blur(1px);
+  }
+
+  &:hover .ua-avatar-edit-overlay {
+    opacity: 1;
+  }
+}
+
+/* Profile Photo Form Section in Modal */
+.ua-avatar-form-row {
+  display: flex;
+  align-items: center;
+  gap: 1.125rem;
+  padding: 0.875rem 1rem;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 0.875rem;
+  margin-bottom: 0.25rem;
+
+  .ua-form-avatar-preview {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 0.875rem;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #ffffff;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+
+    .ua-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      border-radius: inherit;
+    }
+
+    .ua-avatar-letter {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  .ua-avatar-form-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    flex: 1;
+
+    .ua-avatar-btns {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .ua-btn-avatar-upload {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.425rem 0.85rem;
+      border-radius: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      background: #2563eb;
+      color: #ffffff;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+      transition: all 0.15s ease;
+
+      &:hover:not(:disabled) {
+        background: #1d4ed8;
+        transform: translateY(-1px);
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    }
+
+    .ua-btn-avatar-remove {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.425rem 0.75rem;
+      border-radius: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fca5a5;
+      cursor: pointer;
+      transition: all 0.15s ease;
+
+      &:hover {
+        background: #fecaca;
+        color: #991b1b;
+      }
+    }
+
+    .ua-avatar-hint {
+      margin: 0;
+      font-size: 0.6875rem;
+      color: #64748b;
+    }
+  }
 }
 
 .ua-avatar-status {
@@ -2327,6 +2513,25 @@
 
   .ua-avatar-status {
     border-color: #0f172a !important;
+  }
+
+  .ua-avatar-form-row {
+    background: #0b1120 !important;
+    border-color: #27374d !important;
+
+    .ua-btn-avatar-remove {
+      background: rgba(225, 29, 72, 0.15) !important;
+      border-color: rgba(225, 29, 72, 0.3) !important;
+      color: #fda4af !important;
+
+      &:hover {
+        background: rgba(225, 29, 72, 0.25) !important;
+      }
+    }
+
+    .ua-avatar-hint {
+      color: #94a3b8 !important;
+    }
   }
 }
 

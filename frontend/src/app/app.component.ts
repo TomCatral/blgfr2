@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { DatePipe, NgClass } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
+import { IonApp, IonContent } from '@ionic/angular/standalone';
 
 import { ClsPipe } from './shared/cls.pipe';
 import { ApiService } from './services/api.service';
@@ -80,6 +81,8 @@ type PopupAction = {
     '[class.dark]': 'isDarkMode()',
   },
   imports: [
+    IonApp,
+    IonContent,
     DatePipe,
     NgClass,
     ClsPipe,
@@ -635,10 +638,10 @@ export class AppComponent implements OnInit, OnDestroy {
   routeDecision = async (
     notification: NotificationItem | PopupAction,
     decision: 'APPROVED' | 'DISAPPROVED',
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     const user = this.currentUser();
-    if (!notification.documentId || !user) return;
-    if (this.decisionSubmittingId() === notification.id) return;
+    if (!notification.documentId || !user) return false;
+    if (this.decisionSubmittingId() === notification.id) return false;
     let remarks = '';
     if (decision === 'DISAPPROVED') {
       const response = await showPrompt(
@@ -648,7 +651,7 @@ export class AppComponent implements OnInit, OnDestroy {
       remarks = response?.trim() || '';
       if (!remarks) {
         alert('A disapproval remark is required.');
-        return;
+        return false;
       }
     }
     this.decisionSubmittingId.set(notification.id);
@@ -743,6 +746,13 @@ export class AppComponent implements OnInit, OnDestroy {
       );
       this.routingPopup.set(null);
       this.isNotifDrawerOpen.set(false);
+      if (
+        this.reminderPopup()?.id === notification.id ||
+        this.reminderPopup()?.documentId === notification.documentId
+      ) {
+        this.closedReminderPopupIds.add(notification.id);
+        this.reminderPopup.set(null);
+      }
       await this.loadBackendData();
       if (decision === 'APPROVED') {
         this.routeModalDoc.set({
@@ -759,11 +769,67 @@ export class AppComponent implements OnInit, OnDestroy {
           `Document ${updated.routeNo} disapproved and returned to the sender.\nReason: ${remarks}`,
         );
       }
+      return true;
     } catch (error: unknown) {
       alert(`Failed to record decision: ${String((error as Error)?.message || error)}`);
+      return false;
     } finally {
       this.decisionSubmittingId.set(null);
     }
+  };
+
+  handleReminderDecision = async (
+    reminder: NotificationItem,
+    decision: 'APPROVED' | 'DISAPPROVED',
+  ): Promise<void> => {
+    let docId = reminder.documentId;
+    if (!docId && reminder.trackingNumber) {
+      const match = this.state.documents().find(
+        (d) =>
+          (d.routeNo &&
+            d.routeNo.trim().toUpperCase() ===
+              reminder.trackingNumber?.trim().toUpperCase()) ||
+          (d.trackingNumber &&
+            d.trackingNumber.trim().toUpperCase() ===
+              reminder.trackingNumber?.trim().toUpperCase()),
+      );
+      if (match) docId = match.id;
+    }
+    const itemToDecide: NotificationItem = {
+      ...reminder,
+      documentId: docId || reminder.documentId,
+    };
+    const success = await this.routeDecision(itemToDecide, decision);
+    if (success) {
+      this.closeReminder();
+    }
+  };
+
+  handleDocumentDetailDecision = async (
+    doc: DocumentRecord,
+    decision: 'APPROVED' | 'DISAPPROVED',
+  ): Promise<boolean> => {
+    const user = this.currentUser();
+    if (!user) return false;
+    const pseudoNotif: NotificationItem = {
+      id: `doc-decision-${doc.id}-${Date.now()}`,
+      userId: user.id,
+      title: 'Routing Decision',
+      message: `Decision for document ${doc.routeNo || doc.trackingNumber}`,
+      documentId: doc.id,
+      trackingNumber: doc.routeNo || doc.trackingNumber,
+      type: 'ACTION_REQUIRED',
+      requiresDecision: true,
+      createdAt: new Date().toISOString(),
+    };
+    const success = await this.routeDecision(pseudoNotif, decision);
+    if (success) {
+      const refreshed = this.state.documents().find((d) => d.id === doc.id);
+      if (refreshed) {
+        this.selectedDoc.set(refreshed);
+      }
+    }
+    return success;
   };
 
   reapproveDocument = (document: DocumentRecord): void =>

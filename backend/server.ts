@@ -1906,7 +1906,7 @@ export async function createApp() {
       documentId: document.id,
       trackingNumber: document.routeNo || document.trackingNumber,
       type: 'URGENT',
-      requiresDecision: false,
+      requiresDecision: true,
       reminderSenderName: actingUser.fullName,
       reminderHandlerName: recipient.fullName,
       reminderActionRequested:

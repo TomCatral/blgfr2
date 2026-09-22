@@ -14,7 +14,7 @@
           <!-- Linked Document Chip / Link Button -->
           @if (activeDoc) {
             <div class="linked-doc-badge" title="Linked to Document Tracking System">
-              <ion-icon name="link" class="icon-sm text-blue-500"></ion-icon>
+              <ion-icon name="link" class="icon-sm mailSmIcon"></ion-icon>
               <span class="linked-badge-label">DTS Doc:</span>
               <strong class="linked-badge-route">{{ activeDoc.routeNo || activeDoc.trackingNumber }}</strong>
               <button type="button" (click)="unlinkDocument()" class="btn-unlink-icon" title="Unlink document">
@@ -53,20 +53,6 @@
         </div>
       }
 
-      <!-- Templates Button -->
-      <button
-        type="button"
-        (click)="showSaveFormat = !showSaveFormat"
-        class="btn-studio-secondary"
-        title="Manage saved formats"
-      >
-        <ion-icon name="bookmark-outline" class="icon-sm"></ion-icon>
-        <span>Templates</span>
-        @if (savedFormats.length > 0) {
-          <span class="badge-count">{{ savedFormats.length }}</span>
-        }
-      </button>
-
       <!-- Print Dropdown / Primary Buttons -->
       <button
         type="button"
@@ -87,6 +73,20 @@
         <ion-icon name="cut-outline" class="icon-sm"></ion-icon>
         <span>Print FROM/TO</span>
       </button>
+
+      <!-- Templates Button -->
+      <button
+        type="button"
+        (click)="toggleTemplates()"
+        class="btn-studio-secondary"
+        title="Manage saved formats"
+      >
+        <ion-icon name="bookmark-outline" class="icon-sm"></ion-icon>
+        <span>Templates</span>
+        @if (savedFormats.length > 0) {
+          <span class="badge-count">{{ savedFormats.length }}</span>
+        }
+      </button>
     </div>
   </header>
 
@@ -99,7 +99,7 @@
       <div class="studio-card size-selector-card">
         <div class="card-header-compact">
           <div class="card-header-title">
-            <ion-icon name="settings" class="icon-sm text-indigo-500"></ion-icon>
+            <ion-icon name="settings" class="icon-sm mailSm2Icon"></ion-icon>
             <h3>Envelope Dimensions &amp; Format</h3>
           </div>
           <span class="size-chip-active">{{ envelopeDimensions.width }} &times; {{ envelopeDimensions.height }}</span>
@@ -196,7 +196,7 @@
       <div class="studio-card subject-card">
         <div class="card-header-compact">
           <div class="card-header-title">
-            <ion-icon name="document-text" class="icon-sm text-blue-500"></ion-icon>
+            <ion-icon name="document-text" class="icon-sm mailSmIcon"></ion-icon>
             <h3>Subject / Reference <span class="required-mark">*</span></h3>
           </div>
           @if (activeDoc) {
@@ -223,7 +223,7 @@
       <div class="studio-card addressees-card">
         <div class="card-header-with-actions">
           <div class="card-header-title">
-            <ion-icon name="people" class="icon-sm text-emerald-500"></ion-icon>
+            <ion-icon name="people" class="icon-sm mailSm3Icon"></ion-icon>
             <h3>Recipients &amp; Addressees</h3>
             <span class="badge-counter">{{ addressees.length }}</span>
           </div>
@@ -303,7 +303,7 @@
               <!-- Recipient Form Inputs -->
               <div class="addressee-fields-grid">
                 <!-- Name with inline directory suggestion -->
-                <div class="field-item col-span-1">
+                <div class="field-item mailFieldItem">
                   <label class="input-label">Full Name <span class="required-mark">*</span></label>
                   <div class="relative-autocomplete">
                     <input
@@ -325,7 +325,7 @@
                             (mousedown)="onPickEmployee($event, addr.id, employee)"
                             class="autocomplete-item"
                           >
-                            <ion-icon name="person-circle" class="icon-sm text-slate-400"></ion-icon>
+                            <ion-icon name="person-circle" class="icon-sm mailSm4Icon"></ion-icon>
                             <div class="autocomplete-text">
                               <div class="autocomplete-name">{{ employee.fullName }}</div>
                               <div class="autocomplete-sub">{{ employee.position }} &bull; {{ employee.office }}</div>
@@ -341,7 +341,7 @@
                 </div>
 
                 <!-- Position -->
-                <div class="field-item col-span-1">
+                <div class="field-item mailFieldItem">
                   <label class="input-label">Designation / Position <span class="required-mark">*</span></label>
                   <app-autocomplete-field
                     [value]="addr.position"
@@ -355,7 +355,7 @@
                 </div>
 
                 <!-- Office / Department -->
-                <div class="field-item col-span-1">
+                <div class="field-item mailFieldItem">
                   <label class="input-label">Office / LGU / Agency <span class="required-mark">*</span></label>
                   <app-autocomplete-field
                     [multiline]="true"
@@ -371,7 +371,7 @@
                 </div>
 
                 <!-- Address -->
-                <div class="field-item col-span-1">
+                <div class="field-item mailFieldItem">
                   <label class="input-label">Complete Postal Address <span class="required-mark">*</span></label>
                   <app-autocomplete-field
                     [multiline]="true"
@@ -399,7 +399,7 @@
           title="Toggle Sender Return Address"
         >
           <div class="card-header-title">
-            <ion-icon name="paper-plane" class="icon-sm text-indigo-500"></ion-icon>
+            <ion-icon name="paper-plane" class="icon-sm mailSm2Icon"></ion-icon>
             <div>
               <h3>FROM: Return Address &amp; Sender Credentials</h3>
               <p class="card-subtitle">Included in half-bond FROM/TO cut-out sheets</p>
@@ -449,7 +449,7 @@
                 />
               </div>
 
-              <div class="field-item col-span-2">
+              <div class="field-item mailFieldItem2">
                 <label class="input-label">Sender Office / Bureau:</label>
                 <textarea
                   required
@@ -461,7 +461,7 @@
                 ></textarea>
               </div>
 
-              <div class="field-item col-span-2">
+              <div class="field-item mailFieldItem2">
                 <label class="input-label">Sender Physical Address:</label>
                 <textarea
                   required
@@ -476,64 +476,6 @@
           </div>
         }
       </div>
-
-      <!-- Saved Templates Accordion / Card -->
-      @if (showSaveFormat) {
-        <div class="studio-card templates-card">
-          <div class="card-header-compact">
-            <div class="card-header-title">
-              <ion-icon name="bookmark-outline" class="icon-sm text-amber-500"></ion-icon>
-              <h3>Envelope Format Templates</h3>
-            </div>
-            <button type="button" (click)="showSaveFormat = false" class="btn-close-sm">
-              <ion-icon name="close" class="icon-xs"></ion-icon>
-            </button>
-          </div>
-
-          <div class="card-body">
-            <!-- Save New Template Form -->
-            <div class="save-template-form">
-              <input
-                type="text"
-                [value]="formatName"
-                (input)="onFormatNameInput($event)"
-                placeholder="Enter template name (e.g. All Isabela Treasurers)..."
-                class="studio-input"
-              />
-              <button type="button" (click)="saveCurrentFormat()" class="btn-save-template">
-                Save Current
-              </button>
-            </div>
-
-            <!-- List of Saved Formats -->
-            <div class="saved-templates-list">
-              @for (fmt of savedFormats; track fmt.id) {
-                <div class="template-item">
-                  <button type="button" (click)="loadFormat(fmt)" class="template-load-btn">
-                    <div class="template-name">{{ fmt.name }}</div>
-                    <div class="template-meta">
-                      {{ fmt.addressees.length }} recipient(s) &bull; {{ fmt.subject || 'No subject' }}
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    (click)="deleteFormat(fmt.id)"
-                    class="btn-icon-action btn-icon-danger"
-                    title="Delete template"
-                  >
-                    <ion-icon name="trash" class="icon-xs"></ion-icon>
-                  </button>
-                </div>
-              }
-              @if (savedFormats.length === 0) {
-                <div class="empty-templates-message">
-                  No saved templates yet. Create your setup above and save it here for 1-click reuse.
-                </div>
-              }
-            </div>
-          </div>
-        </div>
-      }
     </div>
 
     <!-- RIGHT COLUMN: Sticky Live Canvas Studio -->
@@ -612,14 +554,14 @@
             >
               <!-- Official Government Letterhead -->
               <div class="mockup-letterhead">
-                <div class="gov-rep-line">Republic of the Philippines</div>
-                <div class="gov-dof-line">Department of Finance</div>
-                <div class="gov-agency-line">
-                  <img src="/blgflogo.jpg" alt="BLGF Logo" class="mockup-blgf-logo" />
-                  <span class="gov-agency-text">Bureau of Local Government Finance</span>
+                <img src="/blgflogo.jpg" alt="BLGF Logo" class="mockup-blgf-logo" />
+                <div class="mockup-letterhead-text">
+                  <div class="gov-rep-line">Republic of the Philippines</div>
+                  <div class="gov-dof-line">Department of Finance</div>
+                  <div class="gov-agency-text">BUREAU OF LOCAL GOVERNMENT FINANCE</div>
+                  <div class="gov-regional-line">Regional Office No. II</div>
+                  <div class="gov-address-line">Regional Government Center, Carig Sur, Tuguegarao City</div>
                 </div>
-                <div class="gov-regional-line">Regional Office No. II</div>
-                <div class="gov-address-line">Regional Government Center, Carig Sur, Tuguegarao City</div>
               </div>
 
               <!-- Recipient / TO Block -->
@@ -685,7 +627,7 @@
         <!-- Canvas Quick Actions Bar -->
         <div class="canvas-footer-bar">
           <div class="canvas-footer-info">
-            <ion-icon name="information-circle-outline" class="icon-xs text-slate-400"></ion-icon>
+            <ion-icon name="information-circle-outline" class="icon-xs mailSm4Icon"></ion-icon>
             <span>Live mockup is scaled proportionally to printer output specifications.</span>
           </div>
 
@@ -702,6 +644,73 @@
           </div>
         </div>
       </div>
+
+      <!-- Saved Templates Card - Placed directly below Print Envelope -->
+      <div class="studio-card templates-card mailStudioCard" id="envelope-templates-section">
+        <div class="card-header-compact">
+          <div class="card-header-title">
+            <ion-icon name="bookmark" class="icon-sm mailSm5Icon"></ion-icon>
+            <h3>Envelope Format Templates</h3>
+            @if (savedFormats.length > 0) {
+              <span class="badge-count">{{ savedFormats.length }}</span>
+            }
+          </div>
+          <button
+            type="button"
+            (click)="showSaveFormat = !showSaveFormat"
+            class="btn-toggle-templates"
+            [attr.title]="showSaveFormat ? 'Collapse format templates' : 'Expand format templates'"
+          >
+            <ion-icon [name]="showSaveFormat ? 'chevron-up' : 'chevron-down'" class="icon-xs"></ion-icon>
+            <span>{{ showSaveFormat ? 'Hide' : 'Show' }}</span>
+          </button>
+        </div>
+
+        @if (showSaveFormat) {
+          <div class="card-body">
+            <!-- Save New Template Form -->
+            <div class="save-template-form">
+              <input
+                type="text"
+                [value]="formatName"
+                (input)="onFormatNameInput($event)"
+                placeholder="Enter template name (e.g. All Isabela Treasurers)..."
+                class="studio-input"
+              />
+              <button type="button" (click)="saveCurrentFormat()" class="btn-save-template">
+                Save Current
+              </button>
+            </div>
+
+            <!-- List of Saved Formats -->
+            <div class="saved-templates-list">
+              @for (fmt of savedFormats; track fmt.id) {
+                <div class="template-item">
+                  <button type="button" (click)="loadFormat(fmt)" class="template-load-btn" title="Click to load this envelope format">
+                    <div class="template-name">{{ fmt.name }}</div>
+                    <div class="template-meta">
+                      {{ fmt.addressees.length }} recipient(s) &bull; {{ fmt.subject || 'No subject' }}
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    (click)="deleteFormat(fmt.id)"
+                    class="btn-icon-action btn-icon-danger"
+                    title="Delete template"
+                  >
+                    <ion-icon name="trash" class="icon-xs"></ion-icon>
+                  </button>
+                </div>
+              }
+              @if (savedFormats.length === 0) {
+                <div class="empty-templates-message">
+                  No saved templates yet. Create your setup above and save it here for 1-click reuse.
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
     </div>
   </div>
 
@@ -710,16 +719,14 @@
     @for (addr of addressees; track addr.id) {
       <div class="envelope-envelope" [style.--env-width]="envelopeDimensions.width" [style.--env-height]="envelopeDimensions.height">
         <div class="envelope-letterhead">
-          <div class="envelope-governmentLine">Republic of the Philippines</div>
-          <div class="envelope-governmentLine">Department of Finance</div>
-          <div class="envelope-agencyLine">
-            <div class="envelope-agencyName">
-              <img src="/blgflogo.jpg" alt="BLGF Regional Office II logo" class="envelope-logo" />
-              Bureau of Local Government Finance, RO2
-            </div>
+          <img src="/blgflogo.jpg" alt="BLGF Regional Office II logo" class="envelope-logo" />
+          <div class="envelope-letterhead-text">
+            <div class="envelope-governmentLine">Republic of the Philippines</div>
+            <div class="envelope-governmentLine">Department of Finance</div>
+            <div class="envelope-agencyName">BUREAU OF LOCAL GOVERNMENT FINANCE</div>
+            <div class="envelope-regionalOffice">Regional Office No. II</div>
+            <div class="envelope-city">Regional Government Center, Carig Sur, Tuguegarao City</div>
           </div>
-          <div class="envelope-regionalOffice">Regional Office No. 02</div>
-          <div class="envelope-city">Carig, Tuguegarao City</div>
         </div>
         <div class="envelope-recipientAddress">
           <p class="envelope-toLabel">To:</p>
@@ -739,7 +746,7 @@
     <div class="modal-content-wrapper">
       <div class="modal-header-clean">
         <div class="modal-title-group">
-          <div class="modal-icon-badge text-blue-600 bg-blue-50">
+          <div class="modal-icon-badge mailModalBadgeIcon">
             <ion-icon name="link" class="icon-md"></ion-icon>
           </div>
           <div>
@@ -818,7 +825,7 @@
                 <h4 class="doc-subject">{{ doc.subject || doc.title }}</h4>
                 <div class="doc-meta-trail">
                   <span>From: <strong>{{ doc.originatingOffice }}</strong></span>
-                  <ion-icon name="arrow-forward" class="icon-xs text-slate-400"></ion-icon>
+                  <ion-icon name="arrow-forward" class="icon-xs mailSm4Icon"></ion-icon>
                   <span>To: <strong>{{ doc.recipientName ? doc.recipientName + ' (' + doc.destinationOffice + ')' : doc.destinationOffice }}</strong></span>
                 </div>
               </div>
@@ -835,7 +842,7 @@
         }
         @if (filteredDocuments.length === 0) {
           <div class="modal-empty-state">
-            <ion-icon name="search" class="icon-lg text-slate-300"></ion-icon>
+            <ion-icon name="search" class="icon-lg mailLgIcon"></ion-icon>
             <p>No matching DTS documents found.</p>
           </div>
         }
@@ -848,7 +855,7 @@
     <div class="modal-content-wrapper">
       <div class="modal-header-clean">
         <div class="modal-title-group">
-          <div class="modal-icon-badge text-emerald-600 bg-emerald-50">
+          <div class="modal-icon-badge mailModalBadge2Icon">
             <ion-icon name="people" class="icon-md"></ion-icon>
           </div>
           <div>
@@ -962,7 +969,7 @@
             </div>
 
             <div class="dir-avatar-badge">
-              <ion-icon name="person-circle" class="icon-md text-slate-400"></ion-icon>
+              <ion-icon name="person-circle" class="icon-md mailSm4Icon"></ion-icon>
             </div>
 
             <div class="dir-info-block">
@@ -974,7 +981,7 @@
               <div class="dir-office-address">
                 <span>{{ emp.office }}</span>
                 @if (emp.address) {
-                  &bull; <span class="text-slate-500">{{ emp.address }}</span>
+                  &bull; <span class="mailSpan">{{ emp.address }}</span>
                 }
               </div>
             </div>
@@ -982,7 +989,7 @@
         }
         @if (filteredEmployees.length === 0) {
           <div class="modal-empty-state">
-            <ion-icon name="people" class="icon-lg text-slate-300"></ion-icon>
+            <ion-icon name="people" class="icon-lg mailLgIcon"></ion-icon>
             <p>No matching contacts found in Office Directory.</p>
           </div>
         }

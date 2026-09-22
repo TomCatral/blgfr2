@@ -448,12 +448,13 @@
 }
 
 /* Dark Mode */
-.dark .routing-followup-hero {
-  color: #f1f5f9;
-  background: linear-gradient(135deg, #0f172a 0%, #162032 100%);
-  border-color: #1e293b;
-}
-:host-context(.dark) {
+:host-context(.dark),
+:host-context(html.dark) {
+  .routing-followup-hero {
+    color: #f1f5f9;
+    background: linear-gradient(135deg, #0f172a 0%, #162032 100%);
+    border-color: #1e293b;
+  }
   .routing-followup-eyebrow { color: #60a5fa; }
   .routing-followup-heroTitle { color: #f8fafc; }
   .routing-followup-heroDescription,

@@ -1,4 +1,13 @@
 <div class="ua-container">
+  <!-- Hidden Quick Avatar File Input -->
+  <input
+    type="file"
+    #quickAvatarFileInput
+    accept="image/png,image/jpeg,image/webp,image/gif"
+    class="usersInput"
+    (change)="onQuickAvatarSelected($event)"
+  />
+
   <!-- 1. Executive Hero Header -->
   <header class="ua-hero">
     <div class="ua-hero-content">
@@ -227,8 +236,8 @@
                   <th class="ua-th-status">
                     <span class="ua-th-content"><ion-icon name="pulse-outline"></ion-icon><span>Account Status</span></span>
                   </th>
-                  <th class="ua-th-actions text-right">
-                    <span class="ua-th-content justify-end"><ion-icon name="flash-outline"></ion-icon><span>Actions</span></span>
+                  <th class="ua-th-actions usersUaThActions">
+                    <span class="ua-th-content usersUaTh"><ion-icon name="flash-outline"></ion-icon><span>Actions</span></span>
                   </th>
                 </tr>
               </thead>
@@ -253,8 +262,21 @@
                       <!-- Personnel details -->
                       <td class="ua-td-personnel">
                         <div class="ua-user-cell">
-                          <div class="ua-user-avatar" [ngClass]="roleAvatarClass(usr.role)">
-                            {{ usr.fullName ? usr.fullName.charAt(0) : 'U' }}
+                          <div
+                            class="ua-user-avatar"
+                            [class.has-img]="!!usr.avatarUrl"
+                            [ngClass]="roleAvatarClass(usr.role)"
+                            (click)="triggerQuickAvatar(usr, $event, quickAvatarFileInput)"
+                            title="Click to change photo"
+                          >
+                            @if (usr.avatarUrl) {
+                              <img [src]="usr.avatarUrl" [alt]="usr.fullName + ' photo'" class="ua-avatar-img" />
+                            } @else {
+                              <span class="ua-avatar-letter">{{ usr.fullName ? usr.fullName.charAt(0) : 'U' }}</span>
+                            }
+                            <span class="ua-avatar-edit-overlay" title="Change photo">
+                              <ion-icon name="camera"></ion-icon>
+                            </span>
                           </div>
                           <div class="ua-user-meta">
                             <div class="ua-user-name" [title]="usr.fullName">{{ usr.fullName }}</div>
@@ -318,7 +340,7 @@
                       </td>
 
                       <!-- Actions -->
-                      <td class="ua-td-actions text-right">
+                      <td class="ua-td-actions usersUaThActions">
                         <div class="ua-action-btns">
                           <button
                             type="button"
@@ -366,8 +388,21 @@
               <div class="ua-card-inner">
                 <div class="ua-card-header">
                   <div class="ua-card-avatar-wrap">
-                    <div class="ua-card-avatar" [ngClass]="roleAvatarClass(usr.role)">
-                      {{ usr.fullName ? usr.fullName.charAt(0) : 'U' }}
+                    <div
+                      class="ua-card-avatar"
+                      [class.has-img]="!!usr.avatarUrl"
+                      [ngClass]="roleAvatarClass(usr.role)"
+                      (click)="triggerQuickAvatar(usr, $event, quickAvatarFileInput)"
+                      title="Click to change photo"
+                    >
+                      @if (usr.avatarUrl) {
+                        <img [src]="usr.avatarUrl" [alt]="usr.fullName + ' photo'" class="ua-avatar-img" />
+                      } @else {
+                        <span class="ua-avatar-letter">{{ usr.fullName ? usr.fullName.charAt(0) : 'U' }}</span>
+                      }
+                      <span class="ua-avatar-edit-overlay" title="Change photo">
+                        <ion-icon name="camera"></ion-icon>
+                      </span>
                     </div>
                     <span class="ua-avatar-status" [class.active]="usr.active"></span>
                   </div>
@@ -581,7 +616,7 @@
               <tr class="ua-matrix-data-row">
                 <td class="ua-matrix-feature-cell">
                   <div class="ua-feature-text">
-                    <span class="ua-feature-title text-rose-600">Delete Document Permission</span>
+                    <span class="ua-feature-title usersUaFeatureTitle">Delete Document Permission</span>
                     <span class="ua-feature-desc">Permanent document record purging privilege</span>
                   </div>
                 </td>
@@ -658,7 +693,7 @@
 
               @for (item of mainMenuItems; track item.id) {
                 <tr class="ua-matrix-data-row">
-                  <td class="ua-matrix-feature-cell pl-8">
+                  <td class="ua-matrix-feature-cell usersUaMatrixFeature">
                     <div class="ua-subitem-row">
                       <ion-icon [name]="item.icon + '-outline'"></ion-icon>
                       <span>{{ item.label }}</span>
@@ -694,7 +729,7 @@
 
               @for (item of reportMenuItems; track item.id) {
                 <tr class="ua-matrix-data-row">
-                  <td class="ua-matrix-feature-cell pl-8">
+                  <td class="ua-matrix-feature-cell usersUaMatrixFeature">
                     <div class="ua-subitem-row">
                       <ion-icon [name]="item.icon + '-outline'"></ion-icon>
                       <span>{{ item.label }}</span>
@@ -741,7 +776,7 @@
 
               @for (item of managementMenuItems; track item.id) {
                 <tr class="ua-matrix-data-row">
-                  <td class="ua-matrix-feature-cell pl-8">
+                  <td class="ua-matrix-feature-cell usersUaMatrixFeature">
                     <div class="ua-subitem-row">
                       <ion-icon [name]="item.icon + '-outline'"></ion-icon>
                       <span>{{ item.label }}</span>
@@ -790,7 +825,7 @@
 
               @for (item of logsMenuItems; track item.id) {
                 <tr class="ua-matrix-data-row">
-                  <td class="ua-matrix-feature-cell pl-8">
+                  <td class="ua-matrix-feature-cell usersUaMatrixFeature">
                     <div class="ua-subitem-row">
                       <ion-icon [name]="item.icon + '-outline'"></ion-icon>
                       <span>{{ item.label }}</span>
@@ -972,6 +1007,50 @@
 
       <form (ngSubmit)="handleCreateSubmit()" class="ua-modal-form">
         <div class="ua-modal-grid">
+          <!-- Profile Picture -->
+          <div class="ua-col-span-2 ua-avatar-form-row">
+            <input
+              type="file"
+              #createAvatarFileInput
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              class="usersInput"
+              (change)="onFormAvatarSelected($event)"
+            />
+            <div class="ua-form-avatar-preview" [class.has-img]="!!avatarUrl()" [ngClass]="roleAvatarClass(role())">
+              @if (avatarUrl()) {
+                <img [src]="avatarUrl()" alt="Profile preview" class="ua-avatar-img" />
+              } @else {
+                <span class="ua-avatar-letter">{{ fullName() ? fullName().charAt(0) : 'U' }}</span>
+              }
+            </div>
+            <div class="ua-avatar-form-controls">
+              <label class="ua-label">Profile Photo</label>
+              <div class="ua-avatar-btns">
+                <button
+                  type="button"
+                  (click)="triggerFormAvatar(createAvatarFileInput)"
+                  class="ua-btn-avatar-upload"
+                  [disabled]="isUploadingAvatar()"
+                >
+                  <ion-icon name="camera-outline"></ion-icon>
+                  <span>{{ avatarUrl() ? 'Change Picture' : 'Upload Picture' }}</span>
+                </button>
+                @if (avatarUrl()) {
+                  <button
+                    type="button"
+                    (click)="removeFormAvatar()"
+                    class="ua-btn-avatar-remove"
+                    title="Remove profile picture"
+                  >
+                    <ion-icon name="trash-outline"></ion-icon>
+                    <span>Remove</span>
+                  </button>
+                }
+              </div>
+              <p class="ua-avatar-hint">PNG, JPG, or WEBP up to 5 MB</p>
+            </div>
+          </div>
+
           <!-- Full Name -->
           <div class="ua-col-span-2">
             <label class="ua-label">Full Name <span class="ua-req">*</span></label>
@@ -1160,6 +1239,50 @@
 
         <form (ngSubmit)="handleEditSubmit()" class="ua-modal-form">
           <div class="ua-modal-grid">
+            <!-- Profile Picture -->
+            <div class="ua-col-span-2 ua-avatar-form-row">
+              <input
+                type="file"
+                #editAvatarFileInput
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                class="usersInput"
+                (change)="onFormAvatarSelected($event)"
+              />
+              <div class="ua-form-avatar-preview" [class.has-img]="!!avatarUrl()" [ngClass]="roleAvatarClass(role())">
+                @if (avatarUrl()) {
+                  <img [src]="avatarUrl()" alt="Profile preview" class="ua-avatar-img" />
+                } @else {
+                  <span class="ua-avatar-letter">{{ fullName() ? fullName().charAt(0) : 'U' }}</span>
+                }
+              </div>
+              <div class="ua-avatar-form-controls">
+                <label class="ua-label">Profile Photo</label>
+                <div class="ua-avatar-btns">
+                  <button
+                    type="button"
+                    (click)="triggerFormAvatar(editAvatarFileInput)"
+                    class="ua-btn-avatar-upload"
+                    [disabled]="isUploadingAvatar()"
+                  >
+                    <ion-icon name="camera-outline"></ion-icon>
+                    <span>{{ avatarUrl() ? 'Change Picture' : 'Upload Picture' }}</span>
+                  </button>
+                  @if (avatarUrl()) {
+                    <button
+                      type="button"
+                      (click)="removeFormAvatar()"
+                      class="ua-btn-avatar-remove"
+                      title="Remove profile picture"
+                    >
+                      <ion-icon name="trash-outline"></ion-icon>
+                      <span>Remove</span>
+                    </button>
+                  }
+                </div>
+                <p class="ua-avatar-hint">PNG, JPG, or WEBP up to 5 MB</p>
+              </div>
+            </div>
+
             <!-- Full Name -->
             <div class="ua-col-span-2">
               <label class="ua-label">Full Name <span class="ua-req">*</span></label>

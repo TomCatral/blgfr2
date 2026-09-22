@@ -1,6 +1,7 @@
 import { Component, Input, signal, inject, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
 import { cx } from '../../../shared/class-utils';
 import {
   User,
@@ -13,6 +14,7 @@ import {
 import { AppModalLayerComponent } from '../../ui/modal-layer.component';
 import { showConfirm } from '../../../services/dialog.service';
 import { UiService } from '../../../services/ui.service';
+import { ApiService } from '../../../services/api.service';
 
 interface RoleOption {
   role: Role;
@@ -162,6 +164,7 @@ export class UserManagementComponent {
   ACTION_PERMISSIONS = ACTION_PERMISSIONS;
 
   private ui = inject(UiService);
+  private api = inject(ApiService);
 
   activeTab = signal<'users' | 'roles' | 'divisions'>('users');
   showCreatePassword = signal(false);
@@ -169,6 +172,8 @@ export class UserManagementComponent {
   rolePermissions = signal<Record<Role, RolePermission>>(loadRolePermissions());
   showCreateModal = signal(false);
   editingUser = signal<User | null>(null);
+  targetUserForAvatar = signal<User | null>(null);
+  isUploadingAvatar = signal(false);
   searchTerm = signal('');
   roleFilter = signal<string>('ALL');
   divisionFilter = signal<string>('ALL');
@@ -181,6 +186,7 @@ export class UserManagementComponent {
   username = signal('');
   password = signal('');
   email = signal('');
+  avatarUrl = signal('');
   role = signal<Role>('STAFF');
   divisionCode = signal<DivisionCode>('AD');
   designation = signal('');
@@ -460,6 +466,7 @@ export class UserManagementComponent {
       divisionCode: this.divisionCode(),
       designation: this.designation() || 'Staff Officer',
       contactNo: this.contactNo() || '0917-000-0000',
+      avatarUrl: this.avatarUrl(),
       active: true,
       permissions: this.formPermissions(),
     });
@@ -474,6 +481,7 @@ export class UserManagementComponent {
     this.username.set('');
     this.password.set('');
     this.email.set('');
+    this.avatarUrl.set('');
     this.designation.set('');
     this.contactNo.set('');
     this.role.set('STAFF');
@@ -491,6 +499,7 @@ export class UserManagementComponent {
     this.username.set(user.username);
     this.password.set('');
     this.email.set(user.email);
+    this.avatarUrl.set(user.avatarUrl || '');
     this.role.set(user.role);
     this.divisionCode.set(user.divisionCode);
     this.designation.set(user.designation);
@@ -517,6 +526,7 @@ export class UserManagementComponent {
 
     const name = this.fullName();
     const passwordTrimmed = this.password().trim();
+    const newAvatar = this.avatarUrl();
 
     await this.onUpdateUser(user.id, {
       fullName: this.fullName(),
@@ -527,12 +537,82 @@ export class UserManagementComponent {
       divisionCode: this.divisionCode(),
       designation: this.designation(),
       contactNo: this.contactNo(),
+      avatarUrl: newAvatar,
       permissions: this.formPermissions(),
     });
 
+    user.avatarUrl = newAvatar;
     this.editingUser.set(null);
     this.resetForm();
     this.ui.showSuccess(`User account "${name}" updated successfully!`);
+  }
+
+  triggerQuickAvatar(user: User, event: Event, fileInput: HTMLInputElement): void {
+    event.stopPropagation();
+    event.preventDefault();
+    this.targetUserForAvatar.set(user);
+    fileInput.value = '';
+    fileInput.click();
+  }
+
+  async onQuickAvatarSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    const targetUser = this.targetUserForAvatar();
+    if (!file || !targetUser) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      this.ui.showError('Profile picture must be 5 MB or smaller.');
+      input.value = '';
+      return;
+    }
+
+    try {
+      this.isUploadingAvatar.set(true);
+      const stored = await firstValueFrom(this.api.uploadToStorage('profilePictures', file));
+      await this.onUpdateUser(targetUser.id, { avatarUrl: stored.url });
+      targetUser.avatarUrl = stored.url;
+      this.ui.showSuccess(`Profile picture updated for ${targetUser.fullName}!`);
+    } catch (err: unknown) {
+      this.ui.showError(String((err as Error)?.message || 'Failed to upload profile picture.'));
+    } finally {
+      this.isUploadingAvatar.set(false);
+      this.targetUserForAvatar.set(null);
+      input.value = '';
+    }
+  }
+
+  triggerFormAvatar(fileInput: HTMLInputElement): void {
+    fileInput.value = '';
+    fileInput.click();
+  }
+
+  async onFormAvatarSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      this.ui.showError('Profile picture must be 5 MB or smaller.');
+      input.value = '';
+      return;
+    }
+
+    try {
+      this.isUploadingAvatar.set(true);
+      const stored = await firstValueFrom(this.api.uploadToStorage('profilePictures', file));
+      this.avatarUrl.set(stored.url);
+      this.ui.showSuccess('Photo uploaded successfully.');
+    } catch (err: unknown) {
+      this.ui.showError(String((err as Error)?.message || 'Failed to upload photo.'));
+    } finally {
+      this.isUploadingAvatar.set(false);
+      input.value = '';
+    }
+  }
+
+  removeFormAvatar(): void {
+    this.avatarUrl.set('');
   }
 
   async handleDelete(user: User): Promise<void> {

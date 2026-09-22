@@ -10,6 +10,7 @@ import { Subscription } from 'rxjs';
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   imports: [FormsModule],
   templateUrl: './app-dialog-host.component.html',
+  styleUrl: './app-dialog-host.component.scss',
 })
 export class AppDialogHostComponent implements OnInit, OnDestroy {
   private dialogService = inject(DialogService);

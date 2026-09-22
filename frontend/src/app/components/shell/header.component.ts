@@ -15,8 +15,6 @@ import { FormsModule } from '@angular/forms';
 import { ClsPipe } from '../../shared/cls.pipe';
 import { DocumentRecord, NotificationItem, User } from '../../types';
 import { Html5Qrcode } from 'html5-qrcode';
-import { NAVIGATION_ITEMS, NavigationItem } from './sidebar.component';
-
 interface SearchResult {
   doc: DocumentRecord;
   matchedField: string;
@@ -50,7 +48,6 @@ export class HeaderComponent implements OnInit, OnDestroy {
   @Input() notifications: NotificationItem[] = [];
   @Input() isDarkMode = false;
   @Input() isOnline = true;
-  @Input() activeView = 'dashboard';
   @Input()
   set searchQuery(value: string) {
     this._searchQuery = value || '';
@@ -82,18 +79,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     window.matchMedia('(display-mode: standalone)').matches ||
     (window.navigator as unknown as { standalone?: boolean }).standalone === true;
 
-  currentNavItem(): NavigationItem | undefined {
-    if (this.activeView === 'settings') {
-      return {
-        id: 'settings',
-        label: 'User Settings',
-        miniLabel: 'Settings',
-        icon: 'settings',
-        section: 'Management',
-      };
-    }
-    return NAVIGATION_ITEMS.find((item) => item.id === this.activeView);
-  }
+
 
   window = window;
 

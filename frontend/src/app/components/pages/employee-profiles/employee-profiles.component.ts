@@ -830,6 +830,13 @@ export class EmployeeProfilesComponent implements OnInit {
     return new Date(date).toLocaleString();
   }
 
+  getInitials(name?: string): string {
+    if (!name || !name.trim()) return '';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+
   customSections(): DirectorySection[] {
     return this.directorySections().filter((section) => section.id.startsWith('CUSTOM_'));
   }
