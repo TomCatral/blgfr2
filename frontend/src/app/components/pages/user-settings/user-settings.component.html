@@ -25,10 +25,10 @@
               and notification preferences
             </p>
             @if (avatarUrl) {
-              <button type="button" (click)="onRemoveAvatar()" class="settings-removeAvatar">
+              <ion-button type="button" (click)="onRemoveAvatar()" class="settings-removeAvatar">
                 <ion-icon name="trash" class="settings-tinyIcon"></ion-icon>
                 <span>Remove photo</span>
-              </button>
+              </ion-button>
             }
           </div>
         </div>
@@ -45,7 +45,7 @@
       </div>
 
       <div class="settings-tabs">
-        <button
+        <ion-button
           type="button"
           (click)="setActiveTab('profile')"
           class="settings-tab"
@@ -53,8 +53,8 @@
         >
           <ion-icon name="person" class="settings-smallIcon"></ion-icon>
           <span>Profile Details</span>
-        </button>
-        <button
+        </ion-button>
+        <ion-button
           type="button"
           (click)="setActiveTab('security')"
           class="settings-tab"
@@ -62,8 +62,8 @@
         >
           <ion-icon name="lock-closed" class="settings-smallIcon"></ion-icon>
           <span>Change Password &amp; Security</span>
-        </button>
-        <button
+        </ion-button>
+        <ion-button
           type="button"
           (click)="setActiveTab('preferences')"
           class="settings-tab"
@@ -71,16 +71,17 @@
         >
           <ion-icon name="notifications" class="settings-smallIcon"></ion-icon>
           <span>System Preferences</span>
-        </button>
+        </ion-button>
       </div>
 
       @if (activeTab === 'profile') {
         <form (ngSubmit)="onSaveProfile()" class="settings-section">
           <div class="settings-sectionHeader">
             <ion-icon name="person" class="settings-sectionIcon"></ion-icon>
-            <h3 class="settings-sectionTitle">
-              Personal &amp; Official Identification
-            </h3>
+            <div>
+              <h3 class="settings-sectionTitle">Personal &amp; Official Identification</h3>
+              <p class="user-settings-style-001-644708">You may update your personal account details. Role, division, permissions, and account status are managed by an administrator.</p>
+            </div>
           </div>
 
           <div class="settings-photoPanel">
@@ -99,15 +100,15 @@
                   appear in your account and logout menu after saving.
                 </p>
                 <div class="settings-photoActions">
-                  <button type="button" (click)="openAvatarPicker()" class="settings-uploadButton">
+                  <ion-button type="button" (click)="openAvatarPicker()" class="settings-uploadButton">
                     <ion-icon name="camera" class="settings-compactIcon"></ion-icon>
                     {{ avatarUrl ? 'Change Photo' : 'Upload Photo' }}
-                  </button>
+                  </ion-button>
                   @if (avatarUrl) {
-                    <button type="button" (click)="onRemoveAvatar()" class="settings-removePhotoButton">
+                    <ion-button type="button" (click)="onRemoveAvatar()" class="settings-removePhotoButton">
                       <ion-icon name="trash" class="settings-compactIcon"></ion-icon>
                       Remove
-                    </button>
+                    </ion-button>
                   }
                 </div>
               </div>
@@ -120,7 +121,7 @@
                 <ion-icon name="person" class="settings-fieldIcon"></ion-icon>
                 <span>Full Name:</span>
               </label>
-              <input
+              <ion-input
                 type="text"
                 name="fullName"
                 [(ngModel)]="fullName"
@@ -135,7 +136,7 @@
                 <ion-icon name="key" class="settings-fieldIcon"></ion-icon>
                 <span>Account Username:</span>
               </label>
-              <input
+              <ion-input
                 type="text"
                 name="username"
                 [(ngModel)]="username"
@@ -151,7 +152,7 @@
                 <ion-icon name="mail" class="settings-fieldIcon"></ion-icon>
                 <span>Official Email Address:</span>
               </label>
-              <input
+              <ion-input
                 type="text"
                 name="email"
                 [(ngModel)]="email"
@@ -165,7 +166,7 @@
                 <ion-icon name="call" class="settings-fieldIcon"></ion-icon>
                 <span>Contact Number:</span>
               </label>
-              <input
+              <ion-input
                 type="text"
                 name="contactNo"
                 [(ngModel)]="contactNo"
@@ -179,7 +180,7 @@
                 <ion-icon name="briefcase" class="settings-fieldIcon"></ion-icon>
                 <span>Official Position / Designation:</span>
               </label>
-              <input
+              <ion-input
                 type="text"
                 name="designation"
                 [(ngModel)]="designation"
@@ -193,35 +194,41 @@
                 <ion-icon name="business" class="settings-fieldIcon"></ion-icon>
                 <span>Assigned Division / Office:</span>
               </label>
-              <select
+              <ion-select
+                interface="popover"
                 name="divisionCode"
                 [(ngModel)]="divisionCode"
+                [disabled]="true"
                 class="settings-strongInput"
               >
-                <option value="ITMS">
+                <ion-select-option value="ITMS">
                   Information Technology Management System (ITMS)
-                </option>
-                <option value="ORD">
+                </ion-select-option>
+                <ion-select-option value="ORD">
                   Office of the Regional Director (ORD)
-                </option>
-                <option value="AD">Administrative Division (AD)</option>
-                <option value="LAOD">
+                </ion-select-option>
+                <ion-select-option value="AD">Administrative Division (AD)</ion-select-option>
+                <ion-select-option value="LAOD">
                   Local Assessment Operations Division (LAOD)
-                </option>
-                <option value="LTOD">
+                </ion-select-option>
+                <ion-select-option value="LTOD">
                   Local Treasury Operations Division (LTOD)
-                </option>
-                <option value="FD">Financial Division (FD)</option>
-                <option value="LU">Legal Division / Unit (LU)</option>
-              </select>
+                </ion-select-option>
+                <ion-select-option value="FD">Financial Division (FD)</ion-select-option>
+                <ion-select-option value="LU">Legal Division / Unit (LU)</ion-select-option>
+              </ion-select>
+              <p class="user-settings-style-002-9ceac0">
+                <ion-icon name="lock-closed-outline"></ion-icon>
+                Contact an administrator to change your assigned division.
+              </p>
             </div>
           </div>
 
           <div class="settings-saveRow">
-            <button type="submit" [disabled]="saving" class="settings-saveButton">
+            <ion-button type="submit" [disabled]="saving" class="settings-saveButton">
               <ion-icon name="save" class="settings-smallIcon"></ion-icon>
               <span>{{ saving ? 'Saving Profile...' : 'Save Profile Changes' }}</span>
-            </button>
+            </ion-button>
           </div>
         </form>
       }
@@ -239,7 +246,7 @@
                 Current Password:
               </label>
               <div class="settings-passwordField">
-                <input
+                <ion-input
                   name="currentPassword"
                   [(ngModel)]="currentPassword"
                   [type]="showCurrentPass ? 'text' : 'password'"
@@ -264,7 +271,7 @@
             <div>
               <label class="settings-simpleLabel">New Password:</label>
               <div class="settings-passwordField">
-                <input
+                <ion-input
                   name="newPassword"
                   [(ngModel)]="newPassword"
                   [type]="showNewPass ? 'text' : 'password'"
@@ -308,7 +315,7 @@
                 Confirm New Password:
               </label>
               <div class="settings-passwordField">
-                <input
+                <ion-input
                   name="confirmPassword"
                   [(ngModel)]="confirmPassword"
                   [type]="showConfirmPass ? 'text' : 'password'"
@@ -332,10 +339,10 @@
           </div>
 
           <div class="settings-passwordSaveRow">
-            <button type="submit" [disabled]="saving" class="settings-passwordButton">
+            <ion-button type="submit" [disabled]="saving" class="settings-passwordButton">
               <ion-icon name="lock-closed" class="settings-smallIcon"></ion-icon>
               <span>{{ saving ? 'Updating Password...' : 'Update Security Password' }}</span>
-            </button>
+            </ion-button>
           </div>
         </form>
       }
@@ -360,8 +367,7 @@
                   routed to your division.
                 </div>
               </div>
-              <input
-                type="checkbox"
+              <ion-checkbox
                 name="emailNotifs"
                 [(ngModel)]="emailNotifs"
                 class="settings-checkbox"
@@ -378,8 +384,7 @@
                   require immediate signature.
                 </div>
               </div>
-              <input
-                type="checkbox"
+              <ion-checkbox
                 name="routingAlerts"
                 [(ngModel)]="routingAlerts"
                 class="settings-checkbox"
@@ -396,8 +401,7 @@
                   logs.
                 </div>
               </div>
-              <input
-                type="checkbox"
+              <ion-checkbox
                 name="soundEffects"
                 [(ngModel)]="soundEffects"
                 class="settings-checkbox"
@@ -407,4 +411,3 @@
         </div>
       }
     </div>
-  

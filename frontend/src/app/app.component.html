@@ -1,27 +1,26 @@
-
-    <app-dialog-host />
-    <app-global-input-autocomplete />
+<app-dialog-host />
+<app-global-input-autocomplete />
 
     @if (showingStartupState()) {
-      <div class="grid min-h-dvh place-items-center bg-slate-50 dark:bg-slate-950">
-        <img src="/blgflogo.jpg" alt="" class="startup-logo h-13 w-13 rounded-full object-contain" />
+      <div class="appStyle">
+        <img src="/blgflogo.jpg" alt="" class="startup-logo appStartupLogoImg" />
       </div>
     } @else if (!currentUser()) {
       <app-login />
     } @else {
       <div
-        class="app-shell font-sans"
+        class="app-shell appAppShell1"
         [class.dark]="session.isDarkMode()"
-        [ngClass]="'antialiased selection:bg-blue-600 selection:text-white bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100' | cls"
+        [ngClass]="'appAppShell2' | cls"
       >
         <app-header
           [currentUser]="currentUser()!"
           [users]="state.users()"
           [documents]="accessibleDocuments()"
+          [auditLogs]="state.auditLogs()"
           [notifications]="state.notifications()"
           [isDarkMode]="session.isDarkMode()"
           [isOnline]="session.isOnline()"
-          [activeView]="activeView()"
           [searchQuery]="searchQuery()"
           (onSearchDoc)="handleSearchDoc($event)"
           (onClearSearch)="clearSearch()"
@@ -34,8 +33,8 @@
 
         <div class="app-workspace">
           @if (isMobileSidebarOpen()) {
-            <div class="mobile-sidebar-backdrop fixed inset-0 z-[45] bg-slate-950/60 backdrop-blur-sm" (click)="isMobileSidebarOpen.set(false)">
-              <div class="relative z-[46] h-full w-full max-w-[280px]" (click)="stop($event)">
+            <div class="appMobileSidebarBackdrop app-style-001-fb58f6" (click)="isMobileSidebarOpen.set(false)">
+              <div class="appStop" (click)="stop($event)">
                 <app-sidebar
                   [activeView]="activeView()"
                   [currentUser]="currentUser()!"
@@ -49,8 +48,8 @@
               </div>
             </div>
           } @else {
-            <div class="desktop-sidebar-shell" [style.width.px]="isSidebarCollapsed() ? 64 : 248">
-              <div [ngClass]="'sticky top-0 h-full' | cls">
+            <div class="desktop-sidebar-shell" [style.width.px]="isSidebarCollapsed() ? 64 : 264">
+              <div [ngClass]="'app23' | cls">
                 <app-sidebar
                   [activeView]="activeView()"
                   [currentUser]="currentUser()!"
@@ -116,7 +115,7 @@
                 />
               }
               @if (activeView() === 'slip' && canViewSlip()) {
-                <app-document-slip
+                <app-routing-slip
                   [document]="slipSelectedDoc()"
                   [documents]="accessibleDocuments()"
                   [currentUser]="currentUser()!"
@@ -170,7 +169,7 @@
           </main>
         </div>
 
-        <footer class="app-footer" [ngClass]="'fixed inset-x-0 bottom-0 z-40 flex h-7 items-center justify-center border-t border-blue-900 bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 px-4 text-[10px] font-medium text-slate-300' | cls">
+        <footer class="app-footer" [ngClass]="'appApp' | cls">
           DOF &bull; BLGF REGION II &bull; Document Tracking System
         </footer>
 
@@ -186,6 +185,7 @@
             [onPrintSlip]="printSlipFromDetail"
             [onDeleteDoc]="deleteDocument"
             [onRefreshDocument]="loadBackendData"
+            [onDecision]="handleDocumentDetailDecision"
           />
         }
 
@@ -271,21 +271,21 @@
                 </div>
 
                 <div class="deadline-actions">
-                  <button
+                  <ion-button
                     type="button"
                     class="deadline-btn-ack"
                     (click)="acknowledgeTargetDate(doc)"
                   >
                     Acknowledge
-                  </button>
-                  <button
+                  </ion-button>
+                  <ion-button
                     type="button"
                     class="deadline-btn-review"
                     (click)="reviewTargetDate(doc)"
                   >
                     <ion-icon name="open-outline"></ion-icon>
                     <span>Review Document</span>
-                  </button>
+                  </ion-button>
                 </div>
               </div>
             </div>
@@ -335,12 +335,35 @@
                   <span class="reminder-tracking-value">{{ reminder.trackingNumber }}</span>
                 </div>
 
-                <div class="reminder-actions">
-                  <button type="button" class="reminder-btn-secondary" (click)="closeReminder()">Close</button>
-                  <button type="button" class="reminder-btn-primary" (click)="viewReminderDocument(reminder)">
-                    <ion-icon name="document-text-outline"></ion-icon>
-                    <span>View Document</span>
-                  </button>
+                <div class="reminder-actions-group">
+                  <div class="reminder-decision-actions">
+                    <button
+                      type="button"
+                      class="reminder-btn-approve"
+                      [disabled]="decisionSubmittingId() === reminder.id"
+                      (click)="handleReminderDecision(reminder, 'APPROVED')"
+                    >
+                      <ion-icon name="checkmark-circle"></ion-icon>
+                      <span>{{ decisionSubmittingId() === reminder.id ? 'Saving...' : 'Approve' }}</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="reminder-btn-disapprove"
+                      [disabled]="decisionSubmittingId() === reminder.id"
+                      (click)="handleReminderDecision(reminder, 'DISAPPROVED')"
+                    >
+                      <ion-icon name="close-circle"></ion-icon>
+                      <span>Disapprove</span>
+                    </button>
+                  </div>
+
+                  <div class="reminder-actions">
+                    <button type="button" class="reminder-btn-secondary" (click)="closeReminder()">Close</button>
+                    <button type="button" class="reminder-btn-primary" (click)="viewReminderDocument(reminder)">
+                      <ion-icon name="document-text-outline"></ion-icon>
+                      <span>View Document</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -349,89 +372,89 @@
 
         @if (routingPopup(); as popup) {
           <app-modal-layer [onClose]="closeRoutingActionPopup">
-            <div class="fixed inset-0 z-10 flex items-center justify-center p-1.5 sm:p-3">
-              <div role="dialog" aria-modal="true" aria-labelledby="routing-popup-title" class="flex w-full max-w-[600px] max-h-[calc(100dvh-32px)] flex-col overflow-hidden rounded-2xl border bg-white text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-slate-100"
-                [ngClass]="'border-slate-200 dark:border-slate-700' | cls">
-                <header class="flex items-center gap-1.5 border-b p-2.5" [ngClass]="'border-slate-200 dark:border-slate-700' | cls">
-                  <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-xl font-bold" [ngClass]="'bg-slate-100 dark:bg-slate-800' | cls">
+            <div class="app3">
+              <div role="dialog" aria-modal="true" aria-labelledby="routing-popup-title" class="app1"
+                [ngClass]="'app24' | cls">
+                <header class="app16" [ngClass]="'app24' | cls">
+                  <div class="app12" [ngClass]="'app232' | cls">
                     @if (popup.decisionStatus === 'APPROVED') {
-                      <ion-icon name="checkmark-circle" class="text-emerald-600 dark:text-emerald-400"></ion-icon>
+                      <ion-icon name="checkmark-circle" class="appCheckmarkCircleIcon"></ion-icon>
                     } @else if (popup.decisionStatus === 'DISAPPROVED') {
-                      <ion-icon name="close-circle" class="text-rose-600 dark:text-rose-400"></ion-icon>
+                      <ion-icon name="close-circle" class="appCloseCircleIcon"></ion-icon>
                     } @else {
-                      <ion-icon name="arrow-forward-circle" class="text-blue-600 dark:text-blue-400"></ion-icon>
+                      <ion-icon name="arrow-forward-circle" class="appArrowForwardCircleIcon"></ion-icon>
                     }
                   </div>
-                  <div class="min-w-0 flex-1">
-                    <h2 id="routing-popup-title" class="text-[20px] font-bold leading-tight">{{ popup.title }}</h2>
-                    <p class="mt-0.5 text-[14px] text-slate-500">{{ popup.decisionStatus ? 'Decision: ' + popup.decisionStatus.toLowerCase() : 'Review the document and requested action.' }}</p>
+                  <div class="app4">
+                    <h2 id="routing-popup-title" class="appRoutingPopupTitle">{{ popup.title }}</h2>
+                    <p class="appP">{{ popup.decisionStatus ? 'Decision: ' + popup.decisionStatus.toLowerCase() : 'Review the document and requested action.' }}</p>
                   </div>
-                  <button type="button" class="flex min-h-11 min-w-11 items-center justify-center text-2xl text-slate-500" aria-label="Close notification" (click)="closeRoutingActionPopup()">&times;</button>
+                  <button type="button" class="appCloseRoutingActionBtn" aria-label="Close notification" (click)="closeRoutingActionPopup()">&times;</button>
                 </header>
-                <div class="min-h-0 overflow-y-auto p-2 sm:p-3">
-                  <p class="text-[13px] text-slate-500">Document tracking number</p>
-                  <p class="mt-0.5 font-mono text-[15px] break-words">{{ routingPopupDocument()?.routeNo || popup.trackingNumber || 'Not recorded' }}</p>
-                  <h3 class="mb-2 mt-1.5 text-[20px] font-semibold leading-relaxed break-words">{{ routingPopupDocument()?.title || popup.message }}</h3>
-                  <div class="grid gap-2 border-t py-2 sm:grid-cols-2" [ngClass]="'border-slate-200 dark:border-slate-700' | cls">
-                    <div class="min-w-0">
-                      <p class="text-[13px] text-slate-500">Last forwarded to you by</p>
-                      <p class="mt-0.5 text-[15px] break-words">{{ routingPopupForwardedBy() || 'Not recorded' }}</p>
+                <div class="app5">
+                  <p class="app22">Document tracking number</p>
+                  <p class="app32">{{ routingPopupDocument()?.routeNo || popup.trackingNumber || 'Not recorded' }}</p>
+                  <h3 class="appH3">{{ routingPopupDocument()?.title || popup.message }}</h3>
+                  <div class="app13" [ngClass]="'app24' | cls">
+                    <div class="app6">
+                      <p class="app22">Last forwarded to you by</p>
+                      <p class="app42">{{ routingPopupForwardedBy() || 'Not recorded' }}</p>
                     </div>
-                    <div class="min-w-0">
-                      <p class="text-[13px] text-slate-500">Date & time forwarded (Philippine time)</p>
-                      <p class="mt-0.5 text-[15px] break-words">{{ routingPopupForwardedAt() || 'Not recorded' }}</p>
+                    <div class="app6">
+                      <p class="app22">Date & time forwarded (Philippine time)</p>
+                      <p class="app42">{{ routingPopupForwardedAt() || 'Not recorded' }}</p>
                     </div>
-                    <div class="min-w-0">
-                      <p class="text-[13px] text-slate-500">Forwarding office</p>
-                      <p class="mt-0.5 text-[15px] break-words">{{ routingPopupRouteFromDivision() || 'Not recorded' }}</p>
+                    <div class="app6">
+                      <p class="app22">Forwarding office</p>
+                      <p class="app42">{{ routingPopupRouteFromDivision() || 'Not recorded' }}</p>
                     </div>
-                    <div class="min-w-0">
-                      <p class="text-[13px] text-slate-500">Original sender</p>
-                      <p class="mt-0.5 text-[15px] break-words">{{ routingPopupDocument()?.senderName || 'Not recorded' }}</p>
+                    <div class="app6">
+                      <p class="app22">Original sender</p>
+                      <p class="app42">{{ routingPopupDocument()?.senderName || 'Not recorded' }}</p>
                     </div>
-                    <div class="min-w-0 sm:col-span-2">
-                      <p class="text-[13px] text-slate-500">Originating office</p>
-                      <p class="mt-0.5 text-[15px] break-words">{{ routingPopupDocument()?.originatingOffice || 'Not recorded' }}</p>
+                    <div class="app7">
+                      <p class="app22">Originating office</p>
+                      <p class="app42">{{ routingPopupDocument()?.originatingOffice || 'Not recorded' }}</p>
                     </div>
                   </div>
-                  <div class="mb-2.5 rounded-lg p-2" [ngClass]="'bg-slate-100 dark:bg-slate-800' | cls">
-                    <p class="text-[13px] text-slate-500">Action requested</p>
-                    <p class="mt-0.5 text-[16px] font-semibold break-words">{{ routingPopupDocument()?.actionRequested || 'Appropriate Action' }}</p>
+                  <div class="app14" [ngClass]="'app232' | cls">
+                    <p class="app22">Action requested</p>
+                    <p class="app52">{{ routingPopupDocument()?.actionRequested || 'Appropriate Action' }}</p>
                   </div>
-                  <h3 class="mb-1 text-[16px] font-semibold">Attachments ({{ routingPopupAttachments().length }})</h3>
+                  <h3 class="app2">Attachments ({{ routingPopupAttachments().length }})</h3>
                   @if (routingPopupAttachments().length) {
-                    <ul class="m-0 list-none p-0">
+                    <ul class="appUl">
                       @for (attachment of routingPopupAttachments(); track attachment.id) {
-                        <li class="border-t py-1.5" [ngClass]="'border-slate-200 dark:border-slate-700' | cls">
-                          <p class="text-[15px] font-semibold leading-snug break-words">{{ attachment.fileName }}</p>
-                          <p class="mt-0.5 text-[13px] text-slate-500">{{ attachment.fileSize || 'Attached document' }}</p>
-                          <div class="mt-1 flex flex-wrap gap-1">
-                            <button type="button" class="rounded-lg border px-3.5 py-2.5 text-sm" [disabled]="!attachment.url" (click)="openPopupAttachment(attachment)" [attr.aria-label]="'View ' + attachment.fileName">View</button>
-                            <button type="button" class="rounded-lg border px-3.5 py-2.5 text-sm" [disabled]="!attachment.url" (click)="downloadPopupAttachment(attachment)" [attr.aria-label]="'Download ' + attachment.fileName">Download</button>
+                        <li class="appLi1" [ngClass]="'app24' | cls">
+                          <p class="app62">{{ attachment.fileName }}</p>
+                          <p class="app72">{{ attachment.fileSize || 'Attached document' }}</p>
+                          <div class="app8">
+                            <button type="button" class="appOpenPopupFileBtn" [disabled]="!attachment.url" (click)="openPopupAttachment(attachment)" [attr.aria-label]="'View ' + attachment.fileName">View</button>
+                            <button type="button" class="appOpenPopupFileBtn" [disabled]="!attachment.url" (click)="downloadPopupAttachment(attachment)" [attr.aria-label]="'Download ' + attachment.fileName">Download</button>
                           </div>
                         </li>
                       }
                     </ul>
                   } @else {
-                    <p class="py-1 text-[14px] text-slate-500">No attachments included.</p>
+                    <p class="app82">No attachments included.</p>
                   }
                 </div>
-                <footer class="flex flex-wrap gap-1.25 border-t bg-white p-2 dark:bg-slate-900" [ngClass]="'border-slate-200 dark:border-slate-700' | cls">
+                <footer class="app15" [ngClass]="'app24' | cls">
                   @if (popup.requiresDecision) {
-                    <button
+                    <ion-button
                       type="button"
-                      class="min-h-11 flex-1 rounded-lg bg-emerald-600 px-3 text-[15px] font-bold text-white shadow-none hover:bg-emerald-500 disabled:opacity-60"
+                      class="appRouteDecisionBtn"
                       [disabled]="decisionSubmittingId() === popup.id"
                       (click)="routeDecision(popup, 'APPROVED')"
-                    >{{ decisionSubmittingId() === popup.id ? 'Saving...' : 'Approve' }}</button>
-                    <button
+                    >{{ decisionSubmittingId() === popup.id ? 'Saving...' : 'Approve' }}</ion-button>
+                    <ion-button
                       type="button"
-                      class="min-h-11 flex-1 rounded-lg border border-rose-300 px-3 text-[15px] font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-60 dark:border-rose-800 dark:text-rose-400"
+                      class="appRouteDecision2Btn"
                       [disabled]="decisionSubmittingId() === popup.id"
                       (click)="routeDecision(popup, 'DISAPPROVED')"
-                    >Disapprove</button>
+                    >Disapprove</ion-button>
                   }
-                  <button type="button" class="min-h-11 flex-1 rounded-lg px-3 text-[15px] font-bold" (click)="closeRoutingActionPopup()">Close for 24 hours</button>
+                  <ion-button type="button" class="appCloseRoutingActionBtn2" (click)="closeRoutingActionPopup()">Close for 24 hours</ion-button>
                 </footer>
               </div>
             </div>
@@ -445,8 +468,7 @@
           (onClose)="isNotifDrawerOpen.set(false)"
           (onMarkRead)="markNotifRead($event)"
           (onDecision)="routeDecision($event.notification, $event.decision)"
-          (onSelectDoc)="selectDocByTrackingNo($event)"
+          (onSelectDoc)="openNotificationDocument($event)"
         />
       </div>
     }
-  

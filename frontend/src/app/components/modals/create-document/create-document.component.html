@@ -113,21 +113,23 @@
       <div class="cd-grid-2col">
         <div>
           <label class="cd-field-label">Category / Type *</label>
-          <app-managed-options-select
-            [storageKey]="'blgf_document_categories'"
-            [options]="categoryOptions()"
+          <select
+            class="cd-select"
+            required
             [value]="category()"
-            [required]="true"
-            [canManageOptions]="currentUser.role === 'SYSTEM_ADMIN'"
-            [textAlign]="'left'"
-            (valueChange)="category.set($event)"
-          ></app-managed-options-select>
+            (change)="category.set($any($event.target).value)"
+          >
+            @for (opt of categoryOptions(); track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
         </div>
 
         <div>
           <label class="cd-field-label">Document title *</label>
           <app-autocomplete-field
             [value]="title()"
+            [suggestions]="titleSuggestions()"
             (onChange)="title.set($event)"
             [required]="true"
             [multiline]="true"
@@ -144,6 +146,7 @@
         <label class="cd-field-label">Subject Matter / Particulars *</label>
         <app-autocomplete-field
           [value]="subject()"
+          [suggestions]="subjectSuggestions()"
           (onChange)="subject.set($event)"
           [required]="true"
           [multiline]="true"
@@ -165,6 +168,7 @@
             <label class="cd-field-label">Letter From / Sender *</label>
             <app-autocomplete-field
               [value]="senderName()"
+              [suggestions]="senderNameSuggestions()"
               (onChange)="senderName.set($event)"
               [required]="true"
               [placeholder]="'Name of sender or signatory'"
@@ -177,6 +181,7 @@
             <label class="cd-field-label">Originating Office *</label>
             <app-autocomplete-field
               [value]="originatingOffice()"
+              [suggestions]="originatingOfficeSuggestions()"
               (onChange)="originatingOffice.set($event)"
               [required]="true"
               [placeholder]="'e.g. Provincial Treasury Office'"
@@ -189,6 +194,7 @@
             <label class="cd-field-label">Position</label>
             <app-autocomplete-field
               [value]="senderPosition()"
+              [suggestions]="senderPositionSuggestions()"
               (onChange)="senderPosition.set($event)"
               [placeholder]="'e.g. Provincial Treasurer'"
               [ariaLabel]="'Sender Position'"
@@ -200,6 +206,7 @@
             <label class="cd-field-label">Office Address *</label>
             <app-autocomplete-field
               [value]="senderAddress()"
+              [suggestions]="senderAddressSuggestions()"
               (onChange)="senderAddress.set($event)"
               [required]="true"
               [placeholder]="'Complete office or mailing address'"
@@ -371,14 +378,16 @@
       <!-- Action Requested -->
       <div>
         <label class="cd-field-label">Action Requested *</label>
-        <app-managed-options-select
-          [storageKey]="'blgf-action-requested-options'"
-          [options]="actionOptions"
+        <select
+          class="cd-select"
+          required
           [value]="initialAction()"
-          [required]="true"
-          [canManageOptions]="canManageWorkflowOptions()"
-          (valueChange)="initialAction.set($event)"
-        ></app-managed-options-select>
+          (change)="initialAction.set($any($event.target).value)"
+        >
+          @for (opt of actionOptions; track opt.value) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+          }
+        </select>
       </div>
 
       <!-- Priority Level & Target Completion Date -->
@@ -392,14 +401,16 @@
               </span>
             }
           </div>
-          <app-managed-options-select
-            [storageKey]="'blgf-priority-options'"
-            [options]="priorityOptions"
+          <select
+            class="cd-select"
+            required
             [value]="priority()"
-            [required]="true"
-            [canManageOptions]="canManageWorkflowOptions()"
-            (valueChange)="onPriorityChange($event)"
-          ></app-managed-options-select>
+            (change)="onPriorityChange($any($event.target).value)"
+          >
+            @for (opt of priorityOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
         </div>
 
         <div>
@@ -463,6 +474,7 @@
         <label class="cd-field-label">Initial Routing Instructions / Remarks</label>
         <app-autocomplete-field
           [value]="remarks()"
+          [suggestions]="remarksSuggestions()"
           (onChange)="remarks.set($event)"
           [placeholder]="'e.g. Received via mail courier, complete with annexes...'"
           [ariaLabel]="'Initial Routing Instructions or Remarks'"

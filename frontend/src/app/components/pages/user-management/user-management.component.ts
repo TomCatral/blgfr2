@@ -1,6 +1,7 @@
 import { Component, Input, signal, inject, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { firstValueFrom } from 'rxjs';
 import { cx } from '../../../shared/class-utils';
 import {
   User,
@@ -13,6 +14,8 @@ import {
 import { AppModalLayerComponent } from '../../ui/modal-layer.component';
 import { showConfirm } from '../../../services/dialog.service';
 import { UiService } from '../../../services/ui.service';
+import { ApiService } from '../../../services/api.service';
+import { IonicModule } from '@ionic/angular';
 
 interface RoleOption {
   role: Role;
@@ -141,7 +144,7 @@ function loadRolePermissions(): Record<Role, RolePermission> {
   selector: 'app-user-management',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [FormsModule, NgClass, AppModalLayerComponent],
+  imports: [IonicModule, FormsModule, NgClass, AppModalLayerComponent],
   templateUrl: './user-management.component.html',
   styleUrl: './user-management.component.scss',
 })
@@ -162,6 +165,7 @@ export class UserManagementComponent {
   ACTION_PERMISSIONS = ACTION_PERMISSIONS;
 
   private ui = inject(UiService);
+  private api = inject(ApiService);
 
   activeTab = signal<'users' | 'roles' | 'divisions'>('users');
   showCreatePassword = signal(false);
@@ -169,6 +173,8 @@ export class UserManagementComponent {
   rolePermissions = signal<Record<Role, RolePermission>>(loadRolePermissions());
   showCreateModal = signal(false);
   editingUser = signal<User | null>(null);
+  targetUserForAvatar = signal<User | null>(null);
+  isUploadingAvatar = signal(false);
   searchTerm = signal('');
   roleFilter = signal<string>('ALL');
   divisionFilter = signal<string>('ALL');
@@ -177,10 +183,19 @@ export class UserManagementComponent {
   matrixViewMode = signal<'matrix' | 'by-role'>('matrix');
   selectedRoleForView = signal<Role>('ORD');
 
+  // User Account Permissions State
+  permTargetMode = signal<'roles' | 'user'>('roles');
+  selectedPermUser = signal<User | null>(null);
+  userPermSearch = signal<string>('');
+  userPermRoleFilter = signal<string>('ALL');
+  userPermForm = signal<RolePermission>(structuredClone(DEFAULT_ROLE_PERMISSIONS.STAFF));
+  isUserPermDirty = signal<boolean>(false);
+
   fullName = signal('');
   username = signal('');
   password = signal('');
   email = signal('');
+  avatarUrl = signal('');
   role = signal<Role>('STAFF');
   divisionCode = signal<DivisionCode>('AD');
   designation = signal('');
@@ -196,6 +211,21 @@ export class UserManagementComponent {
     return this.currentUser.role === 'SYSTEM_ADMIN'
       ? this.users
       : this.users.filter((user) => user.role !== 'SYSTEM_ADMIN');
+  }
+
+  get permFilteredUsers(): User[] {
+    const q = this.userPermSearch().toLowerCase().trim();
+    const roleF = this.userPermRoleFilter();
+    return this.visibleUsers.filter((u) => {
+      const matchSearch =
+        !q ||
+        u.fullName.toLowerCase().includes(q) ||
+        u.username.toLowerCase().includes(q) ||
+        (u.email && u.email.toLowerCase().includes(q)) ||
+        (u.designation && u.designation.toLowerCase().includes(q));
+      const matchRole = roleF === 'ALL' || u.role === roleF;
+      return matchSearch && matchRole;
+    });
   }
 
   get activeUsersCount(): number {
@@ -409,6 +439,12 @@ export class UserManagementComponent {
     ).join('');
     this.password.set(temporaryPassword);
     this.showEditPassword.set(true);
+    this.showCreatePassword.set(true);
+  }
+
+  openUserPermissionsFromModal(user: User): void {
+    this.editingUser.set(null);
+    this.openUserPermissions(user);
   }
 
   setFormMainMenu(event: Event): void {
@@ -418,7 +454,13 @@ export class UserManagementComponent {
 
   setFormManagement(event: Event): void {
     const checked = (event.target as HTMLInputElement).checked;
-    this.formPermissions.update((prev) => ({ ...prev, management: checked }));
+    this.formPermissions.update((prev) => {
+      const views = prev.allowedViews || [];
+      const updatedViews = checked
+        ? Array.from(new Set([...views, 'users']))
+        : views.filter((v) => v !== 'users');
+      return { ...prev, management: checked, allowedViews: updatedViews };
+    });
   }
 
   onRoleChange(value: string): void {
@@ -460,6 +502,7 @@ export class UserManagementComponent {
       divisionCode: this.divisionCode(),
       designation: this.designation() || 'Staff Officer',
       contactNo: this.contactNo() || '0917-000-0000',
+      avatarUrl: this.avatarUrl(),
       active: true,
       permissions: this.formPermissions(),
     });
@@ -474,6 +517,7 @@ export class UserManagementComponent {
     this.username.set('');
     this.password.set('');
     this.email.set('');
+    this.avatarUrl.set('');
     this.designation.set('');
     this.contactNo.set('');
     this.role.set('STAFF');
@@ -491,6 +535,7 @@ export class UserManagementComponent {
     this.username.set(user.username);
     this.password.set('');
     this.email.set(user.email);
+    this.avatarUrl.set(user.avatarUrl || '');
     this.role.set(user.role);
     this.divisionCode.set(user.divisionCode);
     this.designation.set(user.designation);
@@ -517,6 +562,7 @@ export class UserManagementComponent {
 
     const name = this.fullName();
     const passwordTrimmed = this.password().trim();
+    const newAvatar = this.avatarUrl();
 
     await this.onUpdateUser(user.id, {
       fullName: this.fullName(),
@@ -527,12 +573,82 @@ export class UserManagementComponent {
       divisionCode: this.divisionCode(),
       designation: this.designation(),
       contactNo: this.contactNo(),
+      avatarUrl: newAvatar,
       permissions: this.formPermissions(),
     });
 
+    user.avatarUrl = newAvatar;
     this.editingUser.set(null);
     this.resetForm();
     this.ui.showSuccess(`User account "${name}" updated successfully!`);
+  }
+
+  triggerQuickAvatar(user: User, event: Event, fileInput: HTMLInputElement): void {
+    event.stopPropagation();
+    event.preventDefault();
+    this.targetUserForAvatar.set(user);
+    fileInput.value = '';
+    fileInput.click();
+  }
+
+  async onQuickAvatarSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    const targetUser = this.targetUserForAvatar();
+    if (!file || !targetUser) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      this.ui.showError('Profile picture must be 5 MB or smaller.');
+      input.value = '';
+      return;
+    }
+
+    try {
+      this.isUploadingAvatar.set(true);
+      const stored = await firstValueFrom(this.api.uploadToStorage('profilePictures', file));
+      await this.onUpdateUser(targetUser.id, { avatarUrl: stored.url });
+      targetUser.avatarUrl = stored.url;
+      this.ui.showSuccess(`Profile picture updated for ${targetUser.fullName}!`);
+    } catch (err: unknown) {
+      this.ui.showError(String((err as Error)?.message || 'Failed to upload profile picture.'));
+    } finally {
+      this.isUploadingAvatar.set(false);
+      this.targetUserForAvatar.set(null);
+      input.value = '';
+    }
+  }
+
+  triggerFormAvatar(fileInput: HTMLInputElement): void {
+    fileInput.value = '';
+    fileInput.click();
+  }
+
+  async onFormAvatarSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      this.ui.showError('Profile picture must be 5 MB or smaller.');
+      input.value = '';
+      return;
+    }
+
+    try {
+      this.isUploadingAvatar.set(true);
+      const stored = await firstValueFrom(this.api.uploadToStorage('profilePictures', file));
+      this.avatarUrl.set(stored.url);
+      this.ui.showSuccess('Photo uploaded successfully.');
+    } catch (err: unknown) {
+      this.ui.showError(String((err as Error)?.message || 'Failed to upload photo.'));
+    } finally {
+      this.isUploadingAvatar.set(false);
+      input.value = '';
+    }
+  }
+
+  removeFormAvatar(): void {
+    this.avatarUrl.set('');
   }
 
   async handleDelete(user: User): Promise<void> {
@@ -584,7 +700,7 @@ export class UserManagementComponent {
 
   isMgmtViewAllowed(roleName: Role, viewId: string): boolean {
     const current = this.activePerm(roleName);
-    return current.management && (current.allowedViews || []).includes(viewId);
+    return (current.allowedViews || []).includes(viewId);
   }
 
   isReportViewAllowed(roleName: Role, viewId: string): boolean {
@@ -671,10 +787,17 @@ export class UserManagementComponent {
   toggleSectionPermission(roleName: Role, section: 'mainMenu' | 'management'): void {
     this.rolePermissions.update((prev) => {
       const current = prev[roleName] || DEFAULT_ROLE_PERMISSIONS[roleName];
-      const updated: RolePermission =
-        section === 'mainMenu'
-          ? { ...current, mainMenu: !current.mainMenu }
-          : { ...current, management: !current.management };
+      const turningOn = !current[section];
+      let updated: RolePermission;
+      if (section === 'mainMenu') {
+        updated = { ...current, mainMenu: turningOn };
+      } else {
+        const views = current.allowedViews || [];
+        const updatedViews = turningOn
+          ? Array.from(new Set([...views, 'users']))
+          : views.filter((v) => v !== 'users');
+        updated = { ...current, management: turningOn, allowedViews: updatedViews };
+      }
       return { ...prev, [roleName]: updated };
     });
   }
@@ -687,9 +810,14 @@ export class UserManagementComponent {
       const newAllowed = hasView
         ? currentAllowed.filter((id) => id !== viewId)
         : [...currentAllowed, viewId];
+      const isMgmt = ['users', 'settings'].includes(viewId) || MENU_ITEMS_LIST.some((m) => m.id === viewId && (m.section === 'Management' || m.section === 'Logs'));
       return {
         ...prev,
-        [roleName]: { ...current, allowedViews: newAllowed },
+        [roleName]: {
+          ...current,
+          allowedViews: newAllowed,
+          management: (!hasView && isMgmt) ? true : current.management,
+        },
       };
     });
   }
@@ -769,6 +897,174 @@ export class UserManagementComponent {
     this.ui.showSuccess(
       'Save complete! All user role permissions updated across personnel accounts.',
     );
+  }
+
+  // =========================================================================
+  // User Account Permissions Handlers
+  // =========================================================================
+  hasCustomPermissions(user: User): boolean {
+    if (!user.permissions) return false;
+    const defaultPerm = this.rolePermissions()[user.role] || DEFAULT_ROLE_PERMISSIONS[user.role];
+    return JSON.stringify(user.permissions) !== JSON.stringify(defaultPerm);
+  }
+
+  openUserPermissions(user: User): void {
+    this.activeTab.set('roles');
+    this.permTargetMode.set('user');
+    this.selectUserForPerm(user);
+  }
+
+  switchToUserPermMode(filterRole?: Role): void {
+    this.permTargetMode.set('user');
+    if (filterRole) {
+      this.userPermRoleFilter.set(filterRole);
+    }
+    const current = this.selectedPermUser();
+    if (!current || (filterRole && current.role !== filterRole)) {
+      const candidates = this.permFilteredUsers;
+      if (candidates.length > 0) {
+        this.selectUserForPerm(candidates[0]);
+      }
+    }
+  }
+
+  selectUserForPerm(user: User): void {
+    this.selectedPermUser.set(user);
+    const activePerm = user.permissions
+      ? structuredClone(user.permissions)
+      : structuredClone(
+          this.rolePermissions()[user.role] ||
+            DEFAULT_ROLE_PERMISSIONS[user.role] ||
+            DEFAULT_ROLE_PERMISSIONS.STAFF,
+        );
+    this.userPermForm.set(activePerm);
+    this.isUserPermDirty.set(false);
+  }
+
+  toggleUserCanViewAllRoutes(): void {
+    this.userPermForm.update((p) => ({ ...p, canViewAllRoutes: !p.canViewAllRoutes }));
+    this.isUserPermDirty.set(true);
+  }
+
+  toggleUserCanViewAllDocuments(): void {
+    this.userPermForm.update((p) => ({ ...p, canViewAllDocuments: !p.canViewAllDocuments }));
+    this.isUserPermDirty.set(true);
+  }
+
+  toggleUserCanDelete(): void {
+    this.userPermForm.update((p) => ({ ...p, canDelete: !p.canDelete }));
+    this.isUserPermDirty.set(true);
+  }
+
+  toggleUserSectionPermission(section: 'mainMenu' | 'management'): void {
+    this.userPermForm.update((p) => {
+      const turningOn = !p[section];
+      let updated: RolePermission;
+      if (section === 'mainMenu') {
+        updated = { ...p, mainMenu: turningOn };
+      } else {
+        const views = p.allowedViews || [];
+        const updatedViews = turningOn
+          ? Array.from(new Set([...views, 'users']))
+          : views.filter((v) => v !== 'users');
+        updated = { ...p, management: turningOn, allowedViews: updatedViews };
+      }
+      return updated;
+    });
+    this.isUserPermDirty.set(true);
+  }
+
+  toggleUserActionPermission(actionId: string): void {
+    this.userPermForm.update((p) => {
+      const actions = p.allowedActions || [];
+      const updated = actions.includes(actionId)
+        ? actions.filter((id) => id !== actionId)
+        : [...actions, actionId];
+      return { ...p, allowedActions: updated };
+    });
+    this.isUserPermDirty.set(true);
+  }
+
+  toggleUserViewPermission(viewId: string): void {
+    this.userPermForm.update((p) => {
+      const views = p.allowedViews || [];
+      const hasView = views.includes(viewId);
+      const updated = hasView
+        ? views.filter((id) => id !== viewId)
+        : [...views, viewId];
+      const isMgmt = ['users', 'settings'].includes(viewId) || MENU_ITEMS_LIST.some((m) => m.id === viewId && (m.section === 'Management' || m.section === 'Logs'));
+      return {
+        ...p,
+        allowedViews: updated,
+        management: (!hasView && isMgmt) ? true : p.management,
+      };
+    });
+    this.isUserPermDirty.set(true);
+  }
+
+  isUserViewAllowed(viewId: string): boolean {
+    return (this.userPermForm().allowedViews || []).includes(viewId);
+  }
+
+  isUserActionAllowed(actionId: string): boolean {
+    return (this.userPermForm().allowedActions || []).includes(actionId);
+  }
+
+  grantAllUserPermissions(): void {
+    const allViews = MENU_ITEMS_LIST.map((m) => m.id);
+    const allActions = ACTION_PERMISSIONS.map((a) => a.id);
+    this.userPermForm.set({
+      canViewAllRoutes: true,
+      canViewAllDocuments: true,
+      canDelete: true,
+      mainMenu: true,
+      management: true,
+      allowedViews: allViews,
+      allowedActions: allActions,
+      notificationViewAllConfigured: true,
+    });
+    this.isUserPermDirty.set(true);
+  }
+
+  revokeAllUserPermissions(): void {
+    this.userPermForm.set({
+      canViewAllRoutes: false,
+      canViewAllDocuments: false,
+      canDelete: false,
+      mainMenu: false,
+      management: false,
+      allowedViews: ['dashboard'],
+      allowedActions: [],
+      notificationViewAllConfigured: true,
+    });
+    this.isUserPermDirty.set(true);
+  }
+
+  async resetSelectedUserToRoleDefaults(): Promise<void> {
+    const user = this.selectedPermUser();
+    if (!user) return;
+    const defaultPerm = structuredClone(
+      this.rolePermissions()[user.role] ||
+        DEFAULT_ROLE_PERMISSIONS[user.role] ||
+        DEFAULT_ROLE_PERMISSIONS.STAFF,
+    );
+    this.userPermForm.set(defaultPerm);
+    await this.onUpdateUser(user.id, { permissions: defaultPerm });
+    user.permissions = defaultPerm;
+    this.isUserPermDirty.set(false);
+    this.ui.showSuccess(
+      `Permissions reset to standard ${user.role.replaceAll('_', ' ')} defaults for ${user.fullName}.`,
+    );
+  }
+
+  async saveSelectedUserPermissions(): Promise<void> {
+    const user = this.selectedPermUser();
+    if (!user) return;
+    const perms = structuredClone(this.userPermForm());
+    await this.onUpdateUser(user.id, { permissions: perms });
+    user.permissions = perms;
+    this.isUserPermDirty.set(false);
+    this.ui.showSuccess(`Custom permissions saved and active for ${user.fullName}!`);
   }
 
   resetDivisionForm(): void {

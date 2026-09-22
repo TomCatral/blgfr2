@@ -13,10 +13,9 @@ import {
 import { NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ClsPipe } from '../../shared/cls.pipe';
-import { DocumentRecord, NotificationItem, User } from '../../types';
+import { AuditLog, DocumentRecord, NotificationItem, User } from '../../types';
+import { isDocumentParticipant } from '../../utils/document-visibility';
 import { Html5Qrcode } from 'html5-qrcode';
-import { NAVIGATION_ITEMS, NavigationItem } from './sidebar.component';
-
 interface SearchResult {
   doc: DocumentRecord;
   matchedField: string;
@@ -47,10 +46,10 @@ export class HeaderComponent implements OnInit, OnDestroy {
   @Input() currentUser: User = {} as User;
   @Input() users: User[] = [];
   @Input() documents: DocumentRecord[] = [];
+  @Input() auditLogs: AuditLog[] = [];
   @Input() notifications: NotificationItem[] = [];
   @Input() isDarkMode = false;
   @Input() isOnline = true;
-  @Input() activeView = 'dashboard';
   @Input()
   set searchQuery(value: string) {
     this._searchQuery = value || '';
@@ -66,7 +65,51 @@ export class HeaderComponent implements OnInit, OnDestroy {
   @Output() onToggleDarkMode = new EventEmitter<void>();
   @Output() onOpenMobileSidebar = new EventEmitter<void>();
 
-  @ViewChild('searchInput') searchInputRef?: ElementRef<HTMLInputElement>;
+  @ViewChild('searchInput', { read: ElementRef }) searchInputRef?: ElementRef<HTMLInputElement | HTMLElement>;
+
+  get connectedDocuments(): DocumentRecord[] {
+    if (!this.currentUser || !this.currentUser.id) return this.documents;
+    return this.documents.filter((doc) =>
+      isDocumentParticipant(doc, this.currentUser, this.auditLogs),
+    );
+  }
+
+  get displayResults(): SearchResult[] {
+    const q = this._searchQuery.trim();
+    if (!q) {
+      return this.connectedDocuments.slice(0, 8).map((doc) => ({
+        doc,
+        matchedField: '',
+      }));
+    }
+    return this.searchResults;
+  }
+
+  private blurSearchInput(): void {
+    const el = this.searchInputRef?.nativeElement;
+    if (!el) return;
+    if (typeof (el as unknown as { blur?: () => void }).blur === 'function') {
+      (el as unknown as { blur: () => void }).blur();
+    }
+    const inner = el.querySelector('input');
+    if (inner && typeof inner.blur === 'function') {
+      inner.blur();
+    }
+  }
+
+  private focusSearchInput(): void {
+    const el = this.searchInputRef?.nativeElement;
+    if (!el) return;
+    if (typeof (el as unknown as { setFocus?: () => Promise<void> }).setFocus === 'function') {
+      void (el as unknown as { setFocus: () => Promise<void> }).setFocus();
+    } else if (typeof (el as unknown as { focus?: () => void }).focus === 'function') {
+      (el as unknown as { focus: () => void }).focus();
+    }
+    const inner = el.querySelector('input');
+    if (inner && typeof inner.focus === 'function') {
+      inner.focus();
+    }
+  }
 
   showUserMenu = false;
   private _searchQuery = '';
@@ -82,18 +125,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     window.matchMedia('(display-mode: standalone)').matches ||
     (window.navigator as unknown as { standalone?: boolean }).standalone === true;
 
-  currentNavItem(): NavigationItem | undefined {
-    if (this.activeView === 'settings') {
-      return {
-        id: 'settings',
-        label: 'User Settings',
-        miniLabel: 'Settings',
-        icon: 'settings',
-        section: 'Management',
-      };
-    }
-    return NAVIGATION_ITEMS.find((item) => item.id === this.activeView);
-  }
+
 
   window = window;
 
@@ -105,12 +137,18 @@ export class HeaderComponent implements OnInit, OnDestroy {
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
       event.preventDefault();
-      this.searchInputRef?.nativeElement.focus();
+      this.focusSearchInput();
     }
     if (event.key === 'Escape') this.showUserMenu = false;
   };
   private readonly onMouseDown = (event: MouseEvent): void => {
-    const menu = (event.target as HTMLElement).closest('.header-actions .relative');
+    const target = event.target as HTMLElement | null;
+    const search = target?.closest('.global-document-search');
+    if (!search) {
+      this.isSearchFocused = false;
+      this.activeResultIndex = -1;
+    }
+    const menu = target?.closest('.header-account');
     if (!menu && this.showUserMenu) this.showUserMenu = false;
   };
   private readonly onBeforeInstallPrompt = (event: Event): void => {
@@ -128,7 +166,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     const q = query.toLowerCase();
     const results: SearchResult[] = [];
 
-    for (const doc of this.documents) {
+    for (const doc of this.connectedDocuments) {
       const fields: Array<[string, string]> = [
         ['Tracking No.', `${doc.routeNo || doc.trackingNumber || ''}`],
         ['Title', `${doc.title || ''}`],
@@ -251,7 +289,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     }
     this.isSearchFocused = false;
     this.activeResultIndex = -1;
-    this.searchInputRef?.nativeElement.blur();
+    this.blurSearchInput();
     this.onSelectDoc.emit(doc);
   }
 
@@ -260,12 +298,11 @@ export class HeaderComponent implements OnInit, OnDestroy {
     if (q) this.onSearchDoc.emit(q);
     this.isSearchFocused = false;
     this.activeResultIndex = -1;
+    this.blurSearchInput();
   }
 
   submitSearch(): void {
-    const q = this.searchQuery.trim();
-    if (!q) return;
-    const results = this.searchResults;
+    const results = this.displayResults;
     if (results.length > 0) {
       const idx =
         this.activeResultIndex >= 0 && this.activeResultIndex < Math.min(results.length, 8)
@@ -274,9 +311,11 @@ export class HeaderComponent implements OnInit, OnDestroy {
       this.chooseResult(results[idx].doc);
       return;
     }
-    this.onSearchDoc.emit(q);
+    const q = this.searchQuery.trim();
+    if (q) this.onSearchDoc.emit(q);
     this.isSearchFocused = false;
     this.activeResultIndex = -1;
+    this.blurSearchInput();
   }
 
   clearSearch(): void {
@@ -288,16 +327,55 @@ export class HeaderComponent implements OnInit, OnDestroy {
       this.searchBlurTimer = null;
     }
     this.onClearSearch.emit();
-    this.searchInputRef?.nativeElement.blur();
+    this.blurSearchInput();
   }
 
-  onSearchInput(): void {
+  private lastFocusTimestamp = 0;
+
+  onInputFocus(): void {
+    if (this.searchBlurTimer !== null) {
+      window.clearTimeout(this.searchBlurTimer);
+      this.searchBlurTimer = null;
+    }
+    this.lastFocusTimestamp = Date.now();
+    this.isSearchFocused = true;
+  }
+
+  onInputClick(): void {
+    if (Date.now() - this.lastFocusTimestamp < 250) {
+      this.isSearchFocused = true;
+      return;
+    }
+    this.isSearchFocused = !this.isSearchFocused;
+    if (!this.isSearchFocused) {
+      this.activeResultIndex = -1;
+      this.blurSearchInput();
+    }
+  }
+
+  openSearch(): void {
+    this.onInputFocus();
+  }
+
+  toggleSearch(): void {
+    this.onInputClick();
+  }
+
+  onSearchInput(event?: Event): void {
+    if (this.searchBlurTimer !== null) {
+      window.clearTimeout(this.searchBlurTimer);
+      this.searchBlurTimer = null;
+    }
+    const customEvent = event as CustomEvent<{ value?: string | null }>;
+    const target = event?.target as HTMLInputElement | null;
+    const val = customEvent?.detail?.value ?? target?.value ?? this._searchQuery ?? '';
+    this._searchQuery = typeof val === 'string' ? val : '';
     this.activeResultIndex = -1;
     this.isSearchFocused = true;
   }
 
   onSearchKeyDown(event: KeyboardEvent): void {
-    const results = this.searchResults;
+    const results = this.displayResults;
     const maxLen = Math.min(results.length, 8);
     if (event.key === 'ArrowDown') {
       if (maxLen > 0) {
@@ -328,6 +406,11 @@ export class HeaderComponent implements OnInit, OnDestroy {
       this.isSearchFocused = false;
       this.activeResultIndex = -1;
     }, 250);
+  }
+
+  toggleUserMenu(event?: Event): void {
+    event?.stopPropagation();
+    this.showUserMenu = !this.showUserMenu;
   }
 
   logoutAction(): void {

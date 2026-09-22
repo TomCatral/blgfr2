@@ -33,8 +33,8 @@ export class ApiService {
     return this.http.post<T>(`${API_BASE}${url}`, body, headers ? { headers } : undefined);
   }
 
-  private put<T>(url: string, body?: unknown): Observable<T> {
-    return this.http.put<T>(`${API_BASE}${url}`, body);
+  private put<T>(url: string, body?: unknown, headers?: Record<string, string>): Observable<T> {
+    return this.http.put<T>(`${API_BASE}${url}`, body, headers ? { headers } : undefined);
   }
 
   private patch<T>(url: string, body?: unknown): Observable<T> {
@@ -213,8 +213,13 @@ export class ApiService {
     return this.post<User>('/users', data);
   }
 
-  updateUser(id: string, data: Partial<User> & { currentPassword?: string }): Observable<User> {
-    return this.put<User>(`/users/${id}`, data);
+  updateUser(
+    id: string,
+    data: Partial<User> & { currentPassword?: string },
+    actingUserId?: string,
+  ): Observable<User> {
+    const headers = actingUserId ? { 'X-User-Id': actingUserId } : undefined;
+    return this.put<User>(`/users/${id}`, data, headers);
   }
 
   deleteUser(id: string): Observable<{ success: boolean }> {

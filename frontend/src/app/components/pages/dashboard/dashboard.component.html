@@ -1,61 +1,51 @@
-<div class="dashboard-shell space-y-5 md:space-y-6">
+<div class="dashboard-shell">
 
   <!-- 1. Executive Hero Command Center Banner -->
-  <div class="hero-command-card relative overflow-hidden rounded-3xl border border-slate-200/90 bg-white/80 dark:border-slate-800/90 dark:bg-slate-900/80 p-5 md:p-7 shadow-sm backdrop-blur-md">
+  <div class="hero-command-card">
     <!-- Ambient decorative glowing orbs -->
-    <div aria-hidden="true" class="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-blue-500/15 blur-3xl dark:bg-blue-500/20"></div>
-    <div aria-hidden="true" class="pointer-events-none absolute -bottom-24 left-1/4 h-64 w-64 rounded-full bg-indigo-500/10 blur-3xl dark:bg-indigo-500/15"></div>
-    <div aria-hidden="true" class="pointer-events-none absolute top-1/2 right-1/3 h-48 w-48 rounded-full bg-cyan-500/10 blur-3xl dark:bg-cyan-500/10"></div>
+    <div aria-hidden="true" class="hero-orb-1"></div>
+    <div aria-hidden="true" class="hero-orb-2"></div>
+    <div aria-hidden="true" class="hero-orb-3"></div>
 
-    <div class="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5">
-      <div class="max-w-2xl">
+    <div class="hero-content">
+      <div class="hero-text-col">
         <!-- Status & Region Badges -->
-        <div class="flex flex-wrap items-center gap-2">
-          <div class="inline-flex items-center gap-1.5 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-[10.5px] font-extrabold uppercase tracking-wider text-blue-700 dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-300">
-            <ion-icon name="shield-checkmark" class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400"></ion-icon>
+        <div class="hero-badges">
+          <div class="hero-badge-primary">
+            <ion-icon name="shield-checkmark"></ion-icon>
             <span>BLGF Region II &bull; Command Center</span>
           </div>
 
-          <div class="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300">
-            <span class="relative flex h-2 w-2">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          <div class="hero-badge-live">
+            <span class="live-dot-wrap">
+              <span class="live-dot-ping"></span>
+              <span class="live-dot-solid"></span>
             </span>
             <span>Live System Active</span>
           </div>
 
-          <div class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100/80 dark:border-slate-800 dark:bg-slate-800/80 px-2.5 py-1 text-[10px] font-bold text-slate-600 dark:text-slate-400">
-            <ion-icon name="calendar-outline" class="h-3 w-3"></ion-icon>
+          <div class="hero-badge-date">
+            <ion-icon name="calendar-outline"></ion-icon>
             <span>{{ formattedToday }}</span>
           </div>
         </div>
 
         <!-- Greeting & Headline -->
-        <h1 class="mt-3 text-2xl md:text-3xl lg:text-[32px] font-black tracking-tight text-slate-900 dark:text-white leading-tight">
-          {{ greeting }}, <span class="bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent">{{ currentUser.fullName }}</span>
+        <h1 class="hero-title">
+          {{ greeting }}, <span class="hero-name">{{ currentUser.fullName }}</span>
         </h1>
-        <p class="mt-1.5 text-xs md:text-sm text-slate-500 dark:text-slate-400 font-normal leading-relaxed">
+        <p class="hero-subtitle">
           Real-time tracking, division workflow disposition, and official document milestones across Cagayan Valley Regional Office.
         </p>
-
-        <!-- Personnel Role & Designation -->
-        <div class="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
-          <span class="inline-flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-slate-800 px-2.5 py-1 font-bold text-slate-700 dark:text-slate-300">
-            <ion-icon name="person-circle-outline" class="h-3.5 w-3.5 text-blue-500"></ion-icon>
-            <span>{{ currentUser.role }} &bull; {{ currentUser.divisionCode }}</span>
-          </span>
-          <span class="text-slate-400 dark:text-slate-500">&bull;</span>
-          <span class="text-slate-500 dark:text-slate-400 font-medium">Designation: {{ currentUser.designation || 'Staff Officer' }}</span>
-        </div>
       </div>
 
       <!-- Action Buttons -->
-      <div class="flex flex-wrap items-center gap-2.5 shrink-0 w-full lg:w-auto">
+      <div class="hero-actions">
         <button
           type="button"
           (click)="onOpenCreateDoc()"
-          class="flex-1 sm:flex-initial bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold px-4.5 py-2.5 rounded-2xl text-xs flex items-center justify-center space-x-2 shadow-md shadow-blue-600/25 transition-all hover:shadow-lg hover:shadow-blue-600/35 hover:-translate-y-0.5 active:scale-95 cursor-pointer">
-          <ion-icon name="add-circle" class="w-4 h-4 text-white"></ion-icon>
+          class="dashboard-btn dashboard-btn-primary">
+          <ion-icon name="add-circle"></ion-icon>
           <span>Log New Document</span>
         </button>
 
@@ -63,8 +53,8 @@
           <button
             type="button"
             (click)="onNavigateToView('slip')"
-            class="flex-1 sm:flex-initial bg-white dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 border border-slate-200/90 dark:border-slate-700/80 hover:border-blue-500/40 font-bold px-4 py-2.5 rounded-2xl text-xs flex items-center justify-center space-x-2 shadow-xs transition-all hover:shadow-md hover:-translate-y-0.5 active:scale-95 cursor-pointer">
-            <ion-icon name="print" class="w-4 h-4 text-slate-500 dark:text-slate-400"></ion-icon>
+            class="dashboard-btn dashboard-btn-secondary routing-slip-button">
+            <ion-icon name="print"></ion-icon>
             <span>Routing Slip</span>
           </button>
         }
@@ -74,56 +64,55 @@
 
   <!-- 2. Urgent Documents Priority Alert -->
   @if (urgentDocs().length > 0) {
-    <div class="urgent-banner relative overflow-hidden rounded-2xl border-l-4 border-rose-500 border border-rose-500/25 bg-gradient-to-r from-rose-500/15 via-rose-500/5 to-transparent p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm backdrop-blur-sm">
-      <div class="flex items-center gap-3.5">
-        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white shadow-md shadow-rose-600/30">
-          <ion-icon name="alert-circle" class="w-5 h-5 animate-pulse"></ion-icon>
+    <div class="urgent-banner">
+      <div class="urgent-lead">
+        <span class="urgent-icon-wrap">
+          <ion-icon name="alert-circle" class="animate-pulse"></ion-icon>
         </span>
         <div>
-          <div class="flex items-center gap-2">
-            <h4 class="text-sm font-extrabold text-rose-950 dark:text-rose-100">
+          <div class="urgent-heading-row">
+            <h4>
               {{ urgentDocs().length }} Urgent Document{{ urgentDocs().length === 1 ? '' : 's' }} Require Prompt Attention
             </h4>
-            <span class="inline-flex items-center rounded-full bg-rose-600 text-white px-2 py-0.2 text-[9px] font-black uppercase tracking-wider">
+            <span class="urgent-priority-pill">
               Priority
             </span>
           </div>
-          <p class="text-xs text-rose-800/90 dark:text-rose-200/90 font-medium mt-0.5">
-            Top Priority: <span class="font-bold text-rose-950 dark:text-white">{{ urgentDocs()[0].title }}</span>
-            &bull; Route: <span class="font-mono font-bold">{{ urgentDocs()[0].routeNo }}</span>
+          <p class="urgent-meta">
+            Top Priority: <span class="urgent-title-strong">{{ urgentDocs()[0].title }}</span>
+            &bull; Route: <span class="urgent-route-strong">{{ urgentDocs()[0].routeNo }}</span>
           </p>
         </div>
       </div>
       <button
         type="button"
         (click)="onNavigateToView('incoming')"
-        class="self-start sm:self-auto bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold px-4 py-2 rounded-xl transition-all hover:shadow-md hover:shadow-rose-600/30 flex items-center space-x-1.5 shrink-0 active:scale-95 cursor-pointer">
+        class="urgent-action-btn">
         <span>View Urgent Records</span>
-        <ion-icon name="arrow-forward" class="w-3.5 h-3.5"></ion-icon>
+        <ion-icon name="arrow-forward"></ion-icon>
       </button>
     </div>
   }
 
   <!-- 3. Metric KPI Grid (6 Cards) -->
-  <div class="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
+  <div class="kpi-grid">
     <!-- Incoming Docs -->
     <button
       type="button"
       (click)="onNavigateToView('incoming')"
-      class="kpi-card group relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white dark:border-slate-800 dark:bg-slate-900/90 p-4 text-left shadow-sm transition-all hover:border-blue-500/50 hover:shadow-xl hover:shadow-blue-500/10 hover:-translate-y-1 focus:outline-none cursor-pointer">
-      <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
-      <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-wider">
+      class="kpi-card group">
+      <div class="kpi-header">
         <span>Incoming</span>
-        <span class="flex h-7 w-7 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300 group-hover:scale-110 transition-transform">
-          <ion-icon name="arrow-down" class="w-3.5 h-3.5"></ion-icon>
+        <span class="kpi-icon-badge badge-blue">
+          <ion-icon name="arrow-down"></ion-icon>
         </span>
       </div>
-      <div class="mt-2 text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white tabular-nums">
+      <div class="kpi-value">
         {{ visibleStats().totalIncoming }}
       </div>
-      <div class="mt-1 flex items-center justify-between text-[10px]">
-        <span class="text-slate-400 dark:text-slate-500 font-semibold">Received in RO II</span>
-        <ion-icon name="open-outline" class="text-slate-300 dark:text-slate-600 group-hover:text-blue-500 transition-colors"></ion-icon>
+      <div class="kpi-footer">
+        <span>Received in RO II</span>
+        <ion-icon name="open-outline"></ion-icon>
       </div>
     </button>
 
@@ -131,20 +120,19 @@
     <button
       type="button"
       (click)="onNavigateToView('outgoing')"
-      class="kpi-card group relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white dark:border-slate-800 dark:bg-slate-900/90 p-4 text-left shadow-sm transition-all hover:border-sky-500/50 hover:shadow-xl hover:shadow-sky-500/10 hover:-translate-y-1 focus:outline-none cursor-pointer">
-      <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-sky-400 to-blue-500"></div>
-      <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-wider">
+      class="kpi-card group">
+      <div class="kpi-header">
         <span>Outgoing</span>
-        <span class="flex h-7 w-7 items-center justify-center rounded-xl bg-sky-500/10 text-sky-600 dark:bg-sky-500/20 dark:text-sky-300 group-hover:scale-110 transition-transform">
-          <ion-icon name="arrow-up" class="w-3.5 h-3.5"></ion-icon>
+        <span class="kpi-icon-badge badge-sky">
+          <ion-icon name="arrow-up"></ion-icon>
         </span>
       </div>
-      <div class="mt-2 text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white tabular-nums">
+      <div class="kpi-value">
         {{ visibleStats().totalOutgoing }}
       </div>
-      <div class="mt-1 flex items-center justify-between text-[10px]">
-        <span class="text-slate-400 dark:text-slate-500 font-semibold">Released / Out</span>
-        <ion-icon name="open-outline" class="text-slate-300 dark:text-slate-600 group-hover:text-sky-500 transition-colors"></ion-icon>
+      <div class="kpi-footer">
+        <span>Released / Out</span>
+        <ion-icon name="open-outline"></ion-icon>
       </div>
     </button>
 
@@ -153,20 +141,19 @@
       type="button"
       (click)="selectedCard.set('inProgress')"
       [class.active-card]="selectedCard() === 'inProgress'"
-      class="kpi-card group relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white dark:border-slate-800 dark:bg-slate-900/90 p-4 text-left shadow-sm transition-all hover:border-violet-500/50 hover:shadow-xl hover:shadow-violet-500/10 hover:-translate-y-1 focus:outline-none cursor-pointer">
-      <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 to-purple-600"></div>
-      <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-wider">
+      class="kpi-card group">
+      <div class="kpi-header">
         <span>In Progress</span>
-        <span class="flex h-7 w-7 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300 group-hover:scale-110 transition-transform">
-          <ion-icon name="time" class="w-3.5 h-3.5"></ion-icon>
+        <span class="kpi-icon-badge badge-indigo">
+          <ion-icon name="time"></ion-icon>
         </span>
       </div>
-      <div class="mt-2 text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white tabular-nums">
+      <div class="kpi-value">
         {{ visibleStats().inProgressCount }}
       </div>
-      <div class="mt-1 flex items-center justify-between text-[10px]">
-        <span class="text-slate-400 dark:text-slate-500 font-semibold">Under Review</span>
-        <span class="text-[9px] font-bold text-violet-600 dark:text-violet-400 bg-violet-500/10 rounded px-1.5 py-0.2">Filter</span>
+      <div class="kpi-footer">
+        <span>Under Review</span>
+        <span class="kpi-filter-pill pill-indigo">Filter</span>
       </div>
     </button>
 
@@ -175,23 +162,22 @@
       type="button"
       (click)="selectedCard.set('pending')"
       [class.active-card]="selectedCard() === 'pending'"
-      class="kpi-card group relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white dark:border-slate-800 dark:bg-slate-900/90 p-4 text-left shadow-sm transition-all hover:border-amber-500/50 hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-1 focus:outline-none cursor-pointer">
-      <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-500"></div>
-      <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-wider">
+      class="kpi-card group">
+      <div class="kpi-header">
         <span>Pending</span>
-        <span class="relative flex h-7 w-7 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300 group-hover:scale-110 transition-transform">
-          <ion-icon name="hourglass" class="w-3.5 h-3.5"></ion-icon>
+        <span class="kpi-icon-badge badge-amber">
+          <ion-icon name="hourglass"></ion-icon>
           @if (visibleStats().pendingCount > 0) {
-            <span class="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-amber-500 animate-ping"></span>
+            <span class="ping-dot"></span>
           }
         </span>
       </div>
-      <div class="mt-2 text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white tabular-nums">
+      <div class="kpi-value">
         {{ visibleStats().pendingCount }}
       </div>
-      <div class="mt-1 flex items-center justify-between text-[10px]">
-        <span class="text-slate-400 dark:text-slate-500 font-semibold">Awaiting Action</span>
-        <span class="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded px-1.5 py-0.2">Filter</span>
+      <div class="kpi-footer">
+        <span>Awaiting Action</span>
+        <span class="kpi-filter-pill pill-amber">Filter</span>
       </div>
     </button>
 
@@ -200,20 +186,19 @@
       type="button"
       (click)="selectedCard.set('completed')"
       [class.active-card]="selectedCard() === 'completed'"
-      class="kpi-card group relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white dark:border-slate-800 dark:bg-slate-900/90 p-4 text-left shadow-sm transition-all hover:border-emerald-500/50 hover:shadow-xl hover:shadow-emerald-500/10 hover:-translate-y-1 focus:outline-none cursor-pointer">
-      <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-500"></div>
-      <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-wider">
+      class="kpi-card group">
+      <div class="kpi-header">
         <span>Completed</span>
-        <span class="flex h-7 w-7 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300 group-hover:scale-110 transition-transform">
-          <ion-icon name="checkmark-circle" class="w-3.5 h-3.5"></ion-icon>
+        <span class="kpi-icon-badge badge-emerald">
+          <ion-icon name="checkmark-circle"></ion-icon>
         </span>
       </div>
-      <div class="mt-2 text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white tabular-nums">
+      <div class="kpi-value">
         {{ visibleStats().completedCount }}
       </div>
-      <div class="mt-1 flex items-center justify-between text-[10px]">
-        <span class="text-slate-400 dark:text-slate-500 font-semibold">Finished Records</span>
-        <span class="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 rounded px-1.5 py-0.2">Filter</span>
+      <div class="kpi-footer">
+        <span>Finished Records</span>
+        <span class="kpi-filter-pill pill-emerald">Filter</span>
       </div>
     </button>
 
@@ -222,89 +207,83 @@
       type="button"
       (click)="selectedCard.set('returned')"
       [class.active-card]="selectedCard() === 'returned'"
-      class="kpi-card group relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white dark:border-slate-800 dark:bg-slate-900/90 p-4 text-left shadow-sm transition-all hover:border-rose-500/50 hover:shadow-xl hover:shadow-rose-500/10 hover:-translate-y-1 focus:outline-none cursor-pointer">
-      <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-pink-500"></div>
-      <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-wider">
+      class="kpi-card group">
+      <div class="kpi-header">
         <span>Disapproved</span>
-        <span class="flex h-7 w-7 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-300 group-hover:scale-110 transition-transform">
-          <ion-icon name="refresh" class="w-3.5 h-3.5"></ion-icon>
+        <span class="kpi-icon-badge badge-rose">
+          <ion-icon name="refresh"></ion-icon>
         </span>
       </div>
-      <div class="mt-2 text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white tabular-nums">
+      <div class="kpi-value">
         {{ visibleStats().returnedCount }}
       </div>
-      <div class="mt-1 flex items-center justify-between text-[10px]">
-        <span class="text-slate-400 dark:text-slate-500 font-semibold">Returned Actions</span>
-        <span class="text-[9px] font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 rounded px-1.5 py-0.2">Filter</span>
+      <div class="kpi-footer">
+        <span>Returned Actions</span>
+        <span class="kpi-filter-pill pill-rose">Filter</span>
       </div>
     </button>
   </div>
 
   <!-- 4. Division Workload Distribution Section (Simple Vertical Bar Chart) -->
   @if (canViewDivisionWorkload) {
-    <div class="workload-section relative overflow-hidden rounded-2xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-xs">
-      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div class="flex items-center gap-2.5">
-          <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400">
-            <ion-icon name="bar-chart" class="h-4 w-4"></ion-icon>
+    <div class="workload-section">
+      <div class="workload-header">
+        <div class="workload-title-group">
+          <span class="workload-icon-badge">
+            <ion-icon name="bar-chart"></ion-icon>
           </span>
           <div>
-            <h3 class="font-extrabold text-sm md:text-base text-slate-900 dark:text-white leading-tight">
+            <h3 class="workload-title">
               Division Workload Distribution
             </h3>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            <p class="workload-subtitle">
               Active document handling across Regional Office II functional divisions
             </p>
           </div>
         </div>
 
-        <div class="flex items-center gap-2">
-          <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 px-3 py-1 text-xs font-bold">
-            <span class="text-slate-500 dark:text-slate-400">Total Active:</span>
-            <strong class="text-slate-900 dark:text-white font-black">{{ totalDivisionWorkload() }}</strong>
-            <span class="text-[10px] text-slate-400">docs</span>
-          </span>
+        <div class="workload-total-pill">
+          <span class="pill-label">Total Active:</span>
+          <strong class="pill-count">{{ totalDivisionWorkload() }}</strong>
+          <span class="pill-unit">docs</span>
         </div>
       </div>
 
       <!-- Simple Vertical Bar Chart Container -->
-      <div class="relative pt-2 pb-1">
-        <div class="flex h-44 sm:h-48 w-full items-end gap-2 sm:gap-4 px-1 sm:px-2 border-b border-slate-200/80 dark:border-slate-800">
+      <div class="workload-chart-scroll">
+        <div class="workload-chart">
           @for (item of stats.divisionBreakdown; track item.division) {
             <div
-              class="group/bar flex flex-1 flex-col items-center justify-end h-full min-w-0"
+              class="bar-track-col group"
               [title]="getDivisionFullName(item.division) + ': ' + item.count + ' active documents (' + getDivisionPercentage(item.count) + '%)'">
               
               <!-- Value badge above bar -->
-              <div class="mb-2 flex flex-col items-center transition-transform group-hover/bar:scale-105">
-                <span class="text-xs font-black text-slate-900 dark:text-white tabular-nums group-hover/bar:text-blue-600 dark:group-hover/bar:text-blue-400 transition-colors">
+              <div class="bar-value-badge">
+                <span class="bar-count">
                   {{ item.count }}
                 </span>
-                <span class="text-[9.5px] font-bold text-slate-400 dark:text-slate-500">
+                <span class="bar-pct">
                   {{ getDivisionPercentage(item.count) }}%
                 </span>
               </div>
 
               <!-- Bar Track Container -->
-              <div class="w-full max-w-[44px] h-28 sm:h-32 rounded-t-lg bg-slate-100/90 dark:bg-slate-800/60 p-0.5 flex items-end justify-center relative overflow-hidden transition-colors group-hover/bar:bg-slate-200/80 dark:group-hover/bar:bg-slate-800">
+              <div class="bar-track">
                 <!-- Bar Fill -->
                 <div
-                  class="w-full rounded-t-md transition-all duration-300"
-                  [class.bg-blue-600]="item.count > 0"
-                  [class.dark:bg-blue-500]="item.count > 0"
-                  [class.bg-transparent]="item.count === 0"
+                  class="bar-fill"
                   [style.height.%]="barPercentage(item.count)">
                 </div>
               </div>
 
               <!-- Division Code & Name label below bar -->
-              <div class="mt-2 text-center w-full">
+              <div class="bar-labels">
                 <span
-                  class="block text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider truncate w-full group-hover/bar:text-blue-600 dark:group-hover/bar:text-blue-400 transition-colors"
+                  class="division-chip"
                   [title]="getDivisionFullName(item.division)">
                   {{ item.division }}
                 </span>
-                <span class="block text-[9.5px] text-slate-400 dark:text-slate-500 truncate font-medium max-w-[85px] mx-auto">
+                <span class="division-fullname">
                   {{ getDivisionFullName(item.division) }}
                 </span>
               </div>
@@ -316,97 +295,97 @@
   }
 
   <!-- 5. Recent Document Activity Modernized Table Card -->
-  <div class="dashboard-transactions rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-slate-900 p-5 md:p-6 shadow-sm overflow-hidden">
+  <div class="dashboard-transactions dashboard-style-089-fca37d">
     <!-- Header with Tabs and Search -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-2">
+    <div class="dashboard-style-090-524954">
       <div>
-        <div class="flex items-center gap-2">
-          <span class="flex h-7 w-7 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400">
-            <ion-icon name="time" class="h-4 w-4"></ion-icon>
+        <div class="dashboard-style-029-d71f3c">
+          <span class="dashboard-style-091-28ecf4">
+            <ion-icon name="time" class="dashboard-style-071-d527a6"></ion-icon>
           </span>
-          <h3 class="font-extrabold text-sm md:text-base text-slate-900 dark:text-white">
+          <h3 class="dashboard-style-092-b07b56">
             Recent Document Activity
           </h3>
-          <span class="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-black text-slate-600 dark:text-slate-400">
+          <span class="dashboard-style-093-e4cc32">
             {{ filteredTransactions().length }} records
           </span>
         </div>
-        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+        <p class="dashboard-style-094-37e8bb">
           Review current handler, designated action, and routing milestones.
         </p>
       </div>
 
       <!-- Controls: View All -->
-      <div class="flex items-center gap-2.5">
+      <div class="dashboard-style-069-043d94">
         <!-- View all button -->
         <button
           type="button"
           (click)="onNavigateToView('incoming')"
-          class="group text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-extrabold flex items-center space-x-1.5 transition-colors cursor-pointer">
+          class="group dashboard-style-095-93df0a">
           <span>View All Documents</span>
-          <ion-icon name="arrow-forward" class="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform"></ion-icon>
+          <ion-icon name="arrow-forward" class="dashboard-style-096-d3e8c7"></ion-icon>
         </button>
       </div>
     </div>
 
     <!-- Table Container -->
-    <div class="dashboard-transactions-scroll overflow-x-auto rounded-2xl border border-slate-200/80 dark:border-slate-800/80">
-      <table class="dashboard-transactions-table w-full text-left text-xs border-collapse">
+    <div class="dashboard-transactions-scroll dashboard-style-097-52fc79">
+      <table class="dashboard-transactions-table dashboard-style-098-e197fe">
         <thead>
-          <tr class="bg-slate-50/90 dark:bg-slate-800/90 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 uppercase text-[10px] font-black tracking-wider">
-            <th class="py-3 px-3.5">
-              <div class="flex items-center gap-1.5">
-                <ion-icon name="qr-code-outline" class="h-3 w-3"></ion-icon>
+          <tr class="dashboard-style-099-eb0cab">
+            <th class="dashboard-style-100-41a3ee">
+              <div class="dashboard-style-101-cb51ef">
+                <ion-icon name="qr-code-outline" class="dashboard-style-016-392b17"></ion-icon>
                 <span>Route No.</span>
               </div>
             </th>
-            <th class="py-3 px-3.5">
-              <div class="flex items-center gap-1.5">
-                <ion-icon name="swap-horizontal-outline" class="h-3 w-3"></ion-icon>
+            <th class="dashboard-style-100-41a3ee">
+              <div class="dashboard-style-101-cb51ef">
+                <ion-icon name="swap-horizontal-outline" class="dashboard-style-016-392b17"></ion-icon>
                 <span>Direction</span>
               </div>
             </th>
-            <th class="transaction-title-column py-3 px-3.5">
-              <div class="flex items-center gap-1.5">
-                <ion-icon name="document-text-outline" class="h-3 w-3"></ion-icon>
+            <th class="transaction-title-column dashboard-style-100-41a3ee">
+              <div class="dashboard-style-101-cb51ef">
+                <ion-icon name="document-text-outline" class="dashboard-style-016-392b17"></ion-icon>
                 <span>Document Title &amp; Subject</span>
               </div>
             </th>
-            <th class="transaction-origin-column py-3 px-3.5">
-              <div class="flex items-center gap-1.5">
-                <ion-icon name="business-outline" class="h-3 w-3"></ion-icon>
+            <th class="transaction-origin-column dashboard-style-100-41a3ee">
+              <div class="dashboard-style-101-cb51ef">
+                <ion-icon name="business-outline" class="dashboard-style-016-392b17"></ion-icon>
                 <span>Originating Agency</span>
               </div>
             </th>
-            <th class="py-3 px-3.5">
-              <div class="flex items-center gap-1.5">
-                <ion-icon name="folder-open-outline" class="h-3 w-3"></ion-icon>
+            <th class="dashboard-style-100-41a3ee">
+              <div class="dashboard-style-101-cb51ef">
+                <ion-icon name="folder-open-outline" class="dashboard-style-016-392b17"></ion-icon>
                 <span>Current Division</span>
               </div>
             </th>
-            <th class="py-3 px-3.5">
-              <div class="flex items-center gap-1.5">
-                <ion-icon name="ellipse-outline" class="h-3 w-3"></ion-icon>
+            <th class="dashboard-style-100-41a3ee">
+              <div class="dashboard-style-101-cb51ef">
+                <ion-icon name="ellipse-outline" class="dashboard-style-016-392b17"></ion-icon>
                 <span>Status</span>
               </div>
             </th>
-            <th class="py-3 px-3.5 text-right">
+            <th class="dashboard-style-102-408735">
               <span>Action</span>
             </th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/80 text-slate-800 dark:text-slate-200">
+        <tbody class="dashboard-style-103-3c0047">
           @if (filteredTransactions().length === 0) {
             <tr>
-              <td colspan="7" class="px-4 py-12 text-center text-xs text-slate-400 dark:text-slate-500">
-                <div class="flex flex-col items-center justify-center gap-2">
-                  <ion-icon name="file-tray-outline" class="h-8 w-8 text-slate-300 dark:text-slate-600"></ion-icon>
-                  <p class="font-bold text-slate-600 dark:text-slate-400">No transactions match your current view.</p>
+              <td colspan="7" class="dashboard-style-104-9e43c2">
+                <div class="dashboard-style-105-ab5d17">
+                  <ion-icon name="file-tray-outline" class="dashboard-style-106-9d88b7"></ion-icon>
+                  <p class="dashboard-style-107-f2c263">No transactions match your current view.</p>
                   @if (searchQuery()) {
                     <button
                       type="button"
                       (click)="clearSearch()"
-                      class="text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-bold mt-1">
+                      class="dashboard-style-108-42f762">
                       Clear search query "{{ searchQuery() }}"
                     </button>
                   }
@@ -415,19 +394,19 @@
             </tr>
           }
           @for (doc of paginatedTransactions(); track doc.id) {
-            <tr class="dashboard-transaction-row hover:bg-blue-500/[0.04] dark:hover:bg-blue-500/[0.07] transition-colors">
+            <tr class="dashboard-transaction-row dashboard-style-109-c9579a" (click)="onSelectDoc(doc)">
               <!-- Route No. -->
-              <td class="py-3.5 px-3.5">
-                <div class="flex items-center gap-1.5">
+              <td class="dashboard-style-110-34ac45">
+                <div class="dashboard-style-101-cb51ef">
                   <button
                     type="button"
-                    (click)="onSelectDoc(doc)"
-                    class="font-mono text-[11px] font-extrabold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-lg border border-blue-200/80 dark:border-blue-800/80 hover:bg-blue-100 dark:hover:bg-blue-900/60 cursor-pointer transition-colors"
+                    (click)="$event.stopPropagation(); onSelectDoc(doc)"
+                    class="dashboard-style-111-d790f2"
                     title="Click to view full routing details">
                     {{ doc.routeNo }}
                   </button>
                   @if (doc.priority === 'URGENT' || doc.priority === 'VERY_URGENT') {
-                    <span class="inline-flex items-center rounded bg-rose-500/15 text-rose-600 dark:text-rose-400 px-1 py-0.2 text-[8.5px] font-black border border-rose-500/30">
+                    <span class="dashboard-style-112-dab967">
                       URGENT
                     </span>
                   }
@@ -435,73 +414,73 @@
               </td>
 
               <!-- Direction -->
-              <td class="py-3.5 px-3.5">
-                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-extrabold uppercase border"
+              <td class="dashboard-style-110-34ac45">
+                <span class="dashboard-style-113-1bb7cc"
                   [ngClass]="doc.direction === 'INCOMING'
                     ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/25 dark:text-emerald-300'
                     : 'bg-blue-500/10 text-blue-700 border-blue-500/25 dark:text-blue-300'">
-                  <ion-icon [name]="doc.direction === 'INCOMING' ? 'arrow-down' : 'arrow-up'" class="w-2.5 h-2.5"></ion-icon>
+                  <ion-icon [name]="doc.direction === 'INCOMING' ? 'arrow-down' : 'arrow-up'" class="dashboard-style-114-4775d4"></ion-icon>
                   <span>{{ doc.direction }}</span>
                 </span>
               </td>
 
               <!-- Document Title & Subject -->
-              <td class="transaction-title-column py-3.5 px-3.5 max-w-xs">
+              <td class="transaction-title-column dashboard-style-115-16ba25">
                 <div
                   (click)="onSelectDoc(doc)"
-                  class="font-bold text-slate-900 dark:text-white truncate text-xs hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
+                  class="dashboard-style-116-ba3198"
                   [title]="doc.title">
                   {{ doc.title }}
                 </div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5" [title]="doc.subject">
+                <div class="dashboard-style-117-a661ad" [title]="doc.subject">
                   {{ doc.subject }}
                 </div>
-                <div class="mt-1 truncate text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                  <ion-icon name="navigate" class="w-3 h-3 shrink-0"></ion-icon>
-                  <span class="truncate">Action: {{ latestAction(doc) }}</span>
+                <div class="dashboard-style-118-227ec4">
+                  <ion-icon name="navigate" class="dashboard-style-119-42eb40"></ion-icon>
+                  <span class="dashboard-style-120-0589dc">Action: {{ latestAction(doc) }}</span>
                 </div>
               </td>
 
               <!-- Originating Agency -->
-              <td class="transaction-origin-column max-w-[190px] py-3.5 px-3.5 text-slate-600 dark:text-slate-400">
-                <div class="truncate font-bold text-slate-800 dark:text-slate-200" [title]="doc.senderName">
+              <td class="transaction-origin-column dashboard-style-121-f772a1">
+                <div class="dashboard-style-122-a60bc7" [title]="doc.senderName">
                   {{ doc.senderName || 'N/A' }}
                 </div>
-                <div class="truncate text-[11px] text-slate-500 dark:text-slate-400 font-medium" [title]="doc.originatingOffice">
+                <div class="dashboard-style-123-6b5a7e" [title]="doc.originatingOffice">
                   {{ doc.originatingOffice || 'Regional Origin' }}
                 </div>
-                <div class="truncate text-[10px] text-slate-400 dark:text-slate-500">
+                <div class="dashboard-style-124-bbd807">
                   {{ doc.senderAddress || 'No address specified' }}
                 </div>
               </td>
 
               <!-- Current Division -->
-              <td class="py-3.5 px-3.5">
+              <td class="dashboard-style-110-34ac45">
                 <span
-                  class="inline-flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-[10.5px] font-black text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80"
+                  class="dashboard-style-125-68352e"
                   [title]="getDivisionFullName(doc.currentDivision)">
-                  <ion-icon name="briefcase-outline" class="h-3 w-3 text-blue-500"></ion-icon>
+                  <ion-icon name="briefcase-outline" class="dashboard-style-126-f64d2b"></ion-icon>
                   <span>{{ doc.currentDivision }}</span>
                 </span>
               </td>
 
               <!-- Status -->
-              <td class="py-3.5 px-3.5">
+              <td class="dashboard-style-110-34ac45">
                 <span
-                  class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border"
+                  class="dashboard-style-127-c6ac42"
                   [ngClass]="statusCfg(doc.currentStatus)?.badgeClass">
-                  <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+                  <span class="dashboard-style-128-cc7d00"></span>
                   <span>{{ statusCfg(doc.currentStatus)?.label || doc.currentStatus }}</span>
                 </span>
               </td>
 
               <!-- Action -->
-              <td class="py-3.5 px-3.5 text-right">
+              <td class="dashboard-style-129-682359">
                 <button
                   type="button"
-                  (click)="onSelectDoc(doc)"
-                  class="inline-flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold px-3 py-1.5 rounded-xl shadow-xs shadow-blue-600/20 transition-all hover:shadow-md hover:-translate-y-0.5 active:scale-95 cursor-pointer">
-                  <ion-icon name="eye" class="w-3.5 h-3.5"></ion-icon>
+                  (click)="$event.stopPropagation(); onSelectDoc(doc)"
+                  class="dashboard-style-130-e1c271">
+                  <ion-icon name="eye" class="dashboard-style-036-5ffb77"></ion-icon>
                   <span>Details</span>
                 </button>
               </td>
@@ -513,27 +492,27 @@
 
     <!-- Pagination Controls -->
     @if (filteredTransactions().length > transactionsPerPage) {
-      <div class="mt-4 flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
-        <span class="text-slate-500 dark:text-slate-400 font-semibold">
-          Page <strong class="text-slate-800 dark:text-slate-200">{{ transactionPage() }}</strong> of {{ transactionPageCount() }}
+      <div class="dashboard-style-131-4be979">
+        <span class="dashboard-style-132-82f3c3">
+          Page <strong class="dashboard-style-133-b561fe">{{ transactionPage() }}</strong> of {{ transactionPageCount() }}
           &bull; Showing {{ paginatedTransactions().length }} of {{ filteredTransactions().length }} filtered records
         </span>
-        <div class="flex items-center gap-2">
+        <div class="dashboard-style-029-d71f3c">
           <button
             type="button"
             [disabled]="transactionPage() === 1"
             (click)="prevPage()"
-            class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer">
-            <ion-icon name="arrow-back" class="h-3.5 w-3.5"></ion-icon>
+            class="dashboard-style-134-e2a796">
+            <ion-icon name="arrow-back" class="dashboard-style-135-2821f3"></ion-icon>
             <span>Previous</span>
           </button>
           <button
             type="button"
             [disabled]="transactionPage() === transactionPageCount()"
             (click)="nextPage()"
-            class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40 transition-colors shadow-xs cursor-pointer">
+            class="dashboard-style-136-57b27e">
             <span>Next</span>
-            <ion-icon name="arrow-forward" class="h-3.5 w-3.5"></ion-icon>
+            <ion-icon name="arrow-forward" class="dashboard-style-135-2821f3"></ion-icon>
           </button>
         </div>
       </div>
@@ -545,96 +524,96 @@
   <!-- 7. Selected Card Filtered Documents Modal -->
   @if (selectedCard()) {
     <div
-      class="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-md transition-all"
+      class="dashboard-style-137-5f7c4c"
       role="dialog"
       aria-modal="true"
       aria-labelledby="pending-documents-title"
       (mousedown)="onBackdropMouseDown($event, 'selectedCard')">
-      <div class="w-full max-xl overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
-        <div class="flex items-center justify-between border-b border-slate-200/80 px-6 py-4.5 dark:border-slate-800">
+      <div class="dashboard-style-138-3ec85e">
+        <div class="dashboard-style-139-526407">
           <div>
-            <h2 id="pending-documents-title" class="text-base font-extrabold text-slate-900 dark:text-white">
+            <h2 id="pending-documents-title" class="dashboard-style-140-3ce6cf">
               {{ cardTitle() }}
             </h2>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p class="dashboard-style-141-cc78e0">
               {{ cardDocuments().length }} document{{ cardDocuments().length === 1 ? '' : 's' }} in this category
             </p>
           </div>
           <button
             type="button"
             (click)="selectedCard.set(null)"
-            class="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            class="dashboard-style-142-a193f5"
             [attr.aria-label]="'Close ' + cardTitle()">
-            <ion-icon name="close" class="h-4 w-4"></ion-icon>
+            <ion-icon name="close" class="dashboard-style-071-d527a6"></ion-icon>
           </button>
         </div>
-        <div class="max-h-[70vh] space-y-3.5 overflow-y-auto p-5">
+        <div class="dashboard-style-143-cd1ffc">
           @if (cardDocuments().length) {
             @for (document of cardDocuments(); track document.id) {
-              <div class="w-full rounded-2xl border border-slate-200/90 p-4.5 text-left hover:border-blue-500/50 hover:bg-blue-50/20 dark:border-slate-800 dark:hover:bg-slate-800/50 transition-all shadow-xs">
-                <div class="flex items-center justify-between gap-2">
-                  <span class="font-mono text-xs font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-md border border-blue-200/80 dark:border-blue-800/80">
+              <article class="dashboard-style-144-49a674">
+                <div class="dashboard-style-145-288124">
+                  <span class="dashboard-style-146-30fd0d">
                     {{ document.routeNo }}
                   </span>
-                  <span class="text-[10px] font-extrabold text-slate-500 dark:text-slate-400">
+                  <span class="dashboard-style-147-984bd5">
                     {{ document.currentDivision }}
                   </span>
                 </div>
 
-                <div class="mt-2 text-xs font-extrabold text-slate-900 dark:text-white">
+                <div class="dashboard-style-148-f59724">
                   {{ document.title }}
                 </div>
-                <div class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                <div class="dashboard-style-149-483ae0">
                   {{ document.subject }}
                 </div>
-                <div class="mt-1.5 text-[10.5px] text-slate-500 dark:text-slate-400 font-medium">
-                  Logged By: <strong class="text-slate-800 dark:text-slate-200">{{ document.createdBy }}</strong>
+                <div class="dashboard-style-150-eff62c">
+                  Logged By: <strong class="dashboard-style-133-b561fe">{{ document.createdBy }}</strong>
                 </div>
 
                 @if (document.routes.length > 0) {
-                  <div class="mt-3.5 border-t border-slate-200/80 pt-3 dark:border-slate-800">
-                    <div class="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  <div class="dashboard-style-151-1fc184">
+                    <div class="dashboard-style-152-7997ff">
                       Routing Trail
                     </div>
-                    <div class="relative space-y-2">
+                    <div class="before:absolute before:bottom-3 before:left-2 before:top-3 before:w-px before:bg-slate-200 dashboard-style-153-28ad74">
                       @for (route of groupRouteTransactions(document); track route.id; let idx = $index) {
-                        <div class="relative pl-6 text-[10.5px]">
-                          <span class="absolute left-0 top-2 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[8px] font-black text-white ring-2 ring-white dark:ring-slate-900">
+                        <div class="dashboard-style-154-2b5ed7">
+                          <span class="dashboard-style-155-a9d30f">
                             {{ idx + 1 }}
                           </span>
-                          <div class="space-y-1.5 rounded-xl border border-slate-200 bg-slate-50/80 p-2.5 dark:border-slate-800 dark:bg-slate-800/60">
-                            <div class="flex flex-wrap items-center justify-between gap-1 border-b border-slate-200/80 pb-1.5 font-bold dark:border-slate-700">
-                              <div class="flex flex-wrap items-center gap-1 text-slate-700 dark:text-slate-300">
+                          <div class="dashboard-style-156-d3ab99">
+                            <div class="dashboard-style-157-ac4bd8">
+                              <div class="dashboard-style-158-4a46d9">
                                 <span>Step #{{ idx + 1 }}:</span>
-                                <strong class="text-slate-900 dark:text-white">{{ route.fromDivision }}</strong>
+                                <strong class="dashboard-style-159-486d94">{{ route.fromDivision }}</strong>
                                 <span>&rarr;</span>
-                                <strong class="text-emerald-600 dark:text-emerald-400">{{ route.toDivisions.join(', ') }}</strong>
+                                <strong class="dashboard-style-160-14543f">{{ route.toDivisions.join(', ') }}</strong>
                               </div>
-                              <span class="font-mono text-[9px] font-medium text-slate-400">{{ formatDate(route.createdAt) }}</span>
+                              <span class="dashboard-style-161-3589cb">{{ formatDate(route.createdAt) }}</span>
                             </div>
-                            <div class="grid grid-cols-1 gap-1 text-slate-600 dark:text-slate-300 sm:grid-cols-2">
+                            <div class="dashboard-style-162-ae03c5">
                               <div>
-                                <span class="text-slate-400">Originator:</span>
-                                <strong class="ml-1">{{ resolveUserName(route.fromUserId, route.fromUser) }}</strong>
+                                <span class="dashboard-style-163-b24af2">Originator:</span>
+                                <strong class="dashboard-style-164-c89fe4">{{ resolveUserName(route.fromUserId, route.fromUser) }}</strong>
                               </div>
                               <div>
-                                <span class="text-slate-400">Recipient:</span>
-                                <strong class="ml-1">{{ resolveUserName(route.toUserId, route.toUser) || route.toUsers.join(', ') || route.toDivisions.join(', ') }}</strong>
+                                <span class="dashboard-style-163-b24af2">Recipient:</span>
+                                <strong class="dashboard-style-164-c89fe4">{{ resolveUserName(route.toUserId, route.toUser) || route.toUsers.join(', ') || route.toDivisions.join(', ') }}</strong>
                               </div>
                             </div>
-                            <div class="rounded-lg border border-slate-200/80 bg-white p-2 text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                            <div class="dashboard-style-165-32e506">
                               @if (getRouteDecision(route)) {
                                 <div
-                                  class="mb-1.5 flex items-center justify-between rounded px-2 py-1"
+                                  class="dashboard-style-166-6461d2"
                                   [ngClass]="getRouteDecision(route) === 'APPROVED' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/10 text-rose-700 dark:text-rose-300'">
-                                  <strong class="text-[10px]">{{ getRouteDecision(route) }}</strong>
-                                  <span class="text-[9px] font-bold">by {{ resolveUserName(route.fromUserId, route.fromUser) }}</span>
+                                  <strong class="dashboard-style-167-b540fa">{{ getRouteDecision(route) }}</strong>
+                                  <span class="dashboard-style-168-434edf">by {{ resolveUserName(route.fromUserId, route.fromUser) }}</span>
                                 </div>
                               }
                               <div>
-                                <strong class="text-amber-600 dark:text-amber-400">Action:</strong> {{ route.actionRequested || 'N/A' }}
+                                <strong class="dashboard-style-169-e924ed">Action:</strong> {{ route.actionRequested || 'N/A' }}
                               </div>
-                              <div class="mt-0.5 text-slate-500 dark:text-slate-400">
+                              <div class="dashboard-style-170-74d245">
                                 <strong>Remarks:</strong> {{ route.remarks?.trim() && route.remarks !== 'Logged in BLGF Document Tracking System' ? route.remarks : 'None' }}
                               </div>
                             </div>
@@ -645,27 +624,27 @@
                   </div>
                 }
 
-                <div class="mt-3.5 flex justify-end gap-2 border-t border-slate-200/80 pt-3 dark:border-slate-800">
+                <div class="dashboard-style-171-03912a">
                   <button
                     type="button"
                     (click)="selectDocFromCard(document)"
-                    class="rounded-xl border border-slate-200 px-3.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                    class="dashboard-style-172-184008">
                     View Details
                   </button>
                   @if (selectedCard() === 'returned' && canReapproveDocument(document)) {
                     <button
                       type="button"
                       (click)="reapproveFromCard(document)"
-                      class="rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-sm transition-colors cursor-pointer">
+                      class="dashboard-style-173-4f3016">
                       Re-approve
                     </button>
                   }
                 </div>
-              </div>
+              </article>
             }
           } @else {
-            <div class="py-12 text-center text-xs text-slate-400 dark:text-slate-500">
-              <ion-icon name="document-text-outline" class="h-8 w-8 text-slate-300 dark:text-slate-600 mx-auto mb-2"></ion-icon>
+            <div class="dashboard-style-174-ba7bc4">
+              <ion-icon name="document-text-outline" class="dashboard-style-175-720aa0"></ion-icon>
               <p>No {{ cardTitle().toLowerCase() }} currently assigned to this account.</p>
             </div>
           }

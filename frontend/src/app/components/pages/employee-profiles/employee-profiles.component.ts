@@ -16,6 +16,7 @@ import { ApiService } from '../../../services/api.service';
 import { UiService } from '../../../services/ui.service';
 import { showConfirm, showPrompt } from '../../../services/dialog.service';
 import { AppModalLayerComponent } from '../../ui/modal-layer.component';
+import { IonicModule } from '@ionic/angular';
 import {
   EmployeeProfile,
   DivisionCode,
@@ -134,7 +135,7 @@ const loadFolders = (): EmployeeFolder[] => {
   selector: 'app-employee-profiles',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [CommonModule, FormsModule, AppModalLayerComponent],
+  imports: [IonicModule, CommonModule, FormsModule, AppModalLayerComponent],
   templateUrl: './employee-profiles.component.html',
   styleUrl: './employee-profiles.component.scss',
 })
@@ -828,6 +829,13 @@ export class EmployeeProfilesComponent implements OnInit {
 
   fileDateLabel(date: string): string {
     return new Date(date).toLocaleString();
+  }
+
+  getInitials(name?: string): string {
+    if (!name || !name.trim()) return '';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 
   customSections(): DirectorySection[] {

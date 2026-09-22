@@ -16,12 +16,13 @@ design system classes. Do NOT change features, flow, or architecture.
 - `import { Component, Input, Output, EventEmitter, signal, computed, inject, OnInit, OnDestroy } from '@angular/core';`
 - `import { CommonModule, DatePipe } from '@angular/common';`
 - `import { FormsModule } from '@angular/forms';`
-- Design classes: use the `cls` pipe: `import { ClsPipe } from '../../../../shared/cls.pipe';` (adjust depth per folder)
-  and bind classes as `[class]="'flex items-center gap-2 ...' | cls"`. For a leading static class list you can also use
-  `class="..."` when no Tailwind-style tokens are involved. `cls` pipes the React `cx(...)` equivalents, so utility
-  classes like `p-4`, `bg-slate-50`, `dark:bg-slate-950`, `text-sm`, `flex`, `grid`, `rounded-xl` etc. must go through
-  `| cls` (they are obfuscated at runtime).
-- `import { cx } from '../../../../shared/class-utils';` when you need to compute classes in TS (returns resolved string).
+- Build new UI with Ionic standalone components from `@ionic/angular/standalone` (`IonContent`, `IonButton`,
+  `IonInput`, `IonSelect`, `IonItem`, and related components). Import each component in the standalone component's
+  `imports` array.
+- Use semantic component SCSS classes for application-specific layouts. Tailwind and PostCSS utilities are not part
+  of this project. The legacy `cls` pipe remains only where an older template has not yet been simplified.
+- `import { cx } from '../../../../shared/class-utils';` only when an existing component still computes legacy class
+  names in TypeScript; do not introduce it in new Ionic UI.
 - Types: `import { ... } from '../../../../types';`
 - Utils: `import { ... } from '../../../../utils/<kebab-file>';` (status-utils -> status-utils, document-visibility,
   attachment-visibility, routing-recipients, recipient-flow, progress, document-files, routing-popup-snooze).
@@ -47,10 +48,10 @@ The parent (AppComponent) passes React-style props. Map them in your component a
 - EventEmitter is NOT used for callbacks in pages/modals; only function @Inputs, matching App.tsx wiring.
 
 ## Design token facts
-- Dark mode toggles class `dark` on `<html>` + `<body>` (already done globally). Use `dark:` variants.
+- Dark mode toggles class `dark` on `<html>` + `<body>` and sets Ionic color variables. Use component SCSS selectors
+  such as `:host-context(.dark)` for custom dark-mode rules.
 - CSS variables available: `var(--ui-surface)`, `var(--ui-soft)`, `var(--ui-border)`, `var(--ui-muted)`,
-  `var(--ui-text)`, `var(--ui-blue)`, `var(--ui-green)` etc. Usage: `text-[color:var(--ui-text)]`,
-  `bg-[color:var(--ui-soft)]`, `border-[color:var(--ui-border)]`. (These go through `| cls` too.)
+  `var(--ui-text)`, `var(--ui-blue)`, `var(--ui-green)` and Ionic variables such as `var(--ion-color-primary)`.
 - Global design CSS is injected once (`_header_`, `_menu_`, `_sidebar_`, `app-content`, `global-document-search`,
   `modal-reminder-panel`, etc.). If the React component uses its own CSS-module string (e.g. `notificationDrawerCss`,
   `qrCodeGeneratorCss`, `outgoingEnvelopeCss`), port it verbatim into a `.scss` file next to the component and reference

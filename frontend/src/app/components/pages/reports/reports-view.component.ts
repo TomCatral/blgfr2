@@ -1,12 +1,12 @@
 import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, signal, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonIcon } from '@ionic/angular/standalone';
 import * as XLSX from 'xlsx';
 import { AuditLog, DocumentRecord, DocumentRouteStep } from '../../../types';
 import { ClsPipe } from '../../../shared/cls.pipe';
 import { cx } from '../../../shared/class-utils';
 import { formatDate as formatDateUtil } from '../../../utils/status-utils';
+import { IonicModule } from '@ionic/angular';
 
 type ReportType = 'INCOMING' | 'OUTGOING' | 'ENVELOPE';
 
@@ -96,8 +96,8 @@ const makeWorkbook = (rows: Record<string, unknown>[], sheetName: string) => {
   selector: 'app-reports-view',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [FormsModule, NgClass, ClsPipe, IonIcon],
-  styleUrl: './reports.shared.scss',
+  imports: [IonicModule, FormsModule, NgClass, ClsPipe],
+  styleUrl: './reports-view.component.scss',
   templateUrl: './reports-view.component.html',
 })
 export class ReportsViewComponent implements OnInit, OnChanges, OnDestroy {

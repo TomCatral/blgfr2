@@ -1,0 +1,439 @@
+@if (!activeDoc()) {
+  <div [ngClass]="'slipStyle' | cls">
+    <p [ngClass]="'slipP' | cls">No document selected to generate routing slip.</p>
+  </div>
+} @else {
+  <div class="document-slip-page">
+
+    <div class="document-slip-header-bar slipSlipBar routing-slip-style-001-b8c02a">
+      <div [ngClass]="'slip22' | cls">
+        <ion-button type="button" (click)="onBack()" [ngClass]="'slipOnBackBtn' | cls" title="Back">
+          <ion-icon name="arrow-back" [ngClass]="'slipArrowBackIcon' | cls"></ion-icon>
+        </ion-button>
+        <div>
+          <div [ngClass]="'slip32' | cls">
+            <h2 [ngClass]="'slipH2' | cls">
+              <ion-icon name="print" [ngClass]="'slipPrintIcon' | cls"></ion-icon>
+              <span>{{ slipLayout() === 'full' ? 'Official BLGF RO2 Document Routing Slip' : 'New Limited Document Routing Slip' }}</span>
+            </h2>
+          </div>
+          @if (slipLayout() === 'full') {
+            <p [ngClass]="'slip23' | cls">Choose a document, review the slip details, then print the completed form.</p>
+          }
+        </div>
+      </div>
+      <div [ngClass]="'slip4' | cls">
+        <ion-select interface="popover" [ngModel]="slipLayout()" (ngModelChange)="changeLayout($event)" [ngClass]="'slipChooseRoutingSlipSelect' | cls" aria-label="Choose routing slip format">
+          <ion-select-option value="simplified">Limited Slip</ion-select-option>
+          <ion-select-option value="full">Complete Slip</ion-select-option>
+        </ion-select>
+        <ion-button type="button" (click)="isCustomizeOpen.set(!isCustomizeOpen())" [ngClass]="'slipSetBtn' | cls">
+          <ion-icon name="create" [ngClass]="'slipCreateIcon' | cls"></ion-icon>
+          <span>{{ isCustomizeOpen() ? 'Close Form Edit' : 'Edit Routing Form' }}</span>
+        </ion-button>
+        <ion-button type="button" (click)="handlePrint()" [ngClass]="'slipHandlePrintBtn' | cls">
+          <ion-icon name="print" [ngClass]="'slipPrint2Icon' | cls"></ion-icon>
+          <span>Print Slip Only</span>
+        </ion-button>
+      </div>
+    </div>
+
+    @if (isCustomizeOpen()) {
+      <div class="document-slip-customize-wrap animate-fadeIn slipSlipCustomize">
+        <div [ngClass]="'slip5' | cls">
+          <h3 [ngClass]="'slipH3' | cls">
+            <ion-icon name="color-palette" [ngClass]="'slipColorPaletteIcon' | cls"></ion-icon>
+            <span>Routing Slip Signatory</span>
+          </h3>
+        </div>
+
+        <div [ngClass]="'slip6' | cls">
+          <div>
+            <label [ngClass]="'slipLabel' | cls">Signatory Format to Use</label>
+            <ion-select interface="popover" [ngModel]="selectedSignatoryFormat()" (ngModelChange)="applySignatoryFormat($event)" [ngClass]="'slipSelect' | cls">
+              @for (format of signatoryFormats(); track format.id) {
+                <ion-select-option [value]="format.id">{{ format.name }}</ion-select-option>
+              }
+            </ion-select>
+          </div>
+          <div>
+            <label [ngClass]="'slipLabel' | cls">New Format Name</label>
+            <ion-input type="text" [ngModel]="newSignatoryFormatName()" (ngModelChange)="newSignatoryFormatName.set($event)" placeholder="e.g. OIC Regional Director" [ngClass]="'slipEGOicInput' | cls" />
+          </div>
+          <div [ngClass]="'slip7' | cls">
+            <ion-button type="button" (click)="createSignatoryFormat()" [ngClass]="'slipCreateSignatoryFormatBtn' | cls">
+              <ion-icon name="save" [ngClass]="'slipSaveIcon' | cls"></ion-icon>
+              Save Format
+            </ion-button>
+            <ion-button type="button" (click)="deleteSignatoryFormat()" [disabled]="selectedSignatoryFormat() === 'regional-director'" [ngClass]="'slipDeleteSignatoryFormatBtn' | cls" title="Delete selected signatory format">
+              <ion-icon name="trash" [ngClass]="'slipSaveIcon' | cls"></ion-icon>
+            </ion-button>
+          </div>
+        </div>
+
+        <div [ngClass]="'slip8' | cls">
+          <div [ngClass]="'slip9' | cls">
+            <div>
+              <label [ngClass]="'slipLabel2' | cls">Class Code / No.:</label>
+              <ion-input type="text" [ngModel]="docClass()" (ngModelChange)="docClass.set($event)" [ngClass]="'slipInput' | cls" />
+            </div>
+            <div>
+              <label [ngClass]="'slipLabel2' | cls">Sender Name:</label>
+              <ion-input type="text" [ngModel]="senderName()" (ngModelChange)="senderName.set($event)" [ngClass]="'slip2Input' | cls" />
+            </div>
+            <div>
+              <label [ngClass]="'slipLabel2' | cls">Sender Position / Title:</label>
+              <ion-input type="text" [ngModel]="senderPosition()" (ngModelChange)="senderPosition.set($event)" placeholder="e.g. Division Chief" [ngClass]="'slip2Input' | cls" />
+            </div>
+            <div>
+              <label [ngClass]="'slipLabel2' | cls">Sender Office:</label>
+              <ion-input type="text" [ngModel]="senderOffice()" (ngModelChange)="senderOffice.set($event)" [ngClass]="'slip2Input' | cls" />
+            </div>
+            <div>
+              <label [ngClass]="'slipLabel2' | cls">Date:</label>
+              <ion-input type="text" [ngModel]="dateStr()" (ngModelChange)="dateStr.set($event)" [ngClass]="'slip3Input' | cls" />
+            </div>
+            <div>
+              <label [ngClass]="'slipLabel2' | cls">Time:</label>
+              <ion-input type="text" placeholder="e.g. 10:15 AM" [ngModel]="timeStr()" (ngModelChange)="timeStr.set($event)" [ngClass]="'slip3Input' | cls" />
+            </div>
+            <div>
+              <label [ngClass]="'slipLabel2' | cls">Received By (Handler):</label>
+              <ion-input type="text" [ngModel]="receivedBy()" (ngModelChange)="receivedBy.set($event)" [ngClass]="'slip4Input' | cls" />
+            </div>
+            <div>
+              <label [ngClass]="'slipLabel2' | cls">Subject Matter:</label>
+              <ion-input type="text" [ngModel]="subjectMatter()" (ngModelChange)="subjectMatter.set($event)" [ngClass]="'slip2Input' | cls" />
+            </div>
+          </div>
+          <div>
+            <label [ngClass]="'slipLabel2' | cls">Signatory Name (RD):</label>
+            <ion-input type="text" [ngModel]="rdName()" (ngModelChange)="rdName.set($event)" [ngClass]="'slip5Input' | cls" />
+          </div>
+          <div>
+            <label [ngClass]="'slipLabel2' | cls">Signatory Position / Title:</label>
+            <ion-input type="text" [ngModel]="rdPosition()" (ngModelChange)="rdPosition.set($event)" placeholder="e.g. Regional Director" [ngClass]="'slip5Input' | cls" />
+          </div>
+        </div>
+      </div>
+    }
+
+    <div class="document-slip-sidebar routing-slip-style-001-b8c02a">
+      <div class="document-slip-picker slipSlipPicker">
+        <!-- Sidebar Header -->
+        <div class="slip10">
+          <div class="slip11">
+            <ion-icon name="search" class="slipSearchIcon"></ion-icon>
+          </div>
+          <div class="slip12">
+            <label class="slipLabel3">Find Document</label>
+            <p class="slip3">Search route number or title (Enter to load)</p>
+          </div>
+        </div>
+
+        <!-- Search Input Box & Dropdown (Strictly Separated Wrapper) -->
+        <div class="document-search-container slipSearch">
+          <div class="document-search-input-wrap slipSearchInput">
+            <ion-icon name="search" class="slipSearch2Icon"></ion-icon>
+            <ion-input
+              class="document-search-input"
+              type="text"
+              [ngModel]="documentSearch()"
+              (ngModelChange)="onSearchInputChange($event)"
+              (keydown)="onSearchKeydown($event)"
+              placeholder="Search route no., title... (↵ Enter)"
+              autocomplete="off"
+              data-autocomplete-managed="true"
+            />
+            @if (hasDocumentSearch()) {
+              <ion-button
+                type="button"
+                (click)="clearSearch()"
+                class="slipClearSearchBtn"
+                title="Clear search"
+                aria-label="Clear search"
+              >
+                <ion-icon name="close" class="slipCloseIcon"></ion-icon>
+              </ion-button>
+            }
+          </div>
+
+          <!-- Dropdown Popup -->
+          @if (hasDocumentSearch()) {
+            <div class="document-search-dropdown-popup">
+              <div class="dropdown-header-strip">
+                <span>{{ matchingDocuments().length }} {{ matchingDocuments().length === 1 ? 'match' : 'matches' }} found</span>
+                <span class="slipSpan">Press ↵ Enter to load</span>
+              </div>
+              @if (matchingDocuments().length === 0) {
+                <div class="slip13">
+                  <ion-icon name="alert-circle-outline" class="slipAlertCircleOutlineIcon"></ion-icon>
+                  No documents found for "{{ documentSearch() }}"
+                </div>
+              } @else {
+                <div class="dropdown-items-scroll">
+                  @for (candidate of matchingDocuments(); track candidate.id; let idx = $index) {
+                    <ion-button
+                      type="button"
+                      (click)="selectCandidate(candidate)"
+                      class="document-slip-picker-option"
+                      [class.active]="activeDoc().id === candidate.id"
+                      [class.highlighted]="highlightedIndex() === idx"
+                    >
+                      <div class="candidate-icon-box">
+                        <ion-icon name="document-text" class="slipTextIcon"></ion-icon>
+                      </div>
+                      <div class="candidate-info">
+                        <div class="slip14">
+                          <span class="candidate-route">{{ candidate.routeNo || candidate.trackingNumber }}</span>
+                          <span class="candidate-badge" [class.outgoing]="candidate.direction === 'OUTGOING'">
+                            {{ candidate.direction || 'INCOMING' }}
+                          </span>
+                        </div>
+                        <span class="candidate-title" [title]="candidate.title">{{ candidate.title }}</span>
+                        @if (candidate.subject) {
+                          <span class="candidate-subject" [title]="candidate.subject">{{ candidate.subject }}</span>
+                        }
+                      </div>
+                      <ion-icon name="chevron-forward" class="candidate-arrow slipCandidateArrowIcon"></ion-icon>
+                    </ion-button>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- CURRENTLY ACTIVE DOCUMENT CARD -->
+        @if (activeDoc(); as curDoc) {
+          <div class="active-document-card">
+            <div class="active-doc-header">
+              <span class="active-doc-badge">
+                <ion-icon name="checkmark-circle"></ion-icon>
+                Active on Slip
+              </span>
+              <span class="active-doc-direction" [class.outgoing]="curDoc.direction === 'OUTGOING'">
+                {{ curDoc.direction || 'ROUTING' }}
+              </span>
+            </div>
+            <p class="active-doc-route">{{ curDoc.routeNo || curDoc.trackingNumber }}</p>
+            <p class="active-doc-title">{{ curDoc.title }}</p>
+            <div class="active-doc-meta">
+              <span>Office: <strong>{{ curDoc.currentDivision }}</strong></span>
+              <span>&bull;</span>
+              <span class="slip2">{{ curDoc.currentStatus.replaceAll('_', ' ').toLowerCase() }}</span>
+            </div>
+          </div>
+        }
+
+        <!-- QUICK SWITCHER: RECENT DOCUMENTS (When not searching) -->
+        @if (!hasDocumentSearch() && recentDocuments().length > 0) {
+          <div class="quick-switcher-block">
+            <div class="quick-switcher-header">
+              <span>Recent Documents</span>
+              <span class="quick-hint">Click to switch</span>
+            </div>
+            <div class="quick-switcher-list">
+              @for (item of recentDocuments(); track item.id) {
+                <button
+                  type="button"
+                  (click)="selectCandidate(item)"
+                  class="quick-doc-btn"
+                  [class.is-current]="activeDoc().id === item.id"
+                >
+                  <ion-icon name="document-text-outline" class="quick-doc-icon routing-slip-style-002-14d60f"></ion-icon>
+                  <div class="routing-slip-style-003-0ffd02">
+                    <div class="routing-slip-style-004-5a420b">
+                      <span class="quick-doc-code">{{ item.routeNo || item.trackingNumber }}</span>
+                      <span class="quick-doc-dir-tag">{{ item.direction || 'IN' }}</span>
+                    </div>
+                    <div class="quick-doc-title">{{ item.title }}</div>
+                  </div>
+                  @if (activeDoc().id === item.id) {
+                    <ion-icon name="checkmark-circle" class="quick-doc-check routing-slip-style-002-14d60f"></ion-icon>
+                  }
+                </button>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div id="routingSlipCanvas" class="document-slip-canvas-wrap slipSlipCanvas routing-slip-style-005-bec261">
+      <div [ngClass]="'slip15' | cls">
+        <div [ngClass]="'slip16' | cls">
+          <img src="/blgflogo.jpg" alt="BLGF seal" [ngClass]="'slipImg' | cls">
+          <div [ngClass]="'slip17' | cls">
+            <div [ngClass]="'slip18' | cls">Republic of the Philippines</div>
+            <div [ngClass]="'slip18' | cls">Department of Finance</div>
+            <div [ngClass]="'slip19' | cls">Bureau of Local Government Finance</div>
+                <div [ngClass]="'slip20' | cls">Regional Office No. II &middot; Carig, Tuguegarao City</div>
+                <div [ngClass]="'slip21' | cls">{{ slipLayout() === 'full' ? 'Official Document Routing Slip' : 'Limited Document Routing Slip' }}</div>
+              </div>
+              <div [ngClass]="'slip222' | cls">
+                <div [ngClass]="'slip232' | cls">{{ docNo() || activeDoc().routeNo || activeDoc().trackingNumber || '' }}</div>
+                <div [ngClass]="'slip24' | cls">Records<br>Copy</div>
+              </div>
+            </div>
+
+            <div [ngClass]="'slip25' | cls">
+              <div [ngClass]="'slip26' | cls">
+                <div [ngClass]="'slip27' | cls">
+                  <div [ngClass]="'slip28' | cls">Recipient</div>
+                  <div [ngClass]="'slip29' | cls" [title]="recipientListDisplay()">{{ recipientCell() }}</div>
+                </div>
+                <div [ngClass]="'slip30' | cls">
+                  <div [ngClass]="'slip31' | cls">
+                    <span [ngClass]="'slip33' | cls">No.:</span>
+                    <span [ngClass]="'slip42' | cls">{{ docNo() || activeDoc().routeNo || nbsp() }}</span>
+                  </div>
+                  <div [ngClass]="'slip31' | cls">
+                    <span [ngClass]="'slip33' | cls">Class:</span>
+                    <span [ngClass]="'slip52' | cls">{{ docClass() }}</span>
+                  </div>
+                </div>
+              </div>
+              <div [ngClass]="'slip322' | cls">
+                <div [ngClass]="'slip332' | cls">
+                  <div [ngClass]="'slip34' | cls">Date:</div>
+                  <div [ngClass]="'slip35' | cls">{{ dateStr() || '___________' }}</div>
+                </div>
+                <div [ngClass]="'slip36' | cls">
+                  <div [ngClass]="'slip37' | cls">Time:</div>
+                  <div [ngClass]="'slip38' | cls">{{ timeStr() || '___________' }}</div>
+                </div>
+                <div [ngClass]="'slip39' | cls">
+                  <div [ngClass]="'slip37' | cls">By:</div>
+                  <div [ngClass]="'slip40' | cls">{{ routingBy() || routedByDisplayName() }}</div>
+                </div>
+              </div>
+              <div [ngClass]="'slip41' | cls">
+                <div [ngClass]="'slip422' | cls">Subject Matter:</div>
+                <div [ngClass]="'slip43' | cls">{{ subjectMatter() }}</div>
+              </div>
+            </div>
+
+            <div [ngClass]="'slip44' | cls">
+              <div [ngClass]="'slip45' | cls">
+                <div [ngClass]="'slip46' | cls">
+                  <div [ngClass]="'slip47' | cls">
+                    <span>ASSIGNED TO:</span>
+                  </div>
+                  <div [ngClass]="'slip48' | cls">
+                    @for (div of routingSlipDivisions; track div.code) {
+                      <div (click)="toggleAssigned(div.label)" [ngClass]="toggleRowClass()">
+                        <span [ngClass]="'slip62' | cls">
+                          @if (assignedTo()[div.label]) {
+                            <ion-icon name="checkbox" [ngClass]="'slipCheckboxIcon' | cls"></ion-icon>
+                          } @else {
+                            <ion-icon name="square-outline" [ngClass]="'slipSquareOutlineIcon' | cls"></ion-icon>
+                          }
+                        </span>
+                        <span [ngClass]="labelClass(assignedTo()[div.label])">{{ div.label }} ({{ div.code }})</span>
+                      </div>
+                    }
+                  </div>
+                </div>
+                <div [ngClass]="'slip49' | cls">
+                  <div [ngClass]="'slip50' | cls">FOR:</div>
+                  <div [ngClass]="'slip48' | cls">
+                    @for (act of routingSlipActions; track act) {
+                      <div (click)="toggleForAction(act)" [ngClass]="toggleRowClass()">
+                        <span [ngClass]="'slip62' | cls">
+                          @if (forActions()[act]) {
+                            <ion-icon name="checkbox" [ngClass]="'slipCheckboxIcon' | cls"></ion-icon>
+                          } @else {
+                            <ion-icon name="square-outline" [ngClass]="'slipSquareOutlineIcon' | cls"></ion-icon>
+                          }
+                        </span>
+                        <span [ngClass]="labelClass(forActions()[act])">{{ act }}</span>
+                      </div>
+                    }
+                  </div>
+                </div>
+              </div>
+
+              <div [ngClass]="'slip51' | cls">
+                <div [ngClass]="'slip522' | cls">
+                  <div [ngClass]="'slip53' | cls">
+                    <span [ngClass]="'slip72' | cls">Received Records</span>
+                    <span [ngClass]="'slip82' | cls">{{ recipientListDisplay() || nbsp() }}</span>
+                  </div>
+                  <div [ngClass]="'slip53' | cls">
+                    <span [ngClass]="'slip92' | cls">Date</span>
+                    <span [ngClass]="'slip82' | cls">{{ latestTransactionDateDisplay() || dateStr() || nbsp() }}</span>
+                  </div>
+                  <div [ngClass]="'slip53' | cls">
+                    <span [ngClass]="'slip92' | cls">Dispatch</span>
+                    <span [ngClass]="'slip82' | cls">&nbsp;</span>
+                  </div>
+                  <div [ngClass]="'slip53' | cls">
+                    <span [ngClass]="'slip92' | cls">Answer</span>
+                    <span [ngClass]="'slip82' | cls">&nbsp;</span>
+                  </div>
+                  <div [ngClass]="'slip54' | cls">
+                    <span [ngClass]="'slip72' | cls">Filed</span>
+                    <span [ngClass]="'slip82' | cls">Date: &nbsp;</span>
+                    <span [ngClass]="'slip92' | cls">No.</span>
+                    <span [ngClass]="'slip82' | cls">&nbsp;</span>
+                  </div>
+                </div>
+
+                <div [ngClass]="'slip55' | cls">
+                  <div [ngClass]="'slip56' | cls">
+                    <span>Routing History &amp; Action Notes</span>
+                  </div>
+                  <div [ngClass]="'slip57' | cls">
+                    @if (slipLayout() === 'simplified') {
+                      <div [ngClass]="'slip58' | cls">{{ routingHistoryText() || nbsp() }}</div>
+                    } @else if (groupedVisibleRoutes().length > 0) {
+                      @for (rt of groupedVisibleRoutes(); track rt.id; let routeIndex = $index) {
+                        <div [ngClass]="'slip59' | cls">
+                          <span [ngClass]="'slip102' | cls">{{ routeIndex + 1 }}</span>
+                          <div [ngClass]="'slip60' | cls">
+                            <span [ngClass]="'slip112' | cls" [title]="rt.recipientNames.join(', ')">Forwarded to: {{ rt.recipientNames.join(', ') }}</span>
+                          </div>
+                          <div [ngClass]="'slip61' | cls">{{ formatDate(rt.createdAt) }}</div>
+                          <div [ngClass]="'slip622' | cls">Action: {{ rt.actionRequested || 'Appropriate Action' }}</div>
+                          @if (rt.remarks) {
+                            <div [ngClass]="'slip63' | cls">Notes: {{ rt.remarks }}</div>
+                          }
+                        </div>
+                      }
+                    } @else {
+                      <div [ngClass]="'slip64' | cls">Initial Document Logging &amp; Routing setup in progress.</div>
+                    }
+                    @if (specialInstructionsText()) {
+                      <div [ngClass]="'slip65' | cls">
+                        <span [ngClass]="'slip122' | cls">Special Remarks:</span>
+                        <span [ngClass]="'slip132' | cls">{{ specialInstructionsText() }}</span>
+                      </div>
+                    }
+                  </div>
+                  @if (groupedVisibleRoutes().length <= 2) {
+                    <div [ngClass]="'slip66' | cls">
+                      <div [ngClass]="'slip67' | cls"></div>
+                      <div [ngClass]="'slip67' | cls"></div>
+                      <div [ngClass]="'slip67' | cls"></div>
+                      <div [ngClass]="'slip67' | cls"></div>
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <div [ngClass]="'slip68' | cls">
+              <div [ngClass]="'slip69' | cls">
+                <div [ngClass]="'slip70' | cls">Noted by RD</div>
+                <div [ngClass]="'slip71' | cls">
+                  <div [ngClass]="'slip722' | cls">{{ rdName() }}</div>
+                  <div [ngClass]="'slip73' | cls">{{ rdPosition() || 'Regional Director' }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+  

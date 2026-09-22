@@ -16,12 +16,13 @@ import {
 } from '../../../utils/status-utils';
 import { calculateDocumentProgress } from '../../../utils/progress';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { IonicModule } from '@ionic/angular';
 
 @Component({
   selector: 'app-document-list',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [FormsModule, NgClass, ClsPipe],
+  imports: [IonicModule, FormsModule, NgClass, ClsPipe],
   styleUrl: './document-list.component.scss',
   templateUrl: './document-list.component.html',
 })
@@ -201,7 +202,44 @@ export class DocumentListComponent implements OnInit {
   }
 
   canRoute(doc: DocumentRecord): boolean {
-    return doc.currentStatus !== 'COMPLETED' && doc.currentStatus !== 'RETURNED';
+    return (
+      doc.currentStatus !== 'COMPLETED' &&
+      doc.currentStatus !== 'RETURNED' &&
+      !this.hasPendingDecision(doc)
+    );
+  }
+
+  hasPendingDecision(doc: DocumentRecord): boolean {
+    const routes = doc.routes || [];
+    const assignment = [...routes]
+      .reverse()
+      .find(
+        (route) =>
+          !/^(APPROVED|DISAPPROVED)$/i.test(route.actionRequested) &&
+          (route.toUserId === this.currentUser.id ||
+            (!route.toUserId &&
+              route.toUser?.trim().toLowerCase() ===
+                this.currentUser.fullName.trim().toLowerCase())),
+      );
+    if (!assignment) return false;
+
+    const assignedAt = new Date(assignment.createdAt).getTime();
+    return !routes.some(
+      (route) =>
+        (route.fromUserId === this.currentUser.id ||
+          (!route.fromUserId &&
+            route.fromUser?.trim().toLowerCase() ===
+              this.currentUser.fullName.trim().toLowerCase())) &&
+        new Date(route.createdAt).getTime() > assignedAt &&
+        /^(APPROVED|DISAPPROVED)$/i.test(route.actionRequested),
+    );
+  }
+
+  routeButtonTitle(doc: DocumentRecord): string {
+    if (this.hasPendingDecision(doc)) {
+      return 'Approve or disapprove this document before routing it.';
+    }
+    return `Route ${doc.routeNo}`;
   }
 
   latestAction(doc: DocumentRecord): string {

@@ -18,19 +18,19 @@
             <div>
               <label class="qcg-label">Manual QR code value</label>
               <div class="qcg-inputRow">
-                <input type="text" [ngModel]="manualQrValue()" (ngModelChange)="manualQrValue.set($event)" (keydown.enter)="generateQR()" placeholder="Enter Document Route No., URL, or custom text" class="qcg-textInput" />
-                <button type="button" (click)="generateQR()" class="qcg-primaryButton">
+                <ion-input type="text" [ngModel]="manualQrValue()" (ngModelChange)="manualQrValue.set($event)" (keydown.enter)="generateQR()" placeholder="Enter Document Route No., URL, or custom text" class="qcg-textInput" />
+                <ion-button type="button" (click)="generateQR()" class="qcg-primaryButton">
                   <ion-icon name="qr-code" class="qcg-buttonIcon"></ion-icon>
                   <span>Generate QR</span>
-                </button>
+                </ion-button>
               </div>
             </div>
 
             <div>
               <label class="qcg-label">Preview, download, and print size</label>
               <div class="qcg-sizeRow">
-                <input type="range" min="128" max="400" step="8" [ngModel]="qrSize()" (ngModelChange)="qrSize.set(+$event)" class="qcg-rangeInput" />
-                <input type="number" min="128" max="400" step="8" [ngModel]="qrSize()" (ngModelChange)="onSizeChange(+$event)" class="qcg-sizeInput" aria-label="QR preview size in pixels" />
+                <ion-range min="128" max="400" step="8" [ngModel]="qrSize()" (ngModelChange)="qrSize.set(+$event)" class="qcg-rangeInput" />
+                <ion-input type="number" min="128" max="400" step="8" [ngModel]="qrSize()" (ngModelChange)="onSizeChange(+$event)" class="qcg-sizeInput" aria-label="QR preview size in pixels" />
                 <span class="qcg-unit">px</span>
               </div>
               <p class="qcg-helpText">This single setting controls the square QR in the preview, downloaded PNG, and centered Original/File Copy print layout.</p>
@@ -42,26 +42,26 @@
               <div class="qcg-rangeGrid">
                 <div>
                   <label class="qcg-smallLabel">Direction</label>
-                  <select [ngModel]="routeDirection()" (ngModelChange)="routeDirection.set($event)" class="qcg-rangeField">
-                    <option value="IN">Incoming</option>
-                    <option value="OUT">Outgoing</option>
-                  </select>
+                  <ion-select interface="popover" [ngModel]="routeDirection()" (ngModelChange)="routeDirection.set($event)" class="qcg-rangeField">
+                    <ion-select-option value="IN">Incoming</ion-select-option>
+                    <ion-select-option value="OUT">Outgoing</ion-select-option>
+                  </ion-select>
                 </div>
                 <div>
                   <label class="qcg-smallLabel">Start Number</label>
-                  <input type="number" min="1" max="100" [ngModel]="rangeStart()" (ngModelChange)="rangeStart.set($event)" (blur)="onRangeStartBlur()" class="qcg-rangeField" />
+                  <ion-input type="number" min="1" max="100" [ngModel]="rangeStart()" (ngModelChange)="rangeStart.set($event)" (blur)="onRangeStartBlur()" class="qcg-rangeField" />
                 </div>
                 <div>
                   <label class="qcg-smallLabel">End Number</label>
-                  <input type="number" min="1" max="100" [ngModel]="rangeEnd()" (ngModelChange)="rangeEnd.set($event)" (blur)="onRangeEndBlur()" class="qcg-rangeField" />
+                  <ion-input type="number" min="1" max="100" [ngModel]="rangeEnd()" (ngModelChange)="rangeEnd.set($event)" (blur)="onRangeEndBlur()" class="qcg-rangeField" />
                 </div>
               </div>
-              <button type="button" (click)="generateRouteNumberRange()" class="qcg-rangeButton">Generate Route QR Range</button>
+              <ion-button type="button" (click)="generateRouteNumberRange()" class="qcg-rangeButton">Generate Route QR Range</ion-button>
               @if (generatedRange().length > 0) {
-                <button type="button" (click)="handlePrintRange()" class="qcg-printRangeButton">
+                <ion-button type="button" (click)="handlePrintRange()" class="qcg-printRangeButton">
                   <ion-icon name="print" class="qcg-buttonIcon"></ion-icon>
                   Print Generated Range - 2 Copies Each
-                </button>
+                </ion-button>
               }
             </div>
 
@@ -69,16 +69,16 @@
               <div class="qcg-recentSection">
                 <div class="qcg-sectionHeader">
                   <h3 class="qcg-sectionTitle">Recent QR Codes</h3>
-                  <button type="button" (click)="clearRecent()" class="qcg-clearButton">
+                  <ion-button type="button" (click)="clearRecent()" class="qcg-clearButton">
                     <ion-icon name="trash" class="qcg-smallIcon"></ion-icon>
                     <span>Clear</span>
-                  </button>
+                  </ion-button>
                 </div>
                 <div class="qcg-recentList">
                   @for (item of recentQrs(); track $index) {
-                    <button type="button" (click)="onSelectRecent(item)" [ngClass]="'qcg-recentCode' + (qrValue() === item ? ' qcg-recentCodeActive' : '')">
+                    <ion-button type="button" (click)="onSelectRecent(item)" [ngClass]="'qcg-recentCode' + (qrValue() === item ? ' qcg-recentCodeActive' : '')">
                       {{ item.length > 30 ? item.slice(0, 30) + '...' : item }}
-                    </button>
+                    </ion-button>
                   }
                 </div>
               </div>
@@ -117,22 +117,22 @@
 
           @if (qrValue()) {
             <div class="qcg-actions">
-              <button type="button" (click)="handleDownload()" class="qcg-actionButton">
+              <ion-button type="button" (click)="handleDownload()" class="qcg-actionButton">
                 <ion-icon name="download" class="qcg-downloadIcon"></ion-icon>
                 <span class="qcg-actionLabel">Download</span>
-              </button>
-              <button type="button" (click)="handleCopy()" class="qcg-actionButton">
+              </ion-button>
+              <ion-button type="button" (click)="handleCopy()" class="qcg-actionButton">
                 @if (copied()) {
                   <ion-icon name="checkmark-circle" class="qcg-successIcon"></ion-icon>
                 } @else {
                   <ion-icon name="clipboard" class="qcg-copyIcon"></ion-icon>
                 }
                 <span class="qcg-actionLabel">{{ copied() ? 'Copied' : 'Copy' }}</span>
-              </button>
-              <button type="button" (click)="handlePrint()" class="qcg-actionButton">
+              </ion-button>
+              <ion-button type="button" (click)="handlePrint()" class="qcg-actionButton">
                 <ion-icon name="print" class="qcg-successIcon"></ion-icon>
                 <span class="qcg-actionLabel">Print</span>
-              </button>
+              </ion-button>
             </div>
           }
         </div>

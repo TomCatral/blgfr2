@@ -15,6 +15,7 @@ import { firstValueFrom } from 'rxjs';
 import { User, DivisionCode } from '../../../types';
 import { ApiService } from '../../../services/api.service';
 import { UiService } from '../../../services/ui.service';
+import { IonicModule } from '@ionic/angular';
 
 type ActiveTab = 'profile' | 'security' | 'preferences';
 
@@ -38,7 +39,7 @@ const ROLE_LABELS: Record<string, string> = {
   selector: 'app-user-settings',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [CommonModule, FormsModule],
+  imports: [IonicModule, CommonModule, FormsModule],
   styleUrl: './user-settings.component.scss',
   templateUrl: './user-settings.component.html',
 })
@@ -301,7 +302,6 @@ export class UserSettingsComponent implements OnInit {
         email: this.emailSignal().trim() || 'N/A',
         contactNo: this.contactNoSignal(),
         designation: this.designationSignal(),
-        divisionCode: this.divisionCodeSignal(),
         avatarUrl: this.avatarUrlSignal(),
       };
       if (this.usernameSignal().trim() !== this.currentUser.username) {

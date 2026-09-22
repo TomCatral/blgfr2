@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Input, Output, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { DEFAULT_ROLE_PERMISSIONS, RolePermission, User } from '../../types';
+import { IonicModule } from '@ionic/angular';
 
 export interface NavigationItem {
   id: string;
@@ -25,7 +26,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
   { id: 'incoming-report', label: 'Incoming Report', miniLabel: 'In-Report', icon: 'stats-chart', section: 'Reports' },
   { id: 'outgoing-report', label: 'Outgoing Report', miniLabel: 'Out-Report', icon: 'bar-chart', section: 'Reports' },
   { id: 'envelope-report', label: 'Envelope Report', miniLabel: 'Env-Report', icon: 'file-tray', section: 'Reports' },
-  { id: 'users', label: 'User Accounts', miniLabel: 'Users', icon: 'people', section: 'Management', adminOnly: true },
+  { id: 'users', label: 'User Accounts', miniLabel: 'Users', icon: 'people', section: 'Management' },
   { id: 'audit', label: 'Audit Logs', miniLabel: 'Audit', icon: 'clipboard', section: 'Logs' },
   { id: 'envelope-logs', label: 'Envelope Dispatch Logs', miniLabel: 'Env-Logs', icon: 'receipt', section: 'Logs' },
 ];
@@ -36,7 +37,7 @@ export const SECTIONS = ['Main Menu', 'Reports', 'Management', 'Logs'] as const;
   selector: 'app-sidebar',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [NgClass],
+  imports: [IonicModule, NgClass],
   styleUrl: './sidebar.component.scss',
   templateUrl: './sidebar.component.html',
 })
@@ -84,6 +85,15 @@ export class SidebarComponent {
   private canViewItem(item: NavigationItem): boolean {
     const permissions = this.permissions();
     const allowedViews = permissions.allowedViews || [];
+
+    // User Accounts access: Allowed if SYSTEM_ADMIN or if explicitly granted in allowedViews
+    if (item.id === 'users') {
+      return (
+        this.currentUser.role === 'SYSTEM_ADMIN' ||
+        allowedViews.includes('users')
+      );
+    }
+
     if (item.adminOnly && this.currentUser.role !== 'SYSTEM_ADMIN') return false;
     if ((item.section === 'Management' || item.section === 'Logs') && !permissions.management) return false;
     if (item.section !== 'Management' && item.section !== 'Logs' && !permissions.mainMenu) return false;

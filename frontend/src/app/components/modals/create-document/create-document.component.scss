@@ -6,12 +6,12 @@
 .cd-dialog {
   display: flex;
   flex-direction: column;
-  max-height: calc(100dvh - 32px);
+  max-height: min(90vh, 900px);
   overflow: hidden;
-  border-radius: 1.5rem;
+  border-radius: 1rem;
   background: var(--ui-surface, #ffffff);
-  border: 1px solid var(--ui-border, #e2e8f0);
-  box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.18), 0 0 1px 1px rgba(15, 23, 42, 0.05);
+  border: none;
+  box-shadow: none;
   transition: all 0.2s ease;
 }
 
@@ -20,10 +20,10 @@
    -------------------------------------------------------------------------- */
 .cd-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1.25rem 1.5rem;
+  padding: 1.125rem 1.5rem;
   border-bottom: 1px solid var(--ui-border, #e2e8f0);
   background: var(--ui-surface, #ffffff);
   flex-shrink: 0;
@@ -39,16 +39,16 @@
 .cd-header-icon {
   display: grid;
   place-items: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.75rem;
+  height: 2.75rem;
   flex-shrink: 0;
   border-radius: 0.875rem;
-  background: rgba(37, 99, 235, 0.08);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(79, 70, 229, 0.14) 100%);
   color: #2563eb;
-  border: 1px solid rgba(37, 99, 235, 0.15);
+  border: 1px solid rgba(37, 99, 235, 0.2);
 
   ion-icon {
-    font-size: 1.25rem;
+    font-size: 1.35rem;
   }
 }
 
@@ -66,7 +66,7 @@
 }
 
 .cd-subtitle {
-  margin: 0.25rem 0 0;
+  margin: 0.2rem 0 0;
   font-size: 0.75rem;
   font-weight: 600;
   color: #64748b;
@@ -78,7 +78,7 @@
   place-items: center;
   width: 2.25rem;
   height: 2.25rem;
-  border: none;
+  border: 1px solid transparent;
   border-radius: 0.625rem;
   background: transparent;
   color: #94a3b8;
@@ -86,12 +86,13 @@
   transition: all 0.15s ease;
 
   ion-icon {
-    font-size: 1.5rem;
+    font-size: 1.35rem;
   }
 
   &:hover {
     background: var(--ui-soft, #f1f5f9);
-    color: #334155;
+    border-color: var(--ui-border, #e2e8f0);
+    color: #0f172a;
   }
 }
 
@@ -330,42 +331,59 @@
 :host ::ng-deep {
   .cd-input,
   .cd-textarea {
-    width: 100%;
-    padding: 0.625rem 0.875rem;
-    border-radius: 0.75rem;
-    border: 1px solid #cbd5e1;
-    background: #f8fafc;
-    color: #0f172a;
-    font-size: 0.8125rem;
-    font-family: inherit;
-    transition: all 0.15s ease;
+    width: 100% !important;
+    padding: 0.625rem 0.875rem !important;
+    border-radius: 0.75rem !important;
+    border: 1px solid var(--ui-border, #cbd5e1) !important;
+    background: var(--ui-surface, #ffffff) !important;
+    color: var(--ui-text, #0f172a) !important;
+    font-size: 0.8125rem !important;
+    font-family: inherit !important;
+    box-sizing: border-box !important;
+    transition: all 0.15s ease !important;
 
     &:focus {
-      outline: none;
-      background: #ffffff;
-      border-color: #2563eb;
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+      outline: none !important;
+      background: var(--ui-surface, #ffffff) !important;
+      border-color: #2563eb !important;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+    }
+
+    &::placeholder {
+      color: #94a3b8 !important;
     }
   }
 
   .cd-textarea {
-    min-height: 4.5rem;
-    resize: vertical;
+    min-height: 4.5rem !important;
+    resize: vertical !important;
   }
 }
 
 .cd-select {
   width: 100%;
   min-height: 2.625rem;
-  padding: 0.55rem 0.875rem;
+  padding: 0.55rem 2.25rem 0.55rem 0.875rem;
   border-radius: 0.75rem;
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #0f172a;
+  border: 1px solid var(--ui-border, #cbd5e1);
+  background-color: var(--ui-surface, #ffffff);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2.2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem 1rem;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  color: var(--ui-text, #0f172a);
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
+  box-sizing: border-box;
   transition: all 0.15s ease;
+
+  &:hover {
+    border-color: #94a3b8;
+  }
 
   &:focus {
     outline: none;
@@ -379,16 +397,16 @@
   min-height: 2.625rem;
   padding: 0.55rem 0.875rem;
   border-radius: 0.75rem;
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
-  color: #0f172a;
+  border: 1px solid var(--ui-border, #cbd5e1);
+  background: var(--ui-surface, #ffffff);
+  color: var(--ui-text, #0f172a);
   font-size: 0.8125rem;
   font-weight: 600;
+  box-sizing: border-box;
   transition: all 0.15s ease;
 
   &:focus {
     outline: none;
-    background: #ffffff;
     border-color: #2563eb;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
   }
@@ -775,7 +793,7 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   align-items: center;
-  gap: 0.625rem;
+  gap: 0.75rem;
   padding: 1rem 1.5rem;
   border-top: 1px solid var(--ui-border, #e2e8f0);
   background: var(--ui-surface, #ffffff);
@@ -785,7 +803,7 @@
 .cd-btn-cancel {
   padding: 0.625rem 1.25rem;
   border-radius: 0.75rem;
-  border: 1px solid transparent;
+  border: 1px solid var(--ui-border, #e2e8f0);
   background: #f1f5f9;
   color: #475569;
   font-size: 0.8125rem;
@@ -796,24 +814,27 @@
   &:hover {
     background: #e2e8f0;
     color: #1e293b;
+    border-color: #cbd5e1;
   }
 }
 
 .cd-btn-secondary {
-  padding: 0.625rem 1.25rem;
+  padding: 0.625rem 1.35rem;
   border-radius: 0.75rem;
-  border: 1px solid var(--ui-border, #e2e8f0);
+  border: 1px solid var(--ui-border, #cbd5e1);
   background: var(--ui-surface, #ffffff);
   color: var(--ui-text, #1e293b);
   font-size: 0.8125rem;
   font-weight: 800;
   cursor: pointer;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
   transition: all 0.16s ease;
 
   &:hover:not(:disabled) {
     background: var(--ui-soft, #f8fafc);
-    border-color: #cbd5e1;
+    border-color: #94a3b8;
     transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
   }
 
   &:disabled {
@@ -825,26 +846,26 @@
 .cd-btn-primary {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.625rem 1.35rem;
+  gap: 0.5rem;
+  padding: 0.625rem 1.5rem;
   border-radius: 0.75rem;
   border: none;
-  background: #2563eb;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   color: #ffffff;
   font-size: 0.8125rem;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.32);
   transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
 
   ion-icon {
-    font-size: 0.95rem;
+    font-size: 1rem;
   }
 
   &:hover:not(:disabled) {
-    background: #1d4ed8;
+    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
     transform: translateY(-1px);
-    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.38);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.42);
   }
 
   &:active:not(:disabled) {
@@ -943,7 +964,22 @@
     }
   }
 
-  .cd-select,
+  .cd-select {
+    background-color: #0f172a;
+    border-color: #334155;
+    color: #f1f5f9;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2.2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+
+    &:hover {
+      border-color: #475569;
+    }
+
+    &:focus {
+      background-color: #1e293b;
+      border-color: #3b82f6;
+    }
+  }
+
   .cd-date-input {
     background: #0f172a;
     border-color: #334155;

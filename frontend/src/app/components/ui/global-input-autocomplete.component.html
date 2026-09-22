@@ -7,7 +7,7 @@
         [style.width.px]="position.width"
       >
         @for (item of matches; track item; let i = $index) {
-          <button
+          <ion-button
             type="button"
             class="autocomplete-option"
             [class.autocomplete-activeOption]="i === activeIndex"
@@ -18,7 +18,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span class="autocomplete-optionText">{{ item }}</span>
-          </button>
+          </ion-button>
         }
       </div>
     }

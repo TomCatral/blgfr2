@@ -1,0 +1,32 @@
+/* APP DIALOG HOST: confirm, prompt, success, and error dialog content. */
+
+.dialog-symbol {
+  display: flex;
+  width: 3rem;
+  height: 3rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1rem;
+}
+
+.dialog-symbol-confirm {
+  background: rgba(244, 63, 94, 0.15);
+  color: #e11d48;
+}
+
+.dialog-symbol-prompt {
+  background: rgba(59, 130, 246, 0.15);
+  color: #2563eb;
+}
+
+:host-context(.dark) {
+  .dialog-symbol-confirm {
+    background: rgba(244, 63, 94, 0.2);
+    color: #fb7185;
+  }
+
+  .dialog-symbol-prompt {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+  }
+}

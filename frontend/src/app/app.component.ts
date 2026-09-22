@@ -44,7 +44,7 @@ import { IncomingReportComponent } from './components/pages/reports/incoming-rep
 import { OutgoingReportComponent } from './components/pages/reports/outgoing-report.component';
 import { EnvelopeReportComponent } from './components/pages/reports/envelope-report.component';
 import { DocumentListComponent } from './components/pages/document-list/document-list.component';
-import { DocumentSlipComponent } from './components/pages/document-slip/document-slip.component';
+import { RoutingSlipComponent } from './components/pages/routing-slip/routing-slip.component';
 import { OutgoingEnvelopeComponent } from './components/pages/outgoing-envelope/outgoing-envelope.component';
 import { QRCodeGeneratorComponent } from './components/pages/qr-code-generator/qr-code-generator.component';
 import { EmployeeProfilesComponent } from './components/pages/employee-profiles/employee-profiles.component';
@@ -55,6 +55,7 @@ import { UserManagementComponent } from './components/pages/user-management/user
 import { DocumentDetailComponent } from './components/modals/document-detail/document-detail.component';
 import { CreateDocumentComponent } from './components/modals/create-document/create-document.component';
 import { RouteDocumentComponent } from './components/modals/route-document/route-document.component';
+import { IonicModule } from '@ionic/angular';
 
 type PopupAction = {
   id: string;
@@ -80,6 +81,7 @@ type PopupAction = {
     '[class.dark]': 'isDarkMode()',
   },
   imports: [
+    IonicModule, // Ionic UI web components
     DatePipe,
     NgClass,
     ClsPipe,
@@ -96,7 +98,7 @@ type PopupAction = {
     OutgoingReportComponent,
     EnvelopeReportComponent,
     DocumentListComponent,
-    DocumentSlipComponent,
+    RoutingSlipComponent,
     OutgoingEnvelopeComponent,
     QRCodeGeneratorComponent,
     EmployeeProfilesComponent,
@@ -374,7 +376,46 @@ export class AppComponent implements OnInit, OnDestroy {
 
     if (exactMatch) {
       this.openDetailFromHeader(exactMatch);
-      this.activeView.set(exactMatch.direction === 'OUTGOING' ? 'outgoing' : 'incoming');
+      return;
+    }
+
+    const normalized = trimmed.toLowerCase();
+    const firstMatchingDocument = this.accessibleDocuments().find((doc) =>
+      [
+        doc.routeNo,
+        doc.trackingNumber,
+        doc.title,
+        doc.subject,
+        doc.originatingOffice,
+        doc.destinationOffice,
+        doc.senderName,
+        doc.recipientName,
+        doc.currentDivision,
+        doc.category,
+        doc.assignedUser,
+        doc.actionRequested,
+        doc.remarks,
+        doc.currentStatus,
+        doc.priority,
+        ...(doc.tags || []),
+        ...(doc.routes || []).flatMap((route) => [
+          route.toUser,
+          route.fromUser,
+          route.toDivision,
+          route.fromDivision,
+          route.actionRequested,
+          route.actionTaken,
+          route.remarks,
+        ]),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(normalized),
+    );
+
+    if (firstMatchingDocument) {
+      this.activeView.set(firstMatchingDocument.direction === 'OUTGOING' ? 'outgoing' : 'incoming');
       return;
     }
 
@@ -386,11 +427,12 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   openDetailFromHeader(doc: DocumentRecord): void {
+    this.activeView.set(doc.direction === 'OUTGOING' ? 'outgoing' : 'incoming');
     if (doc.routeNo || doc.trackingNumber) {
       this.searchQuery.set(doc.routeNo || doc.trackingNumber);
     }
     this.fullFlowDocumentId.set(doc.id);
-    this.selectedDoc.set(doc);
+    this.selectedDoc.set({ ...doc });
   }
 
   openDetail = (doc: DocumentRecord): void => {
@@ -447,12 +489,31 @@ export class AppComponent implements OnInit, OnDestroy {
     event.stopPropagation();
   }
 
-  selectDocByTrackingNo(trackingNo: string): void {
-    const found = this.accessibleDocuments().find(
-      (document) => document.routeNo === trackingNo,
-    );
-    if (found) this.selectedDoc.set(found);
-  }
+  openNotificationDocument = async (notification: NotificationItem): Promise<void> => {
+    const findDocument = () => {
+      const reference = notification.trackingNumber?.trim().toUpperCase();
+      return this.state.documents().find((document) =>
+        document.id === notification.documentId ||
+        (Boolean(reference) &&
+          ((document.routeNo || '').trim().toUpperCase() === reference ||
+            (document.trackingNumber || '').trim().toUpperCase() === reference)),
+      );
+    };
+
+    let document = findDocument();
+    if (!document) {
+      await this.loadBackendData();
+      document = findDocument();
+    }
+
+    if (!document) {
+      this.ui.showError('The document linked to this notification could not be found. It may have been removed or you may no longer have access.');
+      return;
+    }
+
+    this.selectedDoc.set(document);
+    this.isNotifDrawerOpen.set(false);
+  };
 
   // ===== Login / Logout =====
 
@@ -635,10 +696,10 @@ export class AppComponent implements OnInit, OnDestroy {
   routeDecision = async (
     notification: NotificationItem | PopupAction,
     decision: 'APPROVED' | 'DISAPPROVED',
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     const user = this.currentUser();
-    if (!notification.documentId || !user) return;
-    if (this.decisionSubmittingId() === notification.id) return;
+    if (!notification.documentId || !user) return false;
+    if (this.decisionSubmittingId() === notification.id) return false;
     let remarks = '';
     if (decision === 'DISAPPROVED') {
       const response = await showPrompt(
@@ -648,7 +709,7 @@ export class AppComponent implements OnInit, OnDestroy {
       remarks = response?.trim() || '';
       if (!remarks) {
         alert('A disapproval remark is required.');
-        return;
+        return false;
       }
     }
     this.decisionSubmittingId.set(notification.id);
@@ -743,6 +804,13 @@ export class AppComponent implements OnInit, OnDestroy {
       );
       this.routingPopup.set(null);
       this.isNotifDrawerOpen.set(false);
+      if (
+        this.reminderPopup()?.id === notification.id ||
+        this.reminderPopup()?.documentId === notification.documentId
+      ) {
+        this.closedReminderPopupIds.add(notification.id);
+        this.reminderPopup.set(null);
+      }
       await this.loadBackendData();
       if (decision === 'APPROVED') {
         this.routeModalDoc.set({
@@ -759,11 +827,85 @@ export class AppComponent implements OnInit, OnDestroy {
           `Document ${updated.routeNo} disapproved and returned to the sender.\nReason: ${remarks}`,
         );
       }
+      return true;
     } catch (error: unknown) {
-      alert(`Failed to record decision: ${String((error as Error)?.message || error)}`);
+      const message = String((error as Error)?.message || error);
+      const isStaleDecision = /already acted|has ended|completed documents|not awaiting your decision/i.test(message);
+
+      if (isStaleDecision) {
+        await this.loadBackendData();
+        this.state.notifications.set(
+          this.state.notifications().filter((item) => item.id !== notification.id),
+        );
+        this.routingPopup.set(null);
+        this.reminderPopup.set(null);
+        this.isNotifDrawerOpen.set(false);
+        this.ui.showError(
+          /completed|has ended/i.test(message)
+            ? 'This transaction is already completed. No further decision is needed.'
+            : 'Your decision for this document was already recorded. The dashboard has been refreshed.',
+        );
+      } else {
+        this.ui.showError(`Unable to record the decision. ${message}`);
+      }
+      return false;
     } finally {
       this.decisionSubmittingId.set(null);
     }
+  };
+
+  handleReminderDecision = async (
+    reminder: NotificationItem,
+    decision: 'APPROVED' | 'DISAPPROVED',
+  ): Promise<void> => {
+    let docId = reminder.documentId;
+    if (!docId && reminder.trackingNumber) {
+      const match = this.state.documents().find(
+        (d) =>
+          (d.routeNo &&
+            d.routeNo.trim().toUpperCase() ===
+              reminder.trackingNumber?.trim().toUpperCase()) ||
+          (d.trackingNumber &&
+            d.trackingNumber.trim().toUpperCase() ===
+              reminder.trackingNumber?.trim().toUpperCase()),
+      );
+      if (match) docId = match.id;
+    }
+    const itemToDecide: NotificationItem = {
+      ...reminder,
+      documentId: docId || reminder.documentId,
+    };
+    const success = await this.routeDecision(itemToDecide, decision);
+    if (success) {
+      this.closeReminder();
+    }
+  };
+
+  handleDocumentDetailDecision = async (
+    doc: DocumentRecord,
+    decision: 'APPROVED' | 'DISAPPROVED',
+  ): Promise<boolean> => {
+    const user = this.currentUser();
+    if (!user) return false;
+    const pseudoNotif: NotificationItem = {
+      id: `doc-decision-${doc.id}-${Date.now()}`,
+      userId: user.id,
+      title: 'Routing Decision',
+      message: `Decision for document ${doc.routeNo || doc.trackingNumber}`,
+      documentId: doc.id,
+      trackingNumber: doc.routeNo || doc.trackingNumber,
+      type: 'ACTION_REQUIRED',
+      requiresDecision: true,
+      createdAt: new Date().toISOString(),
+    };
+    const success = await this.routeDecision(pseudoNotif, decision);
+    if (success) {
+      const refreshed = this.state.documents().find((d) => d.id === doc.id);
+      if (refreshed) {
+        this.selectedDoc.set(refreshed);
+      }
+    }
+    return success;
   };
 
   reapproveDocument = (document: DocumentRecord): void =>
@@ -863,7 +1005,9 @@ export class AppComponent implements OnInit, OnDestroy {
   ): Promise<User> => {
     const currentUser = this.currentUser();
     if (!currentUser) throw new Error('No current user');
-    const updated = await firstValueFrom(this.api.updateUser(currentUser.id, userData));
+    const updated = await firstValueFrom(
+      this.api.updateUser(currentUser.id, userData, currentUser.id),
+    );
     this.session.currentUser.set(updated);
     this.state.users.set(
       this.state.users().map((user) =>
@@ -989,12 +1133,14 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   private syncReminderPopup(): void {
+    this.routingSnoozeTick();
     const current = this.state.notifications();
     const latestReminder = current.find(
       (notification) =>
         notification.type === 'URGENT' &&
         notification.title === 'Routing Action Reminder' &&
-        !this.closedReminderPopupIds.has(notification.id),
+        !this.closedReminderPopupIds.has(notification.id) &&
+        !this.isReminderSnoozed(notification.id),
     );
     if (latestReminder && this.reminderPopup()?.id !== latestReminder.id) {
       this.reminderPopup.set(latestReminder);
@@ -1002,6 +1148,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   private syncRoutingPopup(): void {
+    this.routingSnoozeTick();
     const user = this.currentUser();
     if (!user) {
       this.closedApprovalPopupIds = new Map();
@@ -1141,27 +1288,51 @@ export class AppComponent implements OnInit, OnDestroy {
       } catch {
         // Keep the session snooze.
       }
+      this.ui.showToast('Approval reminder snoozed for 24 hours. It remains available in Notifications.');
     }
     this.routingPopup.set(null);
   };
 
   closeReminder = (): void => {
     const reminder = this.reminderPopup();
-    if (reminder) this.closedReminderPopupIds.add(reminder.id);
+    if (reminder) {
+      this.snoozeReminder(reminder.id);
+      this.ui.showToast('Reminder snoozed for 24 hours. It remains available in Notifications.');
+    }
     this.reminderPopup.set(null);
   };
 
   viewReminderDocument(reminder: NotificationItem): void {
-    if (reminder.trackingNumber) {
-      const document = this.accessibleDocuments().find(
-        (candidate) =>
-          candidate.routeNo === reminder.trackingNumber ||
-          candidate.trackingNumber === reminder.trackingNumber,
-      );
-      if (document) this.selectedDoc.set(document);
-    }
-    this.closedReminderPopupIds.add(reminder.id);
+    void this.openNotificationDocument(reminder);
+    this.snoozeReminder(reminder.id);
     this.reminderPopup.set(null);
+  }
+
+  private reminderSnoozeKey(reminderId: string): string {
+    return routingPopupSnoozeKey(
+      this.currentUser()?.id || '',
+      `reminder-${reminderId}`,
+    );
+  }
+
+  private snoozeReminder(reminderId: string): void {
+    const key = this.reminderSnoozeKey(reminderId);
+    const closedAt = Date.now();
+    this.closedReminderPopupIds.delete(reminderId);
+    try {
+      localStorage.setItem(key, String(closedAt));
+    } catch {
+      this.closedReminderPopupIds.add(reminderId);
+    }
+  }
+
+  private isReminderSnoozed(reminderId: string): boolean {
+    try {
+      const saved = localStorage.getItem(this.reminderSnoozeKey(reminderId));
+      return isRoutingPopupSnoozed(saved === null ? null : Number(saved));
+    } catch {
+      return this.closedReminderPopupIds.has(reminderId);
+    }
   }
 
   openPopupAttachment(attachment: DocumentAttachment): void {

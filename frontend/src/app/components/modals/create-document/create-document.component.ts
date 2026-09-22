@@ -12,10 +12,7 @@ import { CommonModule } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../../services/api.service';
 import { AppModalLayerComponent } from '../../ui/modal-layer.component';
-import {
-  ManagedOptionsSelectComponent,
-  ManagedOption,
-} from '../../ui/managed-options-select.component';
+import { ManagedOption } from '../../ui/managed-options-select.component';
 import { AutocompleteFieldComponent } from '../../ui/autocomplete-field.component';
 import {
   DocumentDirection,
@@ -79,7 +76,6 @@ const DIVISION_OPTIONS: Array<[string, string]> = [
   imports: [
     CommonModule,
     AppModalLayerComponent,
-    ManagedOptionsSelectComponent,
     AutocompleteFieldComponent,
   ],
   templateUrl: './create-document.component.html',
@@ -144,11 +140,13 @@ export class CreateDocumentComponent implements OnInit, OnDestroy {
       .catch(() => {});
   }
 
+  private serverRouteNo = signal('');
+
   fetchServerRouteNo(): void {
-    this.serverRouteNo = '';
+    this.serverRouteNo.set('');
     firstValueFrom(this.api.getNextRouteNumber(this.direction()))
-      .then(({ routeNo }) => (this.serverRouteNo = routeNo))
-      .catch(() => (this.serverRouteNo = this.formattedRouteNo()));
+      .then(({ routeNo }) => this.serverRouteNo.set(routeNo))
+      .catch(() => this.serverRouteNo.set(this.formattedRouteNo()));
   }
 
   ngOnChanges(): void {
@@ -186,8 +184,6 @@ export class CreateDocumentComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {}
 
-  private serverRouteNo = '';
-
   private formattedRouteNo = computed(() => {
     const now = new Date();
     const year = now.getFullYear();
@@ -204,7 +200,7 @@ export class CreateDocumentComponent implements OnInit, OnDestroy {
   });
 
   displayedRouteNo = computed(
-    () => this.serverRouteNo || this.formattedRouteNo(),
+    () => this.serverRouteNo() || this.formattedRouteNo(),
   );
 
   holdingDivisionRecipients = computed(() => {

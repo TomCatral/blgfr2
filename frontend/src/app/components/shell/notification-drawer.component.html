@@ -23,14 +23,14 @@
             </div>
             <div class="notification-headerActions">
               @if (notifications.length > 0) {
-                <button type="button" class="notification-dismissAll" title="Dismiss all notifications" (click)="dismissAll()">
+                <ion-button type="button" class="notification-dismissAll" title="Dismiss all notifications" (click)="dismissAll()">
                   <ion-icon name="checkmark-done"></ion-icon>
                   <span>Dismiss All</span>
-                </button>
+                </ion-button>
               }
-              <button type="button" class="notification-closeButton" aria-label="Close notifications" (click)="onClose.emit()">
+              <ion-button type="button" class="notification-closeButton" aria-label="Close notifications" (click)="onClose.emit()">
                 <ion-icon name="close"></ion-icon>
-              </button>
+              </ion-button>
             </div>
           </header>
 
@@ -60,45 +60,45 @@
                   <p class="notification-message">{{ notification.message }}</p>
 
                   <div class="notification-itemActions">
-                    @if (notification.requiresDecision && !notification.decisionStatus) {
-                      <button
+                    @if ((notification.requiresDecision || notification.title === 'Routing Action Reminder') && !notification.decisionStatus) {
+                      <ion-button
                         type="button"
                         class="notification-approveButton"
                         [disabled]="decisionSubmittingId === notification.id"
                         (click)="onDecision.emit({ notification, decision: 'APPROVED' })"
                       >
                         Approve
-                      </button>
-                      <button
+                      </ion-button>
+                      <ion-button
                         type="button"
                         class="notification-disapproveButton"
                         [disabled]="decisionSubmittingId === notification.id"
                         (click)="onDecision.emit({ notification, decision: 'DISAPPROVED' })"
                       >
                         Disapprove
-                      </button>
+                      </ion-button>
                     }
 
-                    @if (notification.trackingNumber) {
-                      <button
+                    @if (notification.documentId || notification.trackingNumber) {
+                      <ion-button
                         type="button"
                         class="notification-viewButton"
-                        (click)="view(notification.trackingNumber)"
+                        (click)="view(notification)"
                       >
                         <ion-icon name="eye"></ion-icon>
-                        <span>View {{ notification.trackingNumber }}</span>
+                        <span>View {{ notification.trackingNumber || 'Document' }}</span>
                         <ion-icon name="arrow-forward"></ion-icon>
-                      </button>
+                      </ion-button>
                     }
 
-                    <button
+                    <ion-button
                       type="button"
                       class="notification-dismissButton"
                       [attr.aria-label]="'Dismiss ' + notification.title"
                       (click)="onMarkRead.emit(notification.id)"
                     >
                       <ion-icon name="close"></ion-icon>
-                    </button>
+                    </ion-button>
                   </div>
                 </article>
               }
@@ -107,4 +107,3 @@
         </aside>
       </div>
     }
-  

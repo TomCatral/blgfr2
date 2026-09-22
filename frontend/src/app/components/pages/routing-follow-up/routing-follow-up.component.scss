@@ -1,3 +1,5 @@
+/* ROUTING FOLLOW-UP: tracking filters, results, and follow-up timeline. */
+
 .routing-followup-page {
   display: grid;
   gap: 1.25rem;
@@ -148,10 +150,15 @@
 
 .routing-followup-statusBadge,
 .routing-followup-elapsedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   padding: 0.25rem 0.625rem;
   border-radius: 9999px;
   font-size: 0.72rem;
   font-weight: 700;
+  line-height: 1;
+  transition: all 0.15s ease;
 }
 
 .routing-followup-waiting {
@@ -192,6 +199,39 @@
   color: #475569;
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
+
+  .urgency-icon {
+    width: 0.85rem;
+    height: 0.85rem;
+  }
+
+  &.urgency-calm {
+    color: #0369a1;
+    background: #e0f2fe;
+    border: 1px solid #bae6fd;
+  }
+
+  &.urgency-warning {
+    color: #b45309;
+    background: #fef3c7;
+    border: 1px solid #fde68a;
+  }
+
+  &.urgency-critical {
+    color: #be123c;
+    background: #ffe4e6;
+    border: 1px solid #fecdd3;
+    animation: criticalPulse 2s infinite ease-in-out;
+  }
+}
+
+@keyframes criticalPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(225, 29, 72, 0);
+  }
 }
 
 .routing-followup-recordTitle {
@@ -250,32 +290,82 @@
 }
 
 .routing-followup-reminders {
-  margin-top: 0.75rem;
-  padding-top: 0.625rem;
-  border-top: 1px solid #e2e8f0;
+  margin-top: 0.875rem;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   font-size: 0.75rem;
 }
 
 .routing-followup-reminderTitle {
-  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #334155;
   font-weight: 800;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.5rem;
 }
 
 .routing-followup-reminderList {
   display: grid;
-  gap: 0.375rem;
-  margin: 0.5rem 0 0;
+  gap: 0.5rem;
+  margin: 0;
   padding: 0;
   list-style: none;
-  color: #475569;
 }
 
-.routing-followup-reminderList li {
+.reminder-item {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.375rem;
-  line-height: 1.5;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.5rem;
+  background: #fff;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+
+  .reminder-step-badge {
+    flex-shrink: 0;
+    font-size: 0.625rem;
+    font-weight: 800;
+    color: #2563eb;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.35rem;
+  }
+
+  .reminder-details {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .reminder-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.6875rem;
+
+    .reminder-user {
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .reminder-time {
+      color: #64748b;
+    }
+  }
+
+  .reminder-message {
+    margin-top: 0.2rem;
+    color: #475569;
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
 }
 
 .routing-followup-actions {
@@ -448,12 +538,13 @@
 }
 
 /* Dark Mode */
-.dark .routing-followup-hero {
-  color: #f1f5f9;
-  background: linear-gradient(135deg, #0f172a 0%, #162032 100%);
-  border-color: #1e293b;
-}
-:host-context(.dark) {
+:host-context(.dark),
+:host-context(html.dark) {
+  .routing-followup-hero {
+    color: #f1f5f9;
+    background: linear-gradient(135deg, #0f172a 0%, #162032 100%);
+    border-color: #1e293b;
+  }
   .routing-followup-eyebrow { color: #60a5fa; }
   .routing-followup-heroTitle { color: #f8fafc; }
   .routing-followup-heroDescription,
@@ -477,11 +568,48 @@
   .routing-followup-details,
   .routing-followup-reminderList { color: #cbd5e1; }
   .routing-followup-details > div { background: rgba(255, 255, 255, 0.03); }
-  .routing-followup-details strong { color: #94a3b8; }
-  .routing-followup-reminders,
+  .routing-followup-reminders {
+    background: #0f172a;
+    border-color: rgba(51, 65, 85, 0.7);
+  }
+  .reminder-item {
+    background: #162238;
+    border-color: rgba(51, 65, 85, 0.6);
+
+    .reminder-step-badge {
+      color: #60a5fa;
+      background: rgba(37, 99, 235, 0.15);
+      border-color: rgba(37, 99, 235, 0.3);
+    }
+
+    .reminder-meta {
+      .reminder-user { color: #f1f5f9; }
+      .reminder-time { color: #94a3b8; }
+    }
+
+    .reminder-message {
+      color: #cbd5e1;
+    }
+  }
   .routing-followup-pagination { border-color: rgba(51, 65, 85, 0.75); }
   .routing-followup-reminderTitle { color: #cbd5e1; }
-  .routing-followup-elapsedBadge { color: #cbd5e1; background: #1e293b; border-color: #1e293b; }
+  .routing-followup-elapsedBadge {
+    &.urgency-calm {
+      color: #38bdf8;
+      background: rgba(14, 165, 233, 0.15);
+      border-color: rgba(14, 165, 233, 0.3);
+    }
+    &.urgency-warning {
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.15);
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+    &.urgency-critical {
+      color: #f87171;
+      background: rgba(225, 29, 72, 0.2);
+      border-color: rgba(225, 29, 72, 0.35);
+    }
+  }
   .routing-followup-viewButton,
   .routing-followup-pageButton { color: #cbd5e1; background: #162238; border-color: rgba(51, 65, 85, 0.75); }
   .routing-followup-viewButton:hover,

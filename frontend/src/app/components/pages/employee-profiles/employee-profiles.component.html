@@ -30,7 +30,7 @@
     </div>
 
     <div class="ep-hero-actions">
-      <button
+      <ion-button
         type="button"
         (click)="openOfficeManager()"
         [disabled]="!canManage('EMPLOYEE_EDIT')"
@@ -39,9 +39,9 @@
       >
         <ion-icon name="business-outline"></ion-icon>
         <span>Manage Directory Titles</span>
-      </button>
+      </ion-button>
 
-      <button
+      <ion-button
         type="button"
         (click)="openAddForm()"
         [disabled]="!canManage('EMPLOYEE_CREATE')"
@@ -50,7 +50,7 @@
       >
         <ion-icon name="person-add-outline"></ion-icon>
         <span>Add Personnel / Staff</span>
-      </button>
+      </ion-button>
     </div>
   </header>
 
@@ -58,7 +58,7 @@
   <nav class="ep-tabs-card" aria-label="Directory Categories">
     <div class="ep-tabs-track">
       @for (tab of tabs(); track tab.key) {
-        <button
+        <ion-button
           type="button"
           (click)="openTab(tab.key)"
           class="ep-tab"
@@ -68,7 +68,7 @@
           <span class="ep-tab-badge" [class.active]="activeTab() === tab.key">
             {{ tab.count }}
           </span>
-        </button>
+        </ion-button>
       }
     </div>
   </nav>
@@ -77,7 +77,7 @@
   <section class="ep-toolbar" aria-label="Directory Filters">
     <div class="ep-search-wrap">
       <ion-icon name="search-outline" class="ep-search-icon"></ion-icon>
-      <input
+      <ion-input
         type="text"
         placeholder="Search personnel by name, office, designation, or email..."
         [ngModel]="searchTerm()"
@@ -85,37 +85,38 @@
         class="ep-search-field"
       />
       @if (searchTerm()) {
-        <button
+        <ion-button
           type="button"
           (click)="clearSearch()"
           class="ep-clear-search-btn"
           aria-label="Clear search text"
         >
           <ion-icon name="close-circle"></ion-icon>
-        </button>
+        </ion-button>
       }
     </div>
 
     <div class="ep-filter-group">
       <div class="ep-select-wrap">
         <ion-icon name="filter-outline" class="ep-select-icon"></ion-icon>
-        <select
+        <ion-select
+          interface="popover"
           [ngModel]="typeFilter()"
           (ngModelChange)="typeFilter.set($event)"
           class="ep-filter-select"
           aria-label="Filter by office type"
         >
-          <option value="ALL">All Office Types</option>
-          <option value="BLGF">BLGF Personnel</option>
-          <option value="PROVINCIAL_TREASURER">Provincial Treasurers</option>
-          <option value="MUNICIPAL_TREASURER">Municipal Treasurers</option>
-          <option value="LGU">LGU Staff</option>
-          <option value="OTHER_AGENCIES">Other Agencies</option>
-        </select>
+          <ion-select-option value="ALL">All Office Types</ion-select-option>
+          <ion-select-option value="BLGF">BLGF Personnel</ion-select-option>
+          <ion-select-option value="PROVINCIAL_TREASURER">Provincial Treasurers</ion-select-option>
+          <ion-select-option value="MUNICIPAL_TREASURER">Municipal Treasurers</ion-select-option>
+          <ion-select-option value="LGU">LGU Staff</ion-select-option>
+          <ion-select-option value="OTHER_AGENCIES">Other Agencies</ion-select-option>
+        </ion-select>
       </div>
 
       @if (hasActiveFilters()) {
-        <button
+        <ion-button
           type="button"
           (click)="resetFilters()"
           class="ep-reset-filters-btn"
@@ -123,7 +124,7 @@
         >
           <ion-icon name="refresh-outline"></ion-icon>
           <span>Reset</span>
-        </button>
+        </ion-button>
       }
     </div>
   </section>
@@ -173,7 +174,7 @@
 
             <!-- Card Controls -->
             <div class="ep-card-actions">
-              <button
+              <ion-button
                 type="button"
                 (click)="openEdit(emp)"
                 [attr.aria-label]="'Edit ' + emp.fullName"
@@ -182,10 +183,10 @@
                 title="Edit directory entry"
               >
                 <ion-icon name="create-outline"></ion-icon>
-              </button>
+              </ion-button>
 
               @if (!emp.userId) {
-                <button
+                <ion-button
                   type="button"
                   (click)="onDeleteEmp(emp.id)"
                   [disabled]="currentUser.role !== 'SYSTEM_ADMIN' && !canManage('EMPLOYEE_DELETE')"
@@ -193,16 +194,16 @@
                   title="Delete manual directory entry"
                 >
                   <ion-icon name="trash-outline"></ion-icon>
-                </button>
+                </ion-button>
               } @else {
-                <button
+                <ion-button
                   type="button"
                   (click)="onDeleteEmp(emp.id)"
                   class="ep-action-btn ep-action-protected"
                   title="Protected: Linked to User Account. Static profile cannot be deleted from Office Directory."
                 >
                   <ion-icon name="lock-closed-outline"></ion-icon>
-                </button>
+                </ion-button>
               }
             </div>
           </div>
@@ -262,7 +263,7 @@
 
           <!-- Folders & Records Action Footer -->
           <div class="ep-card-footer">
-            <button
+            <ion-button
               type="button"
               (click)="onToggleFolderSection(emp)"
               class="ep-folders-toggle-btn"
@@ -282,7 +283,7 @@
                   class="ep-chevron-icon"
                 ></ion-icon>
               </div>
-            </button>
+            </ion-button>
           </div>
 
           <!-- Folders Accordion Drawer -->
@@ -293,7 +294,7 @@
                   <ion-icon name="folder-outline"></ion-icon>
                   <span>Folders for {{ emp.fullName }}</span>
                 </div>
-                <button
+                <ion-button
                   type="button"
                   (click)="openNewFolder(emp)"
                   [disabled]="!canManageEmployeeFolder(emp)"
@@ -302,14 +303,14 @@
                 >
                   <ion-icon name="add-outline"></ion-icon>
                   <span>New Folder</span>
-                </button>
+                </ion-button>
               </div>
 
               <div class="ep-drawer-list">
                 @for (fld of empFolders(emp); track fld.id) {
                   <div class="ep-folder-item">
                     <div class="ep-folder-row">
-                      <button
+                      <ion-button
                         type="button"
                         (click)="toggleFolder(fld.id)"
                         class="ep-folder-header-btn"
@@ -317,10 +318,10 @@
                         <ion-icon name="folder" class="ep-folder-icon-amber"></ion-icon>
                         <span class="ep-folder-name">{{ fld.name }}</span>
                         <span class="ep-folder-file-count">({{ fld.files.length }})</span>
-                      </button>
+                      </ion-button>
 
                       <div class="ep-folder-actions">
-                        <button
+                        <ion-button
                           type="button"
                           (click)="editFolder(fld)"
                           [disabled]="!canManageFolder(fld)"
@@ -328,9 +329,9 @@
                           title="Edit folder details"
                         >
                           <ion-icon name="create-outline"></ion-icon>
-                        </button>
+                        </ion-button>
                         @if (!fld.systemManaged && !fld.id.startsWith('fld-auto-')) {
-                          <button
+                          <ion-button
                             type="button"
                             (click)="requestDeleteFolder(fld)"
                             [disabled]="!canManageFolder(fld)"
@@ -338,7 +339,7 @@
                             title="Delete custom folder"
                           >
                             <ion-icon name="trash-outline"></ion-icon>
-                          </button>
+                          </ion-button>
                         } @else {
                           <span
                             class="ep-folder-static-badge"
@@ -376,7 +377,7 @@
 
                                 <div class="ep-file-actions">
                                   @if (isPdf(file.name)) {
-                                    <button
+                                    <ion-button
                                       type="button"
                                       (click)="previewPdf(file)"
                                       class="ep-file-view-btn"
@@ -384,9 +385,9 @@
                                     >
                                       <ion-icon name="eye-outline"></ion-icon>
                                       <span>View</span>
-                                    </button>
+                                    </ion-button>
                                   }
-                                  <button
+                                  <ion-button
                                     type="button"
                                     [disabled]="!canManageFolder(fld)"
                                     (click)="editFileTitle(fld, idx)"
@@ -394,8 +395,8 @@
                                     title="Edit file title"
                                   >
                                     <ion-icon name="pencil-outline"></ion-icon>
-                                  </button>
-                                  <button
+                                  </ion-button>
+                                  <ion-button
                                     type="button"
                                     [disabled]="!canManageFolder(fld)"
                                     (click)="deleteFile(fld, idx)"
@@ -403,7 +404,7 @@
                                     title="Delete file"
                                   >
                                     <ion-icon name="trash-outline"></ion-icon>
-                                  </button>
+                                  </ion-button>
                                 </div>
                               </div>
                             }
@@ -447,14 +448,14 @@
           <!-- Selection button (if picker mode) -->
           @if (showSelect) {
             <div class="ep-select-wrapper">
-              <button
+              <ion-button
                 type="button"
                 (click)="handleSelect(emp)"
                 class="ep-select-emp-btn"
               >
                 <ion-icon name="checkmark-circle-outline"></ion-icon>
                 <span>Select Personnel</span>
-              </button>
+              </ion-button>
             </div>
           }
         </div>
@@ -476,14 +477,14 @@
           }
         </p>
         @if (hasActiveFilters()) {
-          <button
+          <ion-button
             type="button"
             (click)="resetFilters()"
             class="ep-empty-reset-btn"
           >
             <ion-icon name="refresh-outline"></ion-icon>
             <span>Reset Search &amp; Filters</span>
-          </button>
+          </ion-button>
         }
       </div>
     }
@@ -506,14 +507,14 @@
             Configure organization sections, top tabs, and classification headings in the Office Directory.
           </p>
         </div>
-        <button
+        <ion-button
           type="button"
           (click)="closeOfficeManager()"
           class="ep-modal-close-btn"
           aria-label="Close dialog"
         >
           <ion-icon name="close-outline"></ion-icon>
-        </button>
+        </ion-button>
       </div>
 
       <div class="ep-modal-body ep-titles-body">
@@ -525,7 +526,7 @@
               <span>{{ editingOfficeId() ? 'Editing Directory Title' : 'Add New Directory Title' }}</span>
             </div>
             @if (editingOfficeId()) {
-              <button
+              <ion-button
                 type="button"
                 (click)="cancelEditOffice()"
                 class="ep-composer-cancel-btn"
@@ -533,14 +534,14 @@
               >
                 <ion-icon name="close-outline"></ion-icon>
                 <span>Cancel Edit</span>
-              </button>
+              </ion-button>
             }
           </div>
 
           <div class="ep-composer-inputs-row">
             <div class="ep-composer-input-wrap">
               <ion-icon name="pricetag-outline" class="ep-composer-input-icon"></ion-icon>
-              <input
+              <ion-input
                 type="text"
                 [ngModel]="officeName()"
                 (ngModelChange)="officeName.set($event)"
@@ -550,18 +551,18 @@
                 class="ep-composer-input"
               />
               @if (officeName().trim()) {
-                <button
+                <ion-button
                   type="button"
                   (click)="officeName.set('')"
                   class="ep-composer-clear-btn"
                   title="Clear input"
                 >
                   <ion-icon name="close-outline"></ion-icon>
-                </button>
+                </ion-button>
               }
             </div>
 
-            <button
+            <ion-button
               type="button"
               (click)="saveOffice()"
               [disabled]="!officeName().trim()"
@@ -570,7 +571,7 @@
             >
               <ion-icon [name]="editingOfficeId() ? 'checkmark-outline' : 'add-outline'"></ion-icon>
               <span>{{ editingOfficeId() ? 'Save Changes' : 'Add Title' }}</span>
-            </button>
+            </ion-button>
           </div>
 
           <!-- Color Palette Picker for Custom Categories -->
@@ -578,7 +579,7 @@
             <span class="ep-palette-label">Tab Theme Accent:</span>
             <div class="ep-palette-chips">
               @for (palette of colorPalettes; track palette.id) {
-                <button
+                <ion-button
                   type="button"
                   (click)="selectedColor.set(palette.id)"
                   class="ep-palette-chip"
@@ -590,7 +591,7 @@
                 >
                   <span class="ep-palette-dot" [style.background-color]="palette.colorHex"></span>
                   <span class="ep-palette-name">{{ palette.label }}</span>
-                </button>
+                </ion-button>
               }
             </div>
           </div>
@@ -605,7 +606,7 @@
           <!-- Quick Search -->
           <div class="ep-titles-search-box">
             <ion-icon name="search-outline"></ion-icon>
-            <input
+            <ion-input
               type="text"
               [ngModel]="titleFilter()"
               (ngModelChange)="titleFilter.set($event)"
@@ -613,14 +614,14 @@
               class="ep-titles-search-input"
             />
             @if (titleFilter().trim()) {
-              <button
+              <ion-button
                 type="button"
                 (click)="titleFilter.set('')"
                 class="ep-titles-search-clear"
                 title="Clear filter"
               >
                 <ion-icon name="close-outline"></ion-icon>
-              </button>
+              </ion-button>
             }
           </div>
         </div>
@@ -673,7 +674,7 @@
               <!-- Right Actions: Reorder Up/Down, Edit, Delete -->
               <div class="ep-title-card-actions">
                 <!-- Move Up -->
-                <button
+                <ion-button
                   type="button"
                   (click)="moveSection(idx, 'up')"
                   [disabled]="idx === 0"
@@ -681,10 +682,10 @@
                   title="Move tab left/up in directory navigation"
                 >
                   <ion-icon name="arrow-up-outline"></ion-icon>
-                </button>
+                </ion-button>
 
                 <!-- Move Down -->
-                <button
+                <ion-button
                   type="button"
                   (click)="moveSection(idx, 'down')"
                   [disabled]="idx === directorySections().length - 1"
@@ -692,10 +693,10 @@
                   title="Move tab right/down in directory navigation"
                 >
                   <ion-icon name="arrow-down-outline"></ion-icon>
-                </button>
+                </ion-button>
 
                 <!-- Edit Title -->
-                <button
+                <ion-button
                   type="button"
                   (click)="editOffice(office)"
                   class="ep-title-btn ep-btn-edit"
@@ -703,18 +704,18 @@
                   title="Edit or rename title"
                 >
                   <ion-icon name="create-outline"></ion-icon>
-                </button>
+                </ion-button>
 
                 <!-- Delete Title -->
                 @if (!isSystemDefault(office)) {
-                  <button
+                  <ion-button
                     type="button"
                     (click)="deleteOffice(office)"
                     class="ep-title-btn ep-btn-delete"
                     title="Delete custom title"
                   >
                     <ion-icon name="trash-outline"></ion-icon>
-                  </button>
+                  </ion-button>
                 } @else {
                   <span
                     class="ep-title-btn-locked"
@@ -745,154 +746,246 @@
           <ion-icon name="information-circle-outline"></ion-icon>
           <span>All directory tabs and headings update in real-time across the system.</span>
         </span>
-        <button
+        <ion-button
           type="button"
           (click)="closeOfficeManager()"
           class="ep-btn-secondary"
         >
           Close
-        </button>
+        </ion-button>
       </div>
     </div>
   </app-modal-layer>
 
   <!-- Add / Edit Personnel Modal -->
-  <app-modal-layer [isOpen]="showForm()" [onClose]="closeForm" maxWidth="38rem">
-    <div class="ep-modal-content">
-      <div class="ep-modal-header">
-        <div class="ep-modal-header-icon-wrap" [class.is-edit]="!!editingEmp()">
-          <ion-icon [name]="editingEmp() ? 'create-outline' : 'person-add-outline'"></ion-icon>
+  <app-modal-layer [isOpen]="showForm()" [onClose]="closeForm" maxWidth="46rem">
+    <div class="ep-modal-content ep-personnel-modal-enhanced">
+      <!-- Modal Header -->
+      <div class="ep-modal-header ep-modal-header-enhanced">
+        <div class="ep-avatar-live-badge" [class.has-initials]="!!getInitials(formData().fullName)" [class.is-edit]="!!editingEmp()">
+          @if (getInitials(formData().fullName); as initials) {
+            <span class="ep-avatar-text">{{ initials }}</span>
+          } @else {
+            <ion-icon [name]="editingEmp() ? 'create-outline' : 'person-add-outline'"></ion-icon>
+          }
         </div>
         <div class="ep-modal-header-text">
-          <h3 class="ep-modal-title">
-            {{ editingEmp() ? 'Edit Personnel / Staff' : 'Add Personnel / Staff' }}
-          </h3>
+          <div class="ep-modal-header-badge-row">
+            <h3 class="ep-modal-title">
+              {{ editingEmp() ? 'Edit Personnel Profile' : 'Add Personnel / Staff' }}
+            </h3>
+            <span class="ep-status-pill" [class.is-edit]="!!editingEmp()">
+              {{ editingEmp() ? 'Update Mode' : 'New Directory Entry' }}
+            </span>
+          </div>
           <p class="ep-modal-subtitle">
-            Provide the employee details, assigned division/office, and contact points.
+            Provide the official employee details, administrative assignment, and communication channels.
           </p>
         </div>
-        <button
+        <ion-button
           type="button"
           (click)="closeForm()"
           class="ep-modal-close-btn"
           aria-label="Close dialog"
         >
           <ion-icon name="close-outline"></ion-icon>
-        </button>
+        </ion-button>
       </div>
 
-      <div class="ep-modal-body">
-        <div class="ep-form-grid">
-          <!-- Full Name -->
-          <div class="ep-col-span-2">
-            <label class="ep-form-label">Full Name <span class="ep-req">*</span></label>
-            <input
-              type="text"
-              placeholder="e.g. Juan D. Dela Cruz"
-              [ngModel]="formData().fullName || ''"
-              (ngModelChange)="setForm('fullName', $event)"
-              class="ep-modal-input"
-            />
-          </div>
+      <!-- Modal Body -->
+      <div class="ep-modal-body ep-modal-body-enhanced">
+        <!-- Card 1: Official Identity & Role -->
+        <section class="ep-form-section-card">
+          <header class="ep-section-header">
+            <div class="ep-section-icon-badge">
+              <ion-icon name="person-outline"></ion-icon>
+            </div>
+            <div>
+              <h4 class="ep-section-title">Official Identity & Role</h4>
+              <p class="ep-section-desc">Designation and organizational classification</p>
+            </div>
+          </header>
 
-          <!-- Position -->
-          <div>
-            <label class="ep-form-label">Position / Designation <span class="ep-req">*</span></label>
-            <input
-              type="text"
-              placeholder="e.g. Local Treasury Operations Officer IV"
-              [ngModel]="formData().position || ''"
-              (ngModelChange)="setForm('position', $event)"
-              class="ep-modal-input"
-            />
-          </div>
+          <div class="ep-form-grid">
+            <!-- Full Name -->
+            <div class="ep-col-span-2 ep-field-group">
+              <label class="ep-form-label">
+                Full Name <span class="ep-req">*</span>
+              </label>
+              <div class="ep-input-wrapper">
+                <ion-icon name="person-circle-outline" class="ep-field-icon"></ion-icon>
+                <ion-input
+                  type="text"
+                  placeholder="e.g. Juan D. Dela Cruz"
+                  [ngModel]="formData().fullName || ''"
+                  (ngModelChange)="setForm('fullName', $event)"
+                  class="ep-modal-input ep-input-field"
+                />
+              </div>
+            </div>
 
-          <!-- Office Type -->
-          <div>
-            <label class="ep-form-label">Office Category <span class="ep-req">*</span></label>
-            <select
-              [ngModel]="formData().officeType || 'BLGF'"
-              (ngModelChange)="setForm('officeType', $event)"
-              class="ep-modal-select"
+            <!-- Position -->
+            <div class="ep-field-group">
+              <label class="ep-form-label">
+                Position / Designation <span class="ep-req">*</span>
+              </label>
+              <div class="ep-input-wrapper">
+                <ion-icon name="briefcase-outline" class="ep-field-icon"></ion-icon>
+                <ion-input
+                  type="text"
+                  placeholder="e.g. Local Treasury Operations Officer IV"
+                  [ngModel]="formData().position || ''"
+                  (ngModelChange)="setForm('position', $event)"
+                  class="ep-modal-input ep-input-field"
+                />
+              </div>
+            </div>
+
+            <!-- Office Category -->
+            <div class="ep-field-group">
+              <label class="ep-form-label">
+                Office Category <span class="ep-req">*</span>
+              </label>
+              <div class="ep-select-wrapper">
+                <ion-icon name="layers-outline" class="ep-field-icon"></ion-icon>
+                <ion-select
+                  interface="popover"
+                  [ngModel]="formData().officeType || 'BLGF'"
+                  (ngModelChange)="setForm('officeType', $event)"
+                  class="ep-modal-select ep-select-field"
+                >
+                  <ion-select-option value="BLGF">BLGF Personnel</ion-select-option>
+                  <ion-select-option value="PROVINCIAL_TREASURER">Provincial Treasurer</ion-select-option>
+                  <ion-select-option value="MUNICIPAL_TREASURER">Municipal Treasurer</ion-select-option>
+                  <ion-select-option value="LGU">LGU Staff</ion-select-option>
+                  <ion-select-option value="OTHER_AGENCIES">Other Agencies</ion-select-option>
+                  @for (section of customSections(); track section.id) {
+                    <ion-select-option [value]="section.officeTypes[0]">{{ section.label }}</ion-select-option>
+                  }
+                </ion-select>
+                <ion-icon name="chevron-down-outline" class="ep-select-chevron"></ion-icon>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Card 2: Assigned Office & Station Location -->
+        <section class="ep-form-section-card">
+          <header class="ep-section-header">
+            <div class="ep-section-icon-badge is-blue">
+              <ion-icon name="business-outline"></ion-icon>
+            </div>
+            <div>
+              <h4 class="ep-section-title">Station & Office Assignment</h4>
+              <p class="ep-section-desc">Department division and physical duty station</p>
+            </div>
+          </header>
+
+          <div class="ep-form-grid">
+            <!-- Office / Department -->
+            <div class="ep-col-span-2 ep-field-group">
+              <label class="ep-form-label">
+                Office / Department / Division <span class="ep-req">*</span>
+              </label>
+              <div class="ep-textarea-wrapper">
+                <ion-icon name="business-outline" class="ep-field-icon ep-field-icon-textarea"></ion-icon>
+                <ion-textarea
+                  rows="2"
+                  [ngModel]="formData().office || ''"
+                  (ngModelChange)="setForm('office', $event)"
+                  (keydown)="stopPropagation($event)"
+                  placeholder="e.g. Bureau of Local Government Finance&#10;Local Treasury Operations Division"
+                  class="ep-modal-textarea ep-textarea-field"
+                ></ion-textarea>
+              </div>
+            </div>
+
+            <!-- Address -->
+            <div class="ep-col-span-2 ep-field-group">
+              <label class="ep-form-label">Office / Physical Address</label>
+              <div class="ep-textarea-wrapper">
+                <ion-icon name="location-outline" class="ep-field-icon ep-field-icon-textarea"></ion-icon>
+                <ion-textarea
+                  rows="2"
+                  [ngModel]="formData().address || ''"
+                  (ngModelChange)="setForm('address', $event)"
+                  (keydown)="stopPropagation($event)"
+                  placeholder="e.g. Regional Government Center, Carig Sur, Tuguegarao City, Cagayan"
+                  class="ep-modal-textarea ep-textarea-field"
+                ></ion-textarea>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Card 3: Contact & Communication Coordinates -->
+        <section class="ep-form-section-card">
+          <header class="ep-section-header">
+            <div class="ep-section-icon-badge is-emerald">
+              <ion-icon name="call-outline"></ion-icon>
+            </div>
+            <div>
+              <h4 class="ep-section-title">Contact & Communication</h4>
+              <p class="ep-section-desc">Official email and telephone / mobile numbers</p>
+            </div>
+          </header>
+
+          <div class="ep-form-grid">
+            <!-- Email -->
+            <div class="ep-field-group">
+              <label class="ep-form-label">Email Address</label>
+              <div class="ep-input-wrapper">
+                <ion-icon name="mail-outline" class="ep-field-icon"></ion-icon>
+                <ion-input
+                  type="email"
+                  placeholder="e.g. juan.delacruz@blgf.gov.ph"
+                  [ngModel]="formData().email || ''"
+                  (ngModelChange)="setForm('email', $event)"
+                  class="ep-modal-input ep-input-field"
+                />
+              </div>
+            </div>
+
+            <!-- Contact Number -->
+            <div class="ep-field-group">
+              <label class="ep-form-label">Contact Number</label>
+              <div class="ep-input-wrapper">
+                <ion-icon name="call-outline" class="ep-field-icon"></ion-icon>
+                <ion-input
+                  type="text"
+                  placeholder="e.g. (078) 304-1234 / 0917 123 4567"
+                  [ngModel]="formData().contactNo || ''"
+                  (ngModelChange)="setForm('contactNo', $event)"
+                  class="ep-modal-input ep-input-field"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Modal Footer -->
+        <div class="ep-modal-footer ep-modal-footer-enhanced">
+          <div class="ep-footer-note">
+            <ion-icon name="shield-checkmark-outline"></ion-icon>
+            <span>Synced to Regional Personnel Directory</span>
+          </div>
+          <div class="ep-footer-actions">
+            <ion-button
+              type="button"
+              (click)="closeForm()"
+              class="ep-btn-cancel-enhanced"
             >
-              <option value="BLGF">BLGF Personnel</option>
-              <option value="PROVINCIAL_TREASURER">Provincial Treasurer</option>
-              <option value="MUNICIPAL_TREASURER">Municipal Treasurer</option>
-              <option value="LGU">LGU Staff</option>
-              <option value="OTHER_AGENCIES">Other Agencies</option>
-              @for (section of customSections(); track section.id) {
-                <option [value]="section.officeTypes[0]">{{ section.label }}</option>
-              }
-            </select>
+              Cancel
+            </ion-button>
+            <ion-button
+              type="button"
+              (click)="handleSave()"
+              class="ep-btn-primary-enhanced"
+            >
+              <ion-icon [name]="editingEmp() ? 'save-outline' : 'checkmark-circle-outline'"></ion-icon>
+              <span>{{ editingEmp() ? 'Update Record' : 'Save Record' }}</span>
+            </ion-button>
           </div>
-
-          <!-- Office / Department -->
-          <div class="ep-col-span-2">
-            <label class="ep-form-label">Office / Department / Division <span class="ep-req">*</span></label>
-            <textarea
-              rows="2"
-              [ngModel]="formData().office || ''"
-              (ngModelChange)="setForm('office', $event)"
-              (keydown)="stopPropagation($event)"
-              placeholder="e.g. Bureau of Local Government Finance&#10;Local Treasury Operations Division"
-              class="ep-modal-textarea"
-            ></textarea>
-          </div>
-
-          <!-- Email -->
-          <div>
-            <label class="ep-form-label">Email Address</label>
-            <input
-              type="email"
-              placeholder="e.g. juan.delacruz@blgf.gov.ph"
-              [ngModel]="formData().email || ''"
-              (ngModelChange)="setForm('email', $event)"
-              class="ep-modal-input"
-            />
-          </div>
-
-          <!-- Contact Number -->
-          <div>
-            <label class="ep-form-label">Contact Number</label>
-            <input
-              type="text"
-              placeholder="e.g. (078) 304-1234 / 0917 123 4567"
-              [ngModel]="formData().contactNo || ''"
-              (ngModelChange)="setForm('contactNo', $event)"
-              class="ep-modal-input"
-            />
-          </div>
-
-          <!-- Address -->
-          <div class="ep-col-span-2">
-            <label class="ep-form-label">Office / Physical Address</label>
-            <textarea
-              rows="2"
-              [ngModel]="formData().address || ''"
-              (ngModelChange)="setForm('address', $event)"
-              (keydown)="stopPropagation($event)"
-              placeholder="e.g. Regional Government Center, Carig Sur, Tuguegarao City, Cagayan"
-              class="ep-modal-textarea"
-            ></textarea>
-          </div>
-        </div>
-
-        <div class="ep-modal-footer">
-          <button
-            type="button"
-            (click)="closeForm()"
-            class="ep-btn-cancel"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            (click)="handleSave()"
-            class="ep-btn-primary"
-          >
-            <ion-icon name="save-outline"></ion-icon>
-            <span>{{ editingEmp() ? 'Update Record' : 'Save Record' }}</span>
-          </button>
         </div>
       </div>
     </div>
@@ -912,20 +1005,20 @@
               Folder for <strong>{{ selectedEmp.fullName }}</strong>
             </p>
           </div>
-          <button
+          <ion-button
             type="button"
             (click)="closeFolderModal()"
             class="ep-modal-close-btn"
             aria-label="Close dialog"
           >
             <ion-icon name="close-outline"></ion-icon>
-          </button>
+          </ion-button>
         </div>
 
         <div class="ep-modal-body">
           <div class="ep-modal-field">
             <label class="ep-form-label">Folder Name <span class="ep-req">*</span></label>
-            <input
+            <ion-input
               type="text"
               placeholder="e.g. PDS &amp; Civil Service Eligibility"
               [ngModel]="folderName()"
@@ -936,7 +1029,7 @@
 
           <div class="ep-modal-field">
             <label class="ep-form-label">Folder Description (Optional)</label>
-            <input
+            <ion-input
               type="text"
               placeholder="e.g. Updated 2026 documents and certificates"
               [ngModel]="folderDescription()"
@@ -946,21 +1039,21 @@
           </div>
 
           <div class="ep-modal-footer">
-            <button
+            <ion-button
               type="button"
               (click)="closeFolderModal()"
               class="ep-btn-cancel"
             >
               Cancel
-            </button>
-            <button
+            </ion-button>
+            <ion-button
               type="button"
               (click)="createFolder()"
               class="ep-btn-primary is-amber-btn"
             >
               <ion-icon name="folder-outline"></ion-icon>
               <span>Create Folder</span>
-            </button>
+            </ion-button>
           </div>
         </div>
       </div>
@@ -985,20 +1078,20 @@
           Are you sure you want to delete <strong>&ldquo;{{ ftd.name }}&rdquo;</strong> and all attached files? This action cannot be reversed.
         </p>
         <div class="ep-dialog-actions">
-          <button
+          <ion-button
             type="button"
             (click)="clearFolderToDelete()"
             class="ep-btn-cancel"
           >
             Cancel
-          </button>
-          <button
+          </ion-button>
+          <ion-button
             type="button"
             (click)="confirmDeleteFolder()"
             class="ep-btn-danger"
           >
             Delete Folder
-          </button>
+          </ion-button>
         </div>
       </div>
     </div>
@@ -1013,14 +1106,14 @@
             <ion-icon name="document-text-outline" class="ep-pdf-icon"></ion-icon>
             <h3 class="ep-pdf-name">{{ pdf.name }}</h3>
           </div>
-          <button
+          <ion-button
             type="button"
             (click)="closePdf()"
             class="ep-pdf-close-btn"
             aria-label="Close PDF viewer"
           >
             <ion-icon name="close-outline"></ion-icon>
-          </button>
+          </ion-button>
         </div>
         <iframe
           [src]="safePdfUrl(pdf.dataUrl)"

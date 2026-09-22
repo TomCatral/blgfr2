@@ -6,11 +6,22 @@ const matchesParticipant = (
   user: User,
   participantId?: string,
   participantName?: string,
-) =>
-  participantId === user.id ||
-  (!participantId &&
-    Boolean(normalizeName(participantName)) &&
-    normalizeName(participantName) === normalizeName(user.fullName));
+) => {
+  if (!user) return false;
+  const targetId = normalizeName(participantId);
+  const targetName = normalizeName(participantName);
+  const userId = normalizeName(user.id);
+  const userName = normalizeName(user.username);
+  const userFullName = normalizeName(user.fullName);
+
+  if (targetId && (targetId === userId || targetId === userName)) {
+    return true;
+  }
+  if (targetName && (targetName === userFullName || targetName === userName)) {
+    return true;
+  }
+  return false;
+};
 
 const auditNamesRecipient = (details: string, fullName: string) =>
   new RegExp(
@@ -26,6 +37,8 @@ export const isDocumentParticipant = (
 ) =>
   matchesParticipant(user, document.assignedUserId, document.assignedUser) ||
   matchesParticipant(user, document.createdByUserId, document.createdBy) ||
+  matchesParticipant(user, undefined, document.recipientName) ||
+  matchesParticipant(user, undefined, document.senderName) ||
   (document.routes || []).some(
     (route) =>
       matchesParticipant(user, route.fromUserId, route.fromUser) ||
@@ -33,7 +46,9 @@ export const isDocumentParticipant = (
   ) ||
   auditLogs.some(
     (log) =>
-      log.documentTrackingNumber === document.trackingNumber &&
+      (log.documentTrackingNumber === document.trackingNumber ||
+        (Boolean(document.routeNo) && log.documentTrackingNumber === document.routeNo)) &&
       (matchesParticipant(user, log.userId, log.userName) ||
         auditNamesRecipient(log.details, user.fullName)),
   );
+

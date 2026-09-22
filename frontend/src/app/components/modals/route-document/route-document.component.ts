@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { AppModalLayerComponent } from '../../ui/modal-layer.component';
-import { ManagedOptionsSelectComponent } from '../../ui/managed-options-select.component';
 import {
   DocumentRecord,
   DocumentStatus,
@@ -53,7 +52,6 @@ const AVAILABLE_DIVISIONS: { code: DivisionCode; name: string }[] = [
     CommonModule,
     FormsModule,
     AppModalLayerComponent,
-    ManagedOptionsSelectComponent,
   ],
   styleUrl: './route-document.component.scss',
   templateUrl: './route-document.component.html',
@@ -87,21 +85,6 @@ export class RouteDocumentComponent implements OnChanges {
   readonly statusOptions = STATUS_OPTIONS;
   readonly availableDivisions = AVAILABLE_DIVISIONS;
 
-  readonly remarkPresets = [
-    'For appropriate action and review',
-    'Please verify and endorse to RD',
-    'Urgent - for immediate disposition',
-    'Returned with corrections noted',
-    'For signature and release',
-  ];
-
-  readonly handoffPresets = [
-    { label: 'Central Storage', text: 'Transaction completed and original copy archived in BLGF Records Central Storage.' },
-    { label: 'Records Unit (Room 204)', text: 'Claim original copy at Records Unit, Room 204. Look for Ms. Rona, present official ID.' },
-    { label: 'Endorsement Released', text: 'Official endorsement and signed release copy transmitted to originating client.' },
-    { label: 'Division Archives', text: 'Document process finalized and signed copy stored in Division Archives.' },
-  ];
-
   setRouteMode(mode: 'FORWARD' | 'COMPLETE'): void {
     this.routeMode = mode;
     if (mode === 'COMPLETE') {
@@ -118,18 +101,6 @@ export class RouteDocumentComponent implements OnChanges {
     } else {
       this.routeMode = 'FORWARD';
     }
-  }
-
-  applyRemarkPreset(preset: string): void {
-    if (!this.remarks.trim()) {
-      this.remarks = preset;
-    } else if (!this.remarks.includes(preset)) {
-      this.remarks = `${this.remarks.trim()} - ${preset}`;
-    }
-  }
-
-  applyHandoffPreset(presetText: string): void {
-    this.handoffInstructions = presetText;
   }
 
   ngOnChanges(changes: SimpleChanges): void {

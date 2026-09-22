@@ -1,12 +1,12 @@
 <div class="login-page">
-  <button
+  <ion-button
     type="button"
     class="login-theme-toggle"
     [title]="session.isDarkMode() ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
     (click)="session.toggleDarkMode()"
   >
     <ion-icon [name]="session.isDarkMode() ? 'sunny' : 'moon'"></ion-icon>
-  </button>
+  </ion-button>
 
   <!-- Modern ambient light mesh background -->
   <div class="login-glow-1" aria-hidden="true"></div>
@@ -51,7 +51,7 @@
             <span class="login-input-icon">
               <ion-icon name="key"></ion-icon>
             </span>
-            <input
+            <ion-input
               type="text"
               required
               autoFocus
@@ -63,7 +63,7 @@
           </div>
           <span class="login-field-hint">A temporary recovery code will be dispatched to the verified email.</span>
         </label>
-        <button
+        <ion-button
           type="submit"
           [disabled]="loading"
           class="login-btn-primary"
@@ -75,10 +75,10 @@
             <ion-icon name="mail"></ion-icon>
             <span>Email Recovery Password</span>
           }
-        </button>
-        <button type="button" class="login-btn-link" (click)="backToSignIn()">
+        </ion-button>
+        <ion-button type="button" class="login-btn-link" (click)="backToSignIn()">
           &larr; Back to Sign In
-        </button>
+        </ion-button>
       </form>
     } @else {
       <form class="login-form" (ngSubmit)="handleSubmit()">
@@ -88,7 +88,7 @@
             <span class="login-input-icon">
               <ion-icon name="person"></ion-icon>
             </span>
-            <input
+            <ion-input
               type="text"
               required
               autoFocus
@@ -107,7 +107,7 @@
             <span class="login-input-icon">
               <ion-icon name="lock-closed"></ion-icon>
             </span>
-            <input
+            <ion-input
               [type]="showPassword ? 'text' : 'password'"
               required
               autocomplete="current-password"
@@ -116,18 +116,18 @@
               placeholder="Enter your account password"
               class="login-input has-toggle"
             />
-            <button
+            <ion-button
               type="button"
               class="login-toggle-pw"
               [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
               (click)="showPassword = !showPassword"
             >
               <ion-icon [name]="showPassword ? 'eye-off' : 'eye'"></ion-icon>
-            </button>
+            </ion-button>
           </div>
         </label>
 
-        <button
+        <ion-button
           type="submit"
           [disabled]="loading"
           class="login-btn-primary"
@@ -139,11 +139,11 @@
             <ion-icon name="log-in"></ion-icon>
             <span>Sign In to System</span>
           }
-        </button>
+        </ion-button>
 
-        <button type="button" class="login-btn-link" (click)="openForgotPassword()">
+        <ion-button type="button" class="login-btn-link" (click)="openForgotPassword()">
           Forgot administrator password?
-        </button>
+        </ion-button>
       </form>
     }
 

@@ -3,13 +3,15 @@ import { DialogRequest, DialogService } from '../../services/dialog.service';
 import { UiService } from '../../services/ui.service';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
+import { IonicModule } from '@ionic/angular';
 
 @Component({
   selector: 'app-dialog-host',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [FormsModule],
+  imports: [IonicModule, FormsModule],
   templateUrl: './app-dialog-host.component.html',
+  styleUrl: './app-dialog-host.component.scss',
 })
 export class AppDialogHostComponent implements OnInit, OnDestroy {
   private dialogService = inject(DialogService);

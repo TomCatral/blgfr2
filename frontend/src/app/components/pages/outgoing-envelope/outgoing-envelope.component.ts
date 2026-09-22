@@ -7,6 +7,7 @@ import { ApiService } from '../../../services/api.service';
 import { showConfirm } from '../../../services/dialog.service';
 import { UiService } from '../../../services/ui.service';
 import { DocumentRecord, User, EmployeeProfile } from '../../../types';
+import { IonicModule } from '@ionic/angular';
 
 export type EnvelopeSize = 'NO10' | 'DL' | 'CUSTOM';
 
@@ -37,7 +38,7 @@ export interface SavedEnvelopeFormat {
   selector: 'app-outgoing-envelope',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [CommonModule, FormsModule, AutocompleteFieldComponent, AppModalLayerComponent],
+  imports: [IonicModule, CommonModule, FormsModule, AutocompleteFieldComponent, AppModalLayerComponent],
   styleUrl: './outgoing-envelope.component.scss',
   templateUrl: './outgoing-envelope.component.html',
 })
@@ -123,7 +124,7 @@ export class OutgoingEnvelopeComponent implements OnInit {
   employees: EmployeeProfile[] = this.loadStoredEmployees();
   savedFormats: SavedEnvelopeFormat[] = this.loadStoredFormats();
   formatName = '';
-  showSaveFormat = false;
+  showSaveFormat = true;
   showSenderDrawer = false;
 
   // DTS Document Quick-Picker modal state
@@ -612,8 +613,17 @@ export class OutgoingEnvelopeComponent implements OnInit {
     this.savedFormats = updated;
     localStorage.setItem('blgf_envelope_formats', JSON.stringify(updated));
     this.formatName = '';
-    this.showSaveFormat = false;
+    this.showSaveFormat = true;
     this.ui.showSuccess('Envelope format saved successfully!');
+  }
+
+  toggleTemplates(): void {
+    this.showSaveFormat = !this.showSaveFormat;
+    if (this.showSaveFormat) {
+      setTimeout(() => {
+        document.getElementById('envelope-templates-section')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 50);
+    }
   }
 
   loadFormat(fmt: SavedEnvelopeFormat): void {

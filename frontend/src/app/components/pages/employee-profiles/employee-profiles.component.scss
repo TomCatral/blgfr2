@@ -1,3 +1,5 @@
+/* EMPLOYEE PROFILES: directory, profile cards, and employee forms. */
+
 :host {
   display: block;
   width: 100%;
@@ -1562,6 +1564,340 @@
 }
 
 /* ==========================================================================
+   5b. ENHANCED PERSONNEL MODAL STYLES
+   ========================================================================== */
+.ep-personnel-modal-enhanced {
+  gap: 1.25rem;
+}
+
+.ep-modal-header-enhanced {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 1.125rem;
+  border-bottom: 1px solid var(--ui-border, #e2e8f0);
+
+  .ep-avatar-live-badge {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 1rem;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: #ffffff;
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    flex-shrink: 0;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &.has-initials {
+      background: linear-gradient(135deg, #4f46e5 0%, #2563eb 100%);
+      box-shadow: 0 4px 16px rgba(79, 70, 229, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+      transform: scale(1.02);
+    }
+
+    &.is-edit {
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    }
+
+    .ep-avatar-text {
+      font-size: 1.125rem;
+      font-weight: 800;
+      color: #ffffff;
+      text-transform: uppercase;
+      user-select: none;
+    }
+  }
+
+  .ep-modal-header-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .ep-modal-header-badge-row {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    flex-wrap: wrap;
+  }
+
+  .ep-status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.55rem;
+    border-radius: 9999px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+
+    &.is-edit {
+      background: #f0f9ff;
+      color: #0284c7;
+      border-color: #bae6fd;
+    }
+  }
+
+  .ep-modal-title {
+    font-size: 1.125rem;
+    font-weight: 800;
+    color: var(--ui-text, #0f172a);
+    letter-spacing: -0.015em;
+  }
+
+  .ep-modal-subtitle {
+    margin-top: 0.15rem;
+    font-size: 0.775rem;
+    color: var(--ui-text-muted, #64748b);
+    line-height: 1.4;
+  }
+}
+
+.ep-modal-body-enhanced {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-height: calc(82vh - 120px);
+  overflow-y: auto;
+  padding-right: 0.25rem;
+
+  &::-webkit-scrollbar {
+    width: 5px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.35);
+    border-radius: 4px;
+  }
+}
+
+/* Card Sections */
+.ep-form-section-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  padding: 1rem 1.125rem;
+  background: var(--ui-card-bg, #ffffff);
+  border: 1px solid var(--ui-border, #e2e8f0);
+  border-radius: 0.875rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    border-color: rgba(37, 99, 235, 0.25);
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
+  }
+}
+
+.ep-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding-bottom: 0.625rem;
+  border-bottom: 1px solid var(--ui-border-light, #f1f5f9);
+
+  .ep-section-icon-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 0.5rem;
+    background: #eff6ff;
+    color: #2563eb;
+    font-size: 1rem;
+    flex-shrink: 0;
+
+    &.is-blue {
+      background: #f0fdf4;
+      color: #16a34a;
+    }
+
+    &.is-emerald {
+      background: #faf5ff;
+      color: #9333ea;
+    }
+  }
+
+  .ep-section-title {
+    margin: 0;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--ui-text, #1e293b);
+    line-height: 1.2;
+  }
+
+  .ep-section-desc {
+    margin: 0;
+    font-size: 0.6875rem;
+    color: var(--ui-text-muted, #64748b);
+    line-height: 1.2;
+  }
+}
+
+.ep-field-group {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Input & Select Wrappers with Leading Icons */
+.ep-input-wrapper,
+.ep-textarea-wrapper,
+.ep-select-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.ep-field-icon {
+  position: absolute;
+  left: 0.8125rem;
+  font-size: 1.0625rem;
+  color: #94a3b8;
+  pointer-events: none;
+  transition: color 0.15s ease;
+  z-index: 1;
+
+  &.ep-field-icon-textarea {
+    top: 0.75rem;
+  }
+}
+
+.ep-input-field,
+.ep-select-field {
+  padding-left: 2.45rem !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500;
+  height: 2.625rem;
+}
+
+.ep-select-wrapper {
+  .ep-select-chevron {
+    position: absolute;
+    right: 0.8125rem;
+    font-size: 0.9375rem;
+    color: #94a3b8;
+    pointer-events: none;
+  }
+
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 2.25rem !important;
+    cursor: pointer;
+  }
+}
+
+.ep-textarea-field {
+  padding-left: 2.45rem !important;
+  padding-top: 0.65rem !important;
+  font-size: 0.8125rem !important;
+  line-height: 1.45;
+  font-weight: 500;
+  min-height: 4.5rem;
+}
+
+.ep-input-wrapper:focus-within .ep-field-icon,
+.ep-textarea-wrapper:focus-within .ep-field-icon,
+.ep-select-wrapper:focus-within .ep-field-icon {
+  color: #2563eb;
+}
+
+/* Modal Footer Enhanced */
+.ep-modal-footer-enhanced {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--ui-border, #e2e8f0);
+  margin-top: 0.25rem;
+
+  .ep-footer-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.7125rem;
+    color: var(--ui-text-muted, #64748b);
+    font-weight: 500;
+
+    ion-icon {
+      font-size: 0.9375rem;
+      color: #10b981;
+      flex-shrink: 0;
+    }
+  }
+
+  .ep-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+  }
+
+  .ep-btn-cancel-enhanced {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.6rem 1.125rem;
+    border-radius: 0.625rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    background: var(--ui-card-bg, #ffffff);
+    border: 1px solid var(--ui-border, #cbd5e1);
+    color: var(--ui-text, #334155);
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+      background: var(--ui-bg, #f1f5f9);
+      border-color: #94a3b8;
+      color: #0f172a;
+    }
+  }
+
+  .ep-btn-primary-enhanced {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.6rem 1.35rem;
+    border-radius: 0.625rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+    ion-icon {
+      font-size: 1.05rem;
+    }
+
+    &:hover {
+      background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+      box-shadow: 0 6px 18px rgba(37, 99, 235, 0.45);
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+    }
+  }
+}
+
+/* ==========================================================================
    6. MANAGE DIRECTORY TITLES MODAL
    ========================================================================== */
 .ep-titles-manager-modal {
@@ -2583,6 +2919,118 @@
 
     .ep-empty-title {
       color: #f8fafc;
+    }
+  }
+
+  .ep-personnel-modal-enhanced {
+    .ep-modal-header-enhanced {
+      border-color: rgba(255, 255, 255, 0.08);
+
+      .ep-modal-title {
+        color: #f8fafc;
+      }
+
+      .ep-modal-subtitle {
+        color: #94a3b8;
+      }
+
+      .ep-status-pill {
+        background: rgba(16, 185, 129, 0.15);
+        color: #6ee7b7;
+        border-color: rgba(16, 185, 129, 0.3);
+
+        &.is-edit {
+          background: rgba(56, 189, 248, 0.15);
+          color: #7dd3fc;
+          border-color: rgba(56, 189, 248, 0.3);
+        }
+      }
+    }
+
+    .ep-form-section-card {
+      background: rgba(15, 23, 42, 0.65);
+      border-color: rgba(255, 255, 255, 0.08);
+
+      &:hover {
+        border-color: rgba(59, 130, 246, 0.4);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      }
+
+      .ep-section-header {
+        border-color: rgba(255, 255, 255, 0.06);
+
+        .ep-section-title {
+          color: #f1f5f9;
+        }
+
+        .ep-section-desc {
+          color: #94a3b8;
+        }
+
+        .ep-section-icon-badge {
+          background: rgba(37, 99, 235, 0.2);
+          color: #93c5fd;
+
+          &.is-blue {
+            background: rgba(16, 185, 129, 0.2);
+            color: #6ee7b7;
+          }
+
+          &.is-emerald {
+            background: rgba(147, 51, 234, 0.2);
+            color: #d8b4fe;
+          }
+        }
+      }
+    }
+
+    .ep-form-label {
+      color: #e2e8f0;
+    }
+
+    .ep-field-icon,
+    .ep-select-chevron {
+      color: #64748b;
+    }
+
+    .ep-input-wrapper:focus-within .ep-field-icon,
+    .ep-textarea-wrapper:focus-within .ep-field-icon,
+    .ep-select-wrapper:focus-within .ep-field-icon {
+      color: #60a5fa;
+    }
+
+    .ep-input-field,
+    .ep-select-field,
+    .ep-textarea-field {
+      background: #0b1120 !important;
+      border-color: #27374d !important;
+      color: #f8fafc !important;
+
+      &:focus {
+        background: #0d1527 !important;
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.22) !important;
+      }
+    }
+
+    .ep-modal-footer-enhanced {
+      border-color: rgba(255, 255, 255, 0.08);
+
+      .ep-footer-note {
+        color: #94a3b8;
+      }
+
+      .ep-btn-cancel-enhanced {
+        background: #1e293b;
+        border-color: #334155;
+        color: #cbd5e1;
+
+        &:hover {
+          background: #334155;
+          color: #f8fafc;
+          border-color: #475569;
+        }
+      }
     }
   }
 }

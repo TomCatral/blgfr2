@@ -1,6 +1,6 @@
 <div class="audit-page">
   <div class="audit-toolbar">
-    <div>
+    <div class="audit-title-block">
       <h2 class="audit-title">
         <ion-icon name="clipboard" class="audit-titleIcon"></ion-icon>
         <span>{{ title || 'System Audit Logs & Security Trail' }}</span>
@@ -13,11 +13,12 @@
     <div class="audit-toolbarActions">
       @if (auditLogs.length > 0) {
         <span class="audit-folderName">
-          {{ currentMonthLabel }}
+          <ion-icon name="calendar" class="audit-pill-icon"></ion-icon>
+          <span>{{ currentMonthLabel }}</span>
         </span>
       }
 
-      <button
+      <ion-button
         type="button"
         (click)="exportToExcel()"
         class="audit-excelButton"
@@ -25,9 +26,9 @@
       >
         <ion-icon name="file-tray"></ion-icon>
         <span>Manual Excel Save</span>
-      </button>
+      </ion-button>
 
-      <button
+      <ion-button
         type="button"
         (click)="chooseAutoSaveDirectory()"
         class="audit-folderButton"
@@ -35,11 +36,11 @@
       >
         <ion-icon name="folder-open"></ion-icon>
         <span>
-          {{ autoDirectory || savedFolderName ? 'Auto Folder: ' + (autoDirectory?.name || savedFolderName) : 'Select Auto-Save Folder' }}
+          {{ autoDirectory || savedFolderName ? 'Auto: ' + (autoDirectory?.name || savedFolderName) : 'Auto-Save Folder' }}
         </span>
-      </button>
+      </ion-button>
 
-      <button
+      <ion-button
         type="button"
         (click)="exportToCSV()"
         class="audit-csvButton"
@@ -47,7 +48,7 @@
       >
         <ion-icon name="download" class="audit-csvIcon"></ion-icon>
         <span>Export CSV</span>
-      </button>
+      </ion-button>
     </div>
   </div>
 
@@ -61,7 +62,7 @@
   <div class="audit-filters">
     <div class="audit-searchField">
       <ion-icon name="search" class="audit-searchIcon"></ion-icon>
-      <input
+      <ion-input
         type="text"
         placeholder="Filter by user, Document Route No., action details..."
         [(ngModel)]="searchQuery"
@@ -71,36 +72,38 @@
     </div>
 
     <div>
-      <select
+      <ion-select
+        interface="popover"
         [ngModel]="monthFilter"
         (ngModelChange)="onMonthFilterChange($event)"
         name="monthFilter"
         class="audit-select"
         aria-label="Select log month"
       >
-        <option value="ALL">All Months</option>
+        <ion-select-option value="ALL">All Months</ion-select-option>
         @for (month of availableMonths; track month) {
-          <option [value]="month">{{ formatMonthOption(month) }}</option>
+          <ion-select-option [value]="month">{{ formatMonthOption(month) }}</ion-select-option>
         }
-      </select>
+      </ion-select>
     </div>
 
     <div>
-      <select
+      <ion-select
+        interface="popover"
         [(ngModel)]="actionFilter"
         name="actionFilter"
         class="audit-select"
       >
-        <option value="ALL">All Action Types</option>
-        <option value="CREATE_DOC">CREATE_DOC (Log New Document)</option>
-        <option value="ROUTE_DOC">ROUTE_DOC (Forward Document)</option>
-        <option value="TRANSFER_DOC">TRANSFER_DOC (Reassign Document)</option>
-        <option value="UPLOAD_ATTACHMENT">UPLOAD_ATTACHMENT (Digital File)</option>
-        <option value="UPDATE_STATUS">UPDATE_STATUS (Lifecycle Status)</option>
-        <option value="LOGIN">LOGIN (User Auth Session)</option>
-        <option value="ENVELOPE_LOG">ENVELOPE_LOG (Outgoing Envelope Dispatch)</option>
-        <option value="SQL_QUERY">DATABASE_QUERY (Legacy Database Action)</option>
-      </select>
+        <ion-select-option value="ALL">All Action Types</ion-select-option>
+        <ion-select-option value="CREATE_DOC">CREATE_DOC (Log New Document)</ion-select-option>
+        <ion-select-option value="ROUTE_DOC">ROUTE_DOC (Forward Document)</ion-select-option>
+        <ion-select-option value="TRANSFER_DOC">TRANSFER_DOC (Reassign Document)</ion-select-option>
+        <ion-select-option value="UPLOAD_ATTACHMENT">UPLOAD_ATTACHMENT (Digital File)</ion-select-option>
+        <ion-select-option value="UPDATE_STATUS">UPDATE_STATUS (Lifecycle Status)</ion-select-option>
+        <ion-select-option value="LOGIN">LOGIN (User Auth Session)</ion-select-option>
+        <ion-select-option value="ENVELOPE_LOG">ENVELOPE_LOG (Outgoing Envelope Dispatch)</ion-select-option>
+        <ion-select-option value="SQL_QUERY">DATABASE_QUERY (Legacy Database Action)</ion-select-option>
+      </ion-select>
     </div>
   </div>
 
@@ -169,25 +172,25 @@
       Showing {{ paginationStart }} to {{ paginationEnd }} of {{ filteredLogs.length }}
     </span>
     <div class="audit-paginationActions">
-      <button
+      <ion-button
         type="button"
         [disabled]="page === 1"
         (click)="goToPreviousPage()"
         class="audit-pageButton"
       >
         Previous
-      </button>
+      </ion-button>
       <span class="audit-pageNumber">
         {{ page }} / {{ totalPages }}
       </span>
-      <button
+      <ion-button
         type="button"
         [disabled]="page === totalPages"
         (click)="goToNextPage()"
         class="audit-pageButton"
       >
         Next
-      </button>
+      </ion-button>
     </div>
   </div>
 </div>

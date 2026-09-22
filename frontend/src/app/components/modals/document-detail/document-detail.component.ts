@@ -88,6 +88,7 @@ export class DocumentDetailComponent implements OnChanges {
   private sanitizer = inject(DomSanitizer);
 
   readonly host = this;
+  private readonly documentRevision = signal(0);
 
   @Input() isOpen = false;
   @Input() document!: DocumentRecord;
@@ -100,11 +101,16 @@ export class DocumentDetailComponent implements OnChanges {
   @Input() onOpenRouteDoc!: (doc: DocumentRecord) => void;
   @Input() onDeleteDoc?: (doc: DocumentRecord) => void;
   @Input() onRefreshDocument?: () => Promise<void> | void;
+  @Input() onDecision?: (
+    doc: DocumentRecord,
+    decision: 'APPROVED' | 'DISAPPROVED',
+  ) => Promise<boolean>;
 
   viewingPdf = signal<{ url: string; name: string; shouldRevoke?: boolean } | null>(null);
   isUploading = signal(false);
+  decisionSubmitting = signal<'APPROVED' | 'DISAPPROVED' | null>(null);
   selectedFlowRecipient = signal<string | null>(null);
-  flowFilterMode = signal<'ALL' | 'MY'>('ALL');
+  flowFilterMode = signal<'ALL' | 'MY'>('MY');
   flowViewMode = signal<'graph' | 'timeline'>('graph');
   auditExpanded = signal(false);
 
@@ -115,41 +121,40 @@ export class DocumentDetailComponent implements OnChanges {
   saveInstructionSuccess = signal(false);
   copiedInstructionFeedback = signal(false);
 
+  async handleDecision(decision: 'APPROVED' | 'DISAPPROVED'): Promise<void> {
+    if (!this.onDecision || this.decisionSubmitting()) return;
+    this.decisionSubmitting.set(decision);
+    try {
+      await this.onDecision(this.document, decision);
+    } finally {
+      this.decisionSubmitting.set(null);
+    }
+  }
+
   readonly instructionPresets = [
     {
       label: 'Room 204 Records',
-      icon: 'archive-outline',
-      text: 'Available for pickup at Room 204 Records Section. Look for the Records Officer and present a valid government ID.',
-    },
-    {
-      label: 'ORD Office',
       icon: 'business-outline',
-      text: 'For claiming at the Office of the Regional Director (ORD) Receiving Desk.',
+      text: 'Available for release at Room 204 Records Section. Look for Ms. Rona Lagasca. Please bring 1 valid government-issued ID.',
     },
     {
       label: 'Admin Division',
       icon: 'briefcase-outline',
       text: 'Available for release at the Administrative Division Window. Please sign the receiving transmittal copy upon pickup.',
     },
-    {
-      label: 'Releasing Window',
-      icon: 'mail-unread-outline',
-      text: 'Dispatched to Ground Floor Releasing Window for pick-up / courier forwarding.',
-    },
-    {
-      label: 'Archived / Storage',
-      icon: 'file-tray-full-outline',
-      text: 'Transaction completed and original copy archived in BLGF Records Central Storage.',
-    },
   ];
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['document'] && this.document) {
+      this.documentRevision.update((revision) => revision + 1);
       if (this.document.finalInstructions?.trim()) {
         this.overrideFinalInstructions.set(this.document.finalInstructions.trim());
       } else {
         this.overrideFinalInstructions.set(null);
       }
+    }
+    if (changes['currentUser'] || changes['document']) {
+      this.flowFilterMode.set('MY');
     }
   }
 
@@ -187,6 +192,15 @@ export class DocumentDetailComponent implements OnChanges {
     }),
   );
 
+  canViewAllRoutes = computed<boolean>(() => {
+    if (this.currentUser?.role === 'SYSTEM_ADMIN') return true;
+    const perms =
+      this.currentUser?.permissions ||
+      DEFAULT_ROLE_PERMISSIONS[this.currentUser?.role] ||
+      DEFAULT_ROLE_PERMISSIONS.STAFF;
+    return Boolean(perms.canViewAllRoutes);
+  });
+
   isDocumentParticipant(): boolean {
     return isDocumentParticipant(this.document, this.currentUser, this.auditLogs);
   }
@@ -196,13 +210,71 @@ export class DocumentDetailComponent implements OnChanges {
     return (perms.allowedViews || []).includes('slip');
   }
 
+  isCurrentUser(userId?: string, userName?: string): boolean {
+    if (!this.currentUser) return false;
+    const uid = (this.currentUser.id || '').trim().toLowerCase();
+    const uname = (this.currentUser.username || '').trim().toLowerCase();
+    const ufull = (this.currentUser.fullName || '').trim().toLowerCase();
+    const targetId = (userId || '').trim().toLowerCase();
+    const targetName = this.resolveUserName(userId, userName).trim().toLowerCase();
+
+    if (targetId && (targetId === uid || targetId === uname)) return true;
+    if (targetName && (targetName === ufull || (uname && targetName === uname))) return true;
+    return false;
+  }
+
+  isCurrentRecipient(route: DocumentRouteStep): boolean {
+    return this.isCurrentUser(route.toUserId, route.toUser);
+  }
+
   isParticipantInStep(route: DocumentRouteStep): boolean {
     return (
-      this.matchesPerson(route.fromUserId, route.fromUser, this.currentUser.id, this.currentUser.fullName) ||
-      this.matchesPerson(route.toUserId, route.toUser, this.currentUser.id, this.currentUser.fullName) ||
-      this.currentUser.divisionCode === route.toDivision ||
-      this.currentUser.divisionCode === route.fromDivision
+      this.isCurrentUser(route.fromUserId, route.fromUser) ||
+      this.isCurrentUser(route.toUserId, route.toUser)
     );
+  }
+
+  isRouteConnectedToUser(route: DocumentRouteStep, allRoutes: DocumentRouteStep[]): boolean {
+    // 1. Direct involvement: user sent or received this route
+    if (this.isParticipantInStep(route)) return true;
+
+    // 2. Ancestor check: did this route hand off to someone who eventually handed off to user?
+    const hasDownstreamPathToUser = (curr: DocumentRouteStep, visited = new Set<string>()): boolean => {
+      if (visited.has(curr.id)) return false;
+      visited.add(curr.id);
+
+      const children = allRoutes.filter((child) =>
+        this.matchesPerson(child.fromUserId, child.fromUser, curr.toUserId, curr.toUser)
+      );
+      for (const child of children) {
+        if (this.isParticipantInStep(child) || hasDownstreamPathToUser(child, visited)) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    if (hasDownstreamPathToUser(route)) return true;
+
+    // 3. Descendant check: was this route handed off downstream from someone who received it from the user?
+    const hasUpstreamPathFromUser = (curr: DocumentRouteStep, visited = new Set<string>()): boolean => {
+      if (visited.has(curr.id)) return false;
+      visited.add(curr.id);
+
+      const parents = allRoutes.filter((parent) =>
+        this.matchesPerson(parent.toUserId, parent.toUser, curr.fromUserId, curr.fromUser)
+      );
+      for (const parent of parents) {
+        if (this.isParticipantInStep(parent) || hasUpstreamPathFromUser(parent, visited)) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    if (hasUpstreamPathFromUser(route)) return true;
+
+    return false;
   }
 
   intakeRoute = computed<DocumentRouteStep>(() => ({
@@ -233,9 +305,17 @@ export class DocumentDetailComponent implements OnChanges {
 
   visibleRoutes = computed<DocumentRouteStep[]>(() => {
     const all = this.rawHistoryRoutes();
-    if (this.flowFilterMode() === 'MY') {
-      const filtered = all.filter((r) => this.isParticipantInStep(r));
-      return filtered.length > 0 ? filtered : all;
+    const canViewAll = this.canViewAllRoutes();
+
+    if (!canViewAll || this.flowFilterMode() === 'MY') {
+      const connected = all.filter((r) => this.isRouteConnectedToUser(r, all));
+      if (connected.length > 0) {
+        return connected;
+      }
+      if (canViewAll || this.isCurrentUser(this.document.createdByUserId, this.document.createdBy)) {
+        return all;
+      }
+      return connected;
     }
     return all;
   });
@@ -457,7 +537,7 @@ export class DocumentDetailComponent implements OnChanges {
   }
 
   private pendingDecisionRouteSignal = computed(() =>
-    [...(this.document.routes || [])]
+    (this.documentRevision(), [...(this.document.routes || [])])
       .reverse()
       .find(
         (route) =>
@@ -470,6 +550,7 @@ export class DocumentDetailComponent implements OnChanges {
   pendingDecisionRoute = this.pendingDecisionRouteSignal;
 
   latestDocumentDecision = computed(() => {
+    this.documentRevision();
     return [
       ...(this.document.routes || [])
         .map((route) => ({ status: getRouteDecision(route), timestamp: route.createdAt }))
@@ -712,10 +793,11 @@ export class DocumentDetailComponent implements OnChanges {
   }
 
   matchesPerson(firstId?: string, firstName?: string, secondId?: string, secondName?: string): boolean {
-    if (firstId && secondId) return firstId === secondId;
+    if (firstId && secondId && firstId === secondId) return true;
     const first = this.resolveUserName(firstId, firstName).trim().toLowerCase();
     const second = this.resolveUserName(secondId, secondName).trim().toLowerCase();
-    return Boolean(first && second && first === second);
+    if (!first || !second) return false;
+    return first === second;
   }
 
   private isSameDispatch(route: DocumentRouteStep, candidate: DocumentRouteStep): boolean {
@@ -1098,6 +1180,7 @@ export class DocumentDetailComponent implements OnChanges {
   }
 
   handleOpenRouteDoc(): void {
+    if (!this.canRouteDocument()) return;
     this.onClose();
     this.onOpenRouteDoc(this.document);
   }

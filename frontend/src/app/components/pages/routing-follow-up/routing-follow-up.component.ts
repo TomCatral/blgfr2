@@ -9,6 +9,7 @@ import {
   User,
 } from '../../../types';
 import { formatDate } from '../../../utils/status-utils';
+import { IonicModule } from '@ionic/angular';
 
 interface RoutingFollowUpItem {
   document: DocumentRecord;
@@ -39,7 +40,7 @@ const DIVISION_NAMES: Record<string, string> = {
   selector: 'app-routing-follow-up',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [NgClass, ClsPipe],
+  imports: [IonicModule, NgClass, ClsPipe],
   styleUrl: './routing-follow-up.component.scss',
   templateUrl: './routing-follow-up.component.html',
 })
@@ -264,6 +265,14 @@ export class RoutingFollowUpComponent implements DoCheck {
     return days > 0
       ? `${days} day${days === 1 ? '' : 's'} in status`
       : `${hours} hour${hours === 1 ? '' : 's'} in status`;
+  }
+
+  elapsedUrgencyClass(statusSince: string): string {
+    const elapsed = Math.max(0, Date.now() - new Date(statusSince).getTime());
+    const days = Math.floor(elapsed / 86_400_000);
+    if (days >= 7) return 'urgency-critical';
+    if (days >= 3) return 'urgency-warning';
+    return 'urgency-calm';
   }
 
   divisionName(code?: string): string {

@@ -2,9 +2,9 @@
   <!-- Top Command Toolbar -->
   <header class="studio-header">
     <div class="studio-header-identity">
-      <button type="button" (click)="onBack()" class="btn-studio-back" title="Go back">
+      <ion-button type="button" (click)="onBack()" class="btn-studio-back" title="Go back">
         <ion-icon name="arrow-back" class="icon-std"></ion-icon>
-      </button>
+      </ion-button>
       <div class="studio-titles">
         <div class="title-row">
           <h1 class="studio-main-title">
@@ -14,18 +14,18 @@
           <!-- Linked Document Chip / Link Button -->
           @if (activeDoc) {
             <div class="linked-doc-badge" title="Linked to Document Tracking System">
-              <ion-icon name="link" class="icon-sm text-blue-500"></ion-icon>
+              <ion-icon name="link" class="icon-sm outgoing-envelope-style-001-208157"></ion-icon>
               <span class="linked-badge-label">DTS Doc:</span>
               <strong class="linked-badge-route">{{ activeDoc.routeNo || activeDoc.trackingNumber }}</strong>
-              <button type="button" (click)="unlinkDocument()" class="btn-unlink-icon" title="Unlink document">
+              <ion-button type="button" (click)="unlinkDocument()" class="btn-unlink-icon" title="Unlink document">
                 <ion-icon name="close" class="icon-xs"></ion-icon>
-              </button>
+              </ion-button>
             </div>
           } @else {
-            <button type="button" (click)="openDocPicker()" class="btn-link-doc" title="Link an existing DTS document">
+            <ion-button type="button" (click)="openDocPicker()" class="btn-link-doc" title="Link an existing DTS document">
               <ion-icon name="link-outline" class="icon-sm"></ion-icon>
               <span>Link DTS Document</span>
-            </button>
+            </ion-button>
           }
         </div>
         <p class="studio-subtitle">
@@ -53,10 +53,31 @@
         </div>
       }
 
-      <!-- Templates Button -->
-      <button
+      <!-- Print Dropdown / Primary Buttons -->
+      <ion-button
         type="button"
-        (click)="showSaveFormat = !showSaveFormat"
+        (click)="printEnvelopeDirectly()"
+        class="btn-studio-primary"
+        title="Print directly onto envelope paper (#10 or DL size)"
+      >
+        <ion-icon name="print" class="icon-sm"></ion-icon>
+        <span>Print Envelope</span>
+      </ion-button>
+
+      <ion-button
+        type="button"
+        (click)="printFromToCutOut()"
+        class="btn-studio-slate"
+        title="Print half-bond cut-out labels with scissor guidelines"
+      >
+        <ion-icon name="cut-outline" class="icon-sm"></ion-icon>
+        <span>Print FROM/TO</span>
+      </ion-button>
+
+      <!-- Templates Button -->
+      <ion-button
+        type="button"
+        (click)="toggleTemplates()"
         class="btn-studio-secondary"
         title="Manage saved formats"
       >
@@ -65,28 +86,7 @@
         @if (savedFormats.length > 0) {
           <span class="badge-count">{{ savedFormats.length }}</span>
         }
-      </button>
-
-      <!-- Print Dropdown / Primary Buttons -->
-      <button
-        type="button"
-        (click)="printEnvelopeDirectly()"
-        class="btn-studio-primary"
-        title="Print directly onto envelope paper (#10 or DL size)"
-      >
-        <ion-icon name="print" class="icon-sm"></ion-icon>
-        <span>Print Envelope</span>
-      </button>
-
-      <button
-        type="button"
-        (click)="printFromToCutOut()"
-        class="btn-studio-slate"
-        title="Print half-bond cut-out labels with scissor guidelines"
-      >
-        <ion-icon name="cut-outline" class="icon-sm"></ion-icon>
-        <span>Print FROM/TO</span>
-      </button>
+      </ion-button>
     </div>
   </header>
 
@@ -99,7 +99,7 @@
       <div class="studio-card size-selector-card">
         <div class="card-header-compact">
           <div class="card-header-title">
-            <ion-icon name="settings" class="icon-sm text-indigo-500"></ion-icon>
+            <ion-icon name="settings" class="icon-sm outgoing-envelope-style-002-4afb5e"></ion-icon>
             <h3>Envelope Dimensions &amp; Format</h3>
           </div>
           <span class="size-chip-active">{{ envelopeDimensions.width }} &times; {{ envelopeDimensions.height }}</span>
@@ -108,55 +108,55 @@
         <div class="size-presets-grid">
           <button
             type="button"
-            class="preset-card-btn"
+            class="outgoing-envelope-style-003-b63b76"
             [class.active]="envelopeSize === 'NO10'"
             (click)="selectEnvelopeSize('NO10')"
           >
-            <div class="preset-icon-box">
+            <div class="outgoing-envelope-style-004-f392e0">
               <ion-icon name="mail-outline" class="icon-md"></ion-icon>
             </div>
-            <div class="preset-info">
-              <span class="preset-name">#10 Standard</span>
-              <span class="preset-specs">9.5 &times; 4.125 in (Business)</span>
+            <div class="outgoing-envelope-style-005-d8f9b4">
+              <span class="outgoing-envelope-style-006-bb1cba">#10 Standard</span>
+              <span class="outgoing-envelope-style-007-52fbfc">9.5 &times; 4.125 in (Business)</span>
             </div>
             @if (envelopeSize === 'NO10') {
-              <ion-icon name="checkmark-circle" class="preset-checked-icon"></ion-icon>
+              <ion-icon name="checkmark-circle" class="outgoing-envelope-style-008-25f82f"></ion-icon>
             }
           </button>
 
           <button
             type="button"
-            class="preset-card-btn"
+            class="outgoing-envelope-style-003-b63b76"
             [class.active]="envelopeSize === 'DL'"
             (click)="selectEnvelopeSize('DL')"
           >
-            <div class="preset-icon-box">
+            <div class="outgoing-envelope-style-004-f392e0">
               <ion-icon name="mail-outline" class="icon-md"></ion-icon>
             </div>
-            <div class="preset-info">
-              <span class="preset-name">DL International</span>
-              <span class="preset-specs">8.66 &times; 4.33 in (Letter)</span>
+            <div class="outgoing-envelope-style-005-d8f9b4">
+              <span class="outgoing-envelope-style-006-bb1cba">DL International</span>
+              <span class="outgoing-envelope-style-007-52fbfc">8.66 &times; 4.33 in (Letter)</span>
             </div>
             @if (envelopeSize === 'DL') {
-              <ion-icon name="checkmark-circle" class="preset-checked-icon"></ion-icon>
+              <ion-icon name="checkmark-circle" class="outgoing-envelope-style-008-25f82f"></ion-icon>
             }
           </button>
 
           <button
             type="button"
-            class="preset-card-btn"
+            class="outgoing-envelope-style-003-b63b76"
             [class.active]="envelopeSize === 'CUSTOM'"
             (click)="selectEnvelopeSize('CUSTOM')"
           >
-            <div class="preset-icon-box">
+            <div class="outgoing-envelope-style-004-f392e0">
               <ion-icon name="options-outline" class="icon-md"></ion-icon>
             </div>
-            <div class="preset-info">
-              <span class="preset-name">Custom Size</span>
-              <span class="preset-specs">User-defined inches</span>
+            <div class="outgoing-envelope-style-005-d8f9b4">
+              <span class="outgoing-envelope-style-006-bb1cba">Custom Size</span>
+              <span class="outgoing-envelope-style-007-52fbfc">User-defined inches</span>
             </div>
             @if (envelopeSize === 'CUSTOM') {
-              <ion-icon name="checkmark-circle" class="preset-checked-icon"></ion-icon>
+              <ion-icon name="checkmark-circle" class="outgoing-envelope-style-008-25f82f"></ion-icon>
             }
           </button>
         </div>
@@ -166,25 +166,25 @@
           <div class="custom-dims-row">
             <div class="dim-field">
               <label>Width (inches):</label>
-              <input
+              <ion-input
                 type="number"
                 min="1"
                 max="20"
                 step="0.01"
                 [value]="envelopeWidth"
-                (input)="onWidthInput($event)"
+                (ionInput)="onWidthInput($event)"
                 class="input-dim"
               />
             </div>
             <div class="dim-field">
               <label>Height (inches):</label>
-              <input
+              <ion-input
                 type="number"
                 min="1"
                 max="15"
                 step="0.01"
                 [value]="envelopeHeight"
-                (input)="onHeightInput($event)"
+                (ionInput)="onHeightInput($event)"
                 class="input-dim"
               />
             </div>
@@ -196,7 +196,7 @@
       <div class="studio-card subject-card">
         <div class="card-header-compact">
           <div class="card-header-title">
-            <ion-icon name="document-text" class="icon-sm text-blue-500"></ion-icon>
+            <ion-icon name="document-text" class="icon-sm outgoing-envelope-style-001-208157"></ion-icon>
             <h3>Subject / Reference <span class="required-mark">*</span></h3>
           </div>
           @if (activeDoc) {
@@ -223,13 +223,13 @@
       <div class="studio-card addressees-card">
         <div class="card-header-with-actions">
           <div class="card-header-title">
-            <ion-icon name="people" class="icon-sm text-emerald-500"></ion-icon>
+            <ion-icon name="people" class="icon-sm outgoing-envelope-style-009-a3a68b"></ion-icon>
             <h3>Recipients &amp; Addressees</h3>
             <span class="badge-counter">{{ addressees.length }}</span>
           </div>
 
-          <div class="header-action-group">
-            <button
+          <div class="outgoing-envelope-style-010-aff361">
+            <ion-button
               type="button"
               (click)="openDirPicker()"
               class="btn-card-action btn-import-dir"
@@ -237,9 +237,9 @@
             >
               <ion-icon name="person-add-outline" class="icon-xs"></ion-icon>
               <span>+ Pick from Directory</span>
-            </button>
+            </ion-button>
 
-            <button
+            <ion-button
               type="button"
               (click)="addAddressee()"
               class="btn-card-action btn-add-blank"
@@ -247,7 +247,7 @@
             >
               <ion-icon name="add" class="icon-xs"></ion-icon>
               <span>+ Blank</span>
-            </button>
+            </ion-button>
           </div>
         </div>
 
@@ -268,7 +268,7 @@
                 </div>
 
                 <div class="addressee-actions">
-                  <button
+                  <ion-button
                     type="button"
                     (click)="goToPreview(idx)"
                     class="btn-icon-action"
@@ -276,26 +276,26 @@
                     title="Preview this envelope on the canvas"
                   >
                     <ion-icon name="eye" class="icon-xs"></ion-icon>
-                  </button>
+                  </ion-button>
 
-                  <button
+                  <ion-button
                     type="button"
                     (click)="duplicateAddressee(addr)"
                     class="btn-icon-action"
                     title="Duplicate this recipient"
                   >
                     <ion-icon name="copy-outline" class="icon-xs"></ion-icon>
-                  </button>
+                  </ion-button>
 
                   @if (addressees.length > 1) {
-                    <button
+                    <ion-button
                       type="button"
                       (click)="removeAddressee(addr.id)"
                       class="btn-icon-action btn-icon-danger"
                       title="Remove this recipient"
                     >
                       <ion-icon name="trash-outline" class="icon-xs"></ion-icon>
-                    </button>
+                    </ion-button>
                   }
                 </div>
               </div>
@@ -303,15 +303,15 @@
               <!-- Recipient Form Inputs -->
               <div class="addressee-fields-grid">
                 <!-- Name with inline directory suggestion -->
-                <div class="field-item col-span-1">
+                <div class="field-item outgoing-envelope-style-011-fc1155">
                   <label class="input-label">Full Name <span class="required-mark">*</span></label>
-                  <div class="relative-autocomplete">
-                    <input
+                  <div class="outgoing-envelope-style-012-c9a49a">
+                    <ion-input
                       type="text"
                       [value]="addr.name"
                       (focus)="onNameFocus(addr.id)"
                       (blur)="onNameBlur(addr.id)"
-                      (input)="onNameInput(addr.id, $event)"
+                      (ionInput)="onNameInput(addr.id, $event)"
                       placeholder="e.g. HON. JUAN DELA CRUZ"
                       required
                       autocomplete="off"
@@ -320,17 +320,17 @@
                     @if (activeNameField === addr.id && addr.name.trim()) {
                       <div class="autocomplete-popover">
                         @for (employee of nameSuggestions(addr.id); track employee.id) {
-                          <button
+                          <ion-button
                             type="button"
                             (mousedown)="onPickEmployee($event, addr.id, employee)"
                             class="autocomplete-item"
                           >
-                            <ion-icon name="person-circle" class="icon-sm text-slate-400"></ion-icon>
+                            <ion-icon name="person-circle" class="icon-sm outgoing-envelope-style-013-f750f7"></ion-icon>
                             <div class="autocomplete-text">
                               <div class="autocomplete-name">{{ employee.fullName }}</div>
                               <div class="autocomplete-sub">{{ employee.position }} &bull; {{ employee.office }}</div>
                             </div>
-                          </button>
+                          </ion-button>
                         }
                         @if (nameSuggestions(addr.id).length === 0) {
                           <div class="autocomplete-empty">No matching directory contact</div>
@@ -341,7 +341,7 @@
                 </div>
 
                 <!-- Position -->
-                <div class="field-item col-span-1">
+                <div class="field-item outgoing-envelope-style-011-fc1155">
                   <label class="input-label">Designation / Position <span class="required-mark">*</span></label>
                   <app-autocomplete-field
                     [value]="addr.position"
@@ -355,7 +355,7 @@
                 </div>
 
                 <!-- Office / Department -->
-                <div class="field-item col-span-1">
+                <div class="field-item outgoing-envelope-style-011-fc1155">
                   <label class="input-label">Office / LGU / Agency <span class="required-mark">*</span></label>
                   <app-autocomplete-field
                     [multiline]="true"
@@ -371,7 +371,7 @@
                 </div>
 
                 <!-- Address -->
-                <div class="field-item col-span-1">
+                <div class="field-item outgoing-envelope-style-011-fc1155">
                   <label class="input-label">Complete Postal Address <span class="required-mark">*</span></label>
                   <app-autocomplete-field
                     [multiline]="true"
@@ -399,7 +399,7 @@
           title="Toggle Sender Return Address"
         >
           <div class="card-header-title">
-            <ion-icon name="paper-plane" class="icon-sm text-indigo-500"></ion-icon>
+            <ion-icon name="paper-plane" class="icon-sm outgoing-envelope-style-002-4afb5e"></ion-icon>
             <div>
               <h3>FROM: Return Address &amp; Sender Credentials</h3>
               <p class="card-subtitle">Included in half-bond FROM/TO cut-out sheets</p>
@@ -414,24 +414,24 @@
           <div class="sender-drawer-body">
             <!-- Division Presets Chips -->
             <div class="division-presets-row">
-              <span class="preset-label">Quick Presets:</span>
-              <button type="button" class="chip-preset" (click)="applySenderDivision('ORD')">ORD</button>
-              <button type="button" class="chip-preset" (click)="applySenderDivision('LTOD')">LTOD</button>
-              <button type="button" class="chip-preset" (click)="applySenderDivision('LAOD')">LAOD</button>
-              <button type="button" class="chip-preset" (click)="applySenderDivision('AD')">AD</button>
-              <button type="button" class="chip-preset" (click)="applySenderDivision('FD')">FD</button>
-              <button type="button" class="chip-preset" (click)="applySenderDivision('LU')">LU</button>
-              <button type="button" class="chip-preset" (click)="applySenderDivision('DEFAULT')">Reset</button>
+              <span class="outgoing-envelope-style-014-563ea6">Quick Presets:</span>
+              <ion-button type="button" class="chip-preset" (click)="applySenderDivision('ORD')">ORD</ion-button>
+              <ion-button type="button" class="chip-preset" (click)="applySenderDivision('LTOD')">LTOD</ion-button>
+              <ion-button type="button" class="chip-preset" (click)="applySenderDivision('LAOD')">LAOD</ion-button>
+              <ion-button type="button" class="chip-preset" (click)="applySenderDivision('AD')">AD</ion-button>
+              <ion-button type="button" class="chip-preset" (click)="applySenderDivision('FD')">FD</ion-button>
+              <ion-button type="button" class="chip-preset" (click)="applySenderDivision('LU')">LU</ion-button>
+              <ion-button type="button" class="chip-preset" (click)="applySenderDivision('DEFAULT')">Reset</ion-button>
             </div>
 
             <div class="sender-fields-grid">
               <div class="field-item">
                 <label class="input-label">Sender Full Name:</label>
-                <input
+                <ion-input
                   type="text"
                   required
                   [value]="sender.name"
-                  (input)="onSenderInput('name', $event)"
+                  (ionInput)="onSenderInput('name', $event)"
                   placeholder="e.g. Regional Director / Action Officer"
                   class="studio-input"
                 />
@@ -439,111 +439,53 @@
 
               <div class="field-item">
                 <label class="input-label">Sender Position:</label>
-                <input
+                <ion-input
                   type="text"
                   required
                   [value]="sender.position"
-                  (input)="onSenderInput('position', $event)"
+                  (ionInput)="onSenderInput('position', $event)"
                   placeholder="e.g. Regional Director"
                   class="studio-input"
                 />
               </div>
 
-              <div class="field-item col-span-2">
+              <div class="field-item outgoing-envelope-style-015-75480b">
                 <label class="input-label">Sender Office / Bureau:</label>
-                <textarea
+                <ion-textarea
                   required
                   [value]="sender.office"
-                  (input)="onSenderInput('office', $event)"
+                  (ionInput)="onSenderInput('office', $event)"
                   placeholder="Bureau of Local Government Finance - Regional Office II"
                   rows="2"
                   class="studio-textarea"
-                ></textarea>
+                ></ion-textarea>
               </div>
 
-              <div class="field-item col-span-2">
+              <div class="field-item outgoing-envelope-style-015-75480b">
                 <label class="input-label">Sender Physical Address:</label>
-                <textarea
+                <ion-textarea
                   required
                   [value]="sender.address"
-                  (input)="onSenderInput('address', $event)"
+                  (ionInput)="onSenderInput('address', $event)"
                   placeholder="Regional Government Center, Carig Sur, Tuguegarao City"
                   rows="2"
                   class="studio-textarea"
-                ></textarea>
+                ></ion-textarea>
               </div>
             </div>
           </div>
         }
       </div>
-
-      <!-- Saved Templates Accordion / Card -->
-      @if (showSaveFormat) {
-        <div class="studio-card templates-card">
-          <div class="card-header-compact">
-            <div class="card-header-title">
-              <ion-icon name="bookmark-outline" class="icon-sm text-amber-500"></ion-icon>
-              <h3>Envelope Format Templates</h3>
-            </div>
-            <button type="button" (click)="showSaveFormat = false" class="btn-close-sm">
-              <ion-icon name="close" class="icon-xs"></ion-icon>
-            </button>
-          </div>
-
-          <div class="card-body">
-            <!-- Save New Template Form -->
-            <div class="save-template-form">
-              <input
-                type="text"
-                [value]="formatName"
-                (input)="onFormatNameInput($event)"
-                placeholder="Enter template name (e.g. All Isabela Treasurers)..."
-                class="studio-input"
-              />
-              <button type="button" (click)="saveCurrentFormat()" class="btn-save-template">
-                Save Current
-              </button>
-            </div>
-
-            <!-- List of Saved Formats -->
-            <div class="saved-templates-list">
-              @for (fmt of savedFormats; track fmt.id) {
-                <div class="template-item">
-                  <button type="button" (click)="loadFormat(fmt)" class="template-load-btn">
-                    <div class="template-name">{{ fmt.name }}</div>
-                    <div class="template-meta">
-                      {{ fmt.addressees.length }} recipient(s) &bull; {{ fmt.subject || 'No subject' }}
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    (click)="deleteFormat(fmt.id)"
-                    class="btn-icon-action btn-icon-danger"
-                    title="Delete template"
-                  >
-                    <ion-icon name="trash" class="icon-xs"></ion-icon>
-                  </button>
-                </div>
-              }
-              @if (savedFormats.length === 0) {
-                <div class="empty-templates-message">
-                  No saved templates yet. Create your setup above and save it here for 1-click reuse.
-                </div>
-              }
-            </div>
-          </div>
-        </div>
-      }
     </div>
 
     <!-- RIGHT COLUMN: Sticky Live Canvas Studio -->
     <div class="studio-right-column">
-      <div class="sticky-canvas-container">
+      <div class="outgoing-envelope-style-016-13cc70">
         <!-- Canvas Toolbar -->
         <div class="canvas-header-bar">
           <!-- View Switcher -->
           <div class="view-mode-tabs">
-            <button
+            <ion-button
               type="button"
               class="tab-btn"
               [class.active]="canvasMode === 'ENVELOPE'"
@@ -551,8 +493,8 @@
             >
               <ion-icon name="mail" class="icon-xs"></ion-icon>
               <span>Direct Postal Envelope</span>
-            </button>
-            <button
+            </ion-button>
+            <ion-button
               type="button"
               class="tab-btn"
               [class.active]="canvasMode === 'CUTOUT'"
@@ -560,7 +502,7 @@
             >
               <ion-icon name="cut-outline" class="icon-xs"></ion-icon>
               <span>FROM/TO Cut-Out</span>
-            </button>
+            </ion-button>
           </div>
 
           <!-- Sizing Pill -->
@@ -572,7 +514,7 @@
         <!-- Multi-Recipient Live Stepper / Pagination Bar -->
         @if (addressees.length > 1) {
           <div class="canvas-pagination-bar">
-            <button
+            <ion-button
               type="button"
               (click)="prevPreview()"
               [disabled]="previewIndex === 0"
@@ -580,10 +522,10 @@
               title="Previous recipient envelope"
             >
               <ion-icon name="chevron-back" class="icon-sm"></ion-icon>
-            </button>
+            </ion-button>
 
-            <div class="pagination-info">
-              <span class="page-count-text">
+            <div class="outgoing-envelope-style-017-882544">
+              <span class="outgoing-envelope-style-018-b595f5">
                 Envelope <strong>{{ previewIndex + 1 }}</strong> of <strong>{{ addressees.length }}</strong>
               </span>
               <span class="recipient-quick-name">
@@ -591,7 +533,7 @@
               </span>
             </div>
 
-            <button
+            <ion-button
               type="button"
               (click)="nextPreview()"
               [disabled]="previewIndex >= addressees.length - 1"
@@ -599,7 +541,7 @@
               title="Next recipient envelope"
             >
               <ion-icon name="chevron-forward" class="icon-sm"></ion-icon>
-            </button>
+            </ion-button>
           </div>
         }
 
@@ -607,23 +549,23 @@
         @if (canvasMode === 'ENVELOPE') {
           <div class="canvas-viewport">
             <div
-              class="mockup-envelope"
+              class="outgoing-envelope-style-019-59ace8"
               [style.aspect-ratio]="envelopeWidth + ' / ' + envelopeHeight"
             >
               <!-- Official Government Letterhead -->
-              <div class="mockup-letterhead">
-                <div class="gov-rep-line">Republic of the Philippines</div>
-                <div class="gov-dof-line">Department of Finance</div>
-                <div class="gov-agency-line">
-                  <img src="/blgflogo.jpg" alt="BLGF Logo" class="mockup-blgf-logo" />
-                  <span class="gov-agency-text">Bureau of Local Government Finance</span>
+              <div class="outgoing-envelope-style-020-28c66b">
+                <img src="/blgflogo.jpg" alt="BLGF Logo" class="outgoing-envelope-style-021-f296ec" />
+                <div class="outgoing-envelope-style-022-bcd0e4">
+                  <div class="gov-rep-line">Republic of the Philippines</div>
+                  <div class="gov-dof-line">Department of Finance</div>
+                  <div class="gov-agency-text">BUREAU OF LOCAL GOVERNMENT FINANCE</div>
+                  <div class="gov-regional-line">Regional Office No. II</div>
+                  <div class="gov-address-line">Regional Government Center, Carig Sur, Tuguegarao City</div>
                 </div>
-                <div class="gov-regional-line">Regional Office No. II</div>
-                <div class="gov-address-line">Regional Government Center, Carig Sur, Tuguegarao City</div>
               </div>
 
               <!-- Recipient / TO Block -->
-              <div class="mockup-recipient-block">
+              <div class="outgoing-envelope-style-023-1bfb58">
                 <div class="recipient-to-heading">TO:</div>
                 <div class="recipient-details">
                   <div class="recipient-name">
@@ -642,7 +584,7 @@
               </div>
 
               <!-- Subtle Postage / Stamp Guide Zone (Top-Right) -->
-              <div class="mockup-stamp-box">
+              <div class="outgoing-envelope-style-024-d7d096">
                 <span>OFFICIAL MAIL<br />POSTAGE PAID</span>
               </div>
             </div>
@@ -652,9 +594,9 @@
         <!-- Realistic Cut-Out Preview (FROM/TO View) -->
         @if (canvasMode === 'CUTOUT') {
           <div class="canvas-viewport cutout-viewport">
-            <div class="mockup-cutout-sheet">
+            <div class="outgoing-envelope-style-025-2ec22a">
               <!-- FROM Box -->
-              <div class="cutout-box from-box">
+              <div class="cutout-box outgoing-envelope-style-026-dc3b5d">
                 <div class="cut-guide-indicator">
                   <ion-icon name="cut-outline" class="icon-xs"></ion-icon>
                   <span>CUT GUIDELINE &bull; FROM</span>
@@ -667,7 +609,7 @@
               </div>
 
               <!-- TO Box -->
-              <div class="cutout-box to-box">
+              <div class="cutout-box outgoing-envelope-style-027-9ec59b">
                 <div class="cut-guide-indicator">
                   <ion-icon name="cut-outline" class="icon-xs"></ion-icon>
                   <span>CUT GUIDELINE &bull; TO</span>
@@ -685,8 +627,13 @@
         <!-- Canvas Quick Actions Bar -->
         <div class="canvas-footer-bar">
           <div class="canvas-footer-info">
-            <ion-icon name="information-circle-outline" class="icon-xs text-slate-400"></ion-icon>
-            <span>Live mockup is scaled proportionally to printer output specifications.</span>
+            <div class="footer-info-badge">
+              <ion-icon name="sparkles" class="icon-sm"></ion-icon>
+            </div>
+            <div class="footer-info-texts">
+              <span class="footer-info-title">Live Print Preview</span>
+              <span class="footer-info-desc">Scaled proportionally to printer output specifications</span>
+            </div>
           </div>
 
           <div class="canvas-footer-btns">
@@ -696,11 +643,128 @@
               class="btn-quick-print"
               title="Print directly to standard envelope"
             >
-              <ion-icon name="print" class="icon-xs"></ion-icon>
-              <span>Print Envelope ({{ addressees.length }} page{{ addressees.length > 1 ? 's' : '' }})</span>
+              <ion-icon name="print" class="btn-print-icon"></ion-icon>
+              <span class="btn-print-text">Print Envelope</span>
+              <span class="btn-print-badge">{{ addressees.length }} page{{ addressees.length > 1 ? 's' : '' }}</span>
             </button>
           </div>
         </div>
+      </div>
+
+      <!-- Saved Templates Card - Placed directly below Print Envelope -->
+      <div class="studio-card templates-card outgoing-envelope-style-028-d5df7e" id="envelope-templates-section">
+        <div class="card-header-compact">
+          <div class="card-header-title">
+            <div class="outgoing-envelope-style-029-a51cba">
+              <ion-icon name="bookmark" class="icon-sm"></ion-icon>
+            </div>
+            <div class="outgoing-envelope-style-030-420f3b">
+              <h3 class="templates-heading">Envelope Format Templates</h3>
+              <p class="templates-subheading">Save setups for 1-click recipient &amp; sender recall</p>
+            </div>
+            @if (savedFormats.length > 0) {
+              <span class="badge-count-pill">{{ savedFormats.length }}</span>
+            }
+          </div>
+          <button
+            type="button"
+            (click)="showSaveFormat = !showSaveFormat"
+            class="btn-toggle-templates"
+            [attr.title]="showSaveFormat ? 'Collapse format templates' : 'Expand format templates'"
+          >
+            <ion-icon [name]="showSaveFormat ? 'chevron-up' : 'chevron-down'" class="toggle-icon"></ion-icon>
+            <span>{{ showSaveFormat ? 'Hide' : 'Show' }}</span>
+          </button>
+        </div>
+
+        @if (showSaveFormat) {
+          <div class="card-body">
+            <!-- Save New Template Form -->
+            <div class="save-template-form">
+              <div class="template-input-wrapper">
+                <ion-icon name="pencil-outline" class="input-inline-icon"></ion-icon>
+                <input
+                  type="text"
+                  [value]="formatName"
+                  (input)="onFormatNameInput($event)"
+                  (keydown.enter)="saveCurrentFormat()"
+                  placeholder="Enter template name (e.g. All Isabela Treasurers)..."
+                  class="studio-native-input"
+                />
+              </div>
+              <button
+                type="button"
+                (click)="saveCurrentFormat()"
+                class="btn-save-template"
+                title="Save current recipient setup as template"
+              >
+                <ion-icon name="bookmark-outline" class="btn-icon"></ion-icon>
+                <span>Save Current</span>
+              </button>
+            </div>
+
+            <!-- List of Saved Formats -->
+            <div class="saved-templates-list">
+              @for (fmt of savedFormats; track fmt.id) {
+                <div
+                  class="template-item"
+                  (click)="loadFormat(fmt)"
+                  title="Click to load this envelope template"
+                  role="button"
+                  tabindex="0"
+                >
+                  <div class="template-main-info">
+                    <div class="template-icon-badge">
+                      <ion-icon name="bookmark" class="icon-sm"></ion-icon>
+                    </div>
+                    <div class="template-text-group">
+                      <div class="template-name">{{ fmt.name }}</div>
+                      <div class="template-meta-pills">
+                        <span class="outgoing-envelope-style-031-123f56">
+                          <ion-icon name="people" class="outgoing-envelope-style-032-e297b3"></ion-icon>
+                          <span>{{ fmt.addressees.length }} recipient{{ fmt.addressees.length > 1 ? 's' : '' }}</span>
+                        </span>
+                        @if (fmt.subject) {
+                          <span class="outgoing-envelope-style-033-7bb316" [title]="fmt.subject">
+                            <ion-icon name="document-text" class="outgoing-envelope-style-032-e297b3"></ion-icon>
+                            <span>{{ fmt.subject }}</span>
+                          </span>
+                        }
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="template-actions">
+                    <button
+                      type="button"
+                      (click)="$event.stopPropagation(); loadFormat(fmt)"
+                      class="btn-apply-template"
+                      title="Load this template"
+                    >
+                      <ion-icon name="checkmark-circle-outline" class="btn-icon"></ion-icon>
+                      <span>Apply</span>
+                    </button>
+                    <button
+                      type="button"
+                      (click)="$event.stopPropagation(); deleteFormat(fmt.id)"
+                      class="btn-delete-template"
+                      title="Delete template"
+                    >
+                      <ion-icon name="trash-outline" class="icon-sm"></ion-icon>
+                    </button>
+                  </div>
+                </div>
+              }
+              @if (savedFormats.length === 0) {
+                <div class="empty-templates-message">
+                  <ion-icon name="folder-open-outline" class="empty-icon"></ion-icon>
+                  <p class="empty-title">No saved templates yet</p>
+                  <p class="empty-desc">Create your envelope setup above and save it here for 1-click reuse.</p>
+                </div>
+              }
+            </div>
+          </div>
+        }
       </div>
     </div>
   </div>
@@ -710,16 +774,14 @@
     @for (addr of addressees; track addr.id) {
       <div class="envelope-envelope" [style.--env-width]="envelopeDimensions.width" [style.--env-height]="envelopeDimensions.height">
         <div class="envelope-letterhead">
-          <div class="envelope-governmentLine">Republic of the Philippines</div>
-          <div class="envelope-governmentLine">Department of Finance</div>
-          <div class="envelope-agencyLine">
-            <div class="envelope-agencyName">
-              <img src="/blgflogo.jpg" alt="BLGF Regional Office II logo" class="envelope-logo" />
-              Bureau of Local Government Finance, RO2
-            </div>
+          <img src="/blgflogo.jpg" alt="BLGF Regional Office II logo" class="envelope-logo" />
+          <div class="envelope-letterhead-text">
+            <div class="envelope-governmentLine">Republic of the Philippines</div>
+            <div class="envelope-governmentLine">Department of Finance</div>
+            <div class="envelope-agencyName">BUREAU OF LOCAL GOVERNMENT FINANCE</div>
+            <div class="envelope-regionalOffice">Regional Office No. II</div>
+            <div class="envelope-city">Regional Government Center, Carig Sur, Tuguegarao City</div>
           </div>
-          <div class="envelope-regionalOffice">Regional Office No. 02</div>
-          <div class="envelope-city">Carig, Tuguegarao City</div>
         </div>
         <div class="envelope-recipientAddress">
           <p class="envelope-toLabel">To:</p>
@@ -736,77 +798,77 @@
 
   <!-- DTS Document Quick-Picker Modal -->
   <app-modal-layer [isOpen]="showDocPicker" [onClose]="closeDocPicker" maxWidth="46rem">
-    <div class="modal-content-wrapper">
-      <div class="modal-header-clean">
-        <div class="modal-title-group">
-          <div class="modal-icon-badge text-blue-600 bg-blue-50">
+    <div class="outgoing-envelope-style-034-554e1a">
+      <div class="outgoing-envelope-style-035-220ef5">
+        <div class="outgoing-envelope-style-036-b69550">
+          <div class="outgoing-envelope-style-037-52ea97">
             <ion-icon name="link" class="icon-md"></ion-icon>
           </div>
           <div>
-            <h2 class="modal-heading">Link DTS Document to Envelope</h2>
-            <p class="modal-subheading">Select any document from the Document Tracking System to auto-fill details</p>
+            <h2 class="outgoing-envelope-style-038-ff7592">Link DTS Document to Envelope</h2>
+            <p class="outgoing-envelope-style-039-4b012d">Select any document from the Document Tracking System to auto-fill details</p>
           </div>
         </div>
-        <button type="button" (click)="closeDocPicker()" class="btn-close-modal">
+        <ion-button type="button" (click)="closeDocPicker()" class="btn-close-modal">
           <ion-icon name="close" class="icon-sm"></ion-icon>
-        </button>
+        </ion-button>
       </div>
 
       <!-- Search & Filter Controls -->
-      <div class="modal-search-row">
+      <div class="outgoing-envelope-style-040-4f12a1">
         <div class="search-input-box">
           <ion-icon name="search-outline" class="icon-sm search-icon"></ion-icon>
-          <input
+          <ion-input
             type="text"
             [(ngModel)]="docSearchQuery"
             placeholder="Search by Route No, Tracking No, Subject, Recipient..."
-            class="modal-search-input"
+            class="outgoing-envelope-style-041-2aee5d"
           />
           @if (docSearchQuery) {
-            <button type="button" (click)="docSearchQuery = ''" class="btn-clear-search">
+            <ion-button type="button" (click)="docSearchQuery = ''" class="btn-clear-search">
               <ion-icon name="close-circle" class="icon-xs"></ion-icon>
-            </button>
+            </ion-button>
           }
         </div>
 
-        <div class="modal-filter-pills">
-          <button
+        <div class="outgoing-envelope-style-042-cd765b">
+          <ion-button
             type="button"
             class="filter-pill"
             [class.active]="docFilterType === 'ALL'"
             (click)="docFilterType = 'ALL'"
           >
             All ({{ documents.length }})
-          </button>
-          <button
+          </ion-button>
+          <ion-button
             type="button"
             class="filter-pill"
             [class.active]="docFilterType === 'OUTGOING'"
             (click)="docFilterType = 'OUTGOING'"
           >
             Outgoing
-          </button>
-          <button
+          </ion-button>
+          <ion-button
             type="button"
             class="filter-pill"
             [class.active]="docFilterType === 'IN_PROGRESS'"
             (click)="docFilterType = 'IN_PROGRESS'"
           >
             In Progress
-          </button>
-          <button
+          </ion-button>
+          <ion-button
             type="button"
             class="filter-pill"
             [class.active]="docFilterType === 'COMPLETED'"
             (click)="docFilterType = 'COMPLETED'"
           >
             Completed
-          </button>
+          </ion-button>
         </div>
       </div>
 
       <!-- Document List -->
-      <div class="modal-list-scroll">
+      <div class="outgoing-envelope-style-043-164023">
         @for (doc of filteredDocuments; track doc.id) {
           <div class="doc-item-row" (click)="linkDocument(doc)">
             <div class="doc-row-left">
@@ -818,7 +880,7 @@
                 <h4 class="doc-subject">{{ doc.subject || doc.title }}</h4>
                 <div class="doc-meta-trail">
                   <span>From: <strong>{{ doc.originatingOffice }}</strong></span>
-                  <ion-icon name="arrow-forward" class="icon-xs text-slate-400"></ion-icon>
+                  <ion-icon name="arrow-forward" class="icon-xs outgoing-envelope-style-013-f750f7"></ion-icon>
                   <span>To: <strong>{{ doc.recipientName ? doc.recipientName + ' (' + doc.destinationOffice + ')' : doc.destinationOffice }}</strong></span>
                 </div>
               </div>
@@ -826,16 +888,16 @@
 
             <div class="doc-row-right">
               <span class="status-chip">{{ doc.currentStatus }}</span>
-              <button type="button" class="btn-select-doc">
+              <ion-button type="button" class="btn-select-doc">
                 <span>Select</span>
                 <ion-icon name="arrow-forward" class="icon-xs"></ion-icon>
-              </button>
+              </ion-button>
             </div>
           </div>
         }
         @if (filteredDocuments.length === 0) {
-          <div class="modal-empty-state">
-            <ion-icon name="search" class="icon-lg text-slate-300"></ion-icon>
+          <div class="outgoing-envelope-style-044-b46bd0">
+            <ion-icon name="search" class="icon-lg outgoing-envelope-style-045-f4d622"></ion-icon>
             <p>No matching DTS documents found.</p>
           </div>
         }
@@ -845,97 +907,97 @@
 
   <!-- Office Directory Multi-Addressee Batch Picker Modal -->
   <app-modal-layer [isOpen]="showDirPicker" [onClose]="closeDirPicker" maxWidth="50rem">
-    <div class="modal-content-wrapper">
-      <div class="modal-header-clean">
-        <div class="modal-title-group">
-          <div class="modal-icon-badge text-emerald-600 bg-emerald-50">
+    <div class="outgoing-envelope-style-034-554e1a">
+      <div class="outgoing-envelope-style-035-220ef5">
+        <div class="outgoing-envelope-style-036-b69550">
+          <div class="outgoing-envelope-style-046-850f0e">
             <ion-icon name="people" class="icon-md"></ion-icon>
           </div>
           <div>
-            <h2 class="modal-heading">Pick Recipients from Office Directory</h2>
-            <p class="modal-subheading">Select one or multiple contacts to automatically generate envelope address cards</p>
+            <h2 class="outgoing-envelope-style-038-ff7592">Pick Recipients from Office Directory</h2>
+            <p class="outgoing-envelope-style-039-4b012d">Select one or multiple contacts to automatically generate envelope address cards</p>
           </div>
         </div>
-        <button type="button" (click)="closeDirPicker()" class="btn-close-modal">
+        <ion-button type="button" (click)="closeDirPicker()" class="btn-close-modal">
           <ion-icon name="close" class="icon-sm"></ion-icon>
-        </button>
+        </ion-button>
       </div>
 
       <!-- Directory Search & Category Filters -->
-      <div class="modal-search-row">
+      <div class="outgoing-envelope-style-040-4f12a1">
         <div class="search-input-box">
           <ion-icon name="search-outline" class="icon-sm search-icon"></ion-icon>
-          <input
+          <ion-input
             type="text"
             [(ngModel)]="dirSearchQuery"
             placeholder="Search personnel by name, position, LGU, office..."
-            class="modal-search-input"
+            class="outgoing-envelope-style-041-2aee5d"
           />
           @if (dirSearchQuery) {
-            <button type="button" (click)="dirSearchQuery = ''" class="btn-clear-search">
+            <ion-button type="button" (click)="dirSearchQuery = ''" class="btn-clear-search">
               <ion-icon name="close-circle" class="icon-xs"></ion-icon>
-            </button>
+            </ion-button>
           }
         </div>
 
-        <div class="modal-filter-pills">
-          <button
+        <div class="outgoing-envelope-style-042-cd765b">
+          <ion-button
             type="button"
             class="filter-pill"
             [class.active]="dirOfficeFilter === 'ALL'"
             (click)="dirOfficeFilter = 'ALL'"
           >
             All ({{ employees.length }})
-          </button>
-          <button
+          </ion-button>
+          <ion-button
             type="button"
             class="filter-pill"
             [class.active]="dirOfficeFilter === 'MUNICIPAL_TREASURER'"
             (click)="dirOfficeFilter = 'MUNICIPAL_TREASURER'"
           >
             Mun. Treasurers
-          </button>
-          <button
+          </ion-button>
+          <ion-button
             type="button"
             class="filter-pill"
             [class.active]="dirOfficeFilter === 'PROVINCIAL_TREASURER'"
             (click)="dirOfficeFilter = 'PROVINCIAL_TREASURER'"
           >
             Prov. Treasurers
-          </button>
-          <button
+          </ion-button>
+          <ion-button
             type="button"
             class="filter-pill"
             [class.active]="dirOfficeFilter === 'BLGF'"
             (click)="dirOfficeFilter = 'BLGF'"
           >
             BLGF RO2
-          </button>
-          <button
+          </ion-button>
+          <ion-button
             type="button"
             class="filter-pill"
             [class.active]="dirOfficeFilter === 'LGU'"
             (click)="dirOfficeFilter = 'LGU'"
           >
             LGUs / Others
-          </button>
+          </ion-button>
         </div>
       </div>
 
       <!-- Batch Selection Helper Bar -->
       <div class="batch-select-bar">
         <div class="batch-left">
-          <button type="button" class="btn-batch-action" (click)="selectAllFilteredEmployees()">
+          <ion-button type="button" class="btn-batch-action" (click)="selectAllFilteredEmployees()">
             Select All Shown ({{ filteredEmployees.length }})
-          </button>
-          <button
+          </ion-button>
+          <ion-button
             type="button"
             class="btn-batch-action"
             [disabled]="selectedDirEmployeeIds.size === 0"
             (click)="clearSelectedEmployees()"
           >
             Clear Selection
-          </button>
+          </ion-button>
         </div>
         <div class="batch-right">
           <span class="selected-count-badge">
@@ -945,7 +1007,7 @@
       </div>
 
       <!-- Directory Employees Scroll List -->
-      <div class="modal-list-scroll">
+      <div class="outgoing-envelope-style-043-164023">
         @for (emp of filteredEmployees; track emp.id) {
           <div
             class="dir-item-row"
@@ -953,8 +1015,7 @@
             (click)="toggleEmployeeSelection(emp.id)"
           >
             <div class="dir-checkbox-wrap">
-              <input
-                type="checkbox"
+              <ion-checkbox
                 [checked]="isEmployeeSelected(emp.id)"
                 (click)="$event.stopPropagation(); toggleEmployeeSelection(emp.id)"
                 class="dir-checkbox"
@@ -962,7 +1023,7 @@
             </div>
 
             <div class="dir-avatar-badge">
-              <ion-icon name="person-circle" class="icon-md text-slate-400"></ion-icon>
+              <ion-icon name="person-circle" class="icon-md outgoing-envelope-style-013-f750f7"></ion-icon>
             </div>
 
             <div class="dir-info-block">
@@ -974,26 +1035,26 @@
               <div class="dir-office-address">
                 <span>{{ emp.office }}</span>
                 @if (emp.address) {
-                  &bull; <span class="text-slate-500">{{ emp.address }}</span>
+                  &bull; <span class="outgoing-envelope-style-047-c5cd7f">{{ emp.address }}</span>
                 }
               </div>
             </div>
           </div>
         }
         @if (filteredEmployees.length === 0) {
-          <div class="modal-empty-state">
-            <ion-icon name="people" class="icon-lg text-slate-300"></ion-icon>
+          <div class="outgoing-envelope-style-044-b46bd0">
+            <ion-icon name="people" class="icon-lg outgoing-envelope-style-045-f4d622"></ion-icon>
             <p>No matching contacts found in Office Directory.</p>
           </div>
         }
       </div>
 
       <!-- Modal Footer -->
-      <div class="modal-footer-bar">
-        <button type="button" (click)="closeDirPicker()" class="btn-modal-cancel">
+      <div class="outgoing-envelope-style-048-76a84a">
+        <ion-button type="button" (click)="closeDirPicker()" class="btn-modal-cancel">
           Cancel
-        </button>
-        <button
+        </ion-button>
+        <ion-button
           type="button"
           (click)="confirmImportFromDirectory()"
           [disabled]="selectedDirEmployeeIds.size === 0"
@@ -1001,7 +1062,7 @@
         >
           <ion-icon name="checkmark" class="icon-xs"></ion-icon>
           <span>Add {{ selectedDirEmployeeIds.size }} Recipient(s)</span>
-        </button>
+        </ion-button>
       </div>
     </div>
   </app-modal-layer>

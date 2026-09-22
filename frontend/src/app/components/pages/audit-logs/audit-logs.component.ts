@@ -13,6 +13,7 @@ import { cx } from '../../../shared/class-utils';
 import { AuditLog } from '../../../types';
 import { formatDate } from '../../../utils/status-utils';
 import * as XLSX from 'xlsx';
+import { IonicModule } from '@ionic/angular';
 
 const normalizeActionDetailItem = (item: string) =>
   item.startsWith('To:') ? item.replace(/\s+\([^)]*\)\s*$/, '') : item;
@@ -102,7 +103,7 @@ const loadDirectoryHandle = async (key: string) => {
   selector: 'app-audit-logs',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [CommonModule, FormsModule],
+  imports: [IonicModule, CommonModule, FormsModule],
   styleUrl: './audit-logs.component.scss',
   encapsulation: ViewEncapsulation.None,
   templateUrl: './audit-logs.component.html',

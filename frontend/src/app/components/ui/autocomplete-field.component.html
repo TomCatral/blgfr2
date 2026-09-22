@@ -1,5 +1,5 @@
 
-    <div class="relative">
+    <div class="autocomplete-field-style-001-8abf37">
       @if (multiline) {
         <textarea
           [ngModel]="value"
@@ -11,7 +11,7 @@
           (focus)="focused = true"
           (blur)="hideAfterDelay()"
           [ngClass]="inputClass"
-          class="w-full rounded-lg border border-[color:var(--ui-border)] bg-[color:var(--ui-surface)] px-3 py-2 text-[14px] text-[color:var(--ui-text)] outline-none focus:border-[color:var(--ui-muted)]"
+          class="autocomplete-field-style-002-0838a1"
         ></textarea>
       } @else {
         <input
@@ -23,15 +23,15 @@
           (focus)="focused = true"
           (blur)="hideAfterDelay()"
           [ngClass]="inputClass"
-          class="w-full rounded-lg border border-[color:var(--ui-border)] bg-[color:var(--ui-surface)] px-3 py-2 text-[14px] text-[color:var(--ui-text)] outline-none focus:border-[color:var(--ui-muted)]"
+          class="autocomplete-field-style-002-0838a1"
         />
       }
       @if (focused && suggestions.length && value.trim()) {
-        <div class="absolute left-0 right-0 top-full z-20 mt-1 max-h-52 overflow-y-auto rounded-lg border border-[color:var(--ui-border)] bg-[color:var(--ui-surface)] shadow-xl">
+        <div class="autocomplete-field-style-003-c541c8">
           @for (suggestion of filteredSuggestions; track suggestion; let i = $index) {
             <button
               type="button"
-              class="block w-full px-3 py-2.5 text-left text-sm text-[color:var(--ui-text)] hover:bg-[color:var(--ui-soft)]"
+              class="autocomplete-field-style-004-eac70f"
               (mousedown)="select($event, suggestion)"
             >
               {{ suggestion }}

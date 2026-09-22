@@ -11,6 +11,7 @@ import {
   DEFAULT_ROLE_PERMISSIONS
 } from '../../../types';
 import { STATUS_CONFIGS, formatDate } from '../../../utils/status-utils';
+import { IonicModule } from '@ionic/angular';
 
 interface GroupedRouteTransaction extends DocumentRouteStep {
   toDivisions: string[];
@@ -21,7 +22,7 @@ interface GroupedRouteTransaction extends DocumentRouteStep {
   selector: 'app-dashboard',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [CommonModule, FormsModule],
+  imports: [IonicModule, CommonModule, FormsModule],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })

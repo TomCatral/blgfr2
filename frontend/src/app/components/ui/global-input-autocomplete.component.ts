@@ -6,7 +6,7 @@ import {
   ViewChild,
   inject,
 } from '@angular/core';
-import { ClsPipe } from '../../shared/cls.pipe';
+import { IonicModule } from '@ionic/angular';
 
 type EligibleElement = HTMLInputElement | HTMLTextAreaElement;
 
@@ -22,13 +22,35 @@ function isEligible(element: EventTarget | null): element is EligibleElement {
   ) {
     return false;
   }
+  if (element.disabled || element.readOnly) {
+    return false;
+  }
   if (
     element.dataset['autocompleteManaged'] === 'true' ||
-    element.disabled ||
-    element.readOnly
+    element.getAttribute('data-autocomplete-managed') === 'true' ||
+    element.closest('[data-autocomplete-managed="true"]') ||
+    element.closest('.global-document-search') ||
+    element.closest('.header-shell')
   ) {
     return false;
   }
+
+  // Check shadow root host (e.g. inner <input> inside <ion-input>)
+  const rootNode = element.getRootNode();
+  if (rootNode instanceof ShadowRoot && rootNode.host instanceof HTMLElement) {
+    const host = rootNode.host;
+    if (
+      host.dataset['autocompleteManaged'] === 'true' ||
+      host.getAttribute('data-autocomplete-managed') === 'true' ||
+      host.classList.contains('global-search-input') ||
+      host.closest('[data-autocomplete-managed="true"]') ||
+      host.closest('.global-document-search') ||
+      host.closest('.header-shell')
+    ) {
+      return false;
+    }
+  }
+
   if (element instanceof HTMLTextAreaElement) return true;
   return ['text', 'search', 'email', 'tel', 'url'].includes(
     element.type || 'text',
@@ -102,7 +124,7 @@ function executeEnterAction(element: EligibleElement): void {
 @Component({
   selector: 'app-global-input-autocomplete',
   standalone: true,
-  imports: [],
+  imports: [IonicModule],
   styleUrl: './global-input-autocomplete.component.scss',
   templateUrl: './global-input-autocomplete.component.html',
 })
@@ -117,6 +139,27 @@ export class GlobalInputAutocompleteComponent implements OnInit, OnDestroy {
   private removeListeners: (() => void)[] = [];
 
   ngOnInit(): void {
+    try {
+      const history = loadHistory();
+      let changed = false;
+      for (const key of Object.keys(history)) {
+        if (Array.isArray(history[key])) {
+          const filtered = history[key].filter(
+            (val) => val && val.trim().toLowerCase() !== 'blgf',
+          );
+          if (filtered.length !== history[key].length) {
+            history[key] = filtered;
+            changed = true;
+          }
+        }
+      }
+      if (changed) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+      }
+    } catch {
+      // Ignore
+    }
+
     const onFocus = (event: FocusEvent) => {
       if (!isEligible(event.target)) return;
       this.target = event.target;

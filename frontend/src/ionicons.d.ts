@@ -39,6 +39,9 @@ declare module 'ionicons/icons' {
   export const folderOpen: string;
   export const gitNetwork: string;
   export const grid: string;
+  export const gridOutline: string;
+  export const list: string;
+  export const listOutline: string;
   export const informationCircle: string;
   export const key: string;
   export const location: string;
@@ -104,4 +107,19 @@ declare module 'ionicons/icons' {
   export const unlinkOutline: string;
   export const copy: string;
   export const copyOutline: string;
+  export const warning: string;
+  export const warningOutline: string;
+  export const briefcaseOutline: string;
+  export const navigate: string;
+  export const navigateOutline: string;
+  export const qrCodeOutline: string;
+  export const openOutline: string;
+  export const printOutline: string;
+  export const timeOutline: string;
+  export const flame: string;
+  export const flameOutline: string;
+  export const flagOutline: string;
+  export const notificationsOutline: string;
+  export const documentOutline: string;
+  export const checkmarkCircleOutline: string;
 }

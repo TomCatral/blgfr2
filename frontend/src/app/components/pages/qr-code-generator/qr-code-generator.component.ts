@@ -3,12 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import QRCode from 'qrcode';
 import { UiService } from '../../../services/ui.service';
+import { IonicModule } from '@ionic/angular';
 
 @Component({
   selector: 'app-qr-code-generator',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [CommonModule, FormsModule],
+  imports: [IonicModule, CommonModule, FormsModule],
   styleUrl: './qr-code-generator.component.scss',
   templateUrl: './qr-code-generator.component.html',
 })

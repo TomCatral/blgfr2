@@ -1906,7 +1906,7 @@ export async function createApp() {
       documentId: document.id,
       trackingNumber: document.routeNo || document.trackingNumber,
       type: 'URGENT',
-      requiresDecision: false,
+      requiresDecision: true,
       reminderSenderName: actingUser.fullName,
       reminderHandlerName: recipient.fullName,
       reminderActionRequested:
@@ -2091,38 +2091,15 @@ export async function createApp() {
     res.sendFile(path.join(distPath, 'index.html'));
   });
 
-  let activePort = PORT;
-  const maxPort = process.env.PORT ? PORT : PORT + 10;
-
-  while (true) {
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const server = app.listen(activePort, '0.0.0.0');
-        server.once('listening', resolve);
-        server.once('error', reject);
-      });
-      break;
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      const canRetry =
-        !process.env.PORT &&
-        (code === 'EACCES' || code === 'EADDRINUSE') &&
-        activePort < maxPort;
-
-      if (!canRetry) {
-        throw error;
-      }
-
-      console.warn(
-        `Port ${activePort} is unavailable (${code}); trying ${activePort + 1}.`,
-      );
-      activePort += 1;
-    }
-  }
+  await new Promise<void>((resolve, reject) => {
+    const server = app.listen(PORT, '0.0.0.0');
+    server.once('listening', resolve);
+    server.once('error', reject);
+  });
 
   console.log(`=======================================================`);
   console.log(`BLGF REGION II DOCUMENT TRACKING SYSTEM SERVER RUNNING`);
-  console.log(`URL: http://localhost:${activePort}`);
+  console.log(`URL: http://localhost:${PORT}`);
   console.log(`=======================================================`);
   return app;
 }

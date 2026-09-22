@@ -1,12 +1,13 @@
 import { Component, EventEmitter, HostListener, Input, Output, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { NotificationItem } from '../../types';
 import { formatDate } from '../../utils/status-utils';
+import { IonicModule } from '@ionic/angular';
 
 @Component({
   selector: 'app-notification-drawer',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [],
+  imports: [IonicModule, ],
   styleUrl: './notification-drawer.component.scss',
   templateUrl: './notification-drawer.component.html',
 })
@@ -17,7 +18,7 @@ export class NotificationDrawerComponent {
   @Input() decisionSubmittingId: string | null = null;
   @Output() onClose = new EventEmitter<void>();
   @Output() onMarkRead = new EventEmitter<string>();
-  @Output() onSelectDoc = new EventEmitter<string>();
+  @Output() onSelectDoc = new EventEmitter<NotificationItem>();
   @Output() onDecision = new EventEmitter<{
     notification: NotificationItem;
     decision: 'APPROVED' | 'DISAPPROVED';
@@ -32,8 +33,8 @@ export class NotificationDrawerComponent {
     if (event.target === event.currentTarget) this.onClose.emit();
   }
 
-  view(trackingNumber: string): void {
-    this.onSelectDoc.emit(trackingNumber);
+  view(notification: NotificationItem): void {
+    this.onSelectDoc.emit(notification);
     this.onClose.emit();
   }
 

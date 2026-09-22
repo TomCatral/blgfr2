@@ -10,14 +10,14 @@
             <p [ngClass]="'reports-subtitle' | cls">{{ pageSubtitle() }}</p>
           </div>
           <div [ngClass]="'reports-heroActions' | cls">
-            <button type="button" [ngClass]="'reports-exportButton' | cls" (click)="exportActiveReport()">
+            <ion-button type="button" [ngClass]="'reports-exportButton' | cls" (click)="exportActiveReport()">
               <ion-icon name="download" [ngClass]="'reports-buttonIcon' | cls"></ion-icon>
               Export Current Report
-            </button>
-            <button type="button" [ngClass]="'reports-folderButton' | cls" (click)="chooseAutoSaveDirectory()">
+            </ion-button>
+            <ion-button type="button" [ngClass]="'reports-folderButton' | cls" (click)="chooseAutoSaveDirectory()">
               <ion-icon name="folder-open" [ngClass]="'reports-buttonIcon' | cls"></ion-icon>
               {{ folderButtonLabel() }}
-            </button>
+            </ion-button>
           </div>
         </div>
       </div>
@@ -29,13 +29,13 @@
       @if (!reportType) {
         <div [ngClass]="'reports-reportTabs' | cls">
           @for (tab of reportTabs(); track tab.type) {
-            <button type="button" [ngClass]="tabClass(tab.type)" (click)="selectReport(tab.type)">
+            <ion-button type="button" [ngClass]="tabClass(tab.type)" (click)="selectReport(tab.type)">
               <div [ngClass]="'reports-tabHeader' | cls">
                 <ion-icon [name]="tab.icon" [ngClass]="'reports-tabIcon' | cls"></ion-icon>
                 <span [ngClass]="'reports-tabCount' | cls">{{ tab.count }}</span>
               </div>
               <div [ngClass]="'reports-tabLabel' | cls">{{ reportLabel(tab.type) }} Report</div>
-            </button>
+            </ion-button>
           }
         </div>
       }
@@ -43,19 +43,19 @@
       <div [ngClass]="'reports-filters' | cls">
         <div [ngClass]="'reports-searchField' | cls">
           <ion-icon name="search" [ngClass]="'reports-searchIcon' | cls"></ion-icon>
-          <input
+          <ion-input
             [ngClass]="'reports-searchInput' | cls"
             [ngModel]="searchQuery()"
             (ngModelChange)="searchQuery.set($event)"
             placeholder="Search route number, title, sender, recipient, or details..."
           />
         </div>
-        <select [ngClass]="'reports-monthSelect' | cls" [ngModel]="monthFilter()" (ngModelChange)="monthFilter.set($event)">
-          <option value="ALL">All Months</option>
+        <ion-select interface="popover" [ngClass]="'reports-monthSelect' | cls" [ngModel]="monthFilter()" (ngModelChange)="monthFilter.set($event)">
+          <ion-select-option value="ALL">All Months</ion-select-option>
           @for (month of availableMonths(); track month) {
-            <option [value]="month">{{ monthLabel(month) }}</option>
+            <ion-select-option [value]="month">{{ monthLabel(month) }}</ion-select-option>
           }
-        </select>
+        </ion-select>
       </div>
 
       <div [ngClass]="'reports-tableCard' | cls">
@@ -179,9 +179,9 @@
                       }
                     </td>
                     <td [ngClass]="'reports-cell' | cls">
-                      <button type="button" [ngClass]="'reports-historyButton' | cls" (click)="toggleHistory(document.id)">
+                      <ion-button type="button" [ngClass]="'reports-historyButton' | cls" (click)="toggleHistory(document.id)">
                         {{ expandedRouteId() === document.id ? 'Hide History' : 'View History (' + events.length + ')' }}
-                      </button>
+                      </ion-button>
                     </td>
                   </tr>
                   @if (expandedRouteId() === document.id) {

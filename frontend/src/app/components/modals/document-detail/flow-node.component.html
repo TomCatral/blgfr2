@@ -22,16 +22,16 @@
           <span class="flow-division-tag">
             {{ recipient.toDivision }}
           </span>
-          @if (parent.isParticipantInStep(recipient)) {
+          @if (parent.isCurrentRecipient(recipient)) {
             <span class="flow-you-badge">
               <ion-icon name="person"></ion-icon> You
             </span>
           }
         </div>
         <div class="flow-action-meta">
-          <span class="flow-action-label">Action:</span>
+          <span class="flow-action-label">Instruction:</span>
           <span class="flow-action-tag">
-            {{ recipient.actionRequested || 'Document Handoff' }}
+            {{ recipient.actionRequested || 'Appropriate Action' }}
           </span>
         </div>
       </div>
@@ -42,7 +42,8 @@
 
     @if (parent.getFlowNodeRegularRemarks(recipient.id); as regRemarks) {
       <div class="flow-remarks-quote">
-        "{{ regRemarks }}"
+        <span class="flow-remarks-label">Remarks:</span>
+        <span class="flow-remarks-text">"{{ regRemarks }}"</span>
       </div>
     }
 
@@ -90,10 +91,6 @@
   }
 
   @if (parent.getFlowNodeChildren(recipient.id).length > 0) {
-    <div class="flow-connector" aria-hidden="true">
-      <span class="flow-connector-stem"></span>
-      <span class="flow-connector-arrow"></span>
-    </div>
     <ul class="flow-children-list" [attr.aria-label]="'Forwarded by ' + parent.resolveUserName(recipient.toUserId, recipient.toUser)">
       @for (child of parent.getFlowNodeChildren(recipient.id); track child.id; let i = $index) {
         <app-flow-node [recipient]="child" [flowNumber]="flowNumber + '.' + (i + 1)" [parent]="parent" />

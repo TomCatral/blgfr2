@@ -32,6 +32,16 @@ export function createUsersRouter(
       (user) => user.id === String(req.get('X-User-Id') || '') && user.active,
     );
 
+  const canManageUsers = (user?: User): boolean => {
+    if (!user) return false;
+    if (user.role === 'SYSTEM_ADMIN') return true;
+    const permissions =
+      user.permissions ||
+      DEFAULT_ROLE_PERMISSIONS[user.role] ||
+      DEFAULT_ROLE_PERMISSIONS.STAFF;
+    return Boolean(permissions.allowedViews?.includes('users'));
+  };
+
   // GET Users
   router.get('/', async (req, res) => {
     try {
@@ -74,8 +84,13 @@ export function createUsersRouter(
     if (!actingUser) {
       return res.status(401).json({ error: 'Active database user required.' });
     }
-    if (actingUser.role !== 'SYSTEM_ADMIN') {
-      return res.status(403).json({ error: 'System Administrator access required.' });
+    if (!canManageUsers(actingUser)) {
+      return res.status(403).json({ error: 'User management access required.' });
+    }
+    if (body.role === 'SYSTEM_ADMIN' && actingUser.role !== 'SYSTEM_ADMIN') {
+      return res.status(403).json({
+        error: 'Only System Administrators can create System Administrator accounts.',
+      });
     }
 
     if (
@@ -167,10 +182,20 @@ export function createUsersRouter(
       return res.status(404).json({ error: 'User not found' });
     }
     const isSelfUpdate = actingUser.id === req.params.id;
-    if (!isSelfUpdate && actingUser.role !== 'SYSTEM_ADMIN') {
-      return res.status(403).json({ error: 'System Administrator access required.' });
+    if (!isSelfUpdate && !canManageUsers(actingUser)) {
+      return res.status(403).json({ error: 'User management access required.' });
     }
     const isSystemAdministrator = usersState[uIdx].role === 'SYSTEM_ADMIN';
+    if (!isSelfUpdate && actingUser.role !== 'SYSTEM_ADMIN' && isSystemAdministrator) {
+      return res.status(403).json({
+        error: 'Only System Administrators can modify System Administrator accounts.',
+      });
+    }
+    if (req.body.role === 'SYSTEM_ADMIN' && actingUser.role !== 'SYSTEM_ADMIN') {
+      return res.status(403).json({
+        error: 'Only System Administrators can assign the System Administrator role.',
+      });
+    }
     const requestedCurrentPassword = String(req.body.currentPassword || '');
     const updates = { ...req.body };
     delete updates.currentPassword;
@@ -307,8 +332,15 @@ export function createUsersRouter(
     if (!actingUser) {
       return res.status(401).json({ error: 'Active database user required.' });
     }
-    if (actingUser.role !== 'SYSTEM_ADMIN') {
-      return res.status(403).json({ error: 'System Administrator access required.' });
+    if (!canManageUsers(actingUser)) {
+      return res.status(403).json({ error: 'User management access required.' });
+    }
+    const permissions =
+      actingUser.permissions ||
+      DEFAULT_ROLE_PERMISSIONS[actingUser.role] ||
+      DEFAULT_ROLE_PERMISSIONS.STAFF;
+    if (actingUser.role !== 'SYSTEM_ADMIN' && !permissions.canDelete) {
+      return res.status(403).json({ error: 'Delete permission required.' });
     }
     const accountToDelete = usersState.find(
       (user) => user.id === req.params.id,

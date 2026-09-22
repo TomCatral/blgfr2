@@ -1,3 +1,5 @@
+/* DOCUMENT LIST: page header, filters, records table, and row actions. */
+
 .page { display: grid; gap: 1.25rem; }
 
 .header, .filters, .tableCard {
@@ -206,7 +208,7 @@
   color: #334155;
   font-size: .75rem;
   text-align: left;
-  min-width: 1220px;
+  min-width: 1100px;
 }
 
 .table td { padding: .85rem .75rem; vertical-align: top; }
@@ -223,16 +225,20 @@
 
 .cell { padding: .75rem; }
 
-.actionsHead {
+.statusHead,
+.statusCell {
+  min-width: 170px;
+  width: 170px;
+  white-space: nowrap;
   padding: .75rem;
+}
+
+.actionsHead {
+  padding: .75rem 1rem;
   text-align: right;
-  position: sticky;
-  right: 0;
-  z-index: 4;
-  width: 164px;
-  min-width: 164px;
+  width: 155px;
+  min-width: 155px;
   background: #f8fafc;
-  box-shadow: -8px 0 14px rgb(15 23 42 / .06);
 }
 
 .tableBody { color: #334155; }
@@ -289,23 +295,40 @@
 
 .match { border-radius: .1875rem; background: #fef08a; color: #854d0e; padding: 0 .0625rem; }
 
-.routeCell { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.routeCell {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  min-width: 175px;
+  width: 175px;
+  white-space: nowrap;
+}
 
 .routeLink {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: .25rem;
+  gap: .35rem;
   padding: 0;
   color: #2563eb;
   font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .routeLink:hover { text-decoration: underline; }
 
-.routeIcon { width: .875rem; color: #94a3b8; }
+.routeIcon {
+  width: .875rem;
+  height: .875rem;
+  color: #2563eb;
+  flex: none;
+}
 
-.routeMeta { display: flex; align-items: center; gap: .25rem; margin-top: .25rem; }
+.routeMeta {
+  display: flex;
+  align-items: center;
+  gap: .375rem;
+  margin-top: .25rem;
+  white-space: nowrap;
+}
 
 .directionBadge, .priorityBadge, .statusBadge {
   display: inline-flex;
@@ -333,19 +356,94 @@
 
 .attachmentIcon { color: #64748b; }
 
-.priorityBadge { padding: .125rem .5rem; font-size: .625rem; white-space: nowrap; }
+.priorityBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .2rem .55rem;
+  border-radius: 9999px;
+  font-size: .625rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  line-height: 1;
+}
 
-.priority_ROUTINE { background: #f1f5f9; color: #475569; }
+.priority_ROUTINE {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
 
-.priority_URGENT { background: #fef3c7; color: #b45309; }
+.priority_URGENT {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
 
-.priority_VERY_URGENT { background: #fee2e2; color: #b91c1c; }
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #f59e0b;
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+    animation: urgentPulse 1.8s infinite;
+  }
+}
 
-.priority_CONFIDENTIAL { background: #f3e8ff; color: #7e22ce; }
+.priority_VERY_URGENT {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
 
-.pulse { animation: pulse 1.7s ease-in-out infinite; }
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8);
+    animation: veryUrgentPulse 1.4s infinite;
+  }
+}
 
-@keyframes pulse { 50% { opacity: .55; } }
+.priority_CONFIDENTIAL {
+  background: #faf5ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
+}
+
+@keyframes urgentPulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 5px rgba(245, 158, 11, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+  }
+}
+
+@keyframes veryUrgentPulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
 
 .documentCell { max-width: 20rem; }
 
@@ -365,7 +463,7 @@
 
 .latestAction { margin-top: .25rem; color: #b45309; font-size: .625rem; font-weight: 600; }
 
-.progressCell { width: 8rem; }
+.progressCell { width: 11.5rem; min-width: 11.5rem; }
 
 .progressLabels {
   display: flex;
@@ -377,10 +475,11 @@
 }
 
 .progressStage {
-  max-width: 3.75rem;
+  max-width: 7rem;
   overflow: hidden;
   color: #94a3b8;
-  font-size: .5625rem;
+  font-size: .625rem;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -454,27 +553,34 @@
 .actionsCell {
   text-align: right;
   white-space: nowrap;
-  position: sticky;
-  right: 0;
-  z-index: 2;
-  width: 164px;
-  min-width: 164px;
-  background: #fff;
-  box-shadow: -8px 0 14px rgb(15 23 42 / .06);
+  width: 155px;
+  min-width: 155px;
+  padding: .75rem 1rem;
 }
 
 .actionsCell .viewButton, .actionsCell .routeButton, .actionsCell .slipButton, .actionsCell .deleteButton {
   display: inline-flex;
-  width: 38px;
-  height: 38px;
-  min-width: 38px;
-  min-height: 38px;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
   align-items: center;
   justify-content: center;
-  margin-left: .375rem;
+  margin-left: .35rem;
   padding: 0;
-  border-radius: .5rem;
+  border-radius: .55rem;
   font-size: .625rem;
+  transition: transform .15s ease, background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;
+
+  &:hover {
+    transform: translateY(-1.5px);
+    box-shadow: 0 3px 6px -1px rgba(0, 0, 0, 0.12);
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: none;
+  }
 }
 
 .viewButton {
@@ -485,7 +591,6 @@
   background: #f8fafc;
   color: #475569;
   cursor: pointer;
-  transition: background-color .15s, color .15s, border-color .15s;
 }
 
 .viewButton:hover { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
@@ -497,12 +602,26 @@
   border: 0;
   color: #fff;
   cursor: pointer;
-  transition: background-color .15s, color .15s, border-color .15s;
 }
 
 .routeButton { background: #2563eb; }
 
 .routeButton:hover { background: #1d4ed8; }
+
+.routeButton:disabled {
+  border: 1px solid #cbd5e1;
+  background: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.routeButton:disabled:hover {
+  background: #e2e8f0;
+  transform: none;
+  box-shadow: none;
+}
 
 .slipButton { background: #059669; }
 
@@ -516,7 +635,6 @@
   background: #ffe4e6;
   color: #be123c;
   cursor: pointer;
-  transition: background-color .15s, color .15s, border-color .15s;
 }
 
 .deleteButton:hover { border-color: #e11d48; background: #e11d48; color: #fff; }
@@ -604,9 +722,33 @@
 
   .match { background: rgb(250 204 21 / .35); color: #fde68a; }
 
-  .incomingBadge, .outgoingBadge, .priority_ROUTINE, .status_PENDING {
+  .incomingBadge, .outgoingBadge, .status_PENDING {
     background: #1e293b;
     color: #94a3b8;
+  }
+
+  .priority_ROUTINE {
+    background: #1e293b;
+    color: #94a3b8;
+    border-color: #334155;
+  }
+
+  .priority_URGENT {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border-color: rgba(245, 158, 11, 0.35);
+  }
+
+  .priority_VERY_URGENT {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.35);
+  }
+
+  .priority_CONFIDENTIAL {
+    background: rgba(168, 85, 247, 0.15);
+    color: #c084fc;
+    border-color: rgba(168, 85, 247, 0.35);
   }
 }
 

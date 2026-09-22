@@ -1130,6 +1130,12 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
   const getActingUser = (req) => getUsersState().find(
     (user) => user.id === String(req.get("X-User-Id") || "") && user.active
   );
+  const canManageUsers = (user) => {
+    if (!user) return false;
+    if (user.role === "SYSTEM_ADMIN") return true;
+    const permissions = user.permissions || DEFAULT_ROLE_PERMISSIONS[user.role] || DEFAULT_ROLE_PERMISSIONS.STAFF;
+    return Boolean(permissions.allowedViews?.includes("users"));
+  };
   router.get("/", async (req, res) => {
     try {
       const liveUsers = await loadLiveUsers();
@@ -1157,8 +1163,13 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
     if (!actingUser) {
       return res.status(401).json({ error: "Active database user required." });
     }
-    if (actingUser.role !== "SYSTEM_ADMIN") {
-      return res.status(403).json({ error: "System Administrator access required." });
+    if (!canManageUsers(actingUser)) {
+      return res.status(403).json({ error: "User management access required." });
+    }
+    if (body.role === "SYSTEM_ADMIN" && actingUser.role !== "SYSTEM_ADMIN") {
+      return res.status(403).json({
+        error: "Only System Administrators can create System Administrator accounts."
+      });
     }
     if (body.role === "SYSTEM_ADMIN" && usersState2.filter((user) => user.role === "SYSTEM_ADMIN").length >= MAX_SYSTEM_ADMINISTRATORS) {
       return res.status(403).json({
@@ -1226,10 +1237,20 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
       return res.status(404).json({ error: "User not found" });
     }
     const isSelfUpdate = actingUser.id === req.params.id;
-    if (!isSelfUpdate && actingUser.role !== "SYSTEM_ADMIN") {
-      return res.status(403).json({ error: "System Administrator access required." });
+    if (!isSelfUpdate && !canManageUsers(actingUser)) {
+      return res.status(403).json({ error: "User management access required." });
     }
     const isSystemAdministrator = usersState2[uIdx].role === "SYSTEM_ADMIN";
+    if (!isSelfUpdate && actingUser.role !== "SYSTEM_ADMIN" && isSystemAdministrator) {
+      return res.status(403).json({
+        error: "Only System Administrators can modify System Administrator accounts."
+      });
+    }
+    if (req.body.role === "SYSTEM_ADMIN" && actingUser.role !== "SYSTEM_ADMIN") {
+      return res.status(403).json({
+        error: "Only System Administrators can assign the System Administrator role."
+      });
+    }
     const requestedCurrentPassword = String(req.body.currentPassword || "");
     const updates = { ...req.body };
     delete updates.currentPassword;
@@ -1331,8 +1352,12 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
     if (!actingUser) {
       return res.status(401).json({ error: "Active database user required." });
     }
-    if (actingUser.role !== "SYSTEM_ADMIN") {
-      return res.status(403).json({ error: "System Administrator access required." });
+    if (!canManageUsers(actingUser)) {
+      return res.status(403).json({ error: "User management access required." });
+    }
+    const permissions = actingUser.permissions || DEFAULT_ROLE_PERMISSIONS[actingUser.role] || DEFAULT_ROLE_PERMISSIONS.STAFF;
+    if (actingUser.role !== "SYSTEM_ADMIN" && !permissions.canDelete) {
+      return res.status(403).json({ error: "Delete permission required." });
     }
     const accountToDelete = usersState2.find(
       (user) => user.id === req.params.id
@@ -1398,15 +1423,29 @@ function findPreviousDelivery(document, recipient) {
 
 // frontend/src/app/utils/document-visibility.ts
 var normalizeName = (value) => value?.trim().toLowerCase() || "";
-var matchesParticipant = (user, participantId, participantName) => participantId === user.id || !participantId && Boolean(normalizeName(participantName)) && normalizeName(participantName) === normalizeName(user.fullName);
+var matchesParticipant = (user, participantId, participantName) => {
+  if (!user) return false;
+  const targetId = normalizeName(participantId);
+  const targetName = normalizeName(participantName);
+  const userId = normalizeName(user.id);
+  const userName = normalizeName(user.username);
+  const userFullName = normalizeName(user.fullName);
+  if (targetId && (targetId === userId || targetId === userName)) {
+    return true;
+  }
+  if (targetName && (targetName === userFullName || targetName === userName)) {
+    return true;
+  }
+  return false;
+};
 var auditNamesRecipient = (details, fullName) => new RegExp(
   `\\bTo:\\s*${fullName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s*\\||$)`,
   "i"
 ).test(details);
-var isDocumentParticipant = (document, user, auditLogs = []) => matchesParticipant(user, document.assignedUserId, document.assignedUser) || matchesParticipant(user, document.createdByUserId, document.createdBy) || (document.routes || []).some(
+var isDocumentParticipant = (document, user, auditLogs = []) => matchesParticipant(user, document.assignedUserId, document.assignedUser) || matchesParticipant(user, document.createdByUserId, document.createdBy) || matchesParticipant(user, void 0, document.recipientName) || matchesParticipant(user, void 0, document.senderName) || (document.routes || []).some(
   (route) => matchesParticipant(user, route.fromUserId, route.fromUser) || matchesParticipant(user, route.toUserId, route.toUser)
 ) || auditLogs.some(
-  (log) => log.documentTrackingNumber === document.trackingNumber && (matchesParticipant(user, log.userId, log.userName) || auditNamesRecipient(log.details, user.fullName))
+  (log) => (log.documentTrackingNumber === document.trackingNumber || Boolean(document.routeNo) && log.documentTrackingNumber === document.routeNo) && (matchesParticipant(user, log.userId, log.userName) || auditNamesRecipient(log.details, user.fullName))
 );
 
 // backend/documents.ts
@@ -2693,7 +2732,7 @@ ${preStreamLen}
 
 // backend/server.ts
 dotenv.config({ quiet: true });
-var DEFAULT_PORT = 3001;
+var DEFAULT_PORT = 3e3;
 var PORT = Number(process.env.PORT || DEFAULT_PORT);
 var IS_VERCEL = Boolean(process.env.VERCEL);
 var ADMIN_PASSWORD_RESET_COOLDOWN_MS = 15 * 60 * 1e3;
@@ -4131,7 +4170,7 @@ async function createApp() {
       documentId: document.id,
       trackingNumber: document.routeNo || document.trackingNumber,
       type: "URGENT",
-      requiresDecision: false,
+      requiresDecision: true,
       reminderSenderName: actingUser.fullName,
       reminderHandlerName: recipient.fullName,
       reminderActionRequested: String(req.body.actionRequested || "").trim() || "Appropriate Action"
@@ -4270,31 +4309,14 @@ async function createApp() {
   app.get("*", (_req, res) => {
     res.sendFile(path.join(distPath, "index.html"));
   });
-  let activePort = PORT;
-  const maxPort = process.env.PORT ? PORT : PORT + 10;
-  while (true) {
-    try {
-      await new Promise((resolve, reject) => {
-        const server = app.listen(activePort, "0.0.0.0");
-        server.once("listening", resolve);
-        server.once("error", reject);
-      });
-      break;
-    } catch (error) {
-      const code = error.code;
-      const canRetry = !process.env.PORT && (code === "EACCES" || code === "EADDRINUSE") && activePort < maxPort;
-      if (!canRetry) {
-        throw error;
-      }
-      console.warn(
-        `Port ${activePort} is unavailable (${code}); trying ${activePort + 1}.`
-      );
-      activePort += 1;
-    }
-  }
+  await new Promise((resolve, reject) => {
+    const server = app.listen(PORT, "0.0.0.0");
+    server.once("listening", resolve);
+    server.once("error", reject);
+  });
   console.log(`=======================================================`);
   console.log(`BLGF REGION II DOCUMENT TRACKING SYSTEM SERVER RUNNING`);
-  console.log(`URL: http://localhost:${activePort}`);
+  console.log(`URL: http://localhost:${PORT}`);
   console.log(`=======================================================`);
   return app;
 }
