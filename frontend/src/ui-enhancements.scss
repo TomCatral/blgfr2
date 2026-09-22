@@ -1,0 +1,180 @@
+/* Final shared polish layer for consistent interaction, hierarchy, and accessibility. */
+:root {
+  --ui-canvas: #f4f7fb;
+  --ui-surface-raised: rgba(255, 255, 255, 0.94);
+  --ui-focus: rgba(37, 99, 235, 0.22);
+  --ui-control-height: 2.75rem;
+  --ui-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html.dark,
+body.dark,
+:root.dark,
+.dark {
+  --ui-canvas: #070b14;
+  --ui-surface-raised: rgba(14, 22, 40, 0.94);
+  --ui-focus: rgba(96, 165, 250, 0.28);
+}
+
+::selection {
+  color: var(--ui-text, #0f172a);
+  background: rgba(96, 165, 250, 0.28);
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+body {
+  accent-color: var(--ion-color-primary, #2563eb);
+}
+
+.app-content {
+  scroll-behavior: smooth;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 10rem) !important;
+}
+
+.dark .app-content {
+  background-image: linear-gradient(180deg, rgba(30, 41, 59, 0.13), transparent 11rem) !important;
+}
+
+.app-view-container {
+  animation: ui-view-enter 320ms var(--ui-ease) both;
+}
+
+@keyframes ui-view-enter {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+:where(button, a, input, select, textarea, [role='button'], [tabindex]):focus-visible {
+  outline: 3px solid var(--ui-focus) !important;
+  outline-offset: 2px;
+}
+
+:where(button, [role='button'], ion-button):not(:disabled) {
+  transition: transform 160ms var(--ui-ease), box-shadow 180ms ease, border-color 180ms ease,
+    background-color 180ms ease, color 180ms ease, opacity 180ms ease;
+}
+
+:where(button, [role='button']):not(:disabled):active {
+  transform: translateY(1px) scale(0.985);
+}
+
+ion-button::part(native) {
+  transition: transform 160ms var(--ui-ease), box-shadow 180ms ease, background 180ms ease;
+}
+
+ion-button:not([disabled]):active::part(native) {
+  transform: translateY(1px) scale(0.985);
+}
+
+:where(input, select, textarea) {
+  caret-color: var(--ion-color-primary, #2563eb);
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+:where(input, select, textarea):not(:disabled):hover {
+  border-color: rgba(var(--ion-color-primary-rgb, 37, 99, 235), 0.5) !important;
+}
+
+:where(input, select, textarea):focus {
+  border-color: var(--ion-color-primary, #2563eb) !important;
+  box-shadow: 0 0 0 3px var(--ui-focus) !important;
+}
+
+ion-input,
+ion-select,
+ion-textarea {
+  --highlight-color-focused: var(--ion-color-primary, #2563eb);
+  --placeholder-opacity: 0.7;
+}
+
+:where(table) {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+:where(thead th) {
+  background-clip: padding-box;
+}
+
+:where(tbody tr) {
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+
+:where(tbody tr):hover {
+  background-color: rgba(37, 99, 235, 0.035);
+}
+
+.dark :where(tbody tr):hover {
+  background-color: rgba(96, 165, 250, 0.055);
+}
+
+:where([role='dialog']) {
+  isolation: isolate;
+}
+
+:where([role='dialog'] > div, .modal-panel, .modalPanel, .dialog-panel) {
+  border: 1px solid var(--ui-border, #e2e8f0);
+  box-shadow: 0 28px 70px -22px rgba(15, 23, 42, 0.42), 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.dark :where([role='dialog'] > div, .modal-panel, .modalPanel, .dialog-panel) {
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.82), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+:where(.overflow-x-auto, [class*='table-wrap'], [class*='tableWrap']) {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.38) transparent;
+}
+
+:where(.badge, [class*='status-badge'], [class*='statusBadge'], [class*='pill']) {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 1280px) {
+  .app-content {
+    padding-inline: clamp(1.25rem, 2vw, 2rem);
+    padding-top: 1rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .app-view-container {
+    animation-duration: 220ms;
+  }
+
+  :where([role='dialog'] > div, .modal-panel, .modalPanel, .dialog-panel) {
+    border-radius: 1.25rem !important;
+  }
+
+  :where(table th, table td) {
+    padding-inline: 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-content { scroll-behavior: auto; }
+  .app-view-container { animation: none; }
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root { --ui-border: #94a3b8; }
+  .dark { --ui-border: #64748b; }
+  :where(button, a, input, select, textarea, [role='button']):focus-visible {
+    outline-width: 4px !important;
+  }
+}
+
+@media print {
+  .app-view-container { animation: none; }
+  .app-content { background: #fff !important; }
+}

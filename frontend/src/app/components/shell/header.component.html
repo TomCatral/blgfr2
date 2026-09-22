@@ -1,71 +1,65 @@
 
     <header
-      class="header-style-001-a26f3c"
+      class="header-shell"
       [ngClass]="('headShell1' + (scrolled ? 'headShell2' : '')) | cls"
     >
       <div
         class="app-main-header"
         [ngClass]="'headAppMain' | cls"
       >
-        <div class="header-style-002-4768b7" [ngClass]="'headBrand' | cls">
+        <div class="header-brand" [ngClass]="'headBrand' | cls">
           <button
             type="button"
-            class="header-style-003-f917d6"
+            class="headEmit1Btn"
             [ngClass]="'headEmit2Btn' | cls"
             aria-label="Open navigation menu"
             title="Open navigation menu"
             (click)="onOpenMobileSidebar.emit()"
           >
-            <ion-icon name="menu" class="header-style-004-9b26a8"></ion-icon>
+            <ion-icon name="menu" class="headMenuIcon"></ion-icon>
           </button>
           
-          <div class="header-style-005-e952f6">
-            <div class="header-style-006-555ee8">
-              <img src="/blgflogo.jpg" alt="BLGF Logo" class="header-style-007-a03e3f" />
+          <div class="header-brand-cluster headBrandCluster">
+            <div class="header-brand-logo headBrandLogo">
+              <img src="/blgflogo.jpg" alt="BLGF Logo" class="headImg" />
               @if (isOnline) {
-                <span class="header-style-008-4db4d8" title="System Online"></span>
+                <span class="headSystemOnline" title="System Online"></span>
               }
             </div>
-            <div class="header-style-009-00ce06">
-              <p class="header-style-010-cb8d06">BLGF REGION II</p>
-              <p class="header-style-011-436e50">Document Workspace</p>
+            <div class="header-brand-text headBrandText">
+              <p class="headP">BLGF REGION II</p>
+              <p class="head23">Document Workspace</p>
             </div>
           </div>
         </div>
 
-        <div class="global-document-search header-style-012-4e30f9">
-          <div class="header-style-013-7747db">
-            <span class="header-style-014-4cdf66">
-              <ion-icon name="search" class="header-style-015-debf0a"></ion-icon>
+        <div class="global-document-search" [ngClass]="'headGlobalSearch' | cls">
+          <div class="headStyle">
+            <span class="headSpan">
+              <ion-icon name="search" class="headSearchIcon"></ion-icon>
             </span>
             <input
               #searchInput
               type="text"
-              class="global-search-input"
-              placeholder="Search connected documents, tracking numbers..."
-              [value]="searchQuery"
+              class="global-search-input headGlobalSearchInput"
+              placeholder="Search documents, tracking numbers, subjects..."
               [(ngModel)]="searchQuery"
-              (focus)="onInputFocus()"
-              (click)="onInputClick()"
+              (focus)="isSearchFocused = true"
               (blur)="closeSearchDelayed()"
-              (input)="onSearchInput($event)"
+              (input)="onSearchInput()"
               (keydown)="onSearchKeyDown($event)"
               autocomplete="off"
-              autocorrect="off"
-              spellcheck="false"
               data-autocomplete-managed="true"
-              name="global-doc-search-no-autofill"
             />
-            <span class="header-style-016-198046">
-              <span class="header-style-017-b6d49a">
+            <span class="head24">
+              <span class="head33">
                 Ctrl+K
               </span>
               <button
                 type="button"
-                class="header-style-018-86e650"
+                class="headOpenScannerBtn"
                 title="Scan document barcode or QR code"
                 aria-label="Scan document barcode or QR code"
-                (mousedown)="$event.preventDefault()"
                 (click)="openScanner()"
               >
                 <ion-icon name="scan"></ion-icon>
@@ -73,9 +67,8 @@
               @if (searchQuery.trim()) {
                 <button
                   type="button"
-                  class="header-style-019-330a9d"
+                  class="headClearSearchBtn"
                   aria-label="Clear search"
-                  (mousedown)="$event.preventDefault()"
                   (click)="clearSearch()"
                 >
                   <ion-icon name="close"></ion-icon>
@@ -84,91 +77,79 @@
             </span>
           </div>
 
-          @if (isSearchFocused) {
-            <div class="header-style-020-b02d3b">
-              @if (displayResults.length === 0) {
-                <div class="header-style-021-35fce5">
-                  <div class="header-style-022-54631e">
-                    <ion-icon name="search" class="header-style-023-8459cb"></ion-icon>
+          @if (isSearchFocused && searchQuery.trim()) {
+            <div class="head2">
+              @if (searchResults.length === 0) {
+                <div class="head3">
+                  <div class="head4">
+                    <ion-icon name="search" class="headSearch2Icon"></ion-icon>
                   </div>
-                  <p class="header-style-024-1fdf2b">
-                    {{ searchQuery.trim() ? 'No documents found' : 'No connected transactions' }}
-                  </p>
-                  <p class="header-style-025-0d8882">
-                    {{ searchQuery.trim() ? 'Try searching by title, route number, or subject' : 'Documents you are connected to will appear here' }}
-                  </p>
+                  <p class="head32">No documents found</p>
+                  <p class="head42">Try searching by title, route number, or subject</p>
                 </div>
               } @else {
-                <div class="header-style-026-0e1e31">
-                  <span class="header-style-027-b5cfb1">
-                    {{ searchQuery.trim() ? 'Results (' + displayResults.length + ')' : 'Your Connected Transactions (' + displayResults.length + ')' }}
+                <div class="head1" [ngClass]="'head25' | cls">
+                  <span class="head43">
+                    Results ({{ searchResults.length }})
                   </span>
-                  @if (searchQuery.trim()) {
-                    <button type="button" class="header-style-028-f1ae14" (mousedown)="$event.preventDefault()" (click)="viewAllResults()">
-                      View all results &rarr;
-                    </button>
-                  }
+                  <button type="button" class="headViewAllResultsBtn" (mousedown)="viewAllResults(); $event.preventDefault()" (click)="viewAllResults()">
+                    View all results &rarr;
+                  </button>
                 </div>
-                <div class="header-style-029-c344f5">
-                  @for (result of displayResults.slice(0, 8); track result.doc.id) {
+                <div class="head12" [ngClass]="'head232' | cls">
+                  @for (result of searchResults.slice(0, 8); track result.doc.id) {
                     <button
                       type="button"
-                      class="search-result-row group header-style-030-718e36"
+                      class="search-result-row headSearchResultRowBtn"
                       [class.active-result]="activeResultIndex === $index"
                       (mouseenter)="activeResultIndex = $index"
                       (mousedown)="chooseResult(result.doc); $event.preventDefault()"
                       (click)="chooseResult(result.doc)"
                     >
-                      <div class="header-style-031-88195f">
-                        <div class="header-style-032-b5986a">
-                          <div class="header-style-033-70c3b7">
-                            <span class="header-style-034-c46e87">
+                      <div class="head5">
+                        <div class="head6">
+                          <div class="head7">
+                            <span class="head53">
                               @for (segment of highlightSegments(result, 'routeNo'); track $index) {
-                                <span [class.bg-amber-200]="segment.highlighted" [class.dark:bg-amber-900]="segment.highlighted" class="header-style-035-bb5d39">{{ segment.text }}</span>
+                                <span [class.bg-amber-200]="segment.highlighted" [class.dark:bg-amber-900]="segment.highlighted" class="head63">{{ segment.text }}</span>
                               }
                             </span>
-                            <span class="header-style-036-176c81"
-                              [ngClass]="result.doc.direction === 'INCOMING' ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 dark:text-emerald-300' : 'bg-blue-500/10 text-blue-700 border border-blue-500/20 dark:text-blue-300'">
-                              <ion-icon [name]="result.doc.direction === 'INCOMING' ? 'arrow-down-left' : 'arrow-up-right'" class="header-style-037-4bd3c1"></ion-icon>
+                            <span class="head111"
+                              [ngClass]="(result.doc.direction === 'INCOMING' ? 'headResultDocDirection' : 'headResultDocDirection2') | cls">
+                              <ion-icon [name]="result.doc.direction === 'INCOMING' ? 'arrow-down-left' : 'arrow-up-right'" class="headIcon"></ion-icon>
                               {{ result.doc.direction }}
                             </span>
                           </div>
-                          <div class="header-style-038-850e4f">
-                            <ion-icon name="document-text" class="header-style-039-d31bca"></ion-icon>
-                            <span class="header-style-040-f9a8f8">
+                          <div class="head8">
+                            <ion-icon name="document-text" class="headTextIcon"></ion-icon>
+                            <span class="head73">
                               @for (segment of highlightSegments(result, 'title'); track $index) {
                                 {{ segment.text }}
                               }
                             </span>
                           </div>
-                          <p class="header-style-041-d863d1">
+                          <p class="head52">
                             @for (segment of highlightSegments(result, 'subject'); track $index) {
                               {{ segment.text }}
                             }
                           </p>
-                          <p class="header-style-042-5fd37e">
+                          <p class="head62">
                             Action: {{ getCurrentUserAction(result.doc) }}
                           </p>
-                          @if (result.matchedField) {
-                            <p class="search-match-field header-style-043-e2170b">
-                              <ion-icon name="search-outline" class="header-style-044-3c8c7e"></ion-icon>
-                              Matched in {{ result.matchedField }}
-                            </p>
-                          }
                         </div>
-                        <div class="header-style-045-798b23">
-                          <span class="header-style-046-07f07e" [ngClass]="statusBadgeClass(result.doc)">
-                            {{ (result.doc.currentStatus || '').replaceAll('_', ' ') }}
+                        <div class="head9">
+                          <span class="head83" [ngClass]="statusBadgeClass(result.doc) | cls">
+                            {{ result.doc.currentStatus.replaceAll('_', ' ') }}
                           </span>
                         </div>
                       </div>
                     </button>
                   }
                 </div>
-                @if (displayResults.length > 8 && searchQuery.trim()) {
-                  <div class="header-style-047-8a8817">
-                    <button type="button" class="header-style-048-c45d27" (mousedown)="$event.preventDefault()" (click)="viewAllResults()">
-                      + {{ displayResults.length - 8 }} more results - View all
+                @if (searchResults.length > 8) {
+                  <div class="head13" [ngClass]="'head25' | cls">
+                    <button type="button" class="headViewAllResultsBtn2" (mousedown)="viewAllResults(); $event.preventDefault()" (click)="viewAllResults()">
+                      + {{ searchResults.length - 8 }} more results - View all
                     </button>
                   </div>
                 }
@@ -177,20 +158,18 @@
           }
         </div>
 
-        <div class="header-style-049-4b7110" [ngClass]="'headActions' | cls">
+        <div class="header-actions" [ngClass]="'headActions' | cls">
           <button
             type="button"
-            class="header-style-050-fc8e2f"
             title="Active Users &amp; Sessions Status"
             aria-label="Active Users &amp; Sessions Status"
             (click)="isUserStatusOpen = true"
           >
-            <ion-icon name="people" class="header-style-051-ace411"></ion-icon>
+            <ion-icon name="people" class="headPeopleIcon"></ion-icon>
           </button>
 
           <button
             type="button"
-            class="header-style-050-fc8e2f"
             [title]="isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
             [attr.aria-label]="isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
             (click)="onToggleDarkMode.emit()"
@@ -200,91 +179,90 @@
 
           <button
             type="button"
-            class="header-style-052-618694"
+            class="headStyle"
             [title]="(notifications.length > 0 ? notifications.length + ' unread notifications' : 'No new notifications')"
             [attr.aria-label]="(notifications.length > 0 ? notifications.length + ' unread notifications' : 'Notifications')"
             (click)="onOpenNotifications.emit()"
           >
-            <ion-icon name="notifications" class="header-style-051-ace411"></ion-icon>
+            <ion-icon name="notifications" class="headPeopleIcon"></ion-icon>
             @if (notifications.length > 0) {
-              <span class="header-style-053-08b49f">
+              <span class="head93">
                 {{ notifications.length > 9 ? '9+' : notifications.length }}
               </span>
             }
           </button>
 
-          <div class="header-style-054-e9a1ae" #menuRef>
+          <div class="headStyle" #menuRef>
             <button
               type="button"
-              class="header-style-055-486646"
               [title]="'User Account Menu (' + currentUser.fullName + ')'"
               [attr.aria-label]="'User Account Menu (' + currentUser.fullName + ')'"
-              (click)="toggleUserMenu($event)"
+              (click)="showUserMenu = !showUserMenu"
             >
-              <div class="header-user-avatar">
+              <div class="head10">
                 @if (currentUser.avatarUrl) {
-                  <img [src]="currentUser.avatarUrl" [alt]="currentUser.fullName + ' profile'" />
+                  <img [src]="currentUser.avatarUrl" [alt]="currentUser.fullName + ' profile'" class="headImg2" />
                 } @else {
                   {{ currentUser.fullName.charAt(0) || 'U' }}
                 }
               </div>
-              <span class="header-style-058-ad1322">{{ currentUser.fullName }}</span>
-              <ion-icon name="chevron-down" class="header-style-059-caaaec"></ion-icon>
+              <span class="head103">{{ currentUser.fullName }}</span>
+              <ion-icon name="chevron-down" class="headChevronDownIcon"></ion-icon>
             </button>
 
             @if (showUserMenu) {
-              <div class="header-style-060-86bc90"
+              <div class="head14"
                 [ngClass]="'head242' | cls">
-                <div class="header-style-061-7d07a2" [ngClass]="'head25' | cls">
-                  <p class="header-style-062-514eda">Install DTS App</p>
+                <div class="head15" [ngClass]="'head25' | cls">
+                  <p class="head72">Install DTS App</p>
                   @if (!isAppInstalled) {
-                    <ion-button type="button" class="header-style-063-94cd94" (click)="handleInstallApp()">
+                    <button type="button" class="headHandleInstallAppBtn" (click)="handleInstallApp()">
                       <ion-icon name="download"></ion-icon>
                       <span>Install on Device</span>
-                    </ion-button>
+                    </button>
                   } @else {
-                    <p class="header-style-064-3f0179">
+                    <p class="head82">
                       <ion-icon name="checkmark-circle"></ion-icon>
                       DTS App Installed
                     </p>
                   }
                 </div>
 
-                <div class="header-style-065-a2fead" [ngClass]="'head25' | cls">
-                  <div class="header-style-066-cb25db">
-                    <div class="header-user-avatar-lg">
+                <div class="head16" [ngClass]="'head25' | cls">
+                  <div class="head11">
+                    <div class="head122">
                       @if (currentUser.avatarUrl) {
-                        <img [src]="currentUser.avatarUrl" [alt]="currentUser.fullName + ' profile'" />
+                        <img [src]="currentUser.avatarUrl" [alt]="currentUser.fullName + ' profile'" class="headImg2" />
                       } @else {
                         {{ currentUser.fullName.charAt(0) || 'U' }}
                       }
                     </div>
-                    <div class="header-style-068-9e84cb">
-                      <p class="header-style-069-72481c">{{ currentUser.fullName }}</p>
-                      <p class="header-style-070-8714b1">{{ currentUser.designation }}</p>
+                    <div class="head6">
+                      <p class="head92">{{ currentUser.fullName }}</p>
+                      <p class="head102">{{ currentUser.designation }}</p>
                     </div>
                   </div>
-                  <div class="header-style-071-9e84ef">
-                    <span class="header-style-072-ecc01e" [ngClass]="(badgeClass(currentUser.role) || 'headCurrentUserRole') | cls">
+                  <div class="head132">
+                    <span class="head124" [ngClass]="(badgeClass(currentUser.role) || 'headCurrentUserRole') | cls">
                       {{ currentUser.role.replace('_', ' ') || 'STAFF' }}
                     </span>
                     @if (currentUser.divisionCode) {
-                      <span class="header-style-072-ecc01e" [ngClass]="'head26' | cls">
+                      <span class="head124" [ngClass]="'head26' | cls">
                         {{ currentUser.divisionCode }}
                       </span>
                     }
                   </div>
                 </div>
 
-                <div class="header-style-073-151918" [ngClass]="'head25' | cls">
+                <div class="head17" [ngClass]="'head25' | cls">
                   Logged in as {{ currentUser.fullName }}
                 </div>
 
-                <div class="header-style-074-5c3c01">
-                  <ion-button type="button" class="header-style-075-f319be" (click)="logoutAction()">
+                <div class="head142">
+                  <button type="button" class="headLogoutActionBtn" (click)="logoutAction()">
                     <ion-icon name="log-out"></ion-icon>
-                    <span class="header-style-076-4c8ea6">Sign Out</span>
-                  </ion-button>
+                    <span class="head113">Sign Out</span>
+                  </button>
                 </div>
               </div>
             }
@@ -294,37 +272,35 @@
     </header>
 
     @if (isUserStatusOpen) {
-      <div class="header-style-077-091ed1" (mousedown)="isUserStatusOpen = false">
-        <div class="header-style-078-bdf11d" (mousedown)="stop($event)">
-          <div class="header-style-079-3cd0f0" [ngClass]="'head252' | cls">
+      <div class="head152" (mousedown)="isUserStatusOpen = false">
+        <div class="head162" (mousedown)="stop($event)">
+          <div class="head18" [ngClass]="'head252' | cls">
             <div>
-              <h2 class="header-style-080-fc18f9">Active Users & Session Directory</h2>
-              <p class="header-style-081-81f1ad">{{ users.length }} registered user{{ users.length === 1 ? '' : 's' }}</p>
+              <h2 class="headH2">Active Users & Session Directory</h2>
+              <p class="head112">{{ users.length }} registered user{{ users.length === 1 ? '' : 's' }}</p>
             </div>
-            <div class="header-style-082-8157bc">
-              <span class="header-style-083-6b5bc0" [ngClass]="(isOnline ? 'head233' : 'head322') | cls">
-                <span class="header-style-084-9bbb1a" [ngClass]="(isOnline ? 'head243' : 'head34') | cls"></span>
+            <div class="head7">
+              <span class="head134" [ngClass]="(isOnline ? 'head233' : 'head322') | cls">
+                <span class="head144" [ngClass]="(isOnline ? 'head243' : 'head34') | cls"></span>
                 {{ isOnline ? 'ONLINE' : 'OFFLINE' }}
               </span>
-              <ion-button type="button" class="header-style-085-745ee3" aria-label="Close user status" (click)="isUserStatusOpen = false">
-                <ion-icon name="close" class="header-style-004-9b26a8"></ion-icon>
-              </ion-button>
+              <button type="button" class="headCloseUserStatusBtn" aria-label="Close user status" (click)="isUserStatusOpen = false">
+                <ion-icon name="close" class="headMenuIcon"></ion-icon>
+              </button>
             </div>
           </div>
-          <div class="header-style-086-1d307a">
+          <div class="head172">
             @for (user of users; track user.id) {
-              <div class="header-style-087-df3196" [ngClass]="'head262' | cls">
+              <div class="head19" [ngClass]="'head262' | cls">
                 @if (user.avatarUrl) {
-                  <div class="header-directory-avatar">
-                    <img [src]="user.avatarUrl" [alt]="user.fullName" />
-                  </div>
+                  <img [src]="user.avatarUrl" [alt]="user.fullName" class="headImg1" [ngClass]="'head252' | cls" />
                 } @else {
-                  <div class="header-directory-avatar">{{ initialsOf(user.fullName) }}</div>
+                  <div class="head110" [ngClass]="'head27' | cls">{{ initialsOf(user.fullName) }}</div>
                 }
-                <div class="header-style-068-9e84cb">
-                  <p class="header-style-090-148d3e">{{ user.fullName }}</p>
-                  <p class="header-style-091-b0aa52">{{ user.designation || user.role }} &middot; {{ user.divisionCode }}</p>
-                  <div class="header-style-092-6d82b1">
+                <div class="head6">
+                  <p class="head123">{{ user.fullName }}</p>
+                  <p class="head133">{{ user.designation || user.role }} &middot; {{ user.divisionCode }}</p>
+                  <div class="head182">
                     <span [ngClass]="(user.active ? 'headUserActiveState' : 'headUserActiveState2') | cls">{{ user.active ? 'ACTIVE' : 'DEACTIVATED' }}</span>
                     <span [ngClass]="((user.id === currentUser.id && isOnline) ? 'headUserIdState' : 'headUserIdState2') | cls">{{ (user.id === currentUser.id && isOnline) ? 'CURRENT SESSION' : '' }}</span>
                   </div>
@@ -337,24 +313,25 @@
     }
 
     @if (isScannerOpen) {
-      <div class="header-style-093-b56559" (mousedown)="isScannerOpen = false">
-        <div class="header-style-094-998f0b" (mousedown)="stop($event)">
-          <div class="header-style-095-a3f085">
-            <h3 class="header-style-096-bf7093">
-              <ion-icon name="scan" class="header-style-097-249288"></ion-icon>
+      <div class="head192" (mousedown)="isScannerOpen = false">
+        <div class="head20" (mousedown)="stop($event)">
+          <div class="head21">
+            <h3 class="headH3">
+              <ion-icon name="scan" class="headScanIcon"></ion-icon>
               Scan Document QR
             </h3>
-            <ion-button type="button" class="header-style-098-da9b67" aria-label="Close scanner" (click)="isScannerOpen = false">
+            <button type="button" class="headCloseScannerBtn" aria-label="Close scanner" (click)="isScannerOpen = false">
               <ion-icon name="close"></ion-icon>
-            </ion-button>
+            </button>
           </div>
-          <div class="header-style-099-740bc4">
-            <div id="document-search-scanner" class="header-style-100-8611cd"></div>
+          <div class="head22">
+            <div id="document-search-scanner" class="headSearchScanner"></div>
             @if (scannerError) {
-              <p class="header-style-101-829f7f">{{ scannerError }}</p>
+              <p class="head143">{{ scannerError }}</p>
             }
-            <ion-button type="button" class="header-style-102-7e12d1" (click)="isScannerOpen = false">Cancel</ion-button>
+            <button type="button" class="headBtn" (click)="isScannerOpen = false">Cancel</button>
           </div>
         </div>
       </div>
     }
+  
