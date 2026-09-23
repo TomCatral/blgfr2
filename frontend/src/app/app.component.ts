@@ -259,6 +259,16 @@ export class AppComponent implements OnInit, OnDestroy {
       this.checkTargetDates();
       this.syncRoutingPopup();
     });
+    effect(() => {
+      const user = this.currentUser();
+      if (user) {
+        void this.loadBackendData();
+        this.state.startPolling();
+        void this.state.refreshNotifications();
+      } else {
+        this.state.stopPolling();
+      }
+    });
     this.syncTargetDatePopup();
   }
 

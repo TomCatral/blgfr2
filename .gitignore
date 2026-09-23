@@ -27,4 +27,6 @@ schema_diff.txt
 .angular/
 frontend/.angular/
 .chrome-ui-check/
+.recovery/
+.tempmediaStorage/
 
