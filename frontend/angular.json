@@ -29,6 +29,9 @@
             ],
             "styles": [
               "src/ionic-design.css",
+              "src/theme.scss",
+              "src/shared-app.scss",
+              "src/ui-enhancements.scss",
               "src/template-migrated.scss",
               "src/ionic-responsive.scss"
             ],

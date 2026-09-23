@@ -99,7 +99,8 @@
     <!-- Incoming Docs -->
     <button
       type="button"
-      (click)="onNavigateToView('incoming')"
+      (click)="selectedCard.set('incoming')"
+      [class.active-card]="selectedCard() === 'incoming'"
       class="kpi-card group">
       <div class="kpi-header">
         <span>Incoming</span>
@@ -112,14 +113,15 @@
       </div>
       <div class="kpi-footer">
         <span>Received in RO II</span>
-        <ion-icon name="open-outline"></ion-icon>
+        <span class="kpi-filter-pill pill-blue">Details</span>
       </div>
     </button>
 
     <!-- Outgoing Docs -->
     <button
       type="button"
-      (click)="onNavigateToView('outgoing')"
+      (click)="selectedCard.set('outgoing')"
+      [class.active-card]="selectedCard() === 'outgoing'"
       class="kpi-card group">
       <div class="kpi-header">
         <span>Outgoing</span>
@@ -132,7 +134,7 @@
       </div>
       <div class="kpi-footer">
         <span>Released / Out</span>
-        <ion-icon name="open-outline"></ion-icon>
+        <span class="kpi-filter-pill pill-sky">Details</span>
       </div>
     </button>
 
@@ -298,7 +300,7 @@
   <div class="dash-activity-section">
     <!-- Header with Tabs and Search -->
     <div class="dash-activity-header">
-      <div>
+      <div class="dash-activity-heading">
         <div class="dash-activity-title-row">
           <span class="dash-activity-icon-wrap">
             <ion-icon name="time" class="dash-activity-icon"></ion-icon>
@@ -315,14 +317,64 @@
         </p>
       </div>
 
-      <!-- Controls: View All -->
-      <div class="dash-activity-controls">
+      <!-- Controls: Tabs, Search & View All -->
+      <div class="dash-activity-toolbar">
+        <!-- Interactive Filter Tabs -->
+        <div class="dash-activity-tabs">
+          <button
+            type="button"
+            (click)="setRecentFilter('ALL')"
+            [class.active]="recentDocFilter() === 'ALL'"
+            class="dash-tab-btn">
+            <span>All</span>
+            <span class="dash-tab-badge">{{ recentTransactions().length }}</span>
+          </button>
+          <button
+            type="button"
+            (click)="setRecentFilter('INCOMING')"
+            [class.active]="recentDocFilter() === 'INCOMING'"
+            class="dash-tab-btn">
+            <ion-icon name="arrow-down"></ion-icon>
+            <span>Incoming</span>
+            <span class="dash-tab-badge">{{ incomingRecentCount() }}</span>
+          </button>
+          <button
+            type="button"
+            (click)="setRecentFilter('OUTGOING')"
+            [class.active]="recentDocFilter() === 'OUTGOING'"
+            class="dash-tab-btn">
+            <ion-icon name="arrow-up"></ion-icon>
+            <span>Outgoing</span>
+            <span class="dash-tab-badge">{{ outgoingRecentCount() }}</span>
+          </button>
+        </div>
+
+        <!-- Search Box -->
+        <div class="dash-search-box">
+          <ion-icon name="search-outline" class="dash-search-icon"></ion-icon>
+          <input
+            type="text"
+            [value]="searchQuery()"
+            (input)="onSearchQueryChange($any($event.target).value)"
+            placeholder="Search documents..."
+            class="dash-search-input" />
+          @if (searchQuery()) {
+            <button
+              type="button"
+              (click)="clearSearch()"
+              class="dash-search-clear-btn"
+              title="Clear search">
+              <ion-icon name="close-circle"></ion-icon>
+            </button>
+          }
+        </div>
+
         <!-- View all button -->
         <button
           type="button"
           (click)="onNavigateToView('incoming')"
           class="dash-activity-view-all-btn">
-          <span>View All Documents</span>
+          <span>View All</span>
           <ion-icon name="arrow-forward" class="dash-activity-view-all-icon"></ion-icon>
         </button>
       </div>
@@ -538,13 +590,24 @@
               {{ cardDocuments().length }} document{{ cardDocuments().length === 1 ? '' : 's' }} in this category
             </p>
           </div>
-          <button
-            type="button"
-            (click)="selectedCard.set(null)"
-            class="dash-card-modal-close"
-            [attr.aria-label]="'Close ' + cardTitle()">
-            <ion-icon name="close"></ion-icon>
-          </button>
+          <div class="dash-card-modal-actions">
+            @if (selectedCard() === 'incoming' || selectedCard() === 'outgoing') {
+              <button
+                type="button"
+                (click)="onNavigateToView(selectedCard() === 'outgoing' ? 'outgoing' : 'incoming'); selectedCard.set(null)"
+                class="dash-card-modal-jump-btn">
+                <span>Open Dedicated View</span>
+                <ion-icon name="open-outline"></ion-icon>
+              </button>
+            }
+            <button
+              type="button"
+              (click)="selectedCard.set(null)"
+              class="dash-card-modal-close"
+              [attr.aria-label]="'Close ' + cardTitle()">
+              <ion-icon name="close"></ion-icon>
+            </button>
+          </div>
         </div>
         <div class="dash-card-modal-body">
           @if (cardDocuments().length) {
