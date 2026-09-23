@@ -192,10 +192,11 @@
             }
           </button>
 
-          <div class="headStyle header-account" #menuRef>
+          <div class="header-account headStyle" [class.is-open]="showUserMenu" #menuRef>
             <button
               type="button"
-              class="head5"
+              class="header-account-btn head5"
+              [class.is-active]="showUserMenu"
               [title]="'User Account Menu (' + currentUser.fullName + ')'"
               [attr.aria-label]="'User Account Menu (' + currentUser.fullName + ')'"
               (click)="toggleUserMenu($event)"
@@ -212,7 +213,7 @@
             </button>
 
             @if (showUserMenu) {
-              <div class="head14 header-account"
+              <div class="head14 header-account-menu"
                 [ngClass]="'head242' | cls">
                 <div class="head15" [ngClass]="'head25' | cls">
                   <p class="head72">Install DTS App</p>

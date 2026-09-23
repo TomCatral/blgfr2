@@ -1106,6 +1106,15 @@ export class AppComponent implements OnInit, OnDestroy {
     this.targetDatePopup.set(null);
   }
 
+  dismissTargetDatePopup = (): void => {
+    const doc = this.targetDatePopup();
+    if (doc) {
+      this.acknowledgeTargetDate(doc);
+    } else {
+      this.targetDatePopup.set(null);
+    }
+  };
+
   reviewTargetDate(document: DocumentRecord): void {
     this.acknowledgeTargetDate(document);
     this.selectedDoc.set(document);

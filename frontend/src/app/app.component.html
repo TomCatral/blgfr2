@@ -208,7 +208,7 @@
           [onSubmit]="routeDocument"
         />
 
-        <app-modal-layer [isOpen]="!!targetDatePopup()" [maxWidth]="'28rem'">
+        <app-modal-layer [isOpen]="!!targetDatePopup()" [maxWidth]="'28rem'" [onClose]="dismissTargetDatePopup">
           @if (targetDatePopup(); as doc) {
             <div class="deadline-modal">
               <div class="deadline-accent-bar" aria-hidden="true"></div>
@@ -371,7 +371,7 @@
         }
 
         @if (routingPopup(); as popup) {
-          <app-modal-layer [onClose]="closeRoutingActionPopup">
+          <app-modal-layer [isOpen]="true" [onClose]="closeRoutingActionPopup">
             <div class="app3">
               <div role="dialog" aria-modal="true" aria-labelledby="routing-popup-title" class="app1"
                 [ngClass]="'app24' | cls">

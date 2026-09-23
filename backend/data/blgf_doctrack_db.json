@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-09-23T09:42:11.677Z",
+  "updatedAt": "2026-09-23T09:57:50.841Z",
   "divisions": [
     {
       "id": "div-1785998911356",
@@ -1650,6 +1650,86 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "log-dd41b9a9-d159-48f0-adef-eefb9a715149",
+      "timestamp": "2026-09-23T09:57:50.497Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-668a6a3c-cd4a-402f-90fb-6cc5a7e39e51",
+      "timestamp": "2026-09-23T09:56:12.642Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-c14bacb6-a7ed-43b7-9fe3-d317cbbf4cc9",
+      "timestamp": "2026-09-23T09:50:52.816Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-890f001d-2bc4-4933-9568-281b2abc3ea4",
+      "timestamp": "2026-09-23T09:49:48.680Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-43250d0c-653f-4d28-9a26-843567292b9d",
+      "timestamp": "2026-09-23T09:48:25.376Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-99993556-a335-4ffd-8cbe-bb4cafd6a331",
+      "timestamp": "2026-09-23T09:47:54.910Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-7c171a3e-63e9-44c0-b68b-921c089c0755",
+      "timestamp": "2026-09-23T09:47:34.349Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "log-bca84468-ff51-4803-95fe-7e61527662ee",
+      "timestamp": "2026-09-23T09:47:14.507Z",
+      "userId": "usr-1785809468216",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
     {
       "id": "log-af07a1b2-bac3-4c0b-8534-d8dbe8cdc123",
       "timestamp": "2026-09-23T09:42:11.285Z",

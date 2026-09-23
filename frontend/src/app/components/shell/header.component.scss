@@ -335,60 +335,124 @@
 }
 
 .header-account {
-  position: relative;
+  position: relative !important;
   min-width: 0;
-  flex: 0 0 auto;
-  overflow: visible;
+  display: inline-flex !important;
+  align-items: center !important;
+  flex: 0 0 auto !important;
+  overflow: visible !important;
+  z-index: 50;
 }
 
-.header-account-btn {
+.header-account-btn,
+.header-account > button,
+.head5 {
   display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex-wrap: nowrap !important;
   width: auto !important;
-  min-width: 10rem !important;
-  max-width: 13.5rem !important;
+  min-width: 9.5rem !important;
+  max-width: 14.5rem !important;
   height: 40px !important;
   min-height: 40px !important;
-  padding: 0 !important;
-  flex: 0 0 auto !important;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 4px 10px 4px 5px !important;
+  max-height: 40px !important;
+  padding: 4px 12px 4px 4px !important;
+  margin: 0 !important;
+  gap: 0.55rem !important;
+  border-radius: 9999px !important;
+  border: 1px solid rgba(226, 232, 240, 0.92) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #334155 !important;
+  box-shadow: 0 2px 6px -2px rgba(15, 23, 42, 0.12), inset 0 1px 0 #ffffff !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  white-space: nowrap !important;
+  user-select: none !important;
+  box-sizing: border-box !important;
+
+  &:hover,
+  &.is-active {
+    background: #f8fbff !important;
+    border-color: rgba(59, 130, 246, 0.45) !important;
+    color: #2563eb !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 16px -4px rgba(37, 99, 235, 0.2), inset 0 1px 0 #ffffff !important;
+
+    .headChevronDownIcon {
+      color: #2563eb !important;
+    }
+  }
+
+  &.is-active .headChevronDownIcon {
+    transform: rotate(180deg) !important;
+  }
+
+  &:active {
+    transform: translateY(0) !important;
+  }
 }
 
-.header-account-btn::part(native) {
-  min-height: 40px;
-  padding: 4px 10px 4px 5px;
-  overflow: hidden;
+.header-account-btn .head10,
+.head5 .head10,
+.header-account .head10 {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  flex: 0 0 32px !important;
+  border-radius: 9999px !important;
+  overflow: hidden !important;
+  background: linear-gradient(135deg, #2563eb, #4f46e5) !important;
+  color: #ffffff !important;
+  font-size: 0.8125rem !important;
+  font-weight: 800 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15) !important;
 }
 
-.header-account-btn .head103 {
-  max-width: 7rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.header-account-btn .head10 {
-  width: 30px !important;
-  min-width: 30px !important;
-  height: 30px !important;
-  flex: 0 0 30px;
-  border-radius: 9px !important;
-}
-
-.header-account-btn .headImg2 {
-  display: block;
+.header-account-btn .headImg2,
+.head5 .headImg2,
+.header-account .headImg2 {
+  display: block !important;
   width: 100% !important;
   height: 100% !important;
-  border-radius: inherit;
-  object-fit: cover;
+  border-radius: 9999px !important;
+  object-fit: cover !important;
 }
 
-.header-account-btn .headChevronDownIcon {
+.header-account-btn .head103,
+.head5 .head103,
+.header-account .head103 {
+  display: inline-block !important;
+  max-width: 8rem !important;
+  font-size: 0.8125rem !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  line-height: 1.2 !important;
+  flex: 1 1 auto !important;
+  text-align: left !important;
+}
+
+.header-account-btn .headChevronDownIcon,
+.head5 .headChevronDownIcon,
+.header-account .headChevronDownIcon {
+  display: inline-flex !important;
   width: 14px !important;
+  min-width: 14px !important;
   height: 14px !important;
-  flex: 0 0 14px;
-  color: #94a3b8;
+  flex: 0 0 14px !important;
+  color: #94a3b8 !important;
+  margin-right: 2px !important;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease !important;
 }
 
 .head2,
@@ -431,10 +495,32 @@
   }
 }
 
-.head14 {
-  margin-top: 0.65rem !important;
-  overflow: hidden;
+.head14,
+.header-account-menu {
+  position: absolute !important;
+  top: calc(100% + 8px) !important;
+  right: 0 !important;
+  width: 18.5rem !important;
+  max-width: calc(100vw - 1rem) !important;
+  margin-top: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  overflow: hidden !important;
   border-radius: 1.125rem !important;
+  z-index: 1000 !important;
+  animation: userMenuDropIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+@keyframes userMenuDropIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .head15,
@@ -696,6 +782,35 @@
     --color: #cbd5e1;
     --border-color: rgba(51, 65, 85, 0.82);
     --box-shadow: 0 4px 12px -7px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .header-account-btn,
+  .header-account > button,
+  .head5 {
+    background: rgba(14, 22, 40, 0.94) !important;
+    border-color: rgba(51, 65, 85, 0.85) !important;
+    color: #e2e8f0 !important;
+    box-shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+
+    .head103 {
+      color: #f1f5f9 !important;
+    }
+
+    .headChevronDownIcon {
+      color: #94a3b8 !important;
+    }
+
+    &:hover,
+    &.is-active {
+      background: #162238 !important;
+      border-color: rgba(96, 165, 250, 0.5) !important;
+      color: #60a5fa !important;
+      box-shadow: 0 6px 18px -4px rgba(59, 130, 246, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+
+      .headChevronDownIcon {
+        color: #60a5fa !important;
+      }
+    }
   }
 
   .header-action-btn:hover,
