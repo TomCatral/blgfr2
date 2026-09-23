@@ -523,97 +523,97 @@
   <!-- 7. Selected Card Filtered Documents Modal -->
   @if (selectedCard()) {
     <div
-      class="dashboard-style-137-5f7c4c"
+      class="dash-card-modal-backdrop"
       role="dialog"
       aria-modal="true"
       aria-labelledby="pending-documents-title"
       (mousedown)="onBackdropMouseDown($event, 'selectedCard')">
-      <div class="dashboard-style-138-3ec85e">
-        <div class="dashboard-style-139-526407">
+      <div class="dash-card-modal-dialog">
+        <div class="dash-card-modal-header">
           <div>
-            <h2 id="pending-documents-title" class="dashboard-style-140-3ce6cf">
+            <h2 id="pending-documents-title" class="dash-card-modal-title">
               {{ cardTitle() }}
             </h2>
-            <p class="dashboard-style-141-cc78e0">
+            <p class="dash-card-modal-subtitle">
               {{ cardDocuments().length }} document{{ cardDocuments().length === 1 ? '' : 's' }} in this category
             </p>
           </div>
           <button
             type="button"
             (click)="selectedCard.set(null)"
-            class="dashboard-style-142-a193f5"
+            class="dash-card-modal-close"
             [attr.aria-label]="'Close ' + cardTitle()">
-            <ion-icon name="close" class="dashboard-style-071-d527a6"></ion-icon>
+            <ion-icon name="close"></ion-icon>
           </button>
         </div>
-        <div class="dashboard-style-143-cd1ffc">
+        <div class="dash-card-modal-body">
           @if (cardDocuments().length) {
             @for (document of cardDocuments(); track document.id) {
-              <article class="dashboard-style-144-49a674">
-                <div class="dashboard-style-145-288124">
-                  <span class="dashboard-style-146-30fd0d">
+              <article class="dash-card-doc-card">
+                <div class="dash-card-doc-header">
+                  <span class="dash-card-doc-route">
                     {{ document.routeNo }}
                   </span>
-                  <span class="dashboard-style-147-984bd5">
+                  <span class="dash-card-doc-div">
                     {{ document.currentDivision }}
                   </span>
                 </div>
 
-                <div class="dashboard-style-148-f59724">
+                <div class="dash-card-doc-title">
                   {{ document.title }}
                 </div>
-                <div class="dashboard-style-149-483ae0">
+                <div class="dash-card-doc-subject">
                   {{ document.subject }}
                 </div>
-                <div class="dashboard-style-150-eff62c">
-                  Logged By: <strong class="dashboard-style-133-b561fe">{{ document.createdBy }}</strong>
+                <div class="dash-card-doc-creator">
+                  Logged By: <strong>{{ document.createdBy }}</strong>
                 </div>
 
                 @if (document.routes.length > 0) {
-                  <div class="dashboard-style-151-1fc184">
-                    <div class="dashboard-style-152-7997ff">
+                  <div class="dash-card-routing-trail">
+                    <div class="dash-card-trail-title">
                       Routing Trail
                     </div>
-                    <div class="dashboard-routing-timeline dashboard-style-153-28ad74">
+                    <div class="dash-card-trail-list">
                       @for (route of groupRouteTransactions(document); track route.id; let idx = $index) {
-                        <div class="dashboard-style-154-2b5ed7">
-                          <span class="dashboard-style-155-a9d30f">
+                        <div class="dash-card-trail-step">
+                          <span class="dash-card-step-num">
                             {{ idx + 1 }}
                           </span>
-                          <div class="dashboard-style-156-d3ab99">
-                            <div class="dashboard-style-157-ac4bd8">
-                              <div class="dashboard-style-158-4a46d9">
+                          <div class="dash-card-step-body">
+                            <div class="dash-card-step-header">
+                              <div>
                                 <span>Step #{{ idx + 1 }}:</span>
-                                <strong class="dashboard-style-159-486d94">{{ route.fromDivision }}</strong>
+                                <strong>{{ route.fromDivision }}</strong>
                                 <span>&rarr;</span>
-                                <strong class="dashboard-style-160-14543f">{{ route.toDivisions.join(', ') }}</strong>
+                                <strong class="text-emerald">{{ route.toDivisions.join(', ') }}</strong>
                               </div>
-                              <span class="dashboard-style-161-3589cb">{{ formatDate(route.createdAt) }}</span>
+                              <span class="dash-card-step-date">{{ formatDate(route.createdAt) }}</span>
                             </div>
-                            <div class="dashboard-style-162-ae03c5">
+                            <div class="dash-card-step-actors">
                               <div>
-                                <span class="dashboard-style-163-b24af2">Originator:</span>
-                                <strong class="dashboard-style-164-c89fe4">{{ resolveUserName(route.fromUserId, route.fromUser) }}</strong>
+                                <span>Originator:</span>
+                                <strong>{{ resolveUserName(route.fromUserId, route.fromUser) }}</strong>
                               </div>
                               <div>
-                                <span class="dashboard-style-163-b24af2">Recipient:</span>
-                                <strong class="dashboard-style-164-c89fe4">{{ resolveUserName(route.toUserId, route.toUser) || route.toUsers.join(', ') || route.toDivisions.join(', ') }}</strong>
+                                <span>Recipient:</span>
+                                <strong>{{ resolveUserName(route.toUserId, route.toUser) || route.toUsers.join(', ') || route.toDivisions.join(', ') }}</strong>
                               </div>
                             </div>
-                            <div class="dashboard-style-165-32e506">
+                            <div class="dash-card-step-remarks">
                               @if (getRouteDecision(route)) {
                                 <div
-                                  class="dashboard-style-166-6461d2"
-                                  [class.is-approved]="getRouteDecision(route) === 'APPROVED'"
-                                  [class.is-disapproved]="getRouteDecision(route) !== 'APPROVED'">
-                                  <strong class="dashboard-style-167-b540fa">{{ getRouteDecision(route) }}</strong>
-                                  <span class="dashboard-style-168-434edf">by {{ resolveUserName(route.fromUserId, route.fromUser) }}</span>
+                                  class="dash-card-decision-badge"
+                                  [class.decision-approved]="getRouteDecision(route) === 'APPROVED'"
+                                  [class.decision-disapproved]="getRouteDecision(route) !== 'APPROVED'">
+                                  <strong>{{ getRouteDecision(route) }}</strong>
+                                  <span>by {{ resolveUserName(route.fromUserId, route.fromUser) }}</span>
                                 </div>
                               }
                               <div>
-                                <strong class="dashboard-style-169-e924ed">Action:</strong> {{ route.actionRequested || 'N/A' }}
+                                <strong class="text-action">Action:</strong> {{ route.actionRequested || 'N/A' }}
                               </div>
-                              <div class="dashboard-style-170-74d245">
+                              <div class="dash-card-remarks-line">
                                 <strong>Remarks:</strong> {{ route.remarks?.trim() && route.remarks !== 'Logged in BLGF Document Tracking System' ? route.remarks : 'None' }}
                               </div>
                             </div>
@@ -624,18 +624,18 @@
                   </div>
                 }
 
-                <div class="dashboard-style-171-03912a">
+                <div class="dash-card-doc-actions">
                   <button
                     type="button"
                     (click)="selectDocFromCard(document)"
-                    class="dashboard-style-172-184008">
+                    class="dash-card-btn dash-card-btn-view">
                     View Details
                   </button>
                   @if (selectedCard() === 'returned' && canReapproveDocument(document)) {
                     <button
                       type="button"
                       (click)="reapproveFromCard(document)"
-                      class="dashboard-style-173-4f3016">
+                      class="dash-card-btn dash-card-btn-approve">
                       Re-approve
                     </button>
                   }
@@ -643,8 +643,8 @@
               </article>
             }
           } @else {
-            <div class="dashboard-style-174-ba7bc4">
-              <ion-icon name="document-text-outline" class="dashboard-style-175-720aa0"></ion-icon>
+            <div class="dash-card-empty-state">
+              <ion-icon name="document-text-outline"></ion-icon>
               <p>No {{ cardTitle().toLowerCase() }} currently assigned to this account.</p>
             </div>
           }
