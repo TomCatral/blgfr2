@@ -256,12 +256,27 @@
 .reports-tableTitle {
   display: flex;
   align-items: center;
-  gap: .5rem;
-  padding: .75rem 1rem;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
   border-bottom: 1px solid #e2e8f0;
-  color: #475569;
-  font-size: .75rem;
-  font-weight: 700;
+  color: #0f172a;
+  font-size: 0.875rem;
+  font-weight: 800;
+  background: #ffffff;
+}
+
+.reports-routeCell {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-size: 0.75rem !important;
+  font-weight: 800 !important;
+  color: #2563eb !important;
+  background: #eff6ff !important;
+  padding: 0.2rem 0.55rem !important;
+  border-radius: 0.45rem !important;
+  border: 1px solid rgba(191, 219, 254, 0.8) !important;
+  display: inline-block;
+  white-space: nowrap;
 }
 
 .reports-tableScroll {
@@ -693,6 +708,18 @@
 
   .reports-detailBulletItem {
     color: #cbd5e1;
+  }
+
+  .reports-tableTitle {
+    background: #0e1628;
+    color: #f8fafc;
+    border-color: rgba(51, 65, 85, 0.75);
+  }
+
+  .reports-routeCell {
+    background: rgba(37, 99, 235, 0.15) !important;
+    border-color: rgba(59, 130, 246, 0.4) !important;
+    color: #93c5fd !important;
   }
 }
 

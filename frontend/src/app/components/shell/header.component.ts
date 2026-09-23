@@ -143,12 +143,12 @@ export class HeaderComponent implements OnInit, OnDestroy {
   };
   private readonly onMouseDown = (event: MouseEvent): void => {
     const target = event.target as HTMLElement | null;
-    const search = target?.closest('.global-document-search');
+    const search = target?.closest('.global-document-search') || target?.closest('.header-search-container') || target?.closest('.head2');
     if (!search) {
       this.isSearchFocused = false;
       this.activeResultIndex = -1;
     }
-    const menu = target?.closest('.header-account');
+    const menu = target?.closest('.header-account') || target?.closest('.headStyle') || target?.closest('.head14') || target?.closest('.head5');
     if (!menu && this.showUserMenu) this.showUserMenu = false;
   };
   private readonly onBeforeInstallPrompt = (event: Event): void => {

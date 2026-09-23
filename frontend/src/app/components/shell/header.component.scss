@@ -543,23 +543,46 @@
 }
 
 .headLogoutActionBtn {
-  --background: transparent;
-  --background-hover: #fff1f2;
-  --background-activated: #ffe4e6;
-  --color: #be123c;
   width: 100%;
-  justify-content: flex-start;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 2.65rem;
   margin: 0 !important;
-  padding: 0 !important;
-  background: transparent !important;
+  padding: 0.65rem 1rem !important;
+  border: 1px solid rgba(225, 29, 72, 0.25) !important;
   border-radius: 0.75rem !important;
-}
+  background: #fff1f2 !important;
+  color: #e11d48 !important;
+  font-size: 0.85rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(225, 29, 72, 0.08);
 
-.headLogoutActionBtn::part(native) {
-  min-height: 2.5rem;
-  padding: 0.6rem 0.85rem;
-  justify-content: flex-start;
-  border-radius: 0.75rem;
+  ion-icon {
+    font-size: 1.15rem;
+    color: #e11d48;
+    transition: transform 0.2s ease;
+  }
+
+  &:hover {
+    background: #ffe4e6 !important;
+    border-color: rgba(225, 29, 72, 0.45) !important;
+    color: #be123c !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(225, 29, 72, 0.16);
+
+    ion-icon {
+      transform: translateX(2px);
+    }
+  }
+
+  &:active {
+    transform: translateY(0);
+    background: #fecdd3 !important;
+  }
 }
 
 .head82 {
@@ -713,9 +736,24 @@
   }
 
   .headLogoutActionBtn {
-    --background-hover: rgba(225, 29, 72, 0.14);
-    --background-activated: rgba(225, 29, 72, 0.22);
-    --color: #fb7185;
+    background: rgba(225, 29, 72, 0.12) !important;
+    border-color: rgba(225, 29, 72, 0.35) !important;
+    color: #fb7185 !important;
+
+    ion-icon {
+      color: #fb7185;
+    }
+
+    &:hover {
+      background: rgba(225, 29, 72, 0.22) !important;
+      border-color: rgba(225, 29, 72, 0.55) !important;
+      color: #fecdd3 !important;
+      box-shadow: 0 4px 14px rgba(225, 29, 72, 0.28);
+    }
+
+    &:active {
+      background: rgba(225, 29, 72, 0.32) !important;
+    }
   }
 
   .headCloseUserStatusBtn,

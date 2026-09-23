@@ -192,12 +192,13 @@
             }
           </button>
 
-          <div class="headStyle" #menuRef>
+          <div class="headStyle header-account" #menuRef>
             <button
               type="button"
+              class="head5"
               [title]="'User Account Menu (' + currentUser.fullName + ')'"
               [attr.aria-label]="'User Account Menu (' + currentUser.fullName + ')'"
-              (click)="showUserMenu = !showUserMenu"
+              (click)="toggleUserMenu($event)"
             >
               <div class="head10">
                 @if (currentUser.avatarUrl) {
@@ -211,7 +212,7 @@
             </button>
 
             @if (showUserMenu) {
-              <div class="head14"
+              <div class="head14 header-account"
                 [ngClass]="'head242' | cls">
                 <div class="head15" [ngClass]="'head25' | cls">
                   <p class="head72">Install DTS App</p>
@@ -259,7 +260,7 @@
                 </div>
 
                 <div class="head142">
-                  <button type="button" class="headLogoutActionBtn" (click)="logoutAction()">
+                  <button type="button" class="headLogoutActionBtn" (click)="logoutAction()" (mousedown)="logoutAction()">
                     <ion-icon name="log-out"></ion-icon>
                     <span class="head113">Sign Out</span>
                   </button>

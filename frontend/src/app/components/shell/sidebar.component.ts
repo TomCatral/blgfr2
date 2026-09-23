@@ -82,33 +82,28 @@ export class SidebarComponent {
   }
 
   private canViewItem(item: NavigationItem): boolean {
+    if (this.currentUser.role === 'SYSTEM_ADMIN') return true;
+
     const permissions = this.permissions();
     const allowedViews = permissions.allowedViews || [];
 
-    // User Accounts access: Allowed if SYSTEM_ADMIN or if explicitly granted in allowedViews
-    if (item.id === 'users') {
-      return (
-        this.currentUser.role === 'SYSTEM_ADMIN' ||
-        allowedViews.includes('users')
-      );
-    }
-
-    if (item.adminOnly && this.currentUser.role !== 'SYSTEM_ADMIN') return false;
+    if (item.adminOnly) return false;
     if ((item.section === 'Management' || item.section === 'Logs') && !permissions.management) return false;
     if (item.section !== 'Management' && item.section !== 'Logs' && !permissions.mainMenu) return false;
     if (item.actionPermission) {
-      return (
-        this.currentUser.role === 'SYSTEM_ADMIN' ||
-        (permissions.allowedActions || []).includes(item.actionPermission)
-      );
+      return (permissions.allowedActions || []).includes(item.actionPermission);
     }
     if (allowedViews.includes(item.id)) return true;
     if (item.id === 'incoming-report')
       return allowedViews.includes('reports') || allowedViews.includes('incoming');
     if (item.id === 'outgoing-report')
       return allowedViews.includes('reports') || allowedViews.includes('outgoing');
-    if (item.id === 'envelope-report')
-      return allowedViews.includes('reports') || allowedViews.includes('envelope-logs');
+    if (item.id === 'envelope-report' || item.id === 'envelope-logs')
+      return (
+        allowedViews.includes('reports') ||
+        allowedViews.includes('envelope-logs') ||
+        allowedViews.includes('envelope')
+      );
     return false;
   }
 

@@ -1,54 +1,56 @@
 <div class="audit-page">
-  <div class="audit-toolbar">
-    <div class="audit-title-block">
-      <h2 class="audit-title">
-        <ion-icon name="clipboard" class="audit-titleIcon"></ion-icon>
-        <span>{{ title || 'System Audit Logs & Security Trail' }}</span>
-      </h2>
-      <p class="audit-subtitle">
-        {{ subtitle || 'Immutable log trail of all user actions, document routing, and system updates in BLGF Regional Office II' }}
-      </p>
-    </div>
+  <div class="audit-hero">
+    <div class="audit-heroContent">
+      <div class="audit-title-block">
+        <h2 class="audit-title">
+          <ion-icon name="clipboard" class="audit-titleIcon"></ion-icon>
+          <span>{{ title || 'System Audit Logs & Security Trail' }}</span>
+        </h2>
+        <p class="audit-subtitle">
+          {{ subtitle || 'Immutable log trail of all user actions, document routing, and system updates in BLGF Regional Office II' }}
+        </p>
+      </div>
 
-    <div class="audit-toolbarActions">
-      @if (auditLogs.length > 0) {
-        <span class="audit-folderName">
-          <ion-icon name="calendar" class="audit-pill-icon"></ion-icon>
-          <span>{{ currentMonthLabel }}</span>
-        </span>
-      }
+      <div class="audit-toolbarActions">
+        @if (auditLogs.length > 0) {
+          <span class="audit-folderName">
+            <ion-icon name="calendar" class="audit-pill-icon"></ion-icon>
+            <span>{{ currentMonthLabel }}</span>
+          </span>
+        }
 
-      <ion-button
-        type="button"
-        (click)="exportToExcel()"
-        class="audit-excelButton"
-        title="Manually save the selected month's logs to Excel"
-      >
-        <ion-icon name="file-tray"></ion-icon>
-        <span>Manual Excel Save</span>
-      </ion-button>
+        <ion-button
+          type="button"
+          (click)="exportToExcel()"
+          class="audit-excelButton"
+          title="Manually save the selected month's logs to Excel"
+        >
+          <ion-icon name="file-tray"></ion-icon>
+          <span>Manual Excel Save</span>
+        </ion-button>
 
-      <ion-button
-        type="button"
-        (click)="chooseAutoSaveDirectory()"
-        class="audit-folderButton"
-        title="Select the folder used for automatic monthly Excel files"
-      >
-        <ion-icon name="folder-open"></ion-icon>
-        <span>
-          {{ autoDirectory || savedFolderName ? 'Auto: ' + (autoDirectory?.name || savedFolderName) : 'Auto-Save Folder' }}
-        </span>
-      </ion-button>
+        <ion-button
+          type="button"
+          (click)="chooseAutoSaveDirectory()"
+          class="audit-folderButton"
+          title="Select the folder used for automatic monthly Excel files"
+        >
+          <ion-icon name="folder-open"></ion-icon>
+          <span>
+            {{ autoDirectory || savedFolderName ? 'Auto: ' + (autoDirectory?.name || savedFolderName) : 'Auto-Save Folder' }}
+          </span>
+        </ion-button>
 
-      <ion-button
-        type="button"
-        (click)="exportToCSV()"
-        class="audit-csvButton"
-        title="Export filtered logs to CSV"
-      >
-        <ion-icon name="download" class="audit-csvIcon"></ion-icon>
-        <span>Export CSV</span>
-      </ion-button>
+        <ion-button
+          type="button"
+          (click)="exportToCSV()"
+          class="audit-csvButton"
+          title="Export filtered logs to CSV"
+        >
+          <ion-icon name="download" class="audit-csvIcon"></ion-icon>
+          <span>Export CSV</span>
+        </ion-button>
+      </div>
     </div>
   </div>
 
@@ -108,6 +110,13 @@
   </div>
 
   <div class="audit-tableCard">
+    <div class="audit-tableTitle">
+      <div class="audit-tableTitle-left">
+        <ion-icon name="shield-checkmark-outline"></ion-icon>
+        <span>{{ title || 'System Audit Logs' }}</span>
+      </div>
+      <span class="audit-tableCount">{{ filteredLogs.length }} record(s)</span>
+    </div>
     <div class="audit-tableScroll">
       <table class="audit-table">
         <thead>
@@ -142,7 +151,7 @@
                   </span>
                 </td>
                 <td class="audit-routeNumber">
-                  {{ log.documentTrackingNumber || 'N/A' }}
+                  <span class="audit-route-pill">{{ log.documentTrackingNumber || 'N/A' }}</span>
                 </td>
                 <td class="audit-detailsCell">
                   @if (getActionDetailItems(log.details).length > 1) {
