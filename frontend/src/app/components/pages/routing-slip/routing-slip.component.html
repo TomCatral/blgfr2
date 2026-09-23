@@ -5,7 +5,7 @@
 } @else {
   <div class="document-slip-page">
 
-    <div class="document-slip-header-bar slipSlipBar routing-slip-style-001-b8c02a">
+    <div class="document-slip-header-bar slipSlipBar no-print">
       <div [ngClass]="'slip22' | cls">
         <ion-button type="button" (click)="onBack()" [ngClass]="'slipOnBackBtn' | cls" title="Back">
           <ion-icon name="arrow-back" [ngClass]="'slipArrowBackIcon' | cls"></ion-icon>
@@ -118,7 +118,7 @@
       </div>
     }
 
-    <div class="document-slip-sidebar routing-slip-style-001-b8c02a">
+    <div class="document-slip-sidebar no-print">
       <div class="document-slip-picker slipSlipPicker">
         <!-- Sidebar Header -->
         <div class="slip10">
@@ -241,16 +241,16 @@
                   class="quick-doc-btn"
                   [class.is-current]="activeDoc().id === item.id"
                 >
-                  <ion-icon name="document-text-outline" class="quick-doc-icon routing-slip-style-002-14d60f"></ion-icon>
-                  <div class="routing-slip-style-003-0ffd02">
-                    <div class="routing-slip-style-004-5a420b">
+                  <ion-icon name="document-text-outline" class="quick-doc-icon"></ion-icon>
+                  <div class="quick-doc-info">
+                    <div class="quick-doc-meta-row">
                       <span class="quick-doc-code">{{ item.routeNo || item.trackingNumber }}</span>
                       <span class="quick-doc-dir-tag">{{ item.direction || 'IN' }}</span>
                     </div>
                     <div class="quick-doc-title">{{ item.title }}</div>
                   </div>
                   @if (activeDoc().id === item.id) {
-                    <ion-icon name="checkmark-circle" class="quick-doc-check routing-slip-style-002-14d60f"></ion-icon>
+                    <ion-icon name="checkmark-circle" class="quick-doc-check"></ion-icon>
                   }
                 </button>
               }
@@ -260,7 +260,7 @@
       </div>
     </div>
 
-    <div id="routingSlipCanvas" class="document-slip-canvas-wrap slipSlipCanvas routing-slip-style-005-bec261">
+    <div id="routingSlipCanvas" class="document-slip-canvas-wrap slipSlipCanvas">
       <div [ngClass]="'slip15' | cls">
         <div [ngClass]="'slip16' | cls">
           <img src="/blgflogo.jpg" alt="BLGF seal" [ngClass]="'slipImg' | cls">

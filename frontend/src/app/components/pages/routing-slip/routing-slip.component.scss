@@ -661,6 +661,18 @@
     color: #64748b;
   }
 
+  .quick-doc-info {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .quick-doc-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
   .quick-doc-code {
     font-weight: 700;
     font-size: 0.75rem;

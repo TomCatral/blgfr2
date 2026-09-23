@@ -349,7 +349,7 @@
                     }
                   </span>
                 </div>
-                <input type="file" accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" class="route-document-style-001-73a4cd" (change)="onReplyFileChange($event)" />
+                <input type="file" accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" class="hidden-file-input" (change)="onReplyFileChange($event)" />
               </label>
               @if (replyFile) {
                 <ion-button type="button" (click)="removeReplyFile($event)" class="btn-remove-attachment routeRouteModalCloseBtn" aria-label="Remove attachment">

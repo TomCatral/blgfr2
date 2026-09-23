@@ -1,5 +1,5 @@
 
-    <div class="autocomplete-field-style-001-8abf37">
+    <div class="autocomplete-container">
       @if (multiline) {
         <textarea
           [ngModel]="value"
@@ -11,7 +11,7 @@
           (focus)="focused = true"
           (blur)="hideAfterDelay()"
           [ngClass]="inputClass"
-          class="autocomplete-field-style-002-0838a1"
+          class="autocomplete-input"
         ></textarea>
       } @else {
         <input
@@ -23,15 +23,15 @@
           (focus)="focused = true"
           (blur)="hideAfterDelay()"
           [ngClass]="inputClass"
-          class="autocomplete-field-style-002-0838a1"
+          class="autocomplete-input"
         />
       }
       @if (focused && suggestions.length && value.trim()) {
-        <div class="autocomplete-field-style-003-c541c8">
+        <div class="autocomplete-dropdown">
           @for (suggestion of filteredSuggestions; track suggestion; let i = $index) {
             <button
               type="button"
-              class="autocomplete-field-style-004-eac70f"
+              class="autocomplete-option"
               (mousedown)="select($event, suggestion)"
             >
               {{ suggestion }}

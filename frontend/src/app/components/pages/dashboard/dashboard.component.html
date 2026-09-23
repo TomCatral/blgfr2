@@ -295,97 +295,97 @@
   }
 
   <!-- 5. Recent Document Activity Modernized Table Card -->
-  <div class="dashboard-transactions dashboard-style-089-fca37d">
+  <div class="dash-activity-section">
     <!-- Header with Tabs and Search -->
-    <div class="dashboard-style-090-524954">
+    <div class="dash-activity-header">
       <div>
-        <div class="dashboard-style-029-d71f3c">
-          <span class="dashboard-style-091-28ecf4">
-            <ion-icon name="time" class="dashboard-style-071-d527a6"></ion-icon>
+        <div class="dash-activity-title-row">
+          <span class="dash-activity-icon-wrap">
+            <ion-icon name="time" class="dash-activity-icon"></ion-icon>
           </span>
-          <h3 class="dashboard-style-092-b07b56">
+          <h3 class="dash-activity-title">
             Recent Document Activity
           </h3>
-          <span class="dashboard-style-093-e4cc32">
+          <span class="dash-activity-count-badge">
             {{ filteredTransactions().length }} records
           </span>
         </div>
-        <p class="dashboard-style-094-37e8bb">
+        <p class="dash-activity-desc">
           Review current handler, designated action, and routing milestones.
         </p>
       </div>
 
       <!-- Controls: View All -->
-      <div class="dashboard-style-069-043d94">
+      <div class="dash-activity-controls">
         <!-- View all button -->
         <button
           type="button"
           (click)="onNavigateToView('incoming')"
-          class="group dashboard-style-095-93df0a">
+          class="dash-activity-view-all-btn">
           <span>View All Documents</span>
-          <ion-icon name="arrow-forward" class="dashboard-style-096-d3e8c7"></ion-icon>
+          <ion-icon name="arrow-forward" class="dash-activity-view-all-icon"></ion-icon>
         </button>
       </div>
     </div>
 
     <!-- Table Container -->
-    <div class="dashboard-transactions-scroll dashboard-style-097-52fc79">
-      <table class="dashboard-transactions-table dashboard-style-098-e197fe">
+    <div class="dash-table-wrap">
+      <table class="dash-table">
         <thead>
-          <tr class="dashboard-style-099-eb0cab">
-            <th class="dashboard-style-100-41a3ee">
-              <div class="dashboard-style-101-cb51ef">
-                <ion-icon name="qr-code-outline" class="dashboard-style-016-392b17"></ion-icon>
+          <tr class="dash-thead-tr">
+            <th class="dash-th">
+              <div class="dash-th-content">
+                <ion-icon name="qr-code-outline"></ion-icon>
                 <span>Route No.</span>
               </div>
             </th>
-            <th class="dashboard-style-100-41a3ee">
-              <div class="dashboard-style-101-cb51ef">
-                <ion-icon name="swap-horizontal-outline" class="dashboard-style-016-392b17"></ion-icon>
+            <th class="dash-th">
+              <div class="dash-th-content">
+                <ion-icon name="swap-horizontal-outline"></ion-icon>
                 <span>Direction</span>
               </div>
             </th>
-            <th class="transaction-title-column dashboard-style-100-41a3ee">
-              <div class="dashboard-style-101-cb51ef">
-                <ion-icon name="document-text-outline" class="dashboard-style-016-392b17"></ion-icon>
+            <th class="dash-th dash-th-title">
+              <div class="dash-th-content">
+                <ion-icon name="document-text-outline"></ion-icon>
                 <span>Document Title &amp; Subject</span>
               </div>
             </th>
-            <th class="transaction-origin-column dashboard-style-100-41a3ee">
-              <div class="dashboard-style-101-cb51ef">
-                <ion-icon name="business-outline" class="dashboard-style-016-392b17"></ion-icon>
+            <th class="dash-th dash-th-agency">
+              <div class="dash-th-content">
+                <ion-icon name="business-outline"></ion-icon>
                 <span>Originating Agency</span>
               </div>
             </th>
-            <th class="dashboard-style-100-41a3ee">
-              <div class="dashboard-style-101-cb51ef">
-                <ion-icon name="folder-open-outline" class="dashboard-style-016-392b17"></ion-icon>
+            <th class="dash-th">
+              <div class="dash-th-content">
+                <ion-icon name="folder-open-outline"></ion-icon>
                 <span>Current Division</span>
               </div>
             </th>
-            <th class="dashboard-style-100-41a3ee">
-              <div class="dashboard-style-101-cb51ef">
-                <ion-icon name="ellipse-outline" class="dashboard-style-016-392b17"></ion-icon>
+            <th class="dash-th">
+              <div class="dash-th-content">
+                <ion-icon name="ellipse-outline"></ion-icon>
                 <span>Status</span>
               </div>
             </th>
-            <th class="dashboard-style-102-408735">
+            <th class="dash-th dash-th-action">
               <span>Action</span>
             </th>
           </tr>
         </thead>
-        <tbody class="dashboard-style-103-3c0047">
+        <tbody class="dash-tbody">
           @if (filteredTransactions().length === 0) {
             <tr>
-              <td colspan="7" class="dashboard-style-104-9e43c2">
-                <div class="dashboard-style-105-ab5d17">
-                  <ion-icon name="file-tray-outline" class="dashboard-style-106-9d88b7"></ion-icon>
-                  <p class="dashboard-style-107-f2c263">No transactions match your current view.</p>
+              <td colspan="7" class="dash-empty-cell">
+                <div class="dash-empty-wrap">
+                  <ion-icon name="file-tray-outline" class="dash-empty-icon"></ion-icon>
+                  <p class="dash-empty-text">No transactions match your current view.</p>
                   @if (searchQuery()) {
                     <button
                       type="button"
                       (click)="clearSearch()"
-                      class="dashboard-style-108-42f762">
+                      class="dash-clear-btn">
                       Clear search query "{{ searchQuery() }}"
                     </button>
                   }
@@ -394,19 +394,19 @@
             </tr>
           }
           @for (doc of paginatedTransactions(); track doc.id) {
-            <tr class="dashboard-transaction-row dashboard-style-109-c9579a" (click)="onSelectDoc(doc)">
+            <tr class="dash-tr-row" (click)="onSelectDoc(doc)">
               <!-- Route No. -->
-              <td class="dashboard-style-110-34ac45">
-                <div class="dashboard-style-101-cb51ef">
+              <td class="dash-td">
+                <div class="dash-th-content">
                   <button
                     type="button"
                     (click)="$event.stopPropagation(); onSelectDoc(doc)"
-                    class="dashboard-style-111-d790f2"
+                    class="dash-route-btn"
                     title="Click to view full routing details">
                     {{ doc.routeNo }}
                   </button>
                   @if (doc.priority === 'URGENT' || doc.priority === 'VERY_URGENT') {
-                    <span class="dashboard-style-112-dab967">
+                    <span class="dash-urgent-tag">
                       URGENT
                     </span>
                   }
@@ -414,72 +414,72 @@
               </td>
 
               <!-- Direction -->
-              <td class="dashboard-style-110-34ac45">
-                <span class="dashboard-style-113-1bb7cc"
+              <td class="dash-td">
+                <span class="dash-dir-pill"
                   [class.is-incoming]="doc.direction === 'INCOMING'"
                   [class.is-outgoing]="doc.direction !== 'INCOMING'">
-                  <ion-icon [name]="doc.direction === 'INCOMING' ? 'arrow-down' : 'arrow-up'" class="dashboard-style-114-4775d4"></ion-icon>
+                  <ion-icon [name]="doc.direction === 'INCOMING' ? 'arrow-down' : 'arrow-up'" class="dash-dir-icon"></ion-icon>
                   <span>{{ doc.direction }}</span>
                 </span>
               </td>
 
               <!-- Document Title & Subject -->
-              <td class="transaction-title-column dashboard-style-115-16ba25">
+              <td class="dash-td dash-td-title">
                 <div
                   (click)="onSelectDoc(doc)"
-                  class="dashboard-style-116-ba3198"
+                  class="dash-doc-title"
                   [title]="doc.title">
                   {{ doc.title }}
                 </div>
-                <div class="dashboard-style-117-a661ad" [title]="doc.subject">
+                <div class="dash-doc-subject" [title]="doc.subject">
                   {{ doc.subject }}
                 </div>
-                <div class="dashboard-style-118-227ec4">
-                  <ion-icon name="navigate" class="dashboard-style-119-42eb40"></ion-icon>
-                  <span class="dashboard-style-120-0589dc">Action: {{ latestAction(doc) }}</span>
+                <div class="dash-doc-action-row">
+                  <ion-icon name="navigate" class="dash-action-icon"></ion-icon>
+                  <span class="dash-action-text">Action: {{ latestAction(doc) }}</span>
                 </div>
               </td>
 
               <!-- Originating Agency -->
-              <td class="transaction-origin-column dashboard-style-121-f772a1">
-                <div class="dashboard-style-122-a60bc7" [title]="doc.senderName">
+              <td class="dash-td dash-td-agency">
+                <div class="dash-agency-sender" [title]="doc.senderName">
                   {{ doc.senderName || 'N/A' }}
                 </div>
-                <div class="dashboard-style-123-6b5a7e" [title]="doc.originatingOffice">
+                <div class="dash-agency-office" [title]="doc.originatingOffice">
                   {{ doc.originatingOffice || 'Regional Origin' }}
                 </div>
-                <div class="dashboard-style-124-bbd807">
+                <div class="dash-agency-address">
                   {{ doc.senderAddress || 'No address specified' }}
                 </div>
               </td>
 
               <!-- Current Division -->
-              <td class="dashboard-style-110-34ac45">
+              <td class="dash-td">
                 <span
-                  class="dashboard-style-125-68352e"
+                  class="dash-div-pill"
                   [title]="getDivisionFullName(doc.currentDivision)">
-                  <ion-icon name="briefcase-outline" class="dashboard-style-126-f64d2b"></ion-icon>
+                  <ion-icon name="briefcase-outline" class="dash-div-icon"></ion-icon>
                   <span>{{ doc.currentDivision }}</span>
                 </span>
               </td>
 
               <!-- Status -->
-              <td class="dashboard-style-110-34ac45">
+              <td class="dash-td">
                 <span
-                  class="dashboard-style-127-c6ac42"
+                  class="dash-status-pill"
                   [ngClass]="statusCfg(doc.currentStatus)?.badgeClass">
-                  <span class="dashboard-style-128-cc7d00"></span>
+                  <span class="dash-status-dot"></span>
                   <span>{{ statusCfg(doc.currentStatus)?.label || doc.currentStatus }}</span>
                 </span>
               </td>
 
               <!-- Action -->
-              <td class="dashboard-style-129-682359">
+              <td class="dash-td dash-td-action">
                 <button
                   type="button"
                   (click)="$event.stopPropagation(); onSelectDoc(doc)"
-                  class="dashboard-style-130-e1c271">
-                  <ion-icon name="eye" class="dashboard-style-036-5ffb77"></ion-icon>
+                  class="dash-details-btn">
+                  <ion-icon name="eye"></ion-icon>
                   <span>Details</span>
                 </button>
               </td>
@@ -491,27 +491,27 @@
 
     <!-- Pagination Controls -->
     @if (filteredTransactions().length > transactionsPerPage) {
-      <div class="dashboard-style-131-4be979">
-        <span class="dashboard-style-132-82f3c3">
-          Page <strong class="dashboard-style-133-b561fe">{{ transactionPage() }}</strong> of {{ transactionPageCount() }}
+      <div class="dash-pagination-bar">
+        <span class="dash-pagination-info">
+          Page <strong class="dash-page-num">{{ transactionPage() }}</strong> of {{ transactionPageCount() }}
           &bull; Showing {{ paginatedTransactions().length }} of {{ filteredTransactions().length }} filtered records
         </span>
-        <div class="dashboard-style-029-d71f3c">
+        <div class="dash-pagination-btns">
           <button
             type="button"
             [disabled]="transactionPage() === 1"
             (click)="prevPage()"
-            class="dashboard-style-134-e2a796">
-            <ion-icon name="arrow-back" class="dashboard-style-135-2821f3"></ion-icon>
+            class="dash-page-nav-btn">
+            <ion-icon name="arrow-back"></ion-icon>
             <span>Previous</span>
           </button>
           <button
             type="button"
             [disabled]="transactionPage() === transactionPageCount()"
             (click)="nextPage()"
-            class="dashboard-style-136-57b27e">
+            class="dash-page-nav-btn">
             <span>Next</span>
-            <ion-icon name="arrow-forward" class="dashboard-style-135-2821f3"></ion-icon>
+            <ion-icon name="arrow-forward"></ion-icon>
           </button>
         </div>
       </div>

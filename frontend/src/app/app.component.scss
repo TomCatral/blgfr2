@@ -5,9 +5,14 @@
   height: 52px;
 }
 
-.mobile-sidebar-backdrop {
-  z-index: 45;
-  display: block;
+.mobile-sidebar-backdrop,
+.appMobileSidebarBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
 }
 
 /* ==========================================================================

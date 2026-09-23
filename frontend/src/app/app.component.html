@@ -33,7 +33,7 @@
 
         <div class="app-workspace">
           @if (isMobileSidebarOpen()) {
-            <div class="appMobileSidebarBackdrop app-style-001-fb58f6" (click)="isMobileSidebarOpen.set(false)">
+            <div class="appMobileSidebarBackdrop" (click)="isMobileSidebarOpen.set(false)">
               <div class="appStop" (click)="stop($event)">
                 <app-sidebar
                   [activeView]="activeView()"

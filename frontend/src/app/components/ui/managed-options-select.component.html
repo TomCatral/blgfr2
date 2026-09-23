@@ -1,7 +1,7 @@
 
-    <div class="managed-options-select-style-001-b17d39">
+    <div class="managed-select-container">
       <select
-        class="managed-options-select-style-002-1121d0"
+        class="managed-select-select"
         [class.managed-select-alignLeft]="textAlign === 'left'"
         [class.managed-select-alignRight]="textAlign === 'right'"
         [value]="value"
@@ -25,7 +25,7 @@
         <button
           type="button"
           aria-label="Add option"
-          class="managed-options-select-style-003-44f176"
+          class="managed-select-actionButton managed-select-addButton"
           (click)="addOption()"
         >
           <ion-icon name="add"></ion-icon>
@@ -34,29 +34,29 @@
         <button
           type="button"
           aria-label="Edit selected option"
-          class="managed-options-select-style-004-2f00e3"
+          class="managed-select-actionButton managed-select-editButton"
           (click)="editOption()"
         >
           <ion-icon name="create"></ion-icon>
         </button>
 
-        <div class="managed-options-select-style-005-d733f0">
+        <div class="managed-select-paletteContainer">
           @if (colorCoding) {
             <button
               type="button"
               aria-label="Choose selected color"
-              class="managed-options-select-style-006-83e889"
+              class="managed-select-actionButton managed-select-paletteButton"
               (click)="showPalette = !showPalette"
             >
               <ion-icon name="color-palette"></ion-icon>
             </button>
             @if (showPalette) {
-              <div class="managed-options-select-style-007-c02c75">
+              <div class="managed-select-palette">
                 @for (dot of COLOR_DOTS; track dot) {
                   <button
                     type="button"
                     [attr.aria-label]="'Use ' + dot + ' color'"
-                    class="managed-options-select-style-008-126496"
+                    class="managed-select-colorButton"
                     (click)="setSelectedColor(dot)"
                   >
                     {{ dot }}
@@ -70,7 +70,7 @@
         <button
           type="button"
           aria-label="Delete selected option"
-          class="managed-options-select-style-009-ff7178"
+          class="managed-select-actionButton managed-select-deleteButton"
           [disabled]="managedOptions.length <= 1"
           (click)="deleteOption()"
         >

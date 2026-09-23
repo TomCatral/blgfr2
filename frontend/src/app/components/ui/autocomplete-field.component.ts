@@ -7,6 +7,7 @@ import { FormsModule } from '@angular/forms';
   standalone: true,
   imports: [NgClass, FormsModule],
   templateUrl: './autocomplete-field.component.html',
+  styleUrl: './autocomplete-field.component.scss',
 })
 export class AutocompleteFieldComponent {
   @Input() value = '';

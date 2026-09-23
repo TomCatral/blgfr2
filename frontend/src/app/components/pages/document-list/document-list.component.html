@@ -16,7 +16,7 @@
   @if (normalizedQuery()) {
     <div [ngClass]="'searchBanner' | cls">
       <ion-icon name="search" [ngClass]="'searchBannerIcon' | cls"></ion-icon>
-      <div class="document-list-style-001-ae061d">
+      <div class="searchBannerCopy">
         <h3 [ngClass]="'searchBannerTitle' | cls">Search results for &ldquo;{{ searchQuery.trim() }}&rdquo;</h3>
         <p [ngClass]="'searchBannerText' | cls">
           {{ filteredDocs().length }} matching document{{ filteredDocs().length === 1 ? '' : 's' }} by tracking number, title, handler &amp; details
@@ -126,7 +126,7 @@
           </thead>
           <tbody [ngClass]="'tableBody' | cls">
             @for (doc of filteredDocs(); track doc.id) {
-              <tr [ngClass]="'tableRow' | cls" (click)="onSelectDoc(doc)" class="document-list-style-002-16abfd">
+              <tr [ngClass]="'tableRow' | cls" (click)="onSelectDoc(doc)">
                 <td [ngClass]="'routeCell' | cls">
                   <div [ngClass]="'routeLink' | cls">
                     <ion-icon name="qr-code" [ngClass]="'routeIcon' | cls"></ion-icon>

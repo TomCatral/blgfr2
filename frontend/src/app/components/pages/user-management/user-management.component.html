@@ -921,17 +921,17 @@
         <!-- LEFT: Personnel Account Selector -->
         <aside class="ua-user-perm-sidebar">
           <div class="ua-perm-sidebar-head">
-            <div class="user-management-style-001-51c3f9">
-              <span class="user-management-style-002-d1806b">
+            <div class="ua-perm-sidebar-head-row">
+              <span class="ua-perm-sidebar-title">
                 Select Account
               </span>
-              <span class="user-management-style-003-bd60d9">
+              <span class="ua-perm-sidebar-count">
                 {{ permFilteredUsers.length }} Available
               </span>
             </div>
 
             <!-- Search -->
-            <div class="ua-perm-search-box user-management-style-004-51905e">
+            <div class="ua-perm-search-box">
               <ion-icon name="search-outline"></ion-icon>
               <input
                 type="text"
@@ -948,7 +948,7 @@
             </div>
 
             <!-- Role filter pills -->
-            <div class="ua-perm-role-chips user-management-style-005-b6c25e">
+            <div class="ua-perm-role-chips">
               <button
                 type="button"
                 (click)="userPermRoleFilter.set('ALL')"
@@ -1013,8 +1013,8 @@
               </button>
             }
             @if (permFilteredUsers.length === 0) {
-              <div class="user-management-style-006-edbb15">
-                <ion-icon name="people-outline" class="user-management-style-007-78f7cd"></ion-icon>
+              <div class="ua-perm-no-results">
+                <ion-icon name="people-outline" class="ua-perm-no-results-icon"></ion-icon>
                 <p>No personnel matching filter.</p>
               </div>
             }
@@ -1026,8 +1026,8 @@
           @if (selectedPermUser(); as user) {
             <!-- User Summary Header -->
             <div class="ua-user-perm-hero-card">
-              <div class="user-management-style-008-450087">
-                <div class="user-management-style-009-d66dca">
+              <div class="ua-perm-hero-layout">
+                <div class="ua-perm-hero-left">
                   <div class="ua-perm-hero-avatar">
                     @if (user.avatarUrl) {
                       <img [src]="user.avatarUrl" [alt]="user.fullName" />
@@ -1035,9 +1035,9 @@
                       <span>{{ user.fullName.charAt(0) || 'U' }}</span>
                     }
                   </div>
-                  <div class="user-management-style-010-8d9bbf">
-                    <div class="user-management-style-011-ebd331">
-                      <h3 class="user-management-style-012-87b96e">
+                  <div class="ua-perm-hero-details">
+                    <div class="ua-perm-hero-name-row">
+                      <h3 class="ua-perm-hero-name">
                         {{ user.fullName }}
                       </h3>
                       <span class="ua-role-pill" [ngClass]="roleBadgeClass(user.role)">
@@ -1046,25 +1046,25 @@
                       </span>
                       <span class="ua-div-code-badge">{{ user.divisionCode }}</span>
                       @if (hasCustomPermissions(user)) {
-                        <span class="user-management-style-013-8ecb51">
-                          <ion-icon name="flash-outline" class="user-management-style-014-ac29e9"></ion-icon>
+                        <span class="ua-perm-custom-pill">
+                          <ion-icon name="flash-outline"></ion-icon>
                           <span>Custom Overrides Active</span>
                         </span>
                       } @else {
-                        <span class="user-management-style-015-5f3c6a">
-                          <ion-icon name="shield-checkmark-outline" class="user-management-style-014-ac29e9"></ion-icon>
+                        <span class="ua-perm-default-pill">
+                          <ion-icon name="shield-checkmark-outline"></ion-icon>
                           <span>Standard {{ user.role }} Defaults</span>
                         </span>
                       }
                     </div>
-                    <p class="user-management-style-016-c85cc3">
-                      {{ user.email || 'No email' }} &bull; Designation: <strong class="user-management-style-017-0ead64">{{ user.designation || 'Staff Officer' }}</strong>
+                    <p class="ua-perm-hero-meta">
+                      {{ user.email || 'No email' }} &bull; Designation: <strong class="ua-perm-hero-desig">{{ user.designation || 'Staff Officer' }}</strong>
                     </p>
                   </div>
                 </div>
 
                 <!-- Quick Action Buttons -->
-                <div class="user-management-style-011-ebd331">
+                <div class="ua-perm-hero-actions">
                   <button
                     type="button"
                     (click)="resetSelectedUserToRoleDefaults()"
@@ -1086,7 +1086,7 @@
                   <button
                     type="button"
                     (click)="revokeAllUserPermissions()"
-                    class="ua-btn-secondary ua-btn-sm user-management-style-018-3d9dcd"
+                    class="ua-btn-secondary ua-btn-sm"
                     title="Revoke all optional permissions"
                   >
                     <ion-icon name="close-circle-outline"></ion-icon>
@@ -1106,26 +1106,26 @@
             </div>
 
             <!-- Permission Cards -->
-            <div class="ua-user-perm-sections user-management-style-019-874346">
+            <div class="ua-user-perm-sections">
               <!-- Section 1: Core Security Rights -->
               <div class="ua-perm-card">
                 <div class="ua-perm-card-header">
-                  <div class="user-management-style-020-f979ba">
-                    <span class="ua-perm-sec-icon user-management-style-021-2fc90f">
+                  <div class="ua-perm-card-header-left">
+                    <span class="ua-perm-sec-icon is-blue">
                       <ion-icon name="lock-closed-outline"></ion-icon>
                     </span>
                     <div>
-                      <h4 class="user-management-style-022-07e0ba">
+                      <h4 class="ua-perm-card-title">
                         Core Security &amp; Transaction Rights
                       </h4>
-                      <p class="user-management-style-023-7fa43c">
+                      <p class="ua-perm-card-desc">
                         High-level administrative and cross-division privileges
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div class="user-management-style-024-f4528a">
+                <div class="ua-perm-toggle-grid">
                   <!-- canViewAllRoutes -->
                   <label class="ua-perm-toggle-row">
                     <input
@@ -1134,11 +1134,11 @@
                       (change)="toggleUserCanViewAllRoutes()"
                       class="ua-perm-checkbox"
                     />
-                    <div class="user-management-style-025-07fbf6">
-                      <span class="user-management-style-026-f7f775">
+                    <div class="ua-perm-toggle-text">
+                      <span class="ua-perm-toggle-label">
                         View All Document Routes
                       </span>
-                      <span class="user-management-style-027-3bf192">
+                      <span class="ua-perm-toggle-desc">
                         Access full routing history and step trail across all regional divisions
                       </span>
                     </div>
@@ -1152,11 +1152,11 @@
                       (change)="toggleUserCanViewAllDocuments()"
                       class="ua-perm-checkbox"
                     />
-                    <div class="user-management-style-025-07fbf6">
-                      <span class="user-management-style-026-f7f775">
+                    <div class="ua-perm-toggle-text">
+                      <span class="ua-perm-toggle-label">
                         View All Division Documents
                       </span>
-                      <span class="user-management-style-027-3bf192">
+                      <span class="ua-perm-toggle-desc">
                         Global visibility of all logged transactions across the regional office
                       </span>
                     </div>
@@ -1170,11 +1170,11 @@
                       (change)="toggleUserCanDelete()"
                       class="ua-perm-checkbox is-danger"
                     />
-                    <div class="user-management-style-025-07fbf6">
-                      <span class="user-management-style-028-2aac9e">
+                    <div class="ua-perm-toggle-text">
+                      <span class="ua-perm-toggle-label text-rose-600">
                         Delete Document Permission
                       </span>
-                      <span class="user-management-style-027-3bf192">
+                      <span class="ua-perm-toggle-desc">
                         Permanent document record purging privilege (Critical security action)
                       </span>
                     </div>
@@ -1185,22 +1185,22 @@
               <!-- Section 2: Functional Action Permissions -->
               <div class="ua-perm-card">
                 <div class="ua-perm-card-header">
-                  <div class="user-management-style-020-f979ba">
-                    <span class="ua-perm-sec-icon user-management-style-029-c8e100">
+                  <div class="ua-perm-card-header-left">
+                    <span class="ua-perm-sec-icon is-emerald">
                       <ion-icon name="flash-outline"></ion-icon>
                     </span>
                     <div>
-                      <h4 class="user-management-style-022-07e0ba">
+                      <h4 class="ua-perm-card-title">
                         Functional Action &amp; Feature Privileges
                       </h4>
-                      <p class="user-management-style-023-7fa43c">
+                      <p class="ua-perm-card-desc">
                         Specific workflow capabilities granted to this user
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div class="user-management-style-024-f4528a">
+                <div class="ua-perm-toggle-grid">
                   @for (action of ACTION_PERMISSIONS; track action.id) {
                     <label class="ua-perm-toggle-row">
                       <input
@@ -1209,11 +1209,11 @@
                         (change)="toggleUserActionPermission(action.id)"
                         class="ua-perm-checkbox"
                       />
-                      <div class="user-management-style-025-07fbf6">
-                        <span class="user-management-style-030-b944fe">
+                      <div class="ua-perm-toggle-text">
+                        <span class="ua-perm-toggle-label">
                           {{ action.label }}
                         </span>
-                        <span class="user-management-style-031-fc66a3">
+                        <span class="ua-perm-toggle-desc font-mono">
                           {{ action.id }}
                         </span>
                       </div>
@@ -1224,16 +1224,16 @@
 
               <!-- Section 3: Main Menu Section & Views -->
               <div class="ua-perm-card">
-                <div class="ua-perm-card-header user-management-style-032-55933a">
-                  <div class="user-management-style-020-f979ba">
-                    <span class="ua-perm-sec-icon user-management-style-033-4555af">
+                <div class="ua-perm-card-header">
+                  <div class="ua-perm-card-header-left">
+                    <span class="ua-perm-sec-icon is-indigo">
                       <ion-icon name="grid-outline"></ion-icon>
                     </span>
                     <div>
-                      <h4 class="user-management-style-022-07e0ba">
+                      <h4 class="ua-perm-card-title">
                         Main Menu Navigation &amp; Modules
                       </h4>
-                      <p class="user-management-style-023-7fa43c">
+                      <p class="ua-perm-card-desc">
                         Module visibility in the primary navigation sidebar
                       </p>
                     </div>
@@ -1241,7 +1241,7 @@
 
                   <!-- Master Main Menu Toggle -->
                   <label class="ua-perm-master-switch">
-                    <span class="user-management-style-034-a75e98">Allow Main Menu:</span>
+                    <span class="ua-perm-master-label">Allow Main Menu:</span>
                     <input
                       type="checkbox"
                       [checked]="userPermForm().mainMenu"
@@ -1251,7 +1251,7 @@
                   </label>
                 </div>
 
-                <div class="user-management-style-035-fdf8bf" [class.opacity-40]="!userPermForm().mainMenu">
+                <div class="ua-perm-tiles-grid" [class.is-disabled]="!userPermForm().mainMenu">
                   @for (item of mainMenuItems; track item.id) {
                     <label class="ua-perm-view-tile" [class.is-active]="isUserViewAllowed(item.id) && userPermForm().mainMenu">
                       <input
@@ -1261,11 +1261,9 @@
                         (change)="toggleUserViewPermission(item.id)"
                         class="ua-perm-checkbox"
                       />
-                      <div class="user-management-style-036-829c21">
-                        <div class="user-management-style-037-de0d29">
-                          <ion-icon [name]="item.icon + '-outline'" class="user-management-style-038-7ee156"></ion-icon>
-                          <span class="user-management-style-039-941185">{{ item.label }}</span>
-                        </div>
+                      <div class="ua-perm-tile-inner">
+                        <ion-icon [name]="item.icon + '-outline'" class="ua-perm-tile-icon"></ion-icon>
+                        <span class="ua-perm-tile-label">{{ item.label }}</span>
                       </div>
                     </label>
                   }
@@ -1275,22 +1273,22 @@
               <!-- Section 4: Reports Section Access -->
               <div class="ua-perm-card">
                 <div class="ua-perm-card-header">
-                  <div class="user-management-style-020-f979ba">
-                    <span class="ua-perm-sec-icon user-management-style-040-f36037">
+                  <div class="ua-perm-card-header-left">
+                    <span class="ua-perm-sec-icon is-amber">
                       <ion-icon name="file-tray-full-outline"></ion-icon>
                     </span>
                     <div>
-                      <h4 class="user-management-style-022-07e0ba">
+                      <h4 class="ua-perm-card-title">
                         Official Reports Section Access
                       </h4>
-                      <p class="user-management-style-023-7fa43c">
+                      <p class="ua-perm-card-desc">
                         Export and report analytics module permissions
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div class="user-management-style-041-e3a93a">
+                <div class="ua-perm-tiles-grid">
                   @for (item of reportMenuItems; track item.id) {
                     <label class="ua-perm-view-tile" [class.is-active]="isUserViewAllowed(item.id)">
                       <input
@@ -1299,11 +1297,9 @@
                         (change)="toggleUserViewPermission(item.id)"
                         class="ua-perm-checkbox"
                       />
-                      <div class="user-management-style-036-829c21">
-                        <div class="user-management-style-037-de0d29">
-                          <ion-icon [name]="item.icon + '-outline'" class="user-management-style-042-8a349f"></ion-icon>
-                          <span class="user-management-style-039-941185">{{ item.label }}</span>
-                        </div>
+                      <div class="ua-perm-tile-inner">
+                        <ion-icon [name]="item.icon + '-outline'" class="ua-perm-tile-icon"></ion-icon>
+                        <span class="ua-perm-tile-label">{{ item.label }}</span>
                       </div>
                     </label>
                   }
@@ -1312,16 +1308,16 @@
 
               <!-- Section 5: Management Section Access -->
               <div class="ua-perm-card">
-                <div class="ua-perm-card-header user-management-style-032-55933a">
-                  <div class="user-management-style-020-f979ba">
-                    <span class="ua-perm-sec-icon user-management-style-043-47a134">
+                <div class="ua-perm-card-header">
+                  <div class="ua-perm-card-header-left">
+                    <span class="ua-perm-sec-icon is-purple">
                       <ion-icon name="settings-outline"></ion-icon>
                     </span>
                     <div>
-                      <h4 class="user-management-style-022-07e0ba">
+                      <h4 class="ua-perm-card-title">
                         System Administration &amp; Management Access
                       </h4>
-                      <p class="user-management-style-023-7fa43c">
+                      <p class="ua-perm-card-desc">
                         Privileges for configuration, logs, and account oversight
                       </p>
                     </div>
@@ -1329,7 +1325,7 @@
 
                   <!-- Master Management Toggle -->
                   <label class="ua-perm-master-switch">
-                    <span class="user-management-style-034-a75e98">Allow Management:</span>
+                    <span class="ua-perm-master-label">Allow Management:</span>
                     <input
                       type="checkbox"
                       [checked]="userPermForm().management"
@@ -1339,7 +1335,7 @@
                   </label>
                 </div>
 
-                <div class="user-management-style-035-fdf8bf">
+                <div class="ua-perm-tiles-grid" [class.is-disabled]="!userPermForm().management">
                   @for (item of managementMenuItems; track item.id) {
                     <label class="ua-perm-view-tile" [class.is-active]="isUserViewAllowed(item.id)">
                       <input
@@ -1348,11 +1344,9 @@
                         (change)="toggleUserViewPermission(item.id)"
                         class="ua-perm-checkbox"
                       />
-                      <div class="user-management-style-036-829c21">
-                        <div class="user-management-style-037-de0d29">
-                          <ion-icon [name]="item.icon + '-outline'" class="user-management-style-044-eff942"></ion-icon>
-                          <span class="user-management-style-039-941185">{{ item.label }}</span>
-                        </div>
+                      <div class="ua-perm-tile-inner">
+                        <ion-icon [name]="item.icon + '-outline'" class="ua-perm-tile-icon"></ion-icon>
+                        <span class="ua-perm-tile-label">{{ item.label }}</span>
                       </div>
                     </label>
                   }
@@ -1364,11 +1358,9 @@
                         (change)="toggleUserViewPermission(item.id)"
                         class="ua-perm-checkbox"
                       />
-                      <div class="user-management-style-036-829c21">
-                        <div class="user-management-style-037-de0d29">
-                          <ion-icon [name]="item.icon + '-outline'" class="user-management-style-045-7dff57"></ion-icon>
-                          <span class="user-management-style-039-941185">{{ item.label }}</span>
-                        </div>
+                      <div class="ua-perm-tile-inner">
+                        <ion-icon [name]="item.icon + '-outline'" class="ua-perm-tile-icon"></ion-icon>
+                        <span class="ua-perm-tile-label">{{ item.label }}</span>
                       </div>
                     </label>
                   }
@@ -1377,16 +1369,16 @@
             </div>
 
             <!-- Bottom Save Bar -->
-            <div class="ua-perm-save-footer user-management-style-046-86ed59">
-              <div class="user-management-style-047-aea1f1">
-                <div class="user-management-style-048-a328f7">
-                  <span class="user-management-style-049-5dc224" [ngClass]="isUserPermDirty() ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'"></span>
-                  <span class="user-management-style-050-8d13a3">
+            <div class="ua-perm-save-footer">
+              <div class="ua-perm-save-inner">
+                <div class="ua-perm-save-status">
+                  <span class="ua-perm-sync-dot" [class.is-dirty]="isUserPermDirty()"></span>
+                  <span class="ua-perm-sync-text">
                     {{ isUserPermDirty() ? 'Unsaved changes pending for ' + user.fullName : 'All permissions in sync for ' + user.fullName }}
                   </span>
                 </div>
 
-                <div class="user-management-style-020-f979ba">
+                <div class="ua-perm-save-btns">
                   <button
                     type="button"
                     (click)="selectUserForPerm(user)"
@@ -1408,9 +1400,9 @@
           } @else {
             <!-- Empty State -->
             <div class="ua-user-perm-empty">
-              <ion-icon name="shield-outline" class="user-management-style-051-a140ed"></ion-icon>
-              <h3 class="user-management-style-052-331539">No Personnel Selected</h3>
-              <p class="user-management-style-053-2fd4ac">
+              <ion-icon name="shield-outline" class="ua-perm-empty-icon"></ion-icon>
+              <h3 class="ua-perm-empty-title">No Personnel Selected</h3>
+              <p class="ua-perm-empty-desc">
                 Choose a personnel account from the left list to view and configure their customized permissions.
               </p>
             </div>
