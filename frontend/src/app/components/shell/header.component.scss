@@ -165,6 +165,15 @@
   user-select: none;
 }
 
+.head63.is-highlighted {
+  border-radius: 0.2rem;
+  background: #fde68a;
+}
+
+:host-context(.dark) .head63.is-highlighted {
+  background: #78350f;
+}
+
 .search-result-row:hover,
 .search-result-row.active-result {
   background: rgba(37, 99, 235, 0.06);

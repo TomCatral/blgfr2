@@ -1,15 +1,11 @@
-
-    @if (isOpen) {
-      <div class="_overlay_ _backdrop_ modal-layer-style-001-4612eb">
-        <div class="modal-layer-style-002-b19a32">
-          <div
-            class="_dialog_ _panel_ modal-layer-style-003-2a03d6"
-            [style.max-width]="maxWidth"
-            (click)="stop($event)"
-          >
-            <ng-content />
-          </div>
-        </div>
-      </div>
-    }
-  
+@if (isOpen) {
+  <div class="modal-layer-backdrop" (click)="handleBackdropClick($event)">
+    <div
+      class="modal-layer-dialog"
+      [style.max-width]="maxWidth"
+      (click)="stop($event)"
+    >
+      <ng-content />
+    </div>
+  </div>
+}

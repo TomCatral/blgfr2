@@ -416,9 +416,8 @@
               <!-- Direction -->
               <td class="dashboard-style-110-34ac45">
                 <span class="dashboard-style-113-1bb7cc"
-                  [ngClass]="doc.direction === 'INCOMING'
-                    ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/25 dark:text-emerald-300'
-                    : 'bg-blue-500/10 text-blue-700 border-blue-500/25 dark:text-blue-300'">
+                  [class.is-incoming]="doc.direction === 'INCOMING'"
+                  [class.is-outgoing]="doc.direction !== 'INCOMING'">
                   <ion-icon [name]="doc.direction === 'INCOMING' ? 'arrow-down' : 'arrow-up'" class="dashboard-style-114-4775d4"></ion-icon>
                   <span>{{ doc.direction }}</span>
                 </span>
@@ -575,7 +574,7 @@
                     <div class="dashboard-style-152-7997ff">
                       Routing Trail
                     </div>
-                    <div class="before:absolute before:bottom-3 before:left-2 before:top-3 before:w-px before:bg-slate-200 dashboard-style-153-28ad74">
+                    <div class="dashboard-routing-timeline dashboard-style-153-28ad74">
                       @for (route of groupRouteTransactions(document); track route.id; let idx = $index) {
                         <div class="dashboard-style-154-2b5ed7">
                           <span class="dashboard-style-155-a9d30f">
@@ -605,7 +604,8 @@
                               @if (getRouteDecision(route)) {
                                 <div
                                   class="dashboard-style-166-6461d2"
-                                  [ngClass]="getRouteDecision(route) === 'APPROVED' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/10 text-rose-700 dark:text-rose-300'">
+                                  [class.is-approved]="getRouteDecision(route) === 'APPROVED'"
+                                  [class.is-disapproved]="getRouteDecision(route) !== 'APPROVED'">
                                   <strong class="dashboard-style-167-b540fa">{{ getRouteDecision(route) }}</strong>
                                   <span class="dashboard-style-168-434edf">by {{ resolveUserName(route.fromUserId, route.fromUser) }}</span>
                                 </div>

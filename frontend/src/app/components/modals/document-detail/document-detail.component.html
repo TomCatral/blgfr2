@@ -136,10 +136,10 @@
                 <ol class="document-detail-style-060-6a8d7b" aria-label="Transaction progress">
                   @for (stage of transactionStages(); track stage.label; let i = $index) {
                     <li class="document-detail-style-019-661651" [attr.aria-current]="stage.active ? 'step' : null">
-                      <div [ngClass]="('mb-1 h-1 rounded-sm ' + stage.barClass) | cls"></div>
-                      <span class="transaction-stage-label" [ngClass]="('block text-[11px] ' + stage.textClass) | cls">{{ i + 1 }}. {{ stage.label }}</span>
+                      <div class="transaction-stage-bar" [class.is-active]="stage.active" [class.is-reached]="stage.reached" [class.is-paused]="stage.paused && stage.active"></div>
+                      <span class="transaction-stage-label" [class.is-active]="stage.active" [class.is-reached]="stage.reached">{{ i + 1 }}. {{ stage.label }}</span>
                       @if (stage.active) {
-                        <span [ngClass]="('text-[11px] ' + stage.subTextClass) | cls">{{ stage.subLabel }}</span>
+                        <span class="transaction-stage-subtitle" [class.is-active]="stage.active" [class.is-paused]="stage.paused">{{ stage.subLabel }}</span>
                       }
                     </li>
                   }
@@ -223,10 +223,7 @@
                                 type="button"
                                 (click)="flowFilterMode.set('MY')"
                                 class="document-detail-style-087-724a05"
-                                [class.bg-blue-600]="flowFilterMode() === 'MY'"
-                                [class.text-white]="flowFilterMode() === 'MY'"
-                                [class.text-slate-600]="flowFilterMode() !== 'MY'"
-                                [class.dark:text-slate-300]="flowFilterMode() !== 'MY'"
+                                [class.is-selected]="flowFilterMode() === 'MY'"
                               >
                                 Connected Only
                               </button>
@@ -234,10 +231,7 @@
                                 type="button"
                                 (click)="flowFilterMode.set('ALL')"
                                 class="document-detail-style-087-724a05"
-                                [class.bg-blue-600]="flowFilterMode() === 'ALL'"
-                                [class.text-white]="flowFilterMode() === 'ALL'"
-                                [class.text-slate-600]="flowFilterMode() !== 'ALL'"
-                                [class.dark:text-slate-300]="flowFilterMode() !== 'ALL'"
+                                [class.is-selected]="flowFilterMode() === 'ALL'"
                               >
                                 All Routes
                               </button>

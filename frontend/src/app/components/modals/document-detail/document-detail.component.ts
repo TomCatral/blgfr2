@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { firstValueFrom } from 'rxjs';
 import { AppModalLayerComponent } from '../../ui/modal-layer.component';
-import { ClsPipe } from '../../../shared/cls.pipe';
 import { FlowNodeComponent } from './flow-node.component';
 import {
   DocumentRecord,
@@ -78,7 +77,7 @@ const TRANSACTION_STAGE: Record<DocumentRecord['currentStatus'], number> = {
 @Component({
   selector: 'app-document-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, AppModalLayerComponent, ClsPipe, FlowNodeComponent],
+  imports: [CommonModule, FormsModule, AppModalLayerComponent, FlowNodeComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './document-detail.component.html',
   styleUrls: ['./document-detail.component.scss'],
@@ -184,10 +183,7 @@ export class DocumentDetailComponent implements OnChanges {
         active,
         reached,
         paused,
-        barClass: paused && active ? 'bg-amber-500' : active ? 'bg-[linear-gradient(90deg,#2563eb,#6366f1)] shadow-sm' : reached ? 'bg-slate-800 dark:bg-white' : 'bg-slate-200 dark:bg-slate-700',
-        textClass: active ? 'font-extrabold text-blue-700 dark:text-blue-300' : reached ? 'font-semibold text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400',
         subLabel: paused ? (this.document.currentStatus === 'RETURNED' ? 'Needs revision' : 'On hold') : this.document.currentStatus === 'COMPLETED' ? 'Ended' : 'Current stage',
-        subTextClass: paused ? 'text-amber-600' : active ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500',
       };
     }),
   );

@@ -111,7 +111,7 @@
                           <div class="head7">
                             <span class="head53">
                               @for (segment of highlightSegments(result, 'routeNo'); track $index) {
-                                <span [class.bg-amber-200]="segment.highlighted" [class.dark:bg-amber-900]="segment.highlighted" class="head63">{{ segment.text }}</span>
+                                <span [class.is-highlighted]="segment.highlighted" class="head63">{{ segment.text }}</span>
                               }
                             </span>
                             <span class="head111"
@@ -311,7 +311,6 @@
         </div>
       </div>
     }
-
     @if (isScannerOpen) {
       <div class="head192" (mousedown)="isScannerOpen = false">
         <div class="head20" (mousedown)="stop($event)">
@@ -334,4 +333,3 @@
         </div>
       </div>
     }
-  

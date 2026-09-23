@@ -5,6 +5,7 @@ import { Component, HostListener, Input, Output, EventEmitter } from '@angular/c
   standalone: true,
   imports: [],
   templateUrl: './modal-layer.component.html',
+  styleUrl: './modal-layer.component.scss',
 })
 export class AppModalLayerComponent {
   @Input() isOpen = false;
@@ -16,6 +17,12 @@ export class AppModalLayerComponent {
   handleEscape(): void {
     if (!this.isOpen) return;
     this.close();
+  }
+
+  handleBackdropClick(event: MouseEvent): void {
+    if (event.target === event.currentTarget) {
+      this.close();
+    }
   }
 
   stop(event: Event): void {

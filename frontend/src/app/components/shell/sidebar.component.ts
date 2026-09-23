@@ -1,5 +1,4 @@
 import { Component, EventEmitter, Input, Output, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
-import { NgClass } from '@angular/common';
 import { DEFAULT_ROLE_PERMISSIONS, RolePermission, User } from '../../types';
 import { IonicModule } from '@ionic/angular';
 
@@ -37,7 +36,7 @@ export const SECTIONS = ['Main Menu', 'Reports', 'Management', 'Logs'] as const;
   selector: 'app-sidebar',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [IonicModule, NgClass],
+  imports: [IonicModule],
   styleUrl: './sidebar.component.scss',
   templateUrl: './sidebar.component.html',
 })

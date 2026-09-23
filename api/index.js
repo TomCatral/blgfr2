@@ -2732,7 +2732,7 @@ ${preStreamLen}
 
 // backend/server.ts
 dotenv.config({ quiet: true });
-var DEFAULT_PORT = 3e3;
+var DEFAULT_PORT = 3001;
 var PORT = Number(process.env.PORT || DEFAULT_PORT);
 var IS_VERCEL = Boolean(process.env.VERCEL);
 var ADMIN_PASSWORD_RESET_COOLDOWN_MS = 15 * 60 * 1e3;

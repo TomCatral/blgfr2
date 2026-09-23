@@ -372,7 +372,7 @@
               </div>
               <div class="review-item">
                 <span class="review-label">Transaction Mode</span>
-                <span class="review-val routeP" [class.text-emerald-600]="routeMode === 'COMPLETE'">{{ routeMode === 'COMPLETE' ? 'Completed & Finalized' : 'Forward to Recipient' }}</span>
+                <span class="review-val routeP" [class.is-complete]="routeMode === 'COMPLETE'">{{ routeMode === 'COMPLETE' ? 'Completed & Finalized' : 'Forward to Recipient' }}</span>
               </div>
               @if (routeMode === 'FORWARD') {
                 <div class="review-item">

@@ -28,10 +28,10 @@ const ACTION_OPTIONS = [
 
 const STATUS_OPTIONS = [
   { value: 'IN_PROGRESS', label: 'In Progress / Under Review', colorDot: '🔵' },
-  { value: 'FOR_SIGNATURE', label: 'For Signature / Final Approval', colorDot: '🟣' },
-  { value: 'COMPLETED', label: 'Completed - My part', colorDot: '🟢' },
-  { value: 'RETURNED', label: 'Returned for Revision', colorDot: '🔴' },
-  { value: 'ON_HOLD', label: 'On Hold / Suspended', colorDot: '🟠' },
+  { value: 'FOR_SIGNATURE', label: 'For Signature / Final Review', colorDot: '🟣' },
+  { value: 'COMPLETED', label: 'Completed (End of Transaction)', colorDot: '🟢' },
+  { value: 'RETURNED', label: 'Return / Disapproved', colorDot: '🔴' },
+  { value: 'ON_HOLD', label: 'On Hold', colorDot: '🟠' },
   { value: 'PENDING', label: 'Pending / Received', colorDot: '🟡' },
 ];
 
