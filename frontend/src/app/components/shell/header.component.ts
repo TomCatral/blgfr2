@@ -121,6 +121,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
   scrolled = false;
   installPrompt: BeforeInstallPromptEvent | null = null;
   isUserStatusOpen = false;
+  userDirectorySearch = '';
+  userDirectoryFilter = 'ALL';
   isAppInstalled =
     window.matchMedia('(display-mode: standalone)').matches ||
     (window.navigator as unknown as { standalone?: boolean }).standalone === true;
@@ -139,7 +141,10 @@ export class HeaderComponent implements OnInit, OnDestroy {
       event.preventDefault();
       this.focusSearchInput();
     }
-    if (event.key === 'Escape') this.showUserMenu = false;
+    if (event.key === 'Escape') {
+      this.showUserMenu = false;
+      this.isUserStatusOpen = false;
+    }
   };
   private readonly onMouseDown = (event: MouseEvent): void => {
     const target = event.target as HTMLElement | null;
@@ -559,5 +564,111 @@ export class HeaderComponent implements OnInit, OnDestroy {
     }
 
     return segments.length > 0 ? segments : [{ text: source, highlighted: false }];
+  }
+
+  get activeUsersCount(): number {
+    return (this.users || []).filter((u) => u.active).length;
+  }
+
+  get availableDivisions(): string[] {
+    const set = new Set<string>();
+    for (const u of this.users || []) {
+      if (u.divisionCode && u.divisionCode.trim()) {
+        set.add(u.divisionCode.trim().toUpperCase());
+      }
+    }
+    return Array.from(set).sort();
+  }
+
+  get filteredDirectoryUsers(): User[] {
+    let list = [...(this.users || [])];
+
+    if (this.userDirectoryFilter === 'ACTIVE') {
+      list = list.filter((u) => u.active);
+    } else if (this.userDirectoryFilter === 'MY_DIVISION' && this.currentUser?.divisionCode) {
+      list = list.filter(
+        (u) => u.divisionCode?.toUpperCase() === this.currentUser.divisionCode?.toUpperCase(),
+      );
+    } else if (this.userDirectoryFilter !== 'ALL') {
+      list = list.filter(
+        (u) => u.divisionCode?.toUpperCase() === this.userDirectoryFilter.toUpperCase(),
+      );
+    }
+
+    const q = this.userDirectorySearch.trim().toLowerCase();
+    if (q) {
+      list = list.filter((u) => {
+        const fullName = (u.fullName || '').toLowerCase();
+        const username = (u.username || '').toLowerCase();
+        const designation = (u.designation || '').toLowerCase();
+        const division = (u.divisionCode || '').toLowerCase();
+        const role = (u.role || '').toLowerCase();
+        const email = (u.email || '').toLowerCase();
+        return (
+          fullName.includes(q) ||
+          username.includes(q) ||
+          designation.includes(q) ||
+          division.includes(q) ||
+          role.includes(q) ||
+          email.includes(q)
+        );
+      });
+    }
+
+    return list.sort((a, b) => {
+      if (a.id === this.currentUser?.id) return -1;
+      if (b.id === this.currentUser?.id) return 1;
+      if (a.active !== b.active) return a.active ? -1 : 1;
+      return (a.fullName || '').localeCompare(b.fullName || '');
+    });
+  }
+
+  formatRoleName(role?: string): string {
+    if (!role) return '';
+    switch (role.toUpperCase()) {
+      case 'SYSTEM_ADMIN':
+        return 'System Administrator';
+      case 'ADMIN':
+        return 'Administrator';
+      case 'RECORDS_OFFICER':
+        return 'Records Officer';
+      case 'DIVISION_CHIEF':
+        return 'Division Chief';
+      case 'ACTION_OFFICER':
+        return 'Action Officer';
+      case 'STAFF':
+        return 'Staff';
+      default:
+        return role.replaceAll('_', ' ');
+    }
+  }
+
+  getUserSubtitle(user: User): string {
+    const designation = user.designation?.trim();
+    const roleText = this.formatRoleName(user.role);
+    const title = designation || roleText;
+    const division = user.divisionCode?.trim();
+
+    if (title && division) {
+      return `${title} · ${division}`;
+    }
+    if (title) {
+      return title;
+    }
+    if (division) {
+      return division;
+    }
+    return roleText;
+  }
+
+  openUserStatusModal(): void {
+    this.userDirectorySearch = '';
+    this.userDirectoryFilter = 'ALL';
+    this.isUserStatusOpen = true;
+  }
+
+  closeUserStatusModal(): void {
+    this.isUserStatusOpen = false;
+    this.userDirectorySearch = '';
   }
 }

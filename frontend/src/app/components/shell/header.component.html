@@ -1,4 +1,4 @@
-
+﻿
     <header
       class="header-shell"
       [ngClass]="('headShell1' + (scrolled ? 'headShell2' : '')) | cls"
@@ -146,9 +146,9 @@
         <div class="header-actions" [ngClass]="'headActions' | cls">
           <button
             type="button"
-            title="Active Users &amp; Sessions Status"
-            aria-label="Active Users &amp; Sessions Status"
-            (click)="isUserStatusOpen = true"
+            title="Personnel &amp; Session Directory"
+            aria-label="Personnel &amp; Session Directory"
+            (click)="openUserStatusModal()"
           >
             <ion-icon name="people" class="headPeopleIcon"></ion-icon>
           </button>
@@ -259,41 +259,227 @@
     </header>
 
     @if (isUserStatusOpen) {
-      <div class="head152" (mousedown)="isUserStatusOpen = false">
-        <div class="head162" (mousedown)="stop($event)">
-          <div class="head18" [ngClass]="'head252' | cls">
-            <div>
-              <h2 class="headH2">Active Users & Session Directory</h2>
-              <p class="head112">{{ users.length }} registered user{{ users.length === 1 ? '' : 's' }}</p>
+      <div class="user-dir-backdrop" (mousedown)="closeUserStatusModal()">
+        <div class="user-dir-modal" (mousedown)="stop($event)">
+          <!-- Modal Header -->
+          <div class="user-dir-header">
+            <div class="user-dir-title-cluster">
+              <div class="user-dir-icon-badge">
+                <ion-icon name="people"></ion-icon>
+              </div>
+              <div>
+                <h2 class="user-dir-title">Personnel &amp; Session Directory</h2>
+                <p class="user-dir-subtitle-header">
+                  <span class="user-dir-count-pill">{{ activeUsersCount }} Active Accounts</span>
+                  <span class="user-dir-dot">&middot;</span>
+                  <span>{{ users.length }} Registered Personnel</span>
+                </p>
+              </div>
             </div>
-            <div class="head7">
-              <span class="head134" [ngClass]="(isOnline ? 'head233' : 'head322') | cls">
-                <span class="head144" [ngClass]="(isOnline ? 'head243' : 'head34') | cls"></span>
-                {{ isOnline ? 'ONLINE' : 'OFFLINE' }}
-              </span>
-              <button type="button" class="headCloseUserStatusBtn" aria-label="Close user status" (click)="isUserStatusOpen = false">
-                <ion-icon name="close" class="headMenuIcon"></ion-icon>
+            <div class="user-dir-header-actions">
+              <div class="user-dir-network-badge" [class.is-online]="isOnline">
+                <span class="user-dir-pulse-dot"></span>
+                <span>{{ isOnline ? 'System Online' : 'Network Offline' }}</span>
+              </div>
+              <button
+                type="button"
+                class="user-dir-close-btn"
+                aria-label="Close directory modal"
+                (click)="closeUserStatusModal()"
+              >
+                <ion-icon name="close"></ion-icon>
               </button>
             </div>
           </div>
-          <div class="head172">
-            @for (user of users; track user.id) {
-              <div class="head19" [ngClass]="'head262' | cls">
-                @if (user.avatarUrl) {
-                  <img [src]="user.avatarUrl" [alt]="user.fullName" class="headImg1" [ngClass]="'head252' | cls" />
-                } @else {
-                  <div class="head110" [ngClass]="'head27' | cls">{{ initialsOf(user.fullName) }}</div>
+
+          <!-- Search & Filter Controls -->
+          <div class="user-dir-controls">
+            <div class="user-dir-search-wrap">
+              <ion-icon name="search-outline" class="user-dir-search-icon"></ion-icon>
+              <input
+                type="text"
+                class="user-dir-search-input"
+                placeholder="Search by name, designation, division, or role..."
+                [(ngModel)]="userDirectorySearch"
+              />
+              @if (userDirectorySearch) {
+                <button
+                  type="button"
+                  class="user-dir-clear-search-btn"
+                  title="Clear search"
+                  (click)="userDirectorySearch = ''"
+                >
+                  <ion-icon name="close-circle"></ion-icon>
+                </button>
+              }
+            </div>
+
+            <!-- Division & Filter Pills -->
+            <div class="user-dir-filter-pills">
+              <button
+                type="button"
+                class="user-dir-filter-pill"
+                [class.is-active]="userDirectoryFilter === 'ALL'"
+                (click)="userDirectoryFilter = 'ALL'"
+              >
+                All ({{ users.length }})
+              </button>
+              <button
+                type="button"
+                class="user-dir-filter-pill"
+                [class.is-active]="userDirectoryFilter === 'ACTIVE'"
+                (click)="userDirectoryFilter = 'ACTIVE'"
+              >
+                Active Only ({{ activeUsersCount }})
+              </button>
+              @if (currentUser.divisionCode) {
+                <button
+                  type="button"
+                  class="user-dir-filter-pill"
+                  [class.is-active]="userDirectoryFilter === 'MY_DIVISION'"
+                  (click)="userDirectoryFilter = 'MY_DIVISION'"
+                >
+                  My Division ({{ currentUser.divisionCode }})
+                </button>
+              }
+              @for (divCode of availableDivisions; track divCode) {
+                @if (divCode !== currentUser.divisionCode) {
+                  <button
+                    type="button"
+                    class="user-dir-filter-pill"
+                    [class.is-active]="userDirectoryFilter === divCode"
+                    (click)="userDirectoryFilter = divCode"
+                  >
+                    {{ divCode }}
+                  </button>
                 }
-                <div class="head6">
-                  <p class="head123">{{ user.fullName }}</p>
-                  <p class="head133">{{ user.designation || user.role }} &middot; {{ user.divisionCode }}</p>
-                  <div class="head182">
-                    <span [ngClass]="(user.active ? 'headUserActiveState' : 'headUserActiveState2') | cls">{{ user.active ? 'ACTIVE' : 'DEACTIVATED' }}</span>
-                    <span [ngClass]="((user.id === currentUser.id && isOnline) ? 'headUserIdState' : 'headUserIdState2') | cls">{{ (user.id === currentUser.id && isOnline) ? 'CURRENT SESSION' : '' }}</span>
+              }
+              <span class="user-dir-results-counter">
+                Showing {{ filteredDirectoryUsers.length }} of {{ users.length }}
+              </span>
+            </div>
+          </div>
+
+          <!-- User Cards Grid -->
+          <div class="user-dir-body">
+            @if (filteredDirectoryUsers.length > 0) {
+              <div class="user-dir-grid">
+                @for (user of filteredDirectoryUsers; track user.id) {
+                  <div
+                    class="user-dir-card"
+                    [class.is-current-user]="user.id === currentUser.id"
+                  >
+                    <!-- Left: Avatar with Presence Ring -->
+                    <div class="user-dir-avatar-col">
+                      <div class="user-dir-avatar">
+                        @if (user.avatarUrl) {
+                          <img [src]="user.avatarUrl" [alt]="user.fullName" class="user-dir-avatar-img" />
+                        } @else {
+                          <div class="user-dir-avatar-initials">{{ initialsOf(user.fullName) }}</div>
+                        }
+                        <!-- Presence Indicator -->
+                        <span
+                          class="user-dir-presence-indicator"
+                          [class.is-current]="user.id === currentUser.id && isOnline"
+                          [class.is-active]="user.active"
+                          [class.is-deactivated]="!user.active"
+                          [title]="(user.id === currentUser.id && isOnline) ? 'Your Current Active Session' : (user.active ? 'Account Active' : 'Account Deactivated')"
+                        ></span>
+                      </div>
+                    </div>
+
+                    <!-- Right: Info Details -->
+                    <div class="user-dir-info-col">
+                      <div class="user-dir-row-header">
+                        <span class="user-dir-name" [title]="user.fullName">{{ user.fullName }}</span>
+                        @if (user.id === currentUser.id) {
+                          <span class="user-dir-you-badge">
+                            <ion-icon name="checkmark-circle"></ion-icon>
+                            You
+                          </span>
+                        }
+                      </div>
+
+                      <!-- Subtitle (Designation & Division - safe format, no dangling dot!) -->
+                      <p class="user-dir-designation" [title]="getUserSubtitle(user)">
+                        {{ getUserSubtitle(user) }}
+                      </p>
+
+                      <!-- Meta Badges (Division, Role, Email) -->
+                      <div class="user-dir-meta-row">
+                        @if (user.divisionCode) {
+                          <span class="user-dir-pill-division">{{ user.divisionCode }}</span>
+                        }
+                        <span class="user-dir-pill-role">{{ formatRoleName(user.role) }}</span>
+                        @if (user.email && user.email !== 'N/A') {
+                          <span class="user-dir-email" [title]="user.email">
+                            <ion-icon name="mail-outline"></ion-icon>
+                            {{ user.email }}
+                          </span>
+                        }
+                      </div>
+
+                      <!-- Account Status & Session Clarity -->
+                      <div class="user-dir-status-footer">
+                        <span
+                          class="user-dir-account-badge"
+                          [class.is-active]="user.active"
+                          [class.is-deactivated]="!user.active"
+                        >
+                          <span class="status-indicator-dot"></span>
+                          {{ user.active ? 'Account Active' : 'Deactivated' }}
+                        </span>
+
+                        @if (user.id === currentUser.id && isOnline) {
+                          <span class="user-dir-session-badge is-active-session">
+                            <span class="pulse-ring-dot"></span>
+                            Active Session
+                          </span>
+                        } @else {
+                          <span class="user-dir-session-badge is-registered">
+                            Registered Member
+                          </span>
+                        }
+                      </div>
+                    </div>
                   </div>
+                }
+              </div>
+            } @else {
+              <!-- Empty Search State -->
+              <div class="user-dir-empty-state">
+                <div class="user-dir-empty-icon">
+                  <ion-icon name="search-outline"></ion-icon>
                 </div>
+                <h3 class="user-dir-empty-title">No matching personnel found</h3>
+                <p class="user-dir-empty-desc">
+                  No registered users match your search query. Try typing another name, division, or designation.
+                </p>
+                <button
+                  type="button"
+                  class="user-dir-reset-filter-btn"
+                  (click)="userDirectorySearch = ''; userDirectoryFilter = 'ALL'"
+                >
+                  <ion-icon name="refresh-outline"></ion-icon>
+                  Reset Filters &amp; Search
+                </button>
               </div>
             }
+          </div>
+
+          <!-- Modal Footer info note -->
+          <div class="user-dir-footer">
+            <span class="user-dir-footer-note">
+              <ion-icon name="shield-checkmark-outline"></ion-icon>
+              BLGF Regional Office II &middot; Personnel &amp; Session Directory
+            </span>
+            <button
+              type="button"
+              class="user-dir-done-btn"
+              (click)="closeUserStatusModal()"
+            >
+              Close
+            </button>
           </div>
         </div>
       </div>
