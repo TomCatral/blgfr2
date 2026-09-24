@@ -42,43 +42,6 @@
                       <ion-icon name="radio-button-on" class="h-3.5 w-3.5"></ion-icon>
                       {{ document.currentStatus.replaceAll('_', ' ') }}
                     </span>
-                    <button type="button" (click)="handlePrintSlip()" class="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-teal-300 bg-teal-50 px-3.5 py-2 text-xs font-bold text-teal-800 shadow-2xs hover:bg-teal-100 dark:border-teal-700 dark:bg-teal-950/60 dark:text-teal-300 dark:hover:bg-teal-900/60 cursor-pointer" title="Print Document Slip">
-                      <ion-icon name="print" class="h-4 w-4"></ion-icon>
-                      <span>Print</span>
-                    </button>
-                    @if (pendingDecisionRoute()) {
-                      <button
-                        type="button"
-                        [disabled]="isSubmittingDecision()"
-                        (click)="handleDisapprove()"
-                        class="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-rose-500 disabled:opacity-50 cursor-pointer"
-                        title="Disapprove and return"
-                      >
-                        <ion-icon name="close-circle" class="h-4 w-4"></ion-icon>
-                        <span>Disapprove</span>
-                      </button>
-                      <button
-                        type="button"
-                        [disabled]="isSubmittingDecision()"
-                        (click)="handleApprove()"
-                        class="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-500 disabled:opacity-50 cursor-pointer ring-2 ring-emerald-400/30"
-                        title="Approve document"
-                      >
-                        @if (isSubmittingDecision()) {
-                          <ion-icon name="sync" class="h-4 w-4 animate-spin"></ion-icon>
-                          <span>Approving...</span>
-                        } @else {
-                          <ion-icon name="checkmark-circle" class="h-4 w-4"></ion-icon>
-                          <span>Approve</span>
-                        }
-                      </button>
-                    }
-                    @if (document.currentStatus !== 'COMPLETED') {
-                      <button type="button" [disabled]="!!pendingDecisionRoute() || isSubmittingDecision()" (click)="handleOpenRouteDoc()" class="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-blue-500 disabled:opacity-50 cursor-pointer" title="Route / Forward this Document">
-                        <ion-icon name="paper-plane" class="h-4 w-4"></ion-icon>
-                        <span>Route</span>
-                      </button>
-                    }
                     <button type="button" (click)="scrollToFlow()" class="doc-hero-btn inline-flex min-h-[40px] items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold cursor-pointer">
                       <span>View flow</span>
                       <ion-icon name="chevron-down" class="h-4 w-4"></ion-icon>
