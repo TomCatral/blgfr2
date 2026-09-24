@@ -42,12 +42,39 @@
                       <ion-icon name="radio-button-on" class="h-3.5 w-3.5"></ion-icon>
                       {{ document.currentStatus.replaceAll('_', ' ') }}
                     </span>
-                    <button type="button" (click)="handlePrintSlip()" class="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-800 shadow-2xs hover:bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60 cursor-pointer" title="Print Document Slip">
+                    <button type="button" (click)="handlePrintSlip()" class="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-teal-300 bg-teal-50 px-3.5 py-2 text-xs font-bold text-teal-800 shadow-2xs hover:bg-teal-100 dark:border-teal-700 dark:bg-teal-950/60 dark:text-teal-300 dark:hover:bg-teal-900/60 cursor-pointer" title="Print Document Slip">
                       <ion-icon name="print" class="h-4 w-4"></ion-icon>
                       <span>Print</span>
                     </button>
+                    @if (pendingDecisionRoute()) {
+                      <button
+                        type="button"
+                        [disabled]="isSubmittingDecision()"
+                        (click)="handleDisapprove()"
+                        class="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-rose-500 disabled:opacity-50 cursor-pointer"
+                        title="Disapprove and return"
+                      >
+                        <ion-icon name="close-circle" class="h-4 w-4"></ion-icon>
+                        <span>Disapprove</span>
+                      </button>
+                      <button
+                        type="button"
+                        [disabled]="isSubmittingDecision()"
+                        (click)="handleApprove()"
+                        class="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-500 disabled:opacity-50 cursor-pointer ring-2 ring-emerald-400/30"
+                        title="Approve document"
+                      >
+                        @if (isSubmittingDecision()) {
+                          <ion-icon name="sync" class="h-4 w-4 animate-spin"></ion-icon>
+                          <span>Approving...</span>
+                        } @else {
+                          <ion-icon name="checkmark-circle" class="h-4 w-4"></ion-icon>
+                          <span>Approve</span>
+                        }
+                      </button>
+                    }
                     @if (document.currentStatus !== 'COMPLETED') {
-                      <button type="button" [disabled]="!!pendingDecisionRoute()" (click)="handleOpenRouteDoc()" class="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-blue-500 disabled:opacity-50 cursor-pointer" title="Route / Forward this Document">
+                      <button type="button" [disabled]="!!pendingDecisionRoute() || isSubmittingDecision()" (click)="handleOpenRouteDoc()" class="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-blue-500 disabled:opacity-50 cursor-pointer" title="Route / Forward this Document">
                         <ion-icon name="paper-plane" class="h-4 w-4"></ion-icon>
                         <span>Route</span>
                       </button>
@@ -156,9 +183,38 @@
                 </ol>
                 <p class="mt-1.5 text-sm text-slate-700 dark:text-slate-300">{{ nextActionText() }}</p>
                 @if (pendingDecisionRoute()) {
-                  <div class="mt-2 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200">
-                    <ion-icon name="information-circle" class="mt-0.5 shrink-0"></ion-icon>
-                    <span><strong>Action required before routing:</strong> Review this document and select <strong>Approve</strong> or <strong>Disapprove</strong> first. After approval, the Route / Forward button will become available. If disapproved, include the reason and the document will be returned to the sender.</span>
+                  <div class="mt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/90 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/70 dark:text-amber-200">
+                    <div class="flex items-start gap-2">
+                      <ion-icon name="alert-circle" class="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400"></ion-icon>
+                      <span><strong>Action required before routing:</strong> Please <strong>Approve</strong> or <strong>Disapprove</strong> this handoff. Once approved, you can immediately Route / Forward this document.</span>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-2">
+                      <button
+                        type="button"
+                        [disabled]="isSubmittingDecision()"
+                        (click)="handleDisapprove()"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-rose-500 disabled:opacity-50 cursor-pointer"
+                        title="Disapprove and return"
+                      >
+                        <ion-icon name="close-circle" class="h-3.5 w-3.5"></ion-icon>
+                        <span>Disapprove</span>
+                      </button>
+                      <button
+                        type="button"
+                        [disabled]="isSubmittingDecision()"
+                        (click)="handleApprove()"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-emerald-500 disabled:opacity-50 cursor-pointer ring-2 ring-emerald-400/30"
+                        title="Approve document"
+                      >
+                        @if (isSubmittingDecision()) {
+                          <ion-icon name="sync" class="h-3.5 w-3.5 animate-spin"></ion-icon>
+                          <span>Approving...</span>
+                        } @else {
+                          <ion-icon name="checkmark-circle" class="h-3.5 w-3.5"></ion-icon>
+                          <span>Approve</span>
+                        }
+                      </button>
+                    </div>
                   </div>
                 }
                 <dl class="m-0 mt-2 grid gap-2 sm:grid-cols-2">
@@ -555,14 +611,46 @@
                     <ion-icon name="trash" class="h-4 w-4"></ion-icon> <span>Delete</span>
                   </button>
                 }
-                <button type="button" (click)="handlePrintSlip()" class="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs transition-all hover:bg-emerald-500 active:scale-98 cursor-pointer">
+                <button type="button" (click)="handlePrintSlip()" class="flex items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs transition-all hover:bg-teal-500 active:scale-98 cursor-pointer">
                   <ion-icon name="print" class="h-4 w-4"></ion-icon> <span>Print Slip</span>
                 </button>
                 @if (pendingDecisionRoute()) {
-                  <p class="route-lock-help max-w-[300px] text-xs text-slate-500">Route / Forward is locked until you Approve or Disapprove this handoff.</p>
+                  <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      [disabled]="isSubmittingDecision()"
+                      (click)="handleDisapprove()"
+                      class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs transition-all hover:bg-rose-500 active:scale-98 disabled:opacity-50 cursor-pointer"
+                      title="Disapprove and return this document to sender"
+                    >
+                      <ion-icon name="close-circle" class="h-4 w-4"></ion-icon>
+                      <span>Disapprove</span>
+                    </button>
+                    <button
+                      type="button"
+                      [disabled]="isSubmittingDecision()"
+                      (click)="handleApprove()"
+                      class="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs transition-all hover:bg-emerald-500 active:scale-98 disabled:opacity-50 cursor-pointer ring-2 ring-emerald-400/30"
+                      title="Approve this handoff to unlock routing"
+                    >
+                      @if (isSubmittingDecision()) {
+                        <ion-icon name="sync" class="h-4 w-4 animate-spin"></ion-icon>
+                        <span>Approving...</span>
+                      } @else {
+                        <ion-icon name="checkmark-circle" class="h-4 w-4"></ion-icon>
+                        <span>Approve</span>
+                      }
+                    </button>
+                  </div>
                 }
                 @if (document.currentStatus !== 'COMPLETED') {
-                  <button type="button" [disabled]="!!pendingDecisionRoute()" (click)="handleOpenRouteDoc()" class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs transition-all hover:bg-blue-500 active:scale-98 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 dark:disabled:bg-slate-700 dark:disabled:text-slate-400 cursor-pointer">
+                  <button
+                    type="button"
+                    [disabled]="!!pendingDecisionRoute() || isSubmittingDecision()"
+                    (click)="handleOpenRouteDoc()"
+                    [title]="pendingDecisionRoute() ? 'Action required: Approve or Disapprove this handoff first before routing' : 'Route / Forward this Document'"
+                    class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs transition-all hover:bg-blue-500 active:scale-98 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 dark:disabled:bg-slate-700 dark:disabled:text-slate-400 cursor-pointer"
+                  >
                     <ion-icon name="paper-plane" class="h-4 w-4"></ion-icon> <span>Route / Forward</span>
                   </button>
                 }

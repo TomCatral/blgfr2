@@ -25,6 +25,7 @@ import { isSharedDocumentFile } from '../../../utils/attachment-visibility';
 import { documentFileType } from '../../../utils/document-files';
 import { hasCompletedPart } from '../../../utils/routing-recipients';
 import { ApiService } from '../../../services/api.service';
+import { showPrompt } from '../../../services/dialog.service';
 
 const displayRouteRemarks = (remarks?: string) => {
   const value = remarks?.trim();
@@ -100,7 +101,10 @@ export class DocumentDetailComponent implements OnChanges {
   @Input() onOpenRouteDoc!: (doc: DocumentRecord) => void;
   @Input() onDeleteDoc?: (doc: DocumentRecord) => void;
   @Input() onRefreshDocument?: () => Promise<void> | void;
+  @Input() onDecision?: (doc: DocumentRecord, decision: 'APPROVED' | 'DISAPPROVED') => Promise<boolean> | boolean;
 
+  isSubmittingDecision = signal(false);
+  docVersion = signal(0);
   viewingPdf = signal<{ url: string; name: string; shouldRevoke?: boolean } | null>(null);
   isUploading = signal(false);
   selectedFlowRecipient = signal<string | null>(null);
@@ -151,9 +155,11 @@ export class DocumentDetailComponent implements OnChanges {
         this.overrideFinalInstructions.set(null);
       }
       this.flowFilterMode.set('MY');
+      this.docVersion.update((v) => v + 1);
     }
     if (changes['currentUser'] && this.currentUser) {
       this.flowFilterMode.set('MY');
+      this.docVersion.update((v) => v + 1);
     }
   }
 
@@ -539,20 +545,22 @@ export class DocumentDetailComponent implements OnChanges {
     }
   }
 
-  private pendingDecisionRouteSignal = computed(() =>
-    [...(this.document.routes || [])]
+  private pendingDecisionRouteSignal = computed(() => {
+    this.docVersion();
+    return [...(this.document.routes || [])]
       .reverse()
       .find(
         (route) =>
           !getRouteDecision(route) &&
           this.matchesPerson(route.toUserId, route.toUser, this.currentUser.id, this.currentUser.fullName) &&
           !this.getHandlerDecision(route),
-      ),
-  );
+      );
+  });
 
   pendingDecisionRoute = this.pendingDecisionRouteSignal;
 
   latestDocumentDecision = computed(() => {
+    this.docVersion();
     return [
       ...(this.document.routes || [])
         .map((route) => ({ status: getRouteDecision(route), timestamp: route.createdAt }))
@@ -567,6 +575,7 @@ export class DocumentDetailComponent implements OnChanges {
   });
 
   canRouteDocument = computed(() => {
+    this.docVersion();
     return (
       this.document.currentStatus !== 'COMPLETED' &&
       !hasCompletedPart(this.document, this.currentUser) &&
@@ -1183,6 +1192,69 @@ export class DocumentDetailComponent implements OnChanges {
   handleOpenRouteDoc(): void {
     this.onClose();
     this.onOpenRouteDoc(this.document);
+  }
+
+  async handleApprove(): Promise<void> {
+    if (this.isSubmittingDecision()) return;
+    this.isSubmittingDecision.set(true);
+    try {
+      if (this.onDecision) {
+        await this.onDecision(this.document, 'APPROVED');
+      } else {
+        await firstValueFrom(
+          this.api.decideDocumentRoute(this.document.id, 'APPROVED', undefined, this.currentUser.id),
+        );
+      }
+      if (this.onRefreshDocument) {
+        await this.onRefreshDocument();
+      }
+      this.docVersion.update((v) => v + 1);
+    } catch (err) {
+      console.error('Failed to approve document', err);
+      alert('Failed to record approval. Please try again.');
+    } finally {
+      this.isSubmittingDecision.set(false);
+    }
+  }
+
+  async handleDisapprove(): Promise<void> {
+    if (this.isSubmittingDecision()) return;
+    if (this.onDecision) {
+      this.isSubmittingDecision.set(true);
+      try {
+        await this.onDecision(this.document, 'DISAPPROVED');
+        if (this.onRefreshDocument) {
+          await this.onRefreshDocument();
+        }
+        this.docVersion.update((v) => v + 1);
+      } catch (err) {
+        console.error('Failed to disapprove document', err);
+      } finally {
+        this.isSubmittingDecision.set(false);
+      }
+    } else {
+      const response = await showPrompt('Required: Explain why this document is disapproved:');
+      const remarks = response?.trim() || '';
+      if (!remarks) {
+        alert('A disapproval remark is required.');
+        return;
+      }
+      this.isSubmittingDecision.set(true);
+      try {
+        await firstValueFrom(
+          this.api.decideDocumentRoute(this.document.id, 'DISAPPROVED', remarks, this.currentUser.id),
+        );
+        if (this.onRefreshDocument) {
+          await this.onRefreshDocument();
+        }
+        this.docVersion.update((v) => v + 1);
+      } catch (err) {
+        console.error('Failed to record disapproval', err);
+        alert('Failed to record disapproval. Please try again.');
+      } finally {
+        this.isSubmittingDecision.set(false);
+      }
+    }
   }
 
   getFlowNodeButtonClass(id: string): string {
