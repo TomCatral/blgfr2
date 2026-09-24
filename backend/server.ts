@@ -695,7 +695,7 @@ export async function createApp() {
   app.use(express.json({ limit: '50mb' }));
   const getRequestUser = (req: express.Request) =>
     usersState.find(
-      (user) => user.id === String(req.get('X-User-Id') || '') && user.active,
+      (user) => user.id === String(req.get('X-User-Id') || '') && user.active !== false,
     );
 
   // Request logger

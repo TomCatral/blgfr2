@@ -29,7 +29,7 @@ export function createUsersRouter(
   const router = express.Router();
   const getActingUser = (req: express.Request) =>
     getUsersState().find(
-      (user) => user.id === String(req.get('X-User-Id') || '') && user.active,
+      (user) => user.id === String(req.get('X-User-Id') || '') && user.active !== false,
     );
 
   const canManageUsers = (user?: User): boolean => {
@@ -39,7 +39,31 @@ export function createUsersRouter(
       user.permissions ||
       DEFAULT_ROLE_PERMISSIONS[user.role] ||
       DEFAULT_ROLE_PERMISSIONS.STAFF;
-    return Boolean(permissions.allowedViews?.includes('users'));
+    return Boolean(permissions.management || permissions.allowedViews?.includes('users'));
+  };
+
+  const hasUserAction = (user: User | undefined, action: string): boolean => {
+    if (!user) return false;
+    if (user.role === 'SYSTEM_ADMIN') return true;
+    const permissions =
+      user.permissions ||
+      DEFAULT_ROLE_PERMISSIONS[user.role] ||
+      DEFAULT_ROLE_PERMISSIONS.STAFF;
+    if (permissions.allowedActions?.includes(action)) return true;
+    if (
+      canManageUsers(user) &&
+      (action === 'USER_ACCOUNT_CREATE' || action === 'USER_ACCOUNT_EDIT')
+    ) {
+      return true;
+    }
+    if (
+      canManageUsers(user) &&
+      action === 'USER_ACCOUNT_DELETE' &&
+      permissions.canDelete
+    ) {
+      return true;
+    }
+    return false;
   };
 
   // GET Users
@@ -84,12 +108,20 @@ export function createUsersRouter(
     if (!actingUser) {
       return res.status(401).json({ error: 'Active database user required.' });
     }
-    if (!canManageUsers(actingUser)) {
-      return res.status(403).json({ error: 'User management access required.' });
+    if (!canManageUsers(actingUser) || !hasUserAction(actingUser, 'USER_ACCOUNT_CREATE')) {
+      return res.status(403).json({ error: 'Create user account permission required.' });
     }
-    if (body.role === 'SYSTEM_ADMIN' && actingUser.role !== 'SYSTEM_ADMIN') {
+    if (body.role === 'SYSTEM_ADMIN' && !hasUserAction(actingUser, 'USER_SYSTEM_ADMIN_MANAGE')) {
       return res.status(403).json({
-        error: 'Only System Administrators can create System Administrator accounts.',
+        error: 'Protected System Administrator account permission required.',
+      });
+    }
+    if (
+      body.permissions?.allowedActions?.includes('USER_SYSTEM_ADMIN_MANAGE') &&
+      !hasUserAction(actingUser, 'USER_SYSTEM_ADMIN_MANAGE')
+    ) {
+      return res.status(403).json({
+        error: 'You cannot grant protected System Administrator permissions.',
       });
     }
 
@@ -182,23 +214,54 @@ export function createUsersRouter(
       return res.status(404).json({ error: 'User not found' });
     }
     const isSelfUpdate = actingUser.id === req.params.id;
-    if (!isSelfUpdate && !canManageUsers(actingUser)) {
-      return res.status(403).json({ error: 'User management access required.' });
+    if (
+      !isSelfUpdate &&
+      (!canManageUsers(actingUser) || !hasUserAction(actingUser, 'USER_ACCOUNT_EDIT'))
+    ) {
+      return res.status(403).json({ error: 'Edit user account permission required.' });
     }
     const isSystemAdministrator = usersState[uIdx].role === 'SYSTEM_ADMIN';
-    if (!isSelfUpdate && actingUser.role !== 'SYSTEM_ADMIN' && isSystemAdministrator) {
+    if (
+      !isSelfUpdate &&
+      isSystemAdministrator &&
+      !hasUserAction(actingUser, 'USER_SYSTEM_ADMIN_MANAGE')
+    ) {
       return res.status(403).json({
-        error: 'Only System Administrators can modify System Administrator accounts.',
+        error: 'Protected System Administrator account permission required.',
       });
     }
-    if (req.body.role === 'SYSTEM_ADMIN' && actingUser.role !== 'SYSTEM_ADMIN') {
+    if (
+      req.body.role === 'SYSTEM_ADMIN' &&
+      !hasUserAction(actingUser, 'USER_SYSTEM_ADMIN_MANAGE')
+    ) {
       return res.status(403).json({
-        error: 'Only System Administrators can assign the System Administrator role.',
+        error: 'Protected System Administrator role assignment permission required.',
       });
     }
     const requestedCurrentPassword = String(req.body.currentPassword || '');
     const updates = { ...req.body };
     delete updates.currentPassword;
+    if (updates.permissions) {
+      const currentlyCanManageSystemAdministrators = Boolean(
+        usersState[uIdx].permissions?.allowedActions?.includes(
+          'USER_SYSTEM_ADMIN_MANAGE',
+        ),
+      );
+      const willManageSystemAdministrators = Boolean(
+        updates.permissions.allowedActions?.includes(
+          'USER_SYSTEM_ADMIN_MANAGE',
+        ),
+      );
+      if (
+        !currentlyCanManageSystemAdministrators &&
+        willManageSystemAdministrators &&
+        !hasUserAction(actingUser, 'USER_SYSTEM_ADMIN_MANAGE')
+      ) {
+        return res.status(403).json({
+          error: 'You cannot grant protected System Administrator permissions.',
+        });
+      }
+    }
     if ('password' in updates) {
       const nextPassword = String(updates.password || '').trim();
       if (nextPassword) {
@@ -254,13 +317,13 @@ export function createUsersRouter(
       return res.status(409).json({ error: 'Username already exists' });
     }
     if (updates.password) {
-      const administratorResettingAnotherUser =
-        actingUser.role === 'SYSTEM_ADMIN' && !isSelfUpdate;
-      if (!administratorResettingAnotherUser && !requestedCurrentPassword) {
+      const authorizedManagerResettingAnotherUser =
+        !isSelfUpdate && hasUserAction(actingUser, 'USER_ACCOUNT_EDIT');
+      if (!authorizedManagerResettingAnotherUser && !requestedCurrentPassword) {
         return res.status(400).json({ error: 'Current password is required.' });
       }
       if (
-        !administratorResettingAnotherUser &&
+        !authorizedManagerResettingAnotherUser &&
         usersState[uIdx].password &&
         usersState[uIdx].password !== requestedCurrentPassword
       ) {
@@ -332,14 +395,21 @@ export function createUsersRouter(
     if (!actingUser) {
       return res.status(401).json({ error: 'Active database user required.' });
     }
-    if (!canManageUsers(actingUser)) {
-      return res.status(403).json({ error: 'User management access required.' });
+    if (
+      !canManageUsers(actingUser) ||
+      !hasUserAction(actingUser, 'USER_ACCOUNT_DELETE')
+    ) {
+      return res.status(403).json({ error: 'Delete user account permission required.' });
     }
     const permissions =
       actingUser.permissions ||
       DEFAULT_ROLE_PERMISSIONS[actingUser.role] ||
       DEFAULT_ROLE_PERMISSIONS.STAFF;
-    if (actingUser.role !== 'SYSTEM_ADMIN' && !permissions.canDelete) {
+    if (
+      actingUser.role !== 'SYSTEM_ADMIN' &&
+      !permissions.canDelete &&
+      !hasUserAction(actingUser, 'USER_ACCOUNT_DELETE')
+    ) {
       return res.status(403).json({ error: 'Delete permission required.' });
     }
     const accountToDelete = usersState.find(

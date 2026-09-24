@@ -973,7 +973,9 @@ export class AppComponent implements OnInit, OnDestroy {
 
   updateUser = async (id: string, userData: Partial<User>): Promise<User> => {
     try {
-      const updated = await firstValueFrom(this.api.updateUser(id, userData));
+      const updated = await firstValueFrom(
+        this.api.updateUser(id, userData, this.currentUser()?.id),
+      );
       this.state.users.set(
         this.state.users().map((user) => (user.id === id ? updated : user)),
       );

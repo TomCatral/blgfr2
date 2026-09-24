@@ -491,21 +491,13 @@
   </div>
 
   <!-- Manage Directory Titles Modal -->
-  <app-modal-layer [isOpen]="showOfficeManager()" [onClose]="closeOfficeManager" maxWidth="42rem">
+  <app-modal-layer [isOpen]="showOfficeManager()" [onClose]="closeOfficeManager" maxWidth="38rem">
     <div class="ep-modal-content ep-titles-manager-modal">
       <!-- Modal Header -->
       <div class="ep-modal-header ep-titles-header">
-        <div class="ep-modal-header-icon-wrap ep-titles-icon-wrap">
-          <ion-icon name="layers-outline"></ion-icon>
-        </div>
         <div class="ep-modal-header-text">
-          <div class="ep-modal-title-row">
-            <h3 class="ep-modal-title">Directory Titles & Office Categories</h3>
-            <span class="ep-titles-count-pill">{{ directorySections().length }} Configured</span>
-          </div>
-          <p class="ep-modal-subtitle">
-            Configure organization sections, top tabs, and classification headings in the Office Directory.
-          </p>
+          <h3 class="ep-modal-title">Directory Categories</h3>
+          <p class="ep-modal-subtitle">Add, rename, and arrange Office Directory sections.</p>
         </div>
         <ion-button
           type="button"
@@ -521,10 +513,7 @@
         <!-- Composer Card: Add or Edit Title -->
         <div class="ep-titles-composer-card" [class.is-editing]="!!editingOfficeId()">
           <div class="ep-composer-top">
-            <div class="ep-composer-mode-badge">
-              <ion-icon [name]="editingOfficeId() ? 'create-outline' : 'add-circle-outline'"></ion-icon>
-              <span>{{ editingOfficeId() ? 'Editing Directory Title' : 'Add New Directory Title' }}</span>
-            </div>
+            <span class="ep-composer-mode-badge">{{ editingOfficeId() ? 'Edit category' : 'New category' }}</span>
             @if (editingOfficeId()) {
               <ion-button
                 type="button"
@@ -540,14 +529,13 @@
 
           <div class="ep-composer-inputs-row">
             <div class="ep-composer-input-wrap">
-              <ion-icon name="pricetag-outline" class="ep-composer-input-icon"></ion-icon>
               <ion-input
                 type="text"
                 [ngModel]="officeName()"
                 (ngModelChange)="officeName.set($event)"
                 (keydown.enter)="saveOffice()"
                 (keydown.escape)="cancelEditOffice()"
-                placeholder="e.g. Regional Directors, Division Chiefs, External Partners..."
+                placeholder="Category name"
                 class="ep-composer-input"
               />
               @if (officeName().trim()) {
@@ -570,13 +558,13 @@
               [class.is-save]="!!editingOfficeId()"
             >
               <ion-icon [name]="editingOfficeId() ? 'checkmark-outline' : 'add-outline'"></ion-icon>
-              <span>{{ editingOfficeId() ? 'Save Changes' : 'Add Title' }}</span>
+              <span>{{ editingOfficeId() ? 'Save' : 'Add' }}</span>
             </ion-button>
           </div>
 
           <!-- Color Palette Picker for Custom Categories -->
           <div class="ep-composer-palette-row">
-            <span class="ep-palette-label">Tab Theme Accent:</span>
+            <span class="ep-palette-label">Color</span>
             <div class="ep-palette-chips">
               @for (palette of colorPalettes; track palette.id) {
                 <ion-button
@@ -590,7 +578,6 @@
                   [style.--chip-border]="palette.borderHex"
                 >
                   <span class="ep-palette-dot" [style.background-color]="palette.colorHex"></span>
-                  <span class="ep-palette-name">{{ palette.label }}</span>
                 </ion-button>
               }
             </div>
@@ -600,8 +587,8 @@
         <!-- List Section Header -->
         <div class="ep-titles-list-header">
           <div class="ep-titles-list-info">
-            <span class="ep-list-heading">Directory Sections & Tabs</span>
-            <span class="ep-list-subheading">Order tabs or customize classification headings</span>
+            <span class="ep-list-heading">Categories</span>
+            <span class="ep-list-subheading">{{ directorySections().length }} total</span>
           </div>
           <!-- Quick Search -->
           <div class="ep-titles-search-box">
@@ -610,7 +597,7 @@
               type="text"
               [ngModel]="titleFilter()"
               (ngModelChange)="titleFilter.set($event)"
-              placeholder="Filter titles..."
+              placeholder="Search categories"
               class="ep-titles-search-input"
             />
             @if (titleFilter().trim()) {
@@ -636,25 +623,16 @@
             >
               <!-- Left Content: Color Accent, Title, Badges, Employee Count -->
               <div class="ep-title-card-left">
-                <div
-                  class="ep-title-color-indicator"
-                  [attr.data-color]="office.color || (isSystemDefault(office) ? 'blue' : 'indigo')"
-                >
-                  <ion-icon [name]="isSystemDefault(office) ? 'shield-checkmark-outline' : 'folder-outline'"></ion-icon>
-                </div>
-
                 <div class="ep-title-card-info">
                   <div class="ep-title-card-name-row">
                     <span class="ep-title-card-name" [title]="office.label">{{ office.label }}</span>
                     @if (isSystemDefault(office)) {
                       <span class="ep-title-type-badge is-system" title="System default classification (Required)">
-                        <ion-icon name="shield-checkmark-outline"></ion-icon>
-                        <span>System Default</span>
+                        <span>Default</span>
                       </span>
                     } @else {
                       <span class="ep-title-type-badge is-custom" title="Custom user-defined directory title">
-                        <ion-icon name="sparkles-outline"></ion-icon>
-                        <span>Custom Section</span>
+                        <span>Custom</span>
                       </span>
                     }
                   </div>
@@ -663,9 +641,6 @@
                     <span class="ep-title-meta-pill" title="Assigned personnel in this category">
                       <ion-icon name="people-outline"></ion-icon>
                       <span>{{ sectionEmployeeCount(office) }} Personnel</span>
-                    </span>
-                    <span class="ep-title-meta-pill ep-meta-id" [title]="'Section Key: ' + office.id">
-                      <span>Key: {{ office.id }}</span>
                     </span>
                   </div>
                 </div>
@@ -742,10 +717,6 @@
 
       <!-- Modal Footer -->
       <div class="ep-modal-footer ep-titles-footer">
-        <span class="ep-footer-hint">
-          <ion-icon name="information-circle-outline"></ion-icon>
-            <span>Changes apply immediately across the Office Directory.</span>
-        </span>
         <ion-button
           type="button"
           (click)="closeOfficeManager()"
@@ -758,28 +729,18 @@
   </app-modal-layer>
 
   <!-- Add / Edit Personnel Modal -->
-  <app-modal-layer [isOpen]="showForm()" [onClose]="closeForm" maxWidth="46rem">
+  <app-modal-layer [isOpen]="showForm()" [onClose]="closeForm" maxWidth="40rem">
     <div class="ep-modal-content ep-personnel-modal-enhanced">
       <!-- Modal Header -->
       <div class="ep-modal-header ep-modal-header-enhanced">
-        <div class="ep-avatar-live-badge" [class.has-initials]="!!getInitials(formData().fullName)" [class.is-edit]="!!editingEmp()">
-          @if (getInitials(formData().fullName); as initials) {
-            <span class="ep-avatar-text">{{ initials }}</span>
-          } @else {
-            <ion-icon [name]="editingEmp() ? 'create-outline' : 'person-add-outline'"></ion-icon>
-          }
-        </div>
         <div class="ep-modal-header-text">
           <div class="ep-modal-header-badge-row">
             <h3 class="ep-modal-title">
               {{ editingEmp() ? 'Edit Personnel Profile' : 'Add Personnel / Staff' }}
             </h3>
-            <span class="ep-status-pill" [class.is-edit]="!!editingEmp()">
-              {{ editingEmp() ? 'Update Mode' : 'New Directory Entry' }}
-            </span>
           </div>
           <p class="ep-modal-subtitle">
-            Provide the official employee details, administrative assignment, and communication channels.
+            Enter the personnel details below.
           </p>
         </div>
         <ion-button
@@ -797,12 +758,8 @@
         <!-- Card 1: Official Identity & Role -->
         <section class="ep-form-section-card">
           <header class="ep-section-header">
-            <div class="ep-section-icon-badge">
-              <ion-icon name="person-outline"></ion-icon>
-            </div>
             <div>
-              <h4 class="ep-section-title">Official Identity & Role</h4>
-              <p class="ep-section-desc">Designation and organizational classification</p>
+              <h4 class="ep-section-title">Personnel Information</h4>
             </div>
           </header>
 
@@ -813,7 +770,6 @@
                 Full Name <span class="ep-req">*</span>
               </label>
               <div class="ep-input-wrapper">
-                <ion-icon name="person-circle-outline" class="ep-field-icon"></ion-icon>
                 <ion-input
                   type="text"
                   placeholder="e.g. Juan D. Dela Cruz"
@@ -830,7 +786,6 @@
                 Position / Designation <span class="ep-req">*</span>
               </label>
               <div class="ep-input-wrapper">
-                <ion-icon name="briefcase-outline" class="ep-field-icon"></ion-icon>
                 <ion-input
                   type="text"
                   placeholder="e.g. Local Treasury Operations Officer IV"
@@ -847,7 +802,6 @@
                 Office Category <span class="ep-req">*</span>
               </label>
               <div class="ep-select-wrapper">
-                <ion-icon name="layers-outline" class="ep-field-icon"></ion-icon>
                 <ion-select
                   interface="popover"
                   [ngModel]="formData().officeType || 'BLGF'"
@@ -869,7 +823,6 @@
                     <ion-select-option [value]="section.officeTypes[0]">{{ section.label }}</ion-select-option>
                   }
                 </ion-select>
-                <ion-icon name="chevron-down-outline" class="ep-select-chevron"></ion-icon>
               </div>
             </div>
           </div>
@@ -878,12 +831,8 @@
         <!-- Card 2: Assigned Office & Station Location -->
         <section class="ep-form-section-card">
           <header class="ep-section-header">
-            <div class="ep-section-icon-badge is-blue">
-              <ion-icon name="business-outline"></ion-icon>
-            </div>
             <div>
-              <h4 class="ep-section-title">Station & Office Assignment</h4>
-              <p class="ep-section-desc">Department division and physical duty station</p>
+              <h4 class="ep-section-title">Office Assignment</h4>
             </div>
           </header>
 
@@ -894,7 +843,6 @@
                 Office / Department / Division <span class="ep-req">*</span>
               </label>
               <div class="ep-textarea-wrapper">
-                <ion-icon name="business-outline" class="ep-field-icon ep-field-icon-textarea"></ion-icon>
                 <ion-textarea
                   rows="2"
                   [ngModel]="formData().office || ''"
@@ -910,7 +858,6 @@
             <div class="ep-col-span-2 ep-field-group">
               <label class="ep-form-label">Office / Physical Address</label>
               <div class="ep-textarea-wrapper">
-                <ion-icon name="location-outline" class="ep-field-icon ep-field-icon-textarea"></ion-icon>
                 <ion-textarea
                   rows="2"
                   [ngModel]="formData().address || ''"
@@ -927,12 +874,8 @@
         <!-- Card 3: Contact & Communication Coordinates -->
         <section class="ep-form-section-card">
           <header class="ep-section-header">
-            <div class="ep-section-icon-badge is-emerald">
-              <ion-icon name="call-outline"></ion-icon>
-            </div>
             <div>
-              <h4 class="ep-section-title">Contact & Communication</h4>
-              <p class="ep-section-desc">Official email and telephone / mobile numbers</p>
+              <h4 class="ep-section-title">Contact Information</h4>
             </div>
           </header>
 
@@ -941,7 +884,6 @@
             <div class="ep-field-group">
               <label class="ep-form-label">Email Address</label>
               <div class="ep-input-wrapper">
-                <ion-icon name="mail-outline" class="ep-field-icon"></ion-icon>
                 <ion-input
                   type="email"
                   placeholder="e.g. juan.delacruz@blgf.gov.ph"
@@ -956,7 +898,6 @@
             <div class="ep-field-group">
               <label class="ep-form-label">Contact Number</label>
               <div class="ep-input-wrapper">
-                <ion-icon name="call-outline" class="ep-field-icon"></ion-icon>
                 <ion-input
                   type="text"
                   placeholder="e.g. (078) 304-1234 / 0917 123 4567"
@@ -969,12 +910,10 @@
           </div>
         </section>
 
+      </div>
+
         <!-- Modal Footer -->
         <div class="ep-modal-footer ep-modal-footer-enhanced">
-          <div class="ep-footer-note">
-            <ion-icon name="shield-checkmark-outline"></ion-icon>
-            <span>Synced to Regional Personnel Directory</span>
-          </div>
           <div class="ep-footer-actions">
             <ion-button
               type="button"
@@ -988,12 +927,10 @@
               (click)="handleSave()"
               class="ep-btn-primary-enhanced"
             >
-              <ion-icon [name]="editingEmp() ? 'save-outline' : 'checkmark-circle-outline'"></ion-icon>
-              <span>{{ editingEmp() ? 'Update Record' : 'Save Record' }}</span>
+              <span>{{ editingEmp() ? 'Update' : 'Save' }}</span>
             </ion-button>
           </div>
         </div>
-      </div>
     </div>
   </app-modal-layer>
 

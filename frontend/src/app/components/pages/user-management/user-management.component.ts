@@ -110,6 +110,10 @@ const MENU_ITEMS_LIST: MenuItem[] = [
 ];
 
 const ACTION_PERMISSIONS: { id: string; label: string }[] = [
+  { id: 'USER_ACCOUNT_CREATE', label: 'Create User Accounts' },
+  { id: 'USER_ACCOUNT_EDIT', label: 'Edit User Accounts and Permissions' },
+  { id: 'USER_ACCOUNT_DELETE', label: 'Delete Non-System-Administrator Accounts' },
+  { id: 'USER_SYSTEM_ADMIN_MANAGE', label: 'Manage Protected System Administrator Accounts' },
   { id: 'DIRECTORY_BLGF_VIEW', label: 'View Confidential BLGF Personnel Directory' },
   { id: 'DIRECTORY_LGU_VIEW', label: 'View Provincial, Municipal and LGU Directory' },
   { id: 'DIRECTORY_OTHER_VIEW', label: 'View Partner Agencies and Custom Directory Sections' },
