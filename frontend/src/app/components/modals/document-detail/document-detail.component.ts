@@ -319,12 +319,9 @@ export class DocumentDetailComponent implements OnChanges {
 
   visibleRoutes = computed<DocumentRouteStep[]>(() => {
     const all = this.rawHistoryRoutes();
-    if (this.flowFilterMode() === 'MY') {
-      const connected = all.filter((r) => this.isRouteConnectedToUser(r, all));
-      if (connected.length > 0) {
-        return connected;
-      }
-      return all;
+    const connected = all.filter((r) => this.isRouteConnectedToUser(r, all));
+    if (connected.length > 0) {
+      return connected;
     }
     return all;
   });
