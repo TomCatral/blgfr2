@@ -685,26 +685,63 @@
             <!-- List of Saved Formats -->
             <div class="saved-templates-list">
               @for (fmt of savedFormats; track fmt.id) {
-                <div class="template-item">
-                  <button type="button" (click)="loadFormat(fmt)" class="template-load-btn" title="Click to load this envelope format">
-                    <div class="template-name">{{ fmt.name }}</div>
-                    <div class="template-meta">
-                      {{ fmt.addressees.length }} recipient(s) &bull; {{ fmt.subject || 'No subject' }}
+                <div
+                  class="template-item"
+                  [class.active-template]="activeFormatId === fmt.id"
+                  (click)="loadFormat(fmt)"
+                  role="button"
+                  tabindex="0"
+                  (keydown.enter)="loadFormat(fmt)"
+                  (keydown.space)="loadFormat(fmt)"
+                  title="Click to load this envelope template"
+                >
+                  <div class="template-main-info">
+                    <div class="template-icon-badge">
+                      <ion-icon [name]="activeFormatId === fmt.id ? 'checkmark-circle' : 'bookmark'"></ion-icon>
                     </div>
-                  </button>
-                  <button
-                    type="button"
-                    (click)="deleteFormat(fmt.id)"
-                    class="btn-icon-action btn-icon-danger"
-                    title="Delete template"
-                  >
-                    <ion-icon name="trash" class="icon-xs"></ion-icon>
-                  </button>
+                    <div class="template-text-group">
+                      <div class="template-name">{{ fmt.name }}</div>
+                      <div class="template-meta-pills">
+                        <span class="meta-pill">
+                          <ion-icon name="people" class="meta-icon"></ion-icon>
+                          {{ fmt.addressees.length }} recipient{{ fmt.addressees.length > 1 ? 's' : '' }}
+                        </span>
+                        @if (fmt.subject) {
+                          <span class="meta-pill" [title]="fmt.subject">
+                            <ion-icon name="document-text" class="meta-icon"></ion-icon>
+                            {{ fmt.subject }}
+                          </span>
+                        }
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="template-actions">
+                    <button
+                      type="button"
+                      (click)="$event.stopPropagation(); loadFormat(fmt)"
+                      class="btn-apply-template"
+                      [title]="'Load template ' + fmt.name"
+                    >
+                      <ion-icon [name]="activeFormatId === fmt.id ? 'checkmark' : 'arrow-forward'" class="btn-icon"></ion-icon>
+                      <span>{{ activeFormatId === fmt.id ? 'Loaded' : 'Use' }}</span>
+                    </button>
+                    <button
+                      type="button"
+                      (click)="$event.stopPropagation(); deleteFormat(fmt.id)"
+                      class="btn-delete-template"
+                      title="Delete template"
+                    >
+                      <ion-icon name="trash" class="icon-xs"></ion-icon>
+                    </button>
+                  </div>
                 </div>
               }
               @if (savedFormats.length === 0) {
                 <div class="empty-templates-message">
-                  No saved templates yet. Create your setup above and save it here for 1-click reuse.
+                  <ion-icon name="bookmark-outline" class="empty-icon"></ion-icon>
+                  <p class="empty-title">No saved templates yet</p>
+                  <p class="empty-desc">Create your envelope setup above and save it here for 1-click reuse.</p>
                 </div>
               }
             </div>

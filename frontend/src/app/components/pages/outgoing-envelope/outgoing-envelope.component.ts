@@ -123,6 +123,7 @@ export class OutgoingEnvelopeComponent implements OnInit {
   activeNameField: string | null = null;
   employees: EmployeeProfile[] = this.loadStoredEmployees();
   savedFormats: SavedEnvelopeFormat[] = this.loadStoredFormats();
+  activeFormatId: string | null = null;
   formatName = '';
   showSaveFormat = true;
   showSenderDrawer = false;
@@ -604,13 +605,14 @@ export class OutgoingEnvelopeComponent implements OnInit {
     }
     const newFormat: SavedEnvelopeFormat = {
       id: `fmt-${Date.now()}`,
-      name: this.formatName,
+      name: this.formatName.trim(),
       subject: this.subject,
-      sender: this.sender,
-      addressees: this.addressees,
+      sender: { ...this.sender },
+      addressees: this.addressees.map((a) => ({ ...a })),
     };
     const updated = [...this.savedFormats, newFormat];
     this.savedFormats = updated;
+    this.activeFormatId = newFormat.id;
     localStorage.setItem('blgf_envelope_formats', JSON.stringify(updated));
     this.formatName = '';
     this.showSaveFormat = true;
@@ -627,11 +629,38 @@ export class OutgoingEnvelopeComponent implements OnInit {
   }
 
   loadFormat(fmt: SavedEnvelopeFormat): void {
-    this.subject = fmt.subject;
-    if (fmt.sender) this.sender = fmt.sender;
-    this.addressees = fmt.addressees;
+    if (!fmt) return;
+    this.activeFormatId = fmt.id;
+    this.subject = fmt.subject || '';
+    if (fmt.sender) {
+      this.sender = {
+        name: fmt.sender.name || '',
+        position: fmt.sender.position || '',
+        office: fmt.sender.office || '',
+        address: fmt.sender.address || '',
+      };
+    }
+    const rawAddressees = Array.isArray(fmt.addressees) ? fmt.addressees : [];
+    this.addressees = rawAddressees.map((addr, i) => ({
+      id: `addr-fmt-${Date.now()}-${i}`,
+      name: addr?.name || '',
+      position: addr?.position || '',
+      office: addr?.office || '',
+      address: addr?.address || '',
+    }));
+    if (this.addressees.length === 0) {
+      this.addressees = [
+        {
+          id: `addr-blank-${Date.now()}`,
+          name: '',
+          position: '',
+          office: '',
+          address: '',
+        },
+      ];
+    }
     this.previewIndex = 0;
-    this.ui.showSuccess(`Loaded template "${fmt.name}"`);
+    this.ui.showSuccess(`Template "${fmt.name}" loaded (${this.addressees.length} recipient${this.addressees.length > 1 ? 's' : ''}).`);
   }
 
   async deleteFormat(id: string): Promise<void> {
@@ -639,6 +668,9 @@ export class OutgoingEnvelopeComponent implements OnInit {
       const updated = this.savedFormats.filter((f: SavedEnvelopeFormat) => f.id !== id);
       this.savedFormats = updated;
       localStorage.setItem('blgf_envelope_formats', JSON.stringify(updated));
+      if (this.activeFormatId === id) {
+        this.activeFormatId = null;
+      }
       this.ui.showSuccess('Template removed.');
     }
   }
