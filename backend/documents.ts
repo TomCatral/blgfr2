@@ -221,10 +221,16 @@ export function createDocumentsRouter(
   });
 
   // GET Single Document
-  router.get('/:id', (req, res) => {
+  router.get('/:id', async (req, res) => {
     const actingUser = getActingUser(req);
     if (!actingUser) {
       return res.status(401).json({ error: 'Active database user required.' });
+    }
+    try {
+      const liveDocuments = await loadLiveDocuments();
+      if (liveDocuments) setDocumentsState(liveDocuments as DocumentRecord[]);
+    } catch {
+      // Fallback to in-memory documents if MySQL live read is unavailable
     }
     const doc = getDocumentsState().find(
       (d) => d.id === req.params.id || d.routeNo === req.params.id,

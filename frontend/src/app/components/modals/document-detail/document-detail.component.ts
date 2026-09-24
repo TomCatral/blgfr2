@@ -147,6 +147,38 @@ export class DocumentDetailComponent implements OnChanges {
     },
   ];
 
+  readonly userMap = computed(() => {
+    const map = new Map<string, string>();
+    for (const u of this.users) {
+      if (u.id) map.set(u.id, u.fullName);
+    }
+    return map;
+  });
+
+  readonly userDivisionMap = computed(() => {
+    const map = new Map<string, string>();
+    for (const u of this.users) {
+      if (u.id && u.divisionCode) map.set(u.id, u.divisionCode);
+    }
+    return map;
+  });
+
+  readonly userNameToIdMap = computed(() => {
+    const map = new Map<string, string>();
+    for (const u of this.users) {
+      if (u.fullName) map.set(u.fullName.trim().toLowerCase(), u.id);
+    }
+    return map;
+  });
+
+  readonly docAuditLogs = computed(() => {
+    this.docVersion();
+    const doc = this.document;
+    if (!doc) return [];
+    const trackingSet = new Set([doc.trackingNumber, doc.routeNo].filter(Boolean) as string[]);
+    return this.auditLogs.filter((log) => Boolean(log.documentTrackingNumber && trackingSet.has(log.documentTrackingNumber)));
+  });
+
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['document'] && this.document) {
       if (this.document.finalInstructions?.trim()) {
@@ -465,10 +497,7 @@ export class DocumentDetailComponent implements OnChanges {
       });
     });
 
-    const docTrackingNos = new Set([this.document.trackingNumber, this.document.routeNo].filter(Boolean));
-    this.auditLogs
-      .filter((log) => docTrackingNos.has(log.documentTrackingNumber))
-      .forEach((log) => {
+    this.docAuditLogs().forEach((log) => {
         const isDuplicateRoute = items.some(
           (i) => Math.abs(new Date(i.timestamp).getTime() - new Date(log.timestamp).getTime()) < 3000 &&
                  (log.details.includes(i.action) || log.details.includes(i.actorName)),
@@ -514,7 +543,7 @@ export class DocumentDetailComponent implements OnChanges {
             typeLabel,
             timestamp: log.timestamp,
             actorName: log.userName,
-            actorDivision: this.users.find((u) => u.id === log.userId)?.divisionCode,
+            actorDivision: log.userId ? this.userDivisionMap().get(log.userId) : undefined,
             action: log.details.split(/\s*\|\s*/)[0] || log.action,
             remarks: log.details.match(/Remarks:\s*(.*?)(?:\s*\|\s*Status:|$)/i)?.[1],
             status: log.details.match(/Status:\s*([^|]+)$/i)?.[1]?.trim(),
@@ -565,8 +594,8 @@ export class DocumentDetailComponent implements OnChanges {
       ...(this.document.routes || [])
         .map((route) => ({ status: getRouteDecision(route), timestamp: route.createdAt }))
         .filter((item) => item.status),
-      ...this.auditLogs
-        .filter((log) => log.documentTrackingNumber === this.document.trackingNumber && /(?:Action:\s*|^)(APPROVED|DISAPPROVED)\b/i.test(log.details))
+      ...this.docAuditLogs()
+        .filter((log) => /(?:Action:\s*|^)(APPROVED|DISAPPROVED)\b/i.test(log.details))
         .map((log) => ({
           status: log.details.match(/(?:Action:\s*|^)(APPROVED|DISAPPROVED)\b/i)?.[1]?.toUpperCase() as 'APPROVED' | 'DISAPPROVED',
           timestamp: log.timestamp,
@@ -710,8 +739,7 @@ export class DocumentDetailComponent implements OnChanges {
   completedAtOffice = computed(() => {
     const route = this.finalReleaseRoute();
     if (!route) return 'Office not recorded';
-    const user = this.users.find((u) => u.id === route.fromUserId);
-    const div = user?.divisionCode || route.fromDivision;
+    const div = (route.fromUserId ? this.userDivisionMap().get(route.fromUserId) : undefined) || route.fromDivision;
     return div ? `${DIVISION_OFFICE_NAMES[div] || div} (${div})` : 'Office not recorded';
   });
 
@@ -800,7 +828,11 @@ export class DocumentDetailComponent implements OnChanges {
   isPdfFile = (f: DocumentAttachment) => f.fileType === 'application/pdf' || f.fileName.toLowerCase().endsWith('.pdf');
 
   resolveUserName(userId?: string, legacyName?: string): string {
-    return this.users.find((u) => u.id === userId)?.fullName || legacyName || '';
+    if (userId) {
+      const name = this.userMap().get(userId);
+      if (name) return name;
+    }
+    return legacyName || '';
   }
 
   matchesPerson(firstId?: string, firstName?: string, secondId?: string, secondName?: string): boolean {
@@ -819,7 +851,22 @@ export class DocumentDetailComponent implements OnChanges {
     return batch.length > 0 ? batch : [route];
   }
 
+  readonly flowNodeSnapshotsMap = computed(() => {
+    this.docVersion();
+    const map = new Map<string, any>();
+    for (const route of this.flowRecipients()) {
+      map.set(route.id, this.computeRecipientSnapshot(route));
+    }
+    return map;
+  });
+
   getRecipientSnapshot(route: DocumentRouteStep) {
+    const cached = this.flowNodeSnapshotsMap().get(route.id);
+    if (cached) return cached;
+    return this.computeRecipientSnapshot(route);
+  }
+
+  private computeRecipientSnapshot(route: DocumentRouteStep) {
     const decision = this.getHandlerDecision(route);
     const response = decision ? getRouteDecision(decision) : undefined;
     const activities = this.getHandlerActivitySubsteps(route);
@@ -839,17 +886,34 @@ export class DocumentDetailComponent implements OnChanges {
     };
   }
 
-  getHandlerDecision(handlerRoute: DocumentRouteStep) {
+  readonly handlerDecisionsMap = computed(() => {
+    this.docVersion();
+    const map = new Map<string, DocumentRouteStep | undefined>();
+    for (const route of this.flowRecipients()) {
+      map.set(route.id, this.computeHandlerDecision(route));
+    }
+    return map;
+  });
+
+  getHandlerDecision(handlerRoute: DocumentRouteStep): DocumentRouteStep | undefined {
+    const cached = this.handlerDecisionsMap().get(handlerRoute.id);
+    if (cached !== undefined) return cached;
+    return this.computeHandlerDecision(handlerRoute);
+  }
+
+  private computeHandlerDecision(handlerRoute: DocumentRouteStep): DocumentRouteStep | undefined {
     const savedDecision = this.getDecisionSubsteps(handlerRoute)
       .filter((d) => this.matchesPerson(d.fromUserId, d.fromUser, handlerRoute.toUserId, handlerRoute.toUser))
       .at(-1);
 
-    const auditDecision = this.auditLogs
+    const handlerName = this.resolveUserName(handlerRoute.toUserId, handlerRoute.toUser).trim().toLowerCase();
+    const routeTime = new Date(handlerRoute.createdAt).getTime();
+
+    const auditDecision = this.docAuditLogs()
       .filter(
         (log) =>
-          [this.document.trackingNumber, this.document.routeNo].includes(log.documentTrackingNumber) &&
-          (log.userId === handlerRoute.toUserId || log.userName.trim().toLowerCase() === this.resolveUserName(handlerRoute.toUserId, handlerRoute.toUser).trim().toLowerCase()) &&
-          new Date(log.timestamp).getTime() >= new Date(handlerRoute.createdAt).getTime() &&
+          (log.userId === handlerRoute.toUserId || log.userName.trim().toLowerCase() === handlerName) &&
+          new Date(log.timestamp).getTime() >= routeTime &&
           /(?:Action:\s*|^)(APPROVED|DISAPPROVED)\b/i.test(log.details),
       )
       .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
@@ -888,7 +952,22 @@ export class DocumentDetailComponent implements OnChanges {
     );
   }
 
+  readonly handlerActivitiesMap = computed(() => {
+    this.docVersion();
+    const map = new Map<string, any[]>();
+    for (const route of this.flowRecipients()) {
+      map.set(route.id, this.computeHandlerActivitySubsteps(route));
+    }
+    return map;
+  });
+
   getHandlerActivitySubsteps(handlerRoute: DocumentRouteStep) {
+    const cached = this.handlerActivitiesMap().get(handlerRoute.id);
+    if (cached) return cached;
+    return this.computeHandlerActivitySubsteps(handlerRoute);
+  }
+
+  private computeHandlerActivitySubsteps(handlerRoute: DocumentRouteStep) {
     const handlerId = handlerRoute.toUserId;
     const handlerName = this.resolveUserName(handlerRoute.toUserId, handlerRoute.toUser).trim().toLowerCase();
     const assignedAt = new Date(handlerRoute.createdAt).getTime();
@@ -920,10 +999,9 @@ export class DocumentDetailComponent implements OnChanges {
           attachments,
         };
       });
-    const auditActivities = this.auditLogs
+    const auditActivities = this.docAuditLogs()
       .filter(
         (log) =>
-          log.documentTrackingNumber === this.document.trackingNumber &&
           new Date(log.timestamp).getTime() > assignedAt &&
           this.matchesPerson(log.userId, log.userName, handlerId, handlerName) &&
           ['ROUTE_DOC', 'TRANSFER_DOC', 'UPDATE_STATUS', 'UPLOAD_ATTACHMENT'].includes(log.action) &&
@@ -934,7 +1012,7 @@ export class DocumentDetailComponent implements OnChanges {
         const remarks = log.details.match(/Remarks:\s*(.*?)(?:\s*\|\s*Status:|$)/i)?.[1] || 'N/A';
         const status = log.details.match(/Status:\s*([^|]+)$/i)?.[1]?.trim() || '';
         const destination = cleanRouteDestination(log.details.match(/To:\s*(.*?)(?:\s*\|\s*(?:Assigned|Action):|$)/i)?.[1]);
-        const recipient = this.users.find((u) => u.fullName.trim().toLowerCase() === destination.trim().toLowerCase());
+        const recipientId = destination ? this.userNameToIdMap().get(destination.trim().toLowerCase()) : undefined;
         return {
           id: `audit-activity-${log.id}`,
           action,
@@ -942,7 +1020,7 @@ export class DocumentDetailComponent implements OnChanges {
           timestamp: log.timestamp,
           status,
           destination,
-          recipientId: recipient?.id,
+          recipientId,
           destinationDivision: '',
           attachments: (() => {
             let atts = log.action === 'UPLOAD_ATTACHMENT' ? (this.document.attachments || []).filter((f) => f.fileName === log.details.match(/Uploaded file attachment "(.*?)"/)?.[1]) : [];
@@ -1266,9 +1344,11 @@ export class DocumentDetailComponent implements OnChanges {
   }
 
   getFlowNodeSnapshot(id: string) {
+    const snap = this.flowNodeSnapshotsMap().get(id);
+    if (snap) return snap;
     const route = this.flowRecipients().find((r) => r.id === id) || this.flowRecipients()[0];
     return route
-      ? this.getRecipientSnapshot(route)
+      ? this.computeRecipientSnapshot(route)
       : {
           route: undefined as unknown as DocumentRouteStep,
           status: '',
@@ -1345,8 +1425,28 @@ export class DocumentDetailComponent implements OnChanges {
     return raw;
   }
 
+  readonly flowNodeHandoffInstructionsMap = computed(() => {
+    this.docVersion();
+    const map = new Map<string, string | null>();
+    if (this.document.currentStatus !== 'COMPLETED') {
+      return map;
+    }
+    for (const route of this.flowRecipients()) {
+      map.set(route.id, this.computeFlowNodeHandoffInstruction(route.id));
+    }
+    return map;
+  });
+
   getFlowNodeHandoffInstruction(id: string): string | null {
-    // Only show instruction when the entire document transaction is completed!
+    if (this.document.currentStatus !== 'COMPLETED') {
+      return null;
+    }
+    const cached = this.flowNodeHandoffInstructionsMap().get(id);
+    if (cached !== undefined) return cached;
+    return this.computeFlowNodeHandoffInstruction(id);
+  }
+
+  private computeFlowNodeHandoffInstruction(id: string): string | null {
     if (this.document.currentStatus !== 'COMPLETED') {
       return null;
     }
@@ -1417,17 +1517,29 @@ export class DocumentDetailComponent implements OnChanges {
     return false;
   }
 
-  getFlowNodeChildren(id: string): DocumentRouteStep[] {
-    const results: DocumentRouteStep[] = [];
+  readonly flowChildrenMap = computed(() => {
+    this.docVersion();
+    const map = new Map<string, DocumentRouteStep[]>();
     const recipients = this.flowRecipients();
+    for (const r of recipients) {
+      map.set(r.id, []);
+    }
     recipients.forEach((recipient) => {
       const parent = recipients
         .slice(0, recipients.indexOf(recipient))
         .reverse()
         .find((p) => this.matchesPerson(recipient.fromUserId, recipient.fromUser, p.toUserId, this.resolveUserName(p.toUserId, p.toUser)));
-      if (parent?.id === id) results.push(recipient);
+      if (parent) {
+        const list = map.get(parent.id) || [];
+        list.push(recipient);
+        map.set(parent.id, list);
+      }
     });
-    return results;
+    return map;
+  });
+
+  getFlowNodeChildren(id: string): DocumentRouteStep[] {
+    return this.flowChildrenMap().get(id) || [];
   }
 
   attachmentMeta(file: DocumentAttachment): string {

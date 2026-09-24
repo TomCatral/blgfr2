@@ -154,8 +154,8 @@ export class StateService {
   startPolling(): void {
     this.stopPolling();
     this.intervals.push(
-      window.setInterval(() => void this.refreshDashboard(), 5000),
-      window.setInterval(() => void this.refreshNotifications(), 5000),
+      window.setInterval(() => void this.refreshDashboard(), 2000),
+      window.setInterval(() => void this.refreshNotifications(), 2500),
     );
   }
 

@@ -444,10 +444,28 @@ export class AppComponent implements OnInit, OnDestroy {
     }
     this.fullFlowDocumentId.set(doc.id);
     this.selectedDoc.set({ ...doc });
+    this.api.getDocumentById(doc.id).subscribe({
+      next: (freshDoc) => {
+        if (freshDoc && this.selectedDoc()?.id === freshDoc.id) {
+          this.selectedDoc.set(freshDoc);
+          this.state.replaceDocument(freshDoc);
+        }
+      },
+      error: () => {},
+    });
   }
 
   openDetail = (doc: DocumentRecord): void => {
     this.selectedDoc.set(doc);
+    this.api.getDocumentById(doc.id).subscribe({
+      next: (freshDoc) => {
+        if (freshDoc && this.selectedDoc()?.id === freshDoc.id) {
+          this.selectedDoc.set(freshDoc);
+          this.state.replaceDocument(freshDoc);
+        }
+      },
+      error: () => {},
+    });
   };
 
   openCreate = (): void => this.isCreateModalOpen.set(true);
@@ -524,6 +542,15 @@ export class AppComponent implements OnInit, OnDestroy {
 
     this.selectedDoc.set(document);
     this.isNotifDrawerOpen.set(false);
+    this.api.getDocumentById(document.id).subscribe({
+      next: (freshDoc) => {
+        if (freshDoc && this.selectedDoc()?.id === freshDoc.id) {
+          this.selectedDoc.set(freshDoc);
+          this.state.replaceDocument(freshDoc);
+        }
+      },
+      error: () => {},
+    });
   };
 
   // ===== Login / Logout =====
@@ -1328,7 +1355,10 @@ export class AppComponent implements OnInit, OnDestroy {
     link.remove();
   }
 
-  selectedDocTyped(): DocumentRecord | null {
-    return this.selectedDoc();
-  }
+  readonly selectedDocTyped = computed<DocumentRecord | null>(() => {
+    const cur = this.selectedDoc();
+    if (!cur) return null;
+    const latest = this.state.documents().find((d) => d.id === cur.id);
+    return latest || cur;
+  });
 }
