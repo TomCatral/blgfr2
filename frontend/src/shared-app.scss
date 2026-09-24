@@ -133,7 +133,9 @@ app-header { display: block; flex: 0 0 auto; z-index: 30; }
 .desktop-sidebar-shell {
   min-height: 0;
   height: 100%;
-  overflow: hidden;
+  position: relative;
+  z-index: 35;
+  overflow: visible;
   transition: width 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .desktop-sidebar-shell > div, .desktop-sidebar-shell app-sidebar { display: block; height: 100%; }

@@ -29,7 +29,7 @@
       </div>
       <div class="sidebar-divider"></div>
 
-      <nav class="sidebar-navigation">
+      <nav class="sidebar-navigation" [class.is-collapsed]="collapsed">
         @for (section of visibleSections(); track section; let sectionIndex = $index) {
           <section class="sidebar-section" [class.has-spacing]="sectionIndex !== 0" [attr.aria-label]="section">
             @if (!collapsed) {
@@ -44,7 +44,7 @@
                   [class.is-collapsed]="collapsed"
                   [attr.aria-current]="displayedView === item.id ? 'page' : null"
                   [attr.aria-label]="item.label"
-                  [attr.title]="item.label + (item.showsPendingCount && pendingCount > 0 ? ' (' + pendingCount + ' pending)' : '')"
+                  [attr.title]="collapsed ? null : item.label + (item.showsPendingCount && pendingCount > 0 ? ' (' + pendingCount + ' pending)' : '')"
                   (click)="handleNavigate(item.id)"
                 >
                   <span class="blgf-sidebar-icon">
@@ -79,7 +79,7 @@
         class="blgf-sidebar-footer"
         [class.is-collapsed]="collapsed"
         [attr.aria-label]="'Account Settings: ' + currentUser.fullName"
-        [attr.title]="'Account Settings: ' + currentUser.fullName"
+        [attr.title]="collapsed ? null : 'Account Settings: ' + currentUser.fullName"
         (click)="handleNavigate('settings')"
       >
         <div class="sidebar-avatar">
@@ -96,7 +96,7 @@
           </div>
           <ion-icon name="settings-outline" class="sidebar-settings-icon"></ion-icon>
         } @else {
-          <span class="blgf-sidebar-mini-label">Settings</span>
+          <span class="blgf-sidebar-tooltip">Account Settings</span>
         }
       </button>
     </aside>

@@ -132,13 +132,11 @@ export class AppComponent implements OnInit, OnDestroy {
   readonly isCreateModalOpen = signal(false);
   readonly isNotifDrawerOpen = signal(false);
   readonly routingPopup = signal<PopupAction | null>(null);
-  readonly reminderPopup = signal<NotificationItem | null>(null);
   readonly decisionSubmittingId = signal<string | null>(null);
   readonly targetDatePopup = signal<DocumentRecord | null>(null);
   readonly slipSelectedDoc = signal<DocumentRecord | null>(null);
 
   private closedApprovalPopupIds = new Map<string, number>();
-  private closedReminderPopupIds = new Set<string>();
   private routingSnoozeTick = signal(0);
   private nativeAlert = window.alert;
   private listeners: Array<() => void> = [];
@@ -204,17 +202,21 @@ export class AppComponent implements OnInit, OnDestroy {
     const user = this.currentUser();
     const doc = this.routingPopupDocument();
     if (!user || !doc) return undefined;
-    return [...(doc.routes || [])]
+    const candidates = [...(doc.routes || [])]
       .filter(
         (route) =>
-          route.toUserId === user.id &&
+          (route.toUserId === user.id ||
+            (!route.toUserId &&
+              route.toUser?.trim().toLowerCase() ===
+                user.fullName.trim().toLowerCase())) &&
           !/^(APPROVED|DISAPPROVED)$/i.test(route.actionRequested?.trim() || ''),
       )
       .sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() ||
           b.stepNumber - a.stepNumber,
-      )[0];
+      );
+    return candidates[0] || (doc.routes || [])[(doc.routes || []).length - 1];
   });
 
   readonly routingPopupForwardedAt = computed(() => {
@@ -255,7 +257,6 @@ export class AppComponent implements OnInit, OnDestroy {
 
   constructor() {
     effect(() => {
-      this.syncReminderPopup();
       this.checkTargetDates();
       this.syncRoutingPopup();
     });
@@ -814,13 +815,18 @@ export class AppComponent implements OnInit, OnDestroy {
       );
       this.routingPopup.set(null);
       this.isNotifDrawerOpen.set(false);
-      if (
-        this.reminderPopup()?.id === notification.id ||
-        this.reminderPopup()?.documentId === notification.documentId
-      ) {
-        this.closedReminderPopupIds.add(notification.id);
-        this.reminderPopup.set(null);
+      const matchingReminders = this.state.notifications().filter(
+        (item) =>
+          item.documentId === notification.documentId ||
+          (item.trackingNumber && item.trackingNumber === notification.trackingNumber),
+      );
+      for (const rem of matchingReminders) {
+        dismissedIds.add(rem.id);
       }
+      localStorage.setItem(
+        `blgf_dismissed_notifications_${user.id}`,
+        JSON.stringify([...dismissedIds]),
+      );
       await this.loadBackendData();
       if (decision === 'APPROVED') {
         this.routeModalDoc.set({
@@ -848,7 +854,6 @@ export class AppComponent implements OnInit, OnDestroy {
           this.state.notifications().filter((item) => item.id !== notification.id),
         );
         this.routingPopup.set(null);
-        this.reminderPopup.set(null);
         this.isNotifDrawerOpen.set(false);
         this.ui.showError(
           /completed|has ended/i.test(message)
@@ -861,33 +866,6 @@ export class AppComponent implements OnInit, OnDestroy {
       return false;
     } finally {
       this.decisionSubmittingId.set(null);
-    }
-  };
-
-  handleReminderDecision = async (
-    reminder: NotificationItem,
-    decision: 'APPROVED' | 'DISAPPROVED',
-  ): Promise<void> => {
-    let docId = reminder.documentId;
-    if (!docId && reminder.trackingNumber) {
-      const match = this.state.documents().find(
-        (d) =>
-          (d.routeNo &&
-            d.routeNo.trim().toUpperCase() ===
-              reminder.trackingNumber?.trim().toUpperCase()) ||
-          (d.trackingNumber &&
-            d.trackingNumber.trim().toUpperCase() ===
-              reminder.trackingNumber?.trim().toUpperCase()),
-      );
-      if (match) docId = match.id;
-    }
-    const itemToDecide: NotificationItem = {
-      ...reminder,
-      documentId: docId || reminder.documentId,
-    };
-    const success = await this.routeDecision(itemToDecide, decision);
-    if (success) {
-      this.closeReminder();
     }
   };
 
@@ -1151,21 +1129,6 @@ export class AppComponent implements OnInit, OnDestroy {
     if (dueDocument) this.targetDatePopup.set(dueDocument);
   }
 
-  private syncReminderPopup(): void {
-    this.routingSnoozeTick();
-    const current = this.state.notifications();
-    const latestReminder = current.find(
-      (notification) =>
-        notification.type === 'URGENT' &&
-        notification.title === 'Routing Action Reminder' &&
-        !this.closedReminderPopupIds.has(notification.id) &&
-        !this.isReminderSnoozed(notification.id),
-    );
-    if (latestReminder && this.reminderPopup()?.id !== latestReminder.id) {
-      this.reminderPopup.set(latestReminder);
-    }
-  }
-
   private syncRoutingPopup(): void {
     this.routingSnoozeTick();
     const user = this.currentUser();
@@ -1174,6 +1137,7 @@ export class AppComponent implements OnInit, OnDestroy {
       this.routingPopup.set(null);
       return;
     }
+    const currentNotifs = this.state.notifications();
     const pending = this.state
       .documents()
       .flatMap((document) =>
@@ -1191,7 +1155,16 @@ export class AppComponent implements OnInit, OnDestroy {
       .filter(({ document, route }) => {
         if (document.currentStatus === 'COMPLETED') return false;
         const assignedAt = new Date(route.createdAt).getTime();
-        if (!this.isNewRecipientAssignment(document, route)) return false;
+        const hasUrgentReminder = currentNotifs.some(
+          (n) =>
+            n.type === 'URGENT' &&
+            (n.title === 'Routing Action Reminder' || n.title?.includes('Reminder')) &&
+            (n.documentId === document.id ||
+              (n.trackingNumber &&
+                (n.trackingNumber === document.routeNo ||
+                  n.trackingNumber === document.trackingNumber))),
+        );
+        if (!hasUrgentReminder && !this.isNewRecipientAssignment(document, route)) return false;
         const hasSavedDecision = (document.routes || []).some(
           (candidate) =>
             (candidate.fromUserId === user.id ||
@@ -1215,7 +1188,7 @@ export class AppComponent implements OnInit, OnDestroy {
           new Date(b.route.createdAt).getTime() -
           new Date(a.route.createdAt).getTime(),
       );
-    const next = pending.find(({ route }) => {
+    const next = pending.find(({ document, route }) => {
       const key = routingPopupSnoozeKey(user.id, route.id);
       let closedAt = this.closedApprovalPopupIds.get(key);
       try {
@@ -1224,19 +1197,43 @@ export class AppComponent implements OnInit, OnDestroy {
       } catch {
         // In-memory snooze still works when storage is unavailable.
       }
+      const reminderForDoc = currentNotifs.find(
+        (n) =>
+          n.type === 'URGENT' &&
+          (n.title === 'Routing Action Reminder' || n.title?.includes('Reminder')) &&
+          (n.documentId === document.id ||
+            (n.trackingNumber &&
+              (n.trackingNumber === document.routeNo ||
+                n.trackingNumber === document.trackingNumber))),
+      );
+      if (reminderForDoc && reminderForDoc.createdAt && closedAt) {
+        const reminderTime = new Date(reminderForDoc.createdAt).getTime();
+        if (reminderTime > closedAt) {
+          closedAt = undefined;
+        }
+      }
       return !isRoutingPopupSnoozed(closedAt);
     });
     if (!next) {
       if (this.routingPopup()?.requiresDecision) this.routingPopup.set(null);
       return;
     }
+    const reminderForDoc = currentNotifs.find(
+      (n) =>
+        n.type === 'URGENT' &&
+        (n.title === 'Routing Action Reminder' || n.title?.includes('Reminder')) &&
+        (n.documentId === next.document.id ||
+          (n.trackingNumber &&
+            (n.trackingNumber === next.document.routeNo ||
+              n.trackingNumber === next.document.trackingNumber))),
+    );
     const popupId = `approval-popup-${next.route.id}`;
     if (this.routingPopup()?.id === popupId) return;
     this.routingPopup.set({
       id: popupId,
       userId: user.id,
-      title: 'Document Routed to You',
-      message: `Document ${next.document.routeNo || next.document.trackingNumber} requires your approval.`,
+      title: reminderForDoc ? 'Action Reminder: Document Action Required' : 'Document Routed to You',
+      message: reminderForDoc?.message || `Document ${next.document.routeNo || next.document.trackingNumber} requires your approval.`,
       documentId: next.document.id,
       trackingNumber: next.document.routeNo || next.document.trackingNumber,
       type: 'ACTION_REQUIRED',
@@ -1312,47 +1309,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.routingPopup.set(null);
   };
 
-  closeReminder = (): void => {
-    const reminder = this.reminderPopup();
-    if (reminder) {
-      this.snoozeReminder(reminder.id);
-      this.ui.showToast('Reminder snoozed for 24 hours. It remains available in Notifications.');
-    }
-    this.reminderPopup.set(null);
-  };
 
-  viewReminderDocument(reminder: NotificationItem): void {
-    void this.openNotificationDocument(reminder);
-    this.snoozeReminder(reminder.id);
-    this.reminderPopup.set(null);
-  }
-
-  private reminderSnoozeKey(reminderId: string): string {
-    return routingPopupSnoozeKey(
-      this.currentUser()?.id || '',
-      `reminder-${reminderId}`,
-    );
-  }
-
-  private snoozeReminder(reminderId: string): void {
-    const key = this.reminderSnoozeKey(reminderId);
-    const closedAt = Date.now();
-    this.closedReminderPopupIds.delete(reminderId);
-    try {
-      localStorage.setItem(key, String(closedAt));
-    } catch {
-      this.closedReminderPopupIds.add(reminderId);
-    }
-  }
-
-  private isReminderSnoozed(reminderId: string): boolean {
-    try {
-      const saved = localStorage.getItem(this.reminderSnoozeKey(reminderId));
-      return isRoutingPopupSnoozed(saved === null ? null : Number(saved));
-    } catch {
-      return this.closedReminderPopupIds.has(reminderId);
-    }
-  }
 
   openPopupAttachment(attachment: DocumentAttachment): void {
     if (!attachment.url) return;
