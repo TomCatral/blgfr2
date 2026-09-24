@@ -68,12 +68,36 @@ const DEFAULT_DIRECTORY_SECTIONS: DirectorySection[] = [
   },
 ];
 
+export const normalizeOfficeTypes = (types: unknown): string[] => {
+  if (Array.isArray(types)) return types.map((t) => String(t));
+  if (typeof types === 'string') {
+    try {
+      const parsed = JSON.parse(types);
+      if (Array.isArray(parsed)) return parsed.map((t) => String(t));
+    } catch {
+      return [types];
+    }
+  }
+  return [];
+};
+
+export const sanitizeDirectorySection = (sec: any): DirectorySection => ({
+  id: String(sec?.id || '').trim(),
+  label: String(sec?.label || '').trim(),
+  officeTypes: normalizeOfficeTypes(sec?.officeTypes),
+  color: sec?.color || 'blue',
+});
+
 const loadDirectorySections = (): DirectorySection[] => {
   try {
     const raw = localStorage.getItem('blgf_directory_sections');
-    return (raw && JSON.parse(raw)) || DEFAULT_DIRECTORY_SECTIONS;
+    const parsed = raw ? JSON.parse(raw) : DEFAULT_DIRECTORY_SECTIONS;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed.map(sanitizeDirectorySection);
+    }
+    return DEFAULT_DIRECTORY_SECTIONS.map(sanitizeDirectorySection);
   } catch {
-    return DEFAULT_DIRECTORY_SECTIONS;
+    return DEFAULT_DIRECTORY_SECTIONS.map(sanitizeDirectorySection);
   }
 };
 
@@ -210,7 +234,7 @@ export class EmployeeProfilesComponent implements OnInit {
     return this.visibleEmployees().filter((e) => {
       if (tab === 'ALL') return true;
       const section = this.accessibleDirectorySections().find((item) => item.id === tab);
-      return section ? section.officeTypes.includes(e.officeType) : false;
+      return section ? normalizeOfficeTypes(section.officeTypes).includes(e.officeType) : false;
     });
   });
 
@@ -234,7 +258,7 @@ export class EmployeeProfilesComponent implements OnInit {
         key: section.id,
         label: section.label,
         count: visible.filter((employee) =>
-          section.officeTypes.includes(employee.officeType),
+          normalizeOfficeTypes(section.officeTypes).includes(employee.officeType),
         ).length,
       })),
       { key: 'ALL', label: 'All Combined', count: visible.length },
@@ -274,9 +298,10 @@ export class EmployeeProfilesComponent implements OnInit {
       firstValueFrom(this.api.getDirectorySections()).catch(() => null),
     ]);
     if (Array.isArray(apiSections) && apiSections.length > 0) {
-      this.directorySections.set(apiSections);
+      const sanitized = apiSections.map(sanitizeDirectorySection);
+      this.directorySections.set(sanitized);
       try {
-        localStorage.setItem('blgf_directory_sections', JSON.stringify(apiSections));
+        localStorage.setItem('blgf_directory_sections', JSON.stringify(sanitized));
       } catch {}
     }
     const loadedUsers = this.currentUser.role === 'SYSTEM_ADMIN'
@@ -353,21 +378,30 @@ export class EmployeeProfilesComponent implements OnInit {
     });
   }
 
-  canViewAllPersonnel(): boolean {
-    return this.currentUser.role === 'SYSTEM_ADMIN' ||
-      ['DIRECTORY_BLGF_VIEW', 'DIRECTORY_LGU_VIEW', 'DIRECTORY_OTHER_VIEW'].some((action) =>
-        this.canManage(action),
-      );
+    canViewAllPersonnel(): boolean {
+    if (this.currentUser.role === 'SYSTEM_ADMIN') return true;
+    const views = (this.currentUser.permissions || DEFAULT_ROLE_PERMISSIONS[this.currentUser.role])?.allowedViews || [];
+    if (views.includes('employees') || Boolean(this.currentUser.permissions?.mainMenu)) {
+      return true;
+    }
+    return ['DIRECTORY_BLGF_VIEW', 'DIRECTORY_LGU_VIEW', 'DIRECTORY_OTHER_VIEW'].some((action) =>
+      this.canManage(action),
+    );
   }
 
   canViewDirectorySection(section: DirectorySection): boolean {
     if (this.currentUser.role === 'SYSTEM_ADMIN') return true;
-    if (section.id === 'BLGF' || section.officeTypes.includes('BLGF')) {
+    const views = (this.currentUser.permissions || DEFAULT_ROLE_PERMISSIONS[this.currentUser.role])?.allowedViews || [];
+    const hasDirectoryView = views.includes('employees') || Boolean(this.currentUser.permissions?.mainMenu);
+    if (hasDirectoryView) return true;
+
+    const officeTypes = normalizeOfficeTypes(section?.officeTypes);
+    if (section.id === 'BLGF' || officeTypes.includes('BLGF')) {
       return this.canManage('DIRECTORY_BLGF_VIEW');
     }
     if (
       section.id === 'LGU_STAFF' ||
-      section.officeTypes.some((type) =>
+      officeTypes.some((type) =>
         ['PROVINCIAL_TREASURER', 'MUNICIPAL_TREASURER', 'LGU'].includes(type),
       )
     ) {
@@ -429,7 +463,7 @@ export class EmployeeProfilesComponent implements OnInit {
 
   sectionEmployeeCount(section: DirectorySection): number {
     return this.visibleEmployees().filter((employee) =>
-      section.officeTypes.includes(employee.officeType),
+      normalizeOfficeTypes(section?.officeTypes).includes(employee.officeType),
     ).length;
   }
 
@@ -577,7 +611,7 @@ export class EmployeeProfilesComponent implements OnInit {
   }
 
   private defaultOfficeType(): EmployeeProfile['officeType'] {
-    if (this.canManage('DIRECTORY_BLGF_VIEW')) return 'BLGF';
+    if (this.canViewAllPersonnel() || this.canManage('DIRECTORY_BLGF_VIEW')) return 'BLGF';
     if (this.canManage('DIRECTORY_LGU_VIEW')) return 'PROVINCIAL_TREASURER';
     return 'OTHER_AGENCIES';
   }
@@ -873,7 +907,7 @@ export class EmployeeProfilesComponent implements OnInit {
 
   officeTypeLabel(type: string): string {
     const section = this.directorySections().find(
-      (s) => s.id === type || s.officeTypes.includes(type),
+      (s) => s.id === type || normalizeOfficeTypes(s.officeTypes).includes(type),
     );
     if (section) return section.label;
     return type.replace(/_/g, ' ');
@@ -881,7 +915,7 @@ export class EmployeeProfilesComponent implements OnInit {
 
   getOfficeTypeBadge(type: string): string {
     const section = this.directorySections().find(
-      (s) => s.id === type || s.officeTypes.includes(type),
+      (s) => s.id === type || normalizeOfficeTypes(s.officeTypes).includes(type),
     );
     if (section?.color) {
       switch (section.color) {

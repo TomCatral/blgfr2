@@ -1936,20 +1936,44 @@ export async function createApp() {
   // ======================================================================
 
   const directoryActionsFor = (user: User): string[] =>
-    (user.permissions || DEFAULT_ROLE_PERMISSIONS[user.role]).allowedActions || [];
+    (user.permissions || DEFAULT_ROLE_PERMISSIONS[user.role])?.allowedActions || [];
+
+  const directoryViewsFor = (user: User): string[] =>
+    (user.permissions || DEFAULT_ROLE_PERMISSIONS[user.role])?.allowedViews || [];
 
   const canAccessDirectoryOfficeType = (user: User, officeType: string): boolean => {
     if (user.role === 'SYSTEM_ADMIN') return true;
+    const views = directoryViewsFor(user);
+    const hasDirectoryView = views.includes('employees') || Boolean(user.permissions?.mainMenu);
     const actions = directoryActionsFor(user);
-    if (officeType === 'BLGF') return actions.includes('DIRECTORY_BLGF_VIEW');
-    if (['PROVINCIAL_TREASURER', 'MUNICIPAL_TREASURER', 'LGU'].includes(officeType)) {
-      return actions.includes('DIRECTORY_LGU_VIEW');
+
+    if (officeType === 'BLGF') {
+      return hasDirectoryView || actions.includes('DIRECTORY_BLGF_VIEW');
     }
-    return actions.includes('DIRECTORY_OTHER_VIEW');
+    if (['PROVINCIAL_TREASURER', 'MUNICIPAL_TREASURER', 'LGU'].includes(officeType)) {
+      return hasDirectoryView || actions.includes('DIRECTORY_LGU_VIEW');
+    }
+    return hasDirectoryView || actions.includes('DIRECTORY_OTHER_VIEW');
   };
 
-  const canAccessDirectorySection = (user: User, section: DirectorySectionRecord): boolean =>
-    section.officeTypes.some((officeType) => canAccessDirectoryOfficeType(user, officeType));
+  const normalizeOfficeTypes = (types: unknown): string[] => {
+    if (Array.isArray(types)) return types;
+    if (typeof types === 'string') {
+      try {
+        const parsed = JSON.parse(types);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        return [types];
+      }
+    }
+    return [];
+  };
+
+  const canAccessDirectorySection = (user: User, section: DirectorySectionRecord): boolean => {
+    if (!section) return false;
+    const types = normalizeOfficeTypes(section.officeTypes);
+    return types.some((officeType) => canAccessDirectoryOfficeType(user, officeType));
+  };
 
   // GET all employees
   app.get('/api/employees', (req, res) => {
@@ -2085,8 +2109,12 @@ export async function createApp() {
     if (!actingUser) {
       return res.status(401).json({ error: 'Active database user required.' });
     }
-    if (actingUser.role === 'SYSTEM_ADMIN') return res.json(directorySectionsState);
-    res.json(directorySectionsState.filter((section) =>
+    const sanitizedSections = directorySectionsState.map((section) => ({
+      ...section,
+      officeTypes: normalizeOfficeTypes(section.officeTypes),
+    }));
+    if (actingUser.role === 'SYSTEM_ADMIN') return res.json(sanitizedSections);
+    res.json(sanitizedSections.filter((section) =>
       canAccessDirectorySection(actingUser, section),
     ));
   });
@@ -2101,13 +2129,22 @@ export async function createApp() {
     if (!Array.isArray(nextSections) || nextSections.length === 0) {
       return res.status(400).json({ error: 'Invalid directory sections format.' });
     }
+    const cleanSections: DirectorySectionRecord[] = nextSections.map((sec: any) => ({
+      id: String(sec.id || '').trim(),
+      label: String(sec.label || '').trim(),
+      officeTypes: normalizeOfficeTypes(sec.officeTypes),
+      color: sec.color || 'blue',
+    }));
     if (actingUser.role === 'SYSTEM_ADMIN') {
-      directorySectionsState = nextSections;
+      directorySectionsState = cleanSections;
     } else {
-      const hiddenSections = directorySectionsState.filter(
-        (section) => !canAccessDirectorySection(actingUser, section),
-      );
-      directorySectionsState = [...hiddenSections, ...nextSections];
+      const hiddenSections = directorySectionsState
+        .map((section) => ({
+          ...section,
+          officeTypes: normalizeOfficeTypes(section.officeTypes),
+        }))
+        .filter((section) => !canAccessDirectorySection(actingUser, section));
+      directorySectionsState = [...hiddenSections, ...cleanSections];
     }
     saveDatabaseToFile();
     res.json({ success: true, directorySections: directorySectionsState });

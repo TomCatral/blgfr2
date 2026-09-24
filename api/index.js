@@ -591,6 +591,20 @@ async function loadMySQLState() {
     )
   }));
   const serialize = (value) => JSON.parse(JSON.stringify(value));
+  const normalizedDirectorySections = directorySections.map((sec) => {
+    let officeTypes = sec.officeTypes;
+    if (typeof officeTypes === "string") {
+      try {
+        officeTypes = JSON.parse(officeTypes);
+      } catch {
+        officeTypes = [officeTypes];
+      }
+    }
+    return {
+      ...sec,
+      officeTypes: Array.isArray(officeTypes) ? officeTypes : []
+    };
+  });
   return [
     ["divisions", serialize(divisions)],
     ["users", serialize(serializedUsers)],
@@ -598,7 +612,7 @@ async function loadMySQLState() {
     ["audit_logs", serialize(auditLogs)],
     ["envelope_logs", serialize(envelopeLogs)],
     ["employee_profiles", serialize(employees)],
-    ["directory_sections", serialize(directorySections)]
+    ["directory_sections", serialize(normalizedDirectorySections)]
   ];
 }
 async function loadLiveDocuments() {
@@ -957,6 +971,13 @@ var DEFAULT_ROLE_PERMISSIONS = {
       "EMPLOYEE_EDIT",
       "EMPLOYEE_DELETE",
       "EMPLOYEE_FOLDER_MANAGE",
+      "DIRECTORY_BLGF_VIEW",
+      "DIRECTORY_LGU_VIEW",
+      "DIRECTORY_OTHER_VIEW",
+      "USER_ACCOUNT_CREATE",
+      "USER_ACCOUNT_EDIT",
+      "USER_ACCOUNT_DELETE",
+      "USER_SYSTEM_ADMIN_MANAGE",
       "WORKFLOW_OPTION_MANAGE",
       "ROUTING_MONITOR_VIEW",
       "ROUTING_REMINDER_SEND",
@@ -1008,6 +1029,10 @@ var DEFAULT_ROLE_PERMISSIONS = {
       "EMPLOYEE_CREATE",
       "EMPLOYEE_EDIT",
       "EMPLOYEE_FOLDER_MANAGE",
+      "DIRECTORY_LGU_VIEW",
+      "DIRECTORY_OTHER_VIEW",
+      "USER_ACCOUNT_CREATE",
+      "USER_ACCOUNT_EDIT",
       "ROUTING_MONITOR_VIEW",
       "ROUTING_REMINDER_SEND"
     ],
@@ -1036,7 +1061,16 @@ var DEFAULT_ROLE_PERMISSIONS = {
     allowedActions: [
       "ROUTING_MONITOR_VIEW",
       "ROUTING_REMINDER_SEND",
-      "NOTIFICATION_VIEW_ALL"
+      "NOTIFICATION_VIEW_ALL",
+      "DIRECTORY_BLGF_VIEW",
+      "DIRECTORY_LGU_VIEW",
+      "DIRECTORY_OTHER_VIEW",
+      "EMPLOYEE_CREATE",
+      "EMPLOYEE_EDIT",
+      "EMPLOYEE_DELETE",
+      "EMPLOYEE_FOLDER_MANAGE",
+      "USER_ACCOUNT_CREATE",
+      "USER_ACCOUNT_EDIT"
     ],
     allowedViews: [
       "dashboard",
@@ -1060,7 +1094,13 @@ var DEFAULT_ROLE_PERMISSIONS = {
     canDelete: false,
     canViewAllDocuments: false,
     canViewAllRoutes: false,
-    allowedActions: ["ROUTING_MONITOR_VIEW", "ROUTING_REMINDER_SEND"],
+    allowedActions: [
+      "ROUTING_MONITOR_VIEW",
+      "ROUTING_REMINDER_SEND",
+      "DIRECTORY_BLGF_VIEW",
+      "DIRECTORY_LGU_VIEW",
+      "DIRECTORY_OTHER_VIEW"
+    ],
     allowedViews: [
       "dashboard",
       "division-workload",
@@ -1083,7 +1123,7 @@ var DEFAULT_ROLE_PERMISSIONS = {
     canDelete: false,
     canViewAllDocuments: false,
     canViewAllRoutes: false,
-    allowedActions: [],
+    allowedActions: ["DIRECTORY_BLGF_VIEW", "DIRECTORY_LGU_VIEW", "DIRECTORY_OTHER_VIEW"],
     allowedViews: [
       "dashboard",
       "division-workload",
@@ -1105,7 +1145,7 @@ var DEFAULT_ROLE_PERMISSIONS = {
     canDelete: false,
     canViewAllDocuments: false,
     canViewAllRoutes: false,
-    allowedActions: [],
+    allowedActions: ["DIRECTORY_BLGF_VIEW", "DIRECTORY_LGU_VIEW", "DIRECTORY_OTHER_VIEW"],
     allowedViews: [
       "dashboard",
       "division-workload",
@@ -1114,7 +1154,8 @@ var DEFAULT_ROLE_PERMISSIONS = {
       "incoming-report",
       "outgoing-report",
       "settings",
-      "qr"
+      "qr",
+      "employees"
     ]
   }
 };
@@ -1128,13 +1169,26 @@ var withoutCredentials = (user) => {
 function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, syncEmployeeProfile) {
   const router = express.Router();
   const getActingUser = (req) => getUsersState().find(
-    (user) => user.id === String(req.get("X-User-Id") || "") && user.active
+    (user) => user.id === String(req.get("X-User-Id") || "") && user.active !== false
   );
   const canManageUsers = (user) => {
     if (!user) return false;
     if (user.role === "SYSTEM_ADMIN") return true;
     const permissions = user.permissions || DEFAULT_ROLE_PERMISSIONS[user.role] || DEFAULT_ROLE_PERMISSIONS.STAFF;
-    return Boolean(permissions.allowedViews?.includes("users"));
+    return Boolean(permissions.management || permissions.allowedViews?.includes("users"));
+  };
+  const hasUserAction = (user, action) => {
+    if (!user) return false;
+    if (user.role === "SYSTEM_ADMIN") return true;
+    const permissions = user.permissions || DEFAULT_ROLE_PERMISSIONS[user.role] || DEFAULT_ROLE_PERMISSIONS.STAFF;
+    if (permissions.allowedActions?.includes(action)) return true;
+    if (canManageUsers(user) && (action === "USER_ACCOUNT_CREATE" || action === "USER_ACCOUNT_EDIT")) {
+      return true;
+    }
+    if (canManageUsers(user) && action === "USER_ACCOUNT_DELETE" && permissions.canDelete) {
+      return true;
+    }
+    return false;
   };
   router.get("/", async (req, res) => {
     try {
@@ -1163,12 +1217,17 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
     if (!actingUser) {
       return res.status(401).json({ error: "Active database user required." });
     }
-    if (!canManageUsers(actingUser)) {
-      return res.status(403).json({ error: "User management access required." });
+    if (!canManageUsers(actingUser) || !hasUserAction(actingUser, "USER_ACCOUNT_CREATE")) {
+      return res.status(403).json({ error: "Create user account permission required." });
     }
-    if (body.role === "SYSTEM_ADMIN" && actingUser.role !== "SYSTEM_ADMIN") {
+    if (body.role === "SYSTEM_ADMIN" && !hasUserAction(actingUser, "USER_SYSTEM_ADMIN_MANAGE")) {
       return res.status(403).json({
-        error: "Only System Administrators can create System Administrator accounts."
+        error: "Protected System Administrator account permission required."
+      });
+    }
+    if (body.permissions?.allowedActions?.includes("USER_SYSTEM_ADMIN_MANAGE") && !hasUserAction(actingUser, "USER_SYSTEM_ADMIN_MANAGE")) {
+      return res.status(403).json({
+        error: "You cannot grant protected System Administrator permissions."
       });
     }
     if (body.role === "SYSTEM_ADMIN" && usersState2.filter((user) => user.role === "SYSTEM_ADMIN").length >= MAX_SYSTEM_ADMINISTRATORS) {
@@ -1237,23 +1296,40 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
       return res.status(404).json({ error: "User not found" });
     }
     const isSelfUpdate = actingUser.id === req.params.id;
-    if (!isSelfUpdate && !canManageUsers(actingUser)) {
-      return res.status(403).json({ error: "User management access required." });
+    if (!isSelfUpdate && (!canManageUsers(actingUser) || !hasUserAction(actingUser, "USER_ACCOUNT_EDIT"))) {
+      return res.status(403).json({ error: "Edit user account permission required." });
     }
     const isSystemAdministrator = usersState2[uIdx].role === "SYSTEM_ADMIN";
-    if (!isSelfUpdate && actingUser.role !== "SYSTEM_ADMIN" && isSystemAdministrator) {
+    if (!isSelfUpdate && isSystemAdministrator && !hasUserAction(actingUser, "USER_SYSTEM_ADMIN_MANAGE")) {
       return res.status(403).json({
-        error: "Only System Administrators can modify System Administrator accounts."
+        error: "Protected System Administrator account permission required."
       });
     }
-    if (req.body.role === "SYSTEM_ADMIN" && actingUser.role !== "SYSTEM_ADMIN") {
+    if (req.body.role === "SYSTEM_ADMIN" && !hasUserAction(actingUser, "USER_SYSTEM_ADMIN_MANAGE")) {
       return res.status(403).json({
-        error: "Only System Administrators can assign the System Administrator role."
+        error: "Protected System Administrator role assignment permission required."
       });
     }
     const requestedCurrentPassword = String(req.body.currentPassword || "");
     const updates = { ...req.body };
     delete updates.currentPassword;
+    if (updates.permissions) {
+      const currentlyCanManageSystemAdministrators = Boolean(
+        usersState2[uIdx].permissions?.allowedActions?.includes(
+          "USER_SYSTEM_ADMIN_MANAGE"
+        )
+      );
+      const willManageSystemAdministrators = Boolean(
+        updates.permissions.allowedActions?.includes(
+          "USER_SYSTEM_ADMIN_MANAGE"
+        )
+      );
+      if (!currentlyCanManageSystemAdministrators && willManageSystemAdministrators && !hasUserAction(actingUser, "USER_SYSTEM_ADMIN_MANAGE")) {
+        return res.status(403).json({
+          error: "You cannot grant protected System Administrator permissions."
+        });
+      }
+    }
     if ("password" in updates) {
       const nextPassword = String(updates.password || "").trim();
       if (nextPassword) {
@@ -1291,11 +1367,11 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
       return res.status(409).json({ error: "Username already exists" });
     }
     if (updates.password) {
-      const administratorResettingAnotherUser = actingUser.role === "SYSTEM_ADMIN" && !isSelfUpdate;
-      if (!administratorResettingAnotherUser && !requestedCurrentPassword) {
+      const authorizedManagerResettingAnotherUser = !isSelfUpdate && hasUserAction(actingUser, "USER_ACCOUNT_EDIT");
+      if (!authorizedManagerResettingAnotherUser && !requestedCurrentPassword) {
         return res.status(400).json({ error: "Current password is required." });
       }
-      if (!administratorResettingAnotherUser && usersState2[uIdx].password && usersState2[uIdx].password !== requestedCurrentPassword) {
+      if (!authorizedManagerResettingAnotherUser && usersState2[uIdx].password && usersState2[uIdx].password !== requestedCurrentPassword) {
         return res.status(401).json({ error: "Current password is incorrect." });
       }
       updates.temporaryPasswordExpiresAt = null;
@@ -1352,11 +1428,11 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
     if (!actingUser) {
       return res.status(401).json({ error: "Active database user required." });
     }
-    if (!canManageUsers(actingUser)) {
-      return res.status(403).json({ error: "User management access required." });
+    if (!canManageUsers(actingUser) || !hasUserAction(actingUser, "USER_ACCOUNT_DELETE")) {
+      return res.status(403).json({ error: "Delete user account permission required." });
     }
     const permissions = actingUser.permissions || DEFAULT_ROLE_PERMISSIONS[actingUser.role] || DEFAULT_ROLE_PERMISSIONS.STAFF;
-    if (actingUser.role !== "SYSTEM_ADMIN" && !permissions.canDelete) {
+    if (actingUser.role !== "SYSTEM_ADMIN" && !permissions.canDelete && !hasUserAction(actingUser, "USER_ACCOUNT_DELETE")) {
       return res.status(403).json({ error: "Delete permission required." });
     }
     const accountToDelete = usersState2.find(
@@ -1578,10 +1654,15 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     }
     res.json({ routeNo: getNextRouteNumber(String(req.query.direction || "INCOMING")) });
   });
-  router.get("/:id", (req, res) => {
+  router.get("/:id", async (req, res) => {
     const actingUser = getActingUser(req);
     if (!actingUser) {
       return res.status(401).json({ error: "Active database user required." });
+    }
+    try {
+      const liveDocuments = await loadLiveDocuments();
+      if (liveDocuments) setDocumentsState(liveDocuments);
+    } catch {
     }
     const doc = getDocumentsState().find(
       (d) => d.id === req.params.id || d.routeNo === req.params.id
@@ -3258,7 +3339,7 @@ async function createApp() {
   app.use(cors());
   app.use(express3.json({ limit: "50mb" }));
   const getRequestUser = (req) => usersState.find(
-    (user) => user.id === String(req.get("X-User-Id") || "") && user.active
+    (user) => user.id === String(req.get("X-User-Id") || "") && user.active !== false
   );
   app.use((_req, res, next) => {
     res.locals.getUsersState = () => usersState;
@@ -4191,17 +4272,47 @@ async function createApp() {
   app.delete("/api/notifications/:id", (_req, res) => {
     res.json({ success: true });
   });
+  const directoryActionsFor = (user) => (user.permissions || DEFAULT_ROLE_PERMISSIONS[user.role])?.allowedActions || [];
+  const directoryViewsFor = (user) => (user.permissions || DEFAULT_ROLE_PERMISSIONS[user.role])?.allowedViews || [];
+  const canAccessDirectoryOfficeType = (user, officeType) => {
+    if (user.role === "SYSTEM_ADMIN") return true;
+    const views = directoryViewsFor(user);
+    const hasDirectoryView = views.includes("employees") || Boolean(user.permissions?.mainMenu);
+    const actions = directoryActionsFor(user);
+    if (officeType === "BLGF") {
+      return hasDirectoryView || actions.includes("DIRECTORY_BLGF_VIEW");
+    }
+    if (["PROVINCIAL_TREASURER", "MUNICIPAL_TREASURER", "LGU"].includes(officeType)) {
+      return hasDirectoryView || actions.includes("DIRECTORY_LGU_VIEW");
+    }
+    return hasDirectoryView || actions.includes("DIRECTORY_OTHER_VIEW");
+  };
+  const normalizeOfficeTypes = (types) => {
+    if (Array.isArray(types)) return types;
+    if (typeof types === "string") {
+      try {
+        const parsed = JSON.parse(types);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        return [types];
+      }
+    }
+    return [];
+  };
+  const canAccessDirectorySection = (user, section) => {
+    if (!section) return false;
+    const types = normalizeOfficeTypes(section.officeTypes);
+    return types.some((officeType) => canAccessDirectoryOfficeType(user, officeType));
+  };
   app.get("/api/employees", (req, res) => {
     const actingUser = getRequestUser(req);
     if (!actingUser) {
       return res.status(401).json({ error: "Active database user required." });
     }
     ensureUserEmployeeProfiles();
-    res.json(
-      actingUser.role === "SYSTEM_ADMIN" ? employeesState : employeesState.filter(
-        (employee) => employee.userId === actingUser.id
-      )
-    );
+    res.json(employeesState.filter(
+      (employee) => canAccessDirectoryOfficeType(actingUser, employee.officeType)
+    ));
   });
   const canManageEmployees = (req) => {
     const user = getRequestUser(req);
@@ -4212,17 +4323,22 @@ async function createApp() {
     );
   };
   app.post("/api/employees", (req, res) => {
-    if (!canManageEmployees(req)) {
+    const actingUser = getRequestUser(req);
+    if (!actingUser || !canManageEmployees(req)) {
       return res.status(403).json({ error: "Personnel management permission required." });
     }
     const body = req.body;
+    const officeType = body.officeType || "BLGF";
+    if (!canAccessDirectoryOfficeType(actingUser, officeType)) {
+      return res.status(403).json({ error: "Directory category access permission required." });
+    }
     const newEmp = {
       id: `emp-${randomUUID4()}`,
       userId: body.userId || void 0,
       fullName: body.fullName,
       position: body.position,
       office: body.office,
-      officeType: body.officeType || "BLGF",
+      officeType,
       divisionCode: body.divisionCode || void 0,
       email: body.email,
       contactNo: body.contactNo || "",
@@ -4248,6 +4364,10 @@ async function createApp() {
     );
     if (!canManageEmployees(req) && !canUpdateFolders) {
       return res.status(403).json({ error: "Personnel management permission required." });
+    }
+    const targetOfficeType = req.body?.officeType || employeesState[idx].officeType;
+    if (!actingUser || !canAccessDirectoryOfficeType(actingUser, employeesState[idx].officeType) || !canAccessDirectoryOfficeType(actingUser, targetOfficeType)) {
+      return res.status(403).json({ error: "Directory category access permission required." });
     }
     employeesState[idx] = { ...employeesState[idx], ...req.body };
     if (employeesState[idx].userId && !folderOnlyUpdate && actingUser?.role === "SYSTEM_ADMIN") {
@@ -4279,11 +4399,22 @@ async function createApp() {
     saveDatabaseToFile();
     res.json({ success: true, message: "Employee deleted" });
   });
-  app.get("/api/directory-sections", (_req, res) => {
+  app.get("/api/directory-sections", (req, res) => {
     if (!directorySectionsState || directorySectionsState.length === 0) {
       directorySectionsState = [...DEFAULT_DIRECTORY_SECTIONS];
     }
-    res.json(directorySectionsState);
+    const actingUser = getRequestUser(req);
+    if (!actingUser) {
+      return res.status(401).json({ error: "Active database user required." });
+    }
+    const sanitizedSections = directorySectionsState.map((section) => ({
+      ...section,
+      officeTypes: normalizeOfficeTypes(section.officeTypes)
+    }));
+    if (actingUser.role === "SYSTEM_ADMIN") return res.json(sanitizedSections);
+    res.json(sanitizedSections.filter(
+      (section) => canAccessDirectorySection(actingUser, section)
+    ));
   });
   const handleSaveSections = (req, res) => {
     const actingUser = getRequestUser(req);
@@ -4294,7 +4425,21 @@ async function createApp() {
     if (!Array.isArray(nextSections) || nextSections.length === 0) {
       return res.status(400).json({ error: "Invalid directory sections format." });
     }
-    directorySectionsState = nextSections;
+    const cleanSections = nextSections.map((sec) => ({
+      id: String(sec.id || "").trim(),
+      label: String(sec.label || "").trim(),
+      officeTypes: normalizeOfficeTypes(sec.officeTypes),
+      color: sec.color || "blue"
+    }));
+    if (actingUser.role === "SYSTEM_ADMIN") {
+      directorySectionsState = cleanSections;
+    } else {
+      const hiddenSections = directorySectionsState.map((section) => ({
+        ...section,
+        officeTypes: normalizeOfficeTypes(section.officeTypes)
+      })).filter((section) => !canAccessDirectorySection(actingUser, section));
+      directorySectionsState = [...hiddenSections, ...cleanSections];
+    }
     saveDatabaseToFile();
     res.json({ success: true, directorySections: directorySectionsState });
   };
@@ -4305,8 +4450,25 @@ async function createApp() {
   });
   if (IS_VERCEL) return app;
   const distPath = path.join(process.cwd(), "dist", "frontend");
-  app.use(express3.static(distPath));
+  app.use((_req, res, next) => {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    next();
+  });
+  app.use(express3.static(distPath, {
+    etag: false,
+    maxAge: 0,
+    setHeaders: (res) => {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+    }
+  }));
   app.get("*", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     res.sendFile(path.join(distPath, "index.html"));
   });
   await new Promise((resolve, reject) => {

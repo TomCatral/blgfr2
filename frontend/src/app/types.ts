@@ -155,8 +155,13 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, RolePermission> = {
       'ROUTING_MONITOR_VIEW',
       'ROUTING_REMINDER_SEND',
       'NOTIFICATION_VIEW_ALL',
+      'DIRECTORY_BLGF_VIEW',
       'DIRECTORY_LGU_VIEW',
       'DIRECTORY_OTHER_VIEW',
+      'EMPLOYEE_CREATE',
+      'EMPLOYEE_EDIT',
+      'EMPLOYEE_DELETE',
+      'EMPLOYEE_FOLDER_MANAGE',
       'USER_ACCOUNT_CREATE',
       'USER_ACCOUNT_EDIT',
     ],
@@ -185,6 +190,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, RolePermission> = {
     allowedActions: [
       'ROUTING_MONITOR_VIEW',
       'ROUTING_REMINDER_SEND',
+      'DIRECTORY_BLGF_VIEW',
       'DIRECTORY_LGU_VIEW',
       'DIRECTORY_OTHER_VIEW',
     ],
@@ -210,7 +216,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, RolePermission> = {
     canDelete: false,
     canViewAllDocuments: false,
     canViewAllRoutes: false,
-    allowedActions: ['DIRECTORY_LGU_VIEW', 'DIRECTORY_OTHER_VIEW'],
+    allowedActions: ['DIRECTORY_BLGF_VIEW', 'DIRECTORY_LGU_VIEW', 'DIRECTORY_OTHER_VIEW'],
     allowedViews: [
       'dashboard',
       'division-workload',
@@ -232,7 +238,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, RolePermission> = {
     canDelete: false,
     canViewAllDocuments: false,
     canViewAllRoutes: false,
-    allowedActions: [],
+    allowedActions: ['DIRECTORY_BLGF_VIEW', 'DIRECTORY_LGU_VIEW', 'DIRECTORY_OTHER_VIEW'],
     allowedViews: [
       'dashboard',
       'division-workload',
@@ -242,6 +248,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, RolePermission> = {
       'outgoing-report',
       'settings',
       'qr',
+      'employees',
     ],
   },
 };

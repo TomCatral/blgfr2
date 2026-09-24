@@ -630,6 +630,20 @@ export async function loadMySQLState(): Promise<ReplicaEntry[]> {
     ),
   }));
   const serialize = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+  const normalizedDirectorySections = directorySections.map((sec) => {
+    let officeTypes = (sec as any).officeTypes;
+    if (typeof officeTypes === 'string') {
+      try {
+        officeTypes = JSON.parse(officeTypes);
+      } catch {
+        officeTypes = [officeTypes];
+      }
+    }
+    return {
+      ...sec,
+      officeTypes: Array.isArray(officeTypes) ? officeTypes : [],
+    };
+  });
 
   return [
     ['divisions', serialize(divisions)],
@@ -638,7 +652,7 @@ export async function loadMySQLState(): Promise<ReplicaEntry[]> {
     ['audit_logs', serialize(auditLogs)],
     ['envelope_logs', serialize(envelopeLogs)],
     ['employee_profiles', serialize(employees)],
-    ['directory_sections', serialize(directorySections)],
+    ['directory_sections', serialize(normalizedDirectorySections)],
   ];
 }
 
