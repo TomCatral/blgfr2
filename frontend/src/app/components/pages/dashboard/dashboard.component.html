@@ -99,7 +99,7 @@
     <!-- Incoming Docs -->
     <button
       type="button"
-      (click)="selectedCard.set('incoming')"
+      (click)="selectCard('incoming')"
       [class.active-card]="selectedCard() === 'incoming'"
       class="kpi-card group">
       <div class="kpi-header">
@@ -120,7 +120,7 @@
     <!-- Outgoing Docs -->
     <button
       type="button"
-      (click)="selectedCard.set('outgoing')"
+      (click)="selectCard('outgoing')"
       [class.active-card]="selectedCard() === 'outgoing'"
       class="kpi-card group">
       <div class="kpi-header">
@@ -141,7 +141,7 @@
     <!-- In Progress -->
     <button
       type="button"
-      (click)="selectedCard.set('inProgress')"
+      (click)="selectCard('inProgress')"
       [class.active-card]="selectedCard() === 'inProgress'"
       class="kpi-card group">
       <div class="kpi-header">
@@ -162,7 +162,7 @@
     <!-- Pending Received -->
     <button
       type="button"
-      (click)="selectedCard.set('pending')"
+      (click)="selectCard('pending')"
       [class.active-card]="selectedCard() === 'pending'"
       class="kpi-card group">
       <div class="kpi-header">
@@ -186,7 +186,7 @@
     <!-- Completed -->
     <button
       type="button"
-      (click)="selectedCard.set('completed')"
+      (click)="selectCard('completed')"
       [class.active-card]="selectedCard() === 'completed'"
       class="kpi-card group">
       <div class="kpi-header">
@@ -207,7 +207,7 @@
     <!-- Disapproved / Returned -->
     <button
       type="button"
-      (click)="selectedCard.set('returned')"
+      (click)="selectCard('returned')"
       [class.active-card]="selectedCard() === 'returned'"
       class="kpi-card group">
       <div class="kpi-header">
@@ -573,16 +573,14 @@
 
 
   <!-- 7. Selected Card Filtered Documents Modal -->
-  @if (selectedCard()) {
-    <div
-      class="dash-card-modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="pending-documents-title"
-      (mousedown)="onBackdropMouseDown($event, 'selectedCard')">
-      <div class="dash-card-modal-dialog">
+  <app-modal-layer
+    [isOpen]="!!selectedCard()"
+    [onClose]="closeCardModal"
+    maxWidth="48rem">
+    @if (selectedCard()) {
+      <div class="dash-card-modal-container">
         <div class="dash-card-modal-header">
-          <div>
+          <div class="dash-card-modal-header-main">
             <h2 id="pending-documents-title" class="dash-card-modal-title">
               {{ cardTitle() }}
             </h2>
@@ -590,6 +588,26 @@
               {{ cardDocuments().length }} document{{ cardDocuments().length === 1 ? '' : 's' }} in this category
             </p>
           </div>
+
+          @if (currentUser.role === 'SYSTEM_ADMIN') {
+            <div class="dash-card-flow-toggle">
+              <button
+                type="button"
+                (click)="cardFlowFilter.set('MY')"
+                [class.active]="cardFlowFilter() === 'MY'"
+                class="dash-flow-btn">
+                <span>My Assigned / Flow</span>
+              </button>
+              <button
+                type="button"
+                (click)="cardFlowFilter.set('ALL')"
+                [class.active]="cardFlowFilter() === 'ALL'"
+                class="dash-flow-btn">
+                <span>All Personnel</span>
+              </button>
+            </div>
+          }
+
           <div class="dash-card-modal-actions">
             @if (selectedCard() === 'incoming' || selectedCard() === 'outgoing') {
               <button
@@ -609,6 +627,7 @@
             </button>
           </div>
         </div>
+
         <div class="dash-card-modal-body">
           @if (cardDocuments().length) {
             @for (document of cardDocuments(); track document.id) {
@@ -617,9 +636,16 @@
                   <span class="dash-card-doc-route">
                     {{ document.routeNo }}
                   </span>
-                  <span class="dash-card-doc-div">
-                    {{ document.currentDivision }}
-                  </span>
+                  <div class="dash-card-doc-badges">
+                    @if (document.assignedUser) {
+                      <span class="dash-card-handler-pill">
+                        Handler: <strong>{{ document.assignedUser }}</strong>
+                      </span>
+                    }
+                    <span class="dash-card-doc-div">
+                      {{ document.currentDivision }}
+                    </span>
+                  </div>
                 </div>
 
                 <div class="dash-card-doc-title">
@@ -638,7 +664,7 @@
                       Routing Trail
                     </div>
                     <div class="dash-card-trail-list">
-                      @for (route of groupRouteTransactions(document); track route.id; let idx = $index) {
+                      @for (route of getCardVisibleRoutes(document); track route.id; let idx = $index) {
                         <div class="dash-card-trail-step">
                           <span class="dash-card-step-num">
                             {{ idx + 1 }}
@@ -713,6 +739,6 @@
           }
         </div>
       </div>
-    </div>
-  }
+    }
+  </app-modal-layer>
 </div>

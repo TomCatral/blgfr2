@@ -175,6 +175,10 @@ export class EmployeeProfilesComponent implements OnInit {
   editingOfficeId = signal<string | null>(null);
   directorySections = signal<DirectorySection[]>(loadDirectorySections());
 
+  readonly accessibleDirectorySections = computed(() =>
+    this.directorySections().filter((section) => this.canViewDirectorySection(section)),
+  );
+
   readonly filteredDirectorySections = computed(() => {
     const q = this.titleFilter().toLowerCase().trim();
     if (!q) return this.directorySections();
@@ -199,17 +203,13 @@ export class EmployeeProfilesComponent implements OnInit {
     active: true,
   });
 
-  readonly visibleEmployees = computed(() =>
-    this.canViewAllPersonnel()
-      ? this.employees()
-      : this.employees().filter((employee) => employee.userId === this.currentUser.id),
-  );
+  readonly visibleEmployees = computed(() => this.employees());
 
   readonly tabFilteredEmployees = computed(() => {
     const tab = this.activeTab();
     return this.visibleEmployees().filter((e) => {
       if (tab === 'ALL') return true;
-      const section = this.directorySections().find((item) => item.id === tab);
+      const section = this.accessibleDirectorySections().find((item) => item.id === tab);
       return section ? section.officeTypes.includes(e.officeType) : false;
     });
   });
@@ -230,7 +230,7 @@ export class EmployeeProfilesComponent implements OnInit {
   readonly tabs = computed(() => {
     const visible = this.visibleEmployees();
     return [
-      ...this.directorySections().map((section) => ({
+      ...this.accessibleDirectorySections().map((section) => ({
         key: section.id,
         label: section.label,
         count: visible.filter((employee) =>
@@ -279,10 +279,10 @@ export class EmployeeProfilesComponent implements OnInit {
         localStorage.setItem('blgf_directory_sections', JSON.stringify(apiSections));
       } catch {}
     }
-    const loadedUsers = this.canViewAllPersonnel()
+    const loadedUsers = this.currentUser.role === 'SYSTEM_ADMIN'
       ? await firstValueFrom(this.api.getUsers()).catch(() => [] as User[])
       : ([] as User[]);
-    const accountUsers = this.canViewAllPersonnel() ? loadedUsers : [this.currentUser];
+    const accountUsers = this.currentUser.role === 'SYSTEM_ADMIN' ? loadedUsers : [];
     const mergedEmployees = [...loadedEmployees];
     for (const user of accountUsers) {
       if (!mergedEmployees.some((employee) => employee.userId === user.id)) {
@@ -294,11 +294,15 @@ export class EmployeeProfilesComponent implements OnInit {
         mergedEmployees.find((employee) => employee.userId === user.id) ||
         this.profileFromUser(user),
     );
-    const manualEmployees = this.canViewAllPersonnel()
-      ? mergedEmployees.filter((employee) => !employee.userId)
-      : [];
-    const accessibleEmployees = [...linkedEmployees, ...manualEmployees];
+    const manualEmployees = mergedEmployees.filter((employee) => !employee.userId);
+    const accessibleEmployees = this.currentUser.role === 'SYSTEM_ADMIN'
+      ? [...linkedEmployees, ...manualEmployees]
+      : mergedEmployees;
     this.employees.set(accessibleEmployees);
+    const firstVisibleSection = this.accessibleDirectorySections()[0];
+    if (!this.accessibleDirectorySections().some((section) => section.id === this.activeTab())) {
+      this.activeTab.set(firstVisibleSection?.id || 'ALL');
+    }
     this.folders.update((currentFolders) => {
       const databaseFolders = accessibleEmployees.flatMap(
         (employee) => employee.folders || [],
@@ -350,7 +354,26 @@ export class EmployeeProfilesComponent implements OnInit {
   }
 
   canViewAllPersonnel(): boolean {
-    return this.currentUser.role === 'SYSTEM_ADMIN';
+    return this.currentUser.role === 'SYSTEM_ADMIN' ||
+      ['DIRECTORY_BLGF_VIEW', 'DIRECTORY_LGU_VIEW', 'DIRECTORY_OTHER_VIEW'].some((action) =>
+        this.canManage(action),
+      );
+  }
+
+  canViewDirectorySection(section: DirectorySection): boolean {
+    if (this.currentUser.role === 'SYSTEM_ADMIN') return true;
+    if (section.id === 'BLGF' || section.officeTypes.includes('BLGF')) {
+      return this.canManage('DIRECTORY_BLGF_VIEW');
+    }
+    if (
+      section.id === 'LGU_STAFF' ||
+      section.officeTypes.some((type) =>
+        ['PROVINCIAL_TREASURER', 'MUNICIPAL_TREASURER', 'LGU'].includes(type),
+      )
+    ) {
+      return this.canManage('DIRECTORY_LGU_VIEW');
+    }
+    return this.canManage('DIRECTORY_OTHER_VIEW');
   }
 
   canManage(action: string): boolean {
@@ -545,12 +568,18 @@ export class EmployeeProfilesComponent implements OnInit {
       fullName: '',
       position: '',
       office: '',
-      officeType: 'BLGF',
+      officeType: this.defaultOfficeType(),
       email: '',
       contactNo: '',
       address: '',
       active: true,
     });
+  }
+
+  private defaultOfficeType(): EmployeeProfile['officeType'] {
+    if (this.canManage('DIRECTORY_BLGF_VIEW')) return 'BLGF';
+    if (this.canManage('DIRECTORY_LGU_VIEW')) return 'PROVINCIAL_TREASURER';
+    return 'OTHER_AGENCIES';
   }
 
   setForm(key: keyof EmployeeProfile, value: string): void {

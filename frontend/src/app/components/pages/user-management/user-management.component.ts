@@ -110,6 +110,9 @@ const MENU_ITEMS_LIST: MenuItem[] = [
 ];
 
 const ACTION_PERMISSIONS: { id: string; label: string }[] = [
+  { id: 'DIRECTORY_BLGF_VIEW', label: 'View Confidential BLGF Personnel Directory' },
+  { id: 'DIRECTORY_LGU_VIEW', label: 'View Provincial, Municipal and LGU Directory' },
+  { id: 'DIRECTORY_OTHER_VIEW', label: 'View Partner Agencies and Custom Directory Sections' },
   { id: 'NOTIFICATION_VIEW_ALL', label: 'View All Document Transaction Notifications' },
   { id: 'ROUTING_MONITOR_VIEW', label: 'View Routing Follow-up Module' },
   { id: 'ROUTING_REMINDER_SEND', label: 'Send Action Reminders to Document Handlers' },

@@ -12,6 +12,7 @@ import {
 } from '../../../types';
 import { STATUS_CONFIGS, formatDate } from '../../../utils/status-utils';
 import { IonicModule } from '@ionic/angular';
+import { AppModalLayerComponent } from '../../ui/modal-layer.component';
 
 interface GroupedRouteTransaction extends DocumentRouteStep {
   toDivisions: string[];
@@ -22,7 +23,7 @@ interface GroupedRouteTransaction extends DocumentRouteStep {
   selector: 'app-dashboard',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [IonicModule, CommonModule, FormsModule],
+  imports: [IonicModule, CommonModule, FormsModule, AppModalLayerComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
@@ -40,11 +41,21 @@ export class DashboardComponent implements OnChanges {
   @Input({ required: true }) onSendRoutingReminder: (document: DocumentRecord, route: DocumentRouteStep) => Promise<void> = async () => {};
 
   selectedCard = signal<'incoming' | 'outgoing' | 'inProgress' | 'pending' | 'completed' | 'returned' | null>(null);
+  cardFlowFilter = signal<'MY' | 'ALL'>('MY');
   isUserStatusOpen = signal(false);
   transactionPage = signal(1);
   recentDocFilter = signal<'ALL' | 'INCOMING' | 'OUTGOING'>('ALL');
   searchQuery = signal<string>('');
   private readonly inputRevision = signal(0);
+
+  closeCardModal = (): void => {
+    this.selectedCard.set(null);
+  };
+
+  selectCard(card: 'incoming' | 'outgoing' | 'inProgress' | 'pending' | 'completed' | 'returned'): void {
+    this.cardFlowFilter.set('MY');
+    this.selectedCard.set(card);
+  };
 
   cx = cx;
 
@@ -283,7 +294,8 @@ export class DashboardComponent implements OnChanges {
     const card = this.selectedCard();
     if (!card) return [];
     if (card === 'returned') return this.myDisapprovedTransactions();
-    return this.documents.filter(doc => {
+
+    let docs = this.documents.filter(doc => {
       if (card === 'incoming') return doc.direction === 'INCOMING';
       if (card === 'outgoing') return doc.direction === 'OUTGOING';
       if (card === 'inProgress') return doc.currentStatus === 'IN_PROGRESS';
@@ -291,7 +303,61 @@ export class DashboardComponent implements OnChanges {
       if (card === 'completed') return doc.currentStatus === 'COMPLETED';
       return false;
     });
+
+    const isSystemAdmin = this.currentUser.role === 'SYSTEM_ADMIN';
+    if (!isSystemAdmin || this.cardFlowFilter() === 'MY') {
+      docs = docs.filter(doc => {
+        if (card === 'pending') {
+          const isAssigned =
+            doc.assignedUserId === this.currentUser.id ||
+            doc.assignedUser?.trim().toLowerCase() === this.normalizedUserName;
+          const latestRoute = (doc.routes || [])[(doc.routes || []).length - 1];
+          const isLatestRecipient = Boolean(
+            latestRoute &&
+            (latestRoute.toUserId === this.currentUser.id ||
+              latestRoute.toUser?.trim().toLowerCase() === this.normalizedUserName)
+          );
+          return isAssigned || isLatestRecipient;
+        }
+
+        const isOwnerOrHandler =
+          doc.createdByUserId === this.currentUser.id ||
+          doc.assignedUserId === this.currentUser.id ||
+          doc.createdBy?.trim().toLowerCase() === this.normalizedUserName ||
+          doc.assignedUser?.trim().toLowerCase() === this.normalizedUserName;
+        const isParticipant = (doc.routes || []).some(route =>
+          route.fromUserId === this.currentUser.id ||
+          route.toUserId === this.currentUser.id ||
+          route.fromUser?.trim().toLowerCase() === this.normalizedUserName ||
+          route.toUser?.trim().toLowerCase() === this.normalizedUserName
+        );
+        return isOwnerOrHandler || isParticipant;
+      });
+    }
+
+    return docs;
   });
+
+  getCardVisibleRoutes(document: DocumentRecord): GroupedRouteTransaction[] {
+    const grouped = this.groupRouteTransactions(document);
+    if (this.cardFlowFilter() === 'ALL' || grouped.length <= 1) {
+      return grouped;
+    }
+
+    const isUserParticipant = (r: GroupedRouteTransaction) =>
+      r.fromUserId === this.currentUser.id ||
+      r.toUserId === this.currentUser.id ||
+      r.fromUser?.trim().toLowerCase() === this.normalizedUserName ||
+      r.toUser?.trim().toLowerCase() === this.normalizedUserName ||
+      (r.toUsers || []).some(u => u.trim().toLowerCase() === this.normalizedUserName);
+
+    const hasUserInStep = grouped.some(isUserParticipant);
+    if (!hasUserInStep) {
+      return grouped;
+    }
+
+    return grouped.filter(isUserParticipant);
+  }
 
   cardTitle = computed(() => {
     const titles: Record<string, string> = {

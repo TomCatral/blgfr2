@@ -854,11 +854,17 @@
                   (ngModelChange)="setForm('officeType', $event)"
                   class="ep-modal-select ep-select-field"
                 >
-                  <ion-select-option value="BLGF">BLGF Personnel</ion-select-option>
-                  <ion-select-option value="PROVINCIAL_TREASURER">Provincial Treasurer</ion-select-option>
-                  <ion-select-option value="MUNICIPAL_TREASURER">Municipal Treasurer</ion-select-option>
-                  <ion-select-option value="LGU">LGU Staff</ion-select-option>
-                  <ion-select-option value="OTHER_AGENCIES">Other Agencies</ion-select-option>
+                  @if (canManage('DIRECTORY_BLGF_VIEW')) {
+                    <ion-select-option value="BLGF">BLGF Personnel (Confidential)</ion-select-option>
+                  }
+                  @if (canManage('DIRECTORY_LGU_VIEW')) {
+                    <ion-select-option value="PROVINCIAL_TREASURER">Provincial Treasurer</ion-select-option>
+                    <ion-select-option value="MUNICIPAL_TREASURER">Municipal Treasurer</ion-select-option>
+                    <ion-select-option value="LGU">LGU Staff</ion-select-option>
+                  }
+                  @if (canManage('DIRECTORY_OTHER_VIEW')) {
+                    <ion-select-option value="OTHER_AGENCIES">Other Agencies</ion-select-option>
+                  }
                   @for (section of customSections(); track section.id) {
                     <ion-select-option [value]="section.officeTypes[0]">{{ section.label }}</ion-select-option>
                   }

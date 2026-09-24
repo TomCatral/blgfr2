@@ -1935,6 +1935,22 @@ export async function createApp() {
   // EMPLOYEE PROFILES API
   // ======================================================================
 
+  const directoryActionsFor = (user: User): string[] =>
+    (user.permissions || DEFAULT_ROLE_PERMISSIONS[user.role]).allowedActions || [];
+
+  const canAccessDirectoryOfficeType = (user: User, officeType: string): boolean => {
+    if (user.role === 'SYSTEM_ADMIN') return true;
+    const actions = directoryActionsFor(user);
+    if (officeType === 'BLGF') return actions.includes('DIRECTORY_BLGF_VIEW');
+    if (['PROVINCIAL_TREASURER', 'MUNICIPAL_TREASURER', 'LGU'].includes(officeType)) {
+      return actions.includes('DIRECTORY_LGU_VIEW');
+    }
+    return actions.includes('DIRECTORY_OTHER_VIEW');
+  };
+
+  const canAccessDirectorySection = (user: User, section: DirectorySectionRecord): boolean =>
+    section.officeTypes.some((officeType) => canAccessDirectoryOfficeType(user, officeType));
+
   // GET all employees
   app.get('/api/employees', (req, res) => {
     const actingUser = getRequestUser(req);
@@ -1944,13 +1960,9 @@ export async function createApp() {
     // Self-heal deleted or legacy directory cards. The immutable user ID is
     // the owner key; names, usernames, roles, and passwords may safely change.
     ensureUserEmployeeProfiles();
-    res.json(
-      actingUser.role === 'SYSTEM_ADMIN'
-        ? employeesState
-        : employeesState.filter(
-            (employee) => employee.userId === actingUser.id,
-          ),
-    );
+    res.json(employeesState.filter((employee) =>
+      canAccessDirectoryOfficeType(actingUser, employee.officeType),
+    ));
   });
 
   const canManageEmployees = (req: express.Request) => {
@@ -1969,17 +1981,22 @@ export async function createApp() {
 
   // POST create employee
   app.post('/api/employees', (req, res) => {
-    if (!canManageEmployees(req)) {
+    const actingUser = getRequestUser(req);
+    if (!actingUser || !canManageEmployees(req)) {
       return res.status(403).json({ error: 'Personnel management permission required.' });
     }
     const body = req.body;
+    const officeType = body.officeType || 'BLGF';
+    if (!canAccessDirectoryOfficeType(actingUser, officeType)) {
+      return res.status(403).json({ error: 'Directory category access permission required.' });
+    }
     const newEmp: EmployeeProfile = {
       id: `emp-${randomUUID()}`,
       userId: body.userId || undefined,
       fullName: body.fullName,
       position: body.position,
       office: body.office,
-      officeType: body.officeType || 'BLGF',
+      officeType,
       divisionCode: body.divisionCode || undefined,
       email: body.email,
       contactNo: body.contactNo || '',
@@ -2014,6 +2031,14 @@ export async function createApp() {
     );
     if (!canManageEmployees(req) && !canUpdateFolders) {
       return res.status(403).json({ error: 'Personnel management permission required.' });
+    }
+    const targetOfficeType = req.body?.officeType || employeesState[idx].officeType;
+    if (
+      !actingUser ||
+      !canAccessDirectoryOfficeType(actingUser, employeesState[idx].officeType) ||
+      !canAccessDirectoryOfficeType(actingUser, targetOfficeType)
+    ) {
+      return res.status(403).json({ error: 'Directory category access permission required.' });
     }
 
     employeesState[idx] = { ...employeesState[idx], ...req.body };
@@ -2052,11 +2077,18 @@ export async function createApp() {
   });
 
   // GET directory sections
-  app.get('/api/directory-sections', (_req, res) => {
+  app.get('/api/directory-sections', (req, res) => {
     if (!directorySectionsState || directorySectionsState.length === 0) {
       directorySectionsState = [...DEFAULT_DIRECTORY_SECTIONS];
     }
-    res.json(directorySectionsState);
+    const actingUser = getRequestUser(req);
+    if (!actingUser) {
+      return res.status(401).json({ error: 'Active database user required.' });
+    }
+    if (actingUser.role === 'SYSTEM_ADMIN') return res.json(directorySectionsState);
+    res.json(directorySectionsState.filter((section) =>
+      canAccessDirectorySection(actingUser, section),
+    ));
   });
 
   // POST / PUT save directory sections
@@ -2069,7 +2101,14 @@ export async function createApp() {
     if (!Array.isArray(nextSections) || nextSections.length === 0) {
       return res.status(400).json({ error: 'Invalid directory sections format.' });
     }
-    directorySectionsState = nextSections;
+    if (actingUser.role === 'SYSTEM_ADMIN') {
+      directorySectionsState = nextSections;
+    } else {
+      const hiddenSections = directorySectionsState.filter(
+        (section) => !canAccessDirectorySection(actingUser, section),
+      );
+      directorySectionsState = [...hiddenSections, ...nextSections];
+    }
     saveDatabaseToFile();
     res.json({ success: true, directorySections: directorySectionsState });
   };

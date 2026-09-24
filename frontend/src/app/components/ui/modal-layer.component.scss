@@ -1,7 +1,7 @@
 .modal-layer-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 300;
+  z-index: 1000;
   overflow-y: auto;
   background-color: rgba(2, 6, 23, 0.65);
   backdrop-filter: blur(8px);
