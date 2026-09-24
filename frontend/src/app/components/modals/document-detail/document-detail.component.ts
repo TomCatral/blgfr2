@@ -104,7 +104,7 @@ export class DocumentDetailComponent implements OnChanges {
   viewingPdf = signal<{ url: string; name: string; shouldRevoke?: boolean } | null>(null);
   isUploading = signal(false);
   selectedFlowRecipient = signal<string | null>(null);
-  flowFilterMode = signal<'ALL' | 'MY'>('ALL');
+  flowFilterMode = signal<'ALL' | 'MY'>('MY');
   flowViewMode = signal<'graph' | 'timeline'>('graph');
   auditExpanded = signal(false);
 
@@ -150,6 +150,10 @@ export class DocumentDetailComponent implements OnChanges {
       } else {
         this.overrideFinalInstructions.set(null);
       }
+      this.flowFilterMode.set('MY');
+    }
+    if (changes['currentUser'] && this.currentUser) {
+      this.flowFilterMode.set('MY');
     }
   }
 
@@ -196,13 +200,95 @@ export class DocumentDetailComponent implements OnChanges {
     return (perms.allowedViews || []).includes('slip');
   }
 
+  canViewAllRoutes = computed<boolean>(() => {
+    if (this.currentUser?.role === 'SYSTEM_ADMIN') return true;
+    const perms =
+      this.currentUser?.permissions ||
+      DEFAULT_ROLE_PERMISSIONS[this.currentUser?.role] ||
+      DEFAULT_ROLE_PERMISSIONS.STAFF;
+    return Boolean(perms.canViewAllRoutes);
+  });
+
+  hasMultipleBranches = computed<boolean>(() => {
+    const all = this.rawHistoryRoutes();
+    if (all.length <= 1) return false;
+    const roots = all.filter((route, index) => {
+      if (index === 0) return true;
+      const hasParent = all
+        .slice(0, index)
+        .some((p) => this.matchesPerson(p.toUserId, p.toUser, route.fromUserId, route.fromUser));
+      return !hasParent;
+    });
+    return roots.length > 1;
+  });
+
+  isRecipientYou(route: DocumentRouteStep): boolean {
+    if (!this.currentUser) return false;
+    return this.matchesPerson(route.toUserId, route.toUser, this.currentUser.id, this.currentUser.fullName);
+  }
+
+  isSenderYou(route: DocumentRouteStep): boolean {
+    if (!this.currentUser) return false;
+    return this.matchesPerson(route.fromUserId, route.fromUser, this.currentUser.id, this.currentUser.fullName);
+  }
+
   isParticipantInStep(route: DocumentRouteStep): boolean {
+    if (!this.currentUser) return false;
     return (
       this.matchesPerson(route.fromUserId, route.fromUser, this.currentUser.id, this.currentUser.fullName) ||
-      this.matchesPerson(route.toUserId, route.toUser, this.currentUser.id, this.currentUser.fullName) ||
-      this.currentUser.divisionCode === route.toDivision ||
-      this.currentUser.divisionCode === route.fromDivision
+      this.matchesPerson(route.toUserId, route.toUser, this.currentUser.id, this.currentUser.fullName)
     );
+  }
+
+  isRouteConnectedToUser(route: DocumentRouteStep, allRoutes: DocumentRouteStep[]): boolean {
+    if (!this.currentUser) return true;
+
+    if (this.isParticipantInStep(route)) return true;
+
+    if (this.matchesPerson(this.document.createdByUserId, this.document.createdBy, this.currentUser.id, this.currentUser.fullName)) {
+      if (this.matchesPerson(route.fromUserId, route.fromUser, this.currentUser.id, this.currentUser.fullName)) {
+        return true;
+      }
+    }
+
+    // Upstream check: does this route lead downstream to a step where user is a participant?
+    const leadsToUser = (curr: DocumentRouteStep, visited = new Set<string>()): boolean => {
+      if (visited.has(curr.id)) return false;
+      visited.add(curr.id);
+
+      const children = allRoutes
+        .slice(allRoutes.indexOf(curr) + 1)
+        .filter((child) => this.matchesPerson(child.fromUserId, child.fromUser, curr.toUserId, curr.toUser));
+      for (const child of children) {
+        if (this.isParticipantInStep(child) || leadsToUser(child, visited)) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    if (leadsToUser(route)) return true;
+
+    // Downstream check: did this route originate from a step where user was a participant?
+    const originatesFromUser = (curr: DocumentRouteStep, visited = new Set<string>()): boolean => {
+      if (visited.has(curr.id)) return false;
+      visited.add(curr.id);
+
+      const parents = allRoutes
+        .slice(0, allRoutes.indexOf(curr))
+        .reverse()
+        .filter((parent) => this.matchesPerson(parent.toUserId, parent.toUser, curr.fromUserId, curr.fromUser));
+      for (const parent of parents) {
+        if (this.isParticipantInStep(parent) || originatesFromUser(parent, visited)) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    if (originatesFromUser(route)) return true;
+
+    return false;
   }
 
   intakeRoute = computed<DocumentRouteStep>(() => ({
@@ -234,8 +320,11 @@ export class DocumentDetailComponent implements OnChanges {
   visibleRoutes = computed<DocumentRouteStep[]>(() => {
     const all = this.rawHistoryRoutes();
     if (this.flowFilterMode() === 'MY') {
-      const filtered = all.filter((r) => this.isParticipantInStep(r));
-      return filtered.length > 0 ? filtered : all;
+      const connected = all.filter((r) => this.isRouteConnectedToUser(r, all));
+      if (connected.length > 0) {
+        return connected;
+      }
+      return all;
     }
     return all;
   });
@@ -260,12 +349,9 @@ export class DocumentDetailComponent implements OnChanges {
   });
 
   firstDispatchSender = computed<string>(() => {
-    // 1. Find the earliest non-decision route chronologically
-    const allRoutes = [...(this.document.routes || [])]
-      .filter((r) => !getRouteDecision(r))
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-
-    const firstRoute = allRoutes[0];
+    // 1. Find the earliest non-decision route in the visible flow
+    const visibleRecipients = this.flowRecipients();
+    const firstRoute = visibleRecipients[0];
     if (firstRoute) {
       const sender = this.resolveUserName(firstRoute.fromUserId, firstRoute.fromUser) || firstRoute.fromUser;
       if (sender && sender.trim() && sender !== 'Originating Office' && sender !== 'N/A') {

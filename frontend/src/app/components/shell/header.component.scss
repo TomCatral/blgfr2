@@ -483,16 +483,100 @@
   display: block;
   width: 100%;
   text-align: left;
-  background: transparent;
+  background: #ffffff;
   border: none;
+  border-bottom: 1px solid #eef2f7;
   cursor: pointer;
-  padding: 0.85rem 1rem;
+  padding: 0.7rem 0.85rem;
   transition: background-color 0.15s ease;
 
   &:hover,
   &.active-result {
     background-color: rgba(241, 245, 249, 0.85);
   }
+}
+
+.head2,
+.header-search-dropdown {
+  background: #ffffff !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.search-result-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.search-result-copy {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.search-result-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.search-result-route {
+  overflow: hidden;
+  color: #2563eb;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-result-direction {
+  flex: 0 0 auto;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.search-result-direction.is-outgoing {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.search-result-title {
+  overflow: hidden;
+  color: #1e293b;
+  font-size: 0.78rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-result-status {
+  flex: 0 0 auto;
+  max-width: 7.5rem;
+  overflow: hidden;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.search-result-row:last-child {
+  border-bottom: 0;
 }
 
 .head14,
@@ -754,6 +838,15 @@
     background: rgba(59, 130, 246, 0.14);
   }
 
+  .search-result-row {
+    border-bottom-color: #1e293b;
+    background: #0e1628;
+  }
+
+  .search-result-title { color: #f1f5f9; }
+  .search-result-route { color: #93c5fd; }
+  .search-result-status { background: #1e293b; color: #cbd5e1; }
+
   .search-match-field {
     color: #93c5fd;
     background: rgba(59, 130, 246, 0.14);
@@ -898,6 +991,11 @@
     background: rgba(16, 185, 129, 0.12);
     color: #6ee7b7;
   }
+}
+
+@media (max-width: 480px) {
+  .search-result-row { padding: 0.65rem 0.75rem; }
+  .search-result-status { max-width: 5.5rem; }
 }
 
 .header-actions > .relative > button {

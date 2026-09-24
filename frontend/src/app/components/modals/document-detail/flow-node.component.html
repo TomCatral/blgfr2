@@ -22,7 +22,7 @@
           <span class="flow-division-tag">
             {{ recipient.toDivision }}
           </span>
-          @if (parent.isParticipantInStep(recipient)) {
+          @if (parent.isRecipientYou(recipient)) {
             <span class="flow-you-badge">
               <ion-icon name="person"></ion-icon> You
             </span>

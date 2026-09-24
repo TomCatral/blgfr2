@@ -106,42 +106,27 @@
                       (mousedown)="chooseResult(result.doc); $event.preventDefault()"
                       (click)="chooseResult(result.doc)"
                     >
-                      <div class="head5">
-                        <div class="head6">
-                          <div class="head7">
-                            <span class="head53">
+                      <div class="search-result-content">
+                        <div class="search-result-copy">
+                          <div class="search-result-meta">
+                            <span class="search-result-route">
                               @for (segment of highlightSegments(result, 'routeNo'); track $index) {
-                                <span [class.is-highlighted]="segment.highlighted" class="head63">{{ segment.text }}</span>
+                                <span [class.is-highlighted]="segment.highlighted">{{ segment.text }}</span>
                               }
                             </span>
-                            <span class="head111"
-                              [ngClass]="(result.doc.direction === 'INCOMING' ? 'headResultDocDirection' : 'headResultDocDirection2') | cls">
-                              <ion-icon [name]="result.doc.direction === 'INCOMING' ? 'arrow-down-left' : 'arrow-up-right'" class="headIcon"></ion-icon>
-                              {{ result.doc.direction }}
+                            <span class="search-result-direction" [class.is-outgoing]="result.doc.direction === 'OUTGOING'">
+                              {{ result.doc.direction === 'INCOMING' ? 'Incoming' : 'Outgoing' }}
                             </span>
                           </div>
-                          <div class="head8">
-                            <ion-icon name="document-text" class="headTextIcon"></ion-icon>
-                            <span class="head73">
-                              @for (segment of highlightSegments(result, 'title'); track $index) {
-                                {{ segment.text }}
-                              }
-                            </span>
-                          </div>
-                          <p class="head52">
-                            @for (segment of highlightSegments(result, 'subject'); track $index) {
-                              {{ segment.text }}
+                          <span class="search-result-title">
+                            @for (segment of highlightSegments(result, 'title'); track $index) {
+                              <span [class.is-highlighted]="segment.highlighted">{{ segment.text }}</span>
                             }
-                          </p>
-                          <p class="head62">
-                            Action: {{ getCurrentUserAction(result.doc) }}
-                          </p>
-                        </div>
-                        <div class="head9">
-                          <span class="head83" [ngClass]="statusBadgeClass(result.doc) | cls">
-                            {{ result.doc.currentStatus.replaceAll('_', ' ') }}
                           </span>
                         </div>
+                        <span class="search-result-status" [ngClass]="statusBadgeClass(result.doc) | cls">
+                          {{ result.doc.currentStatus.replaceAll('_', ' ') }}
+                        </span>
                       </div>
                     </button>
                   }
