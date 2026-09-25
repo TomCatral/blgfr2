@@ -11,6 +11,7 @@ import {
   DocumentRouteStep,
   DocumentAttachment,
   AuditLog,
+  PopupAction,
   User,
   DEFAULT_ROLE_PERMISSIONS,
   DivisionCode,
@@ -102,10 +103,17 @@ export class DocumentDetailComponent implements OnChanges {
   @Input() onDeleteDoc?: (doc: DocumentRecord) => void;
   @Input() onRefreshDocument?: () => Promise<void> | void;
   @Input() onDecision?: (doc: DocumentRecord, decision: 'APPROVED' | 'DISAPPROVED') => Promise<boolean> | boolean;
+  @Input() pendingPopupAction?: PopupAction | null;
+  @Input() onSnoozeClose?: () => void;
 
   isSubmittingDecision = signal(false);
   docVersion = signal(0);
-  viewingPdf = signal<{ url: string; name: string; shouldRevoke?: boolean } | null>(null);
+  viewingPdf = signal<{
+    url: string;
+    safeUrl: SafeResourceUrl;
+    name: string;
+    shouldRevoke?: boolean;
+  } | null>(null);
   isUploading = signal(false);
   selectedFlowRecipient = signal<string | null>(null);
   flowFilterMode = signal<'ALL' | 'MY'>('MY');
@@ -588,6 +596,39 @@ export class DocumentDetailComponent implements OnChanges {
 
   pendingDecisionRoute = this.pendingDecisionRouteSignal;
 
+  readonly isDecisionRequired = computed(() => {
+    if (this.document.currentStatus === 'COMPLETED' || this.document.currentStatus === 'RETURNED') {
+      return false;
+    }
+    if (this.pendingPopupAction?.requiresDecision) {
+      return true;
+    }
+    return Boolean(this.pendingDecisionRoute());
+  });
+
+  readonly decisionRouteDetails = computed(() => {
+    const route = this.pendingDecisionRoute();
+    if (route) {
+      return {
+        fromUser: this.resolveUserName(route.fromUserId, route.fromUser) || route.fromUser || 'Sender',
+        fromDivision: route.fromDivision || 'Forwarding Office',
+        actionRequested: route.actionRequested || 'Appropriate Action',
+        remarks: displayRouteRemarks(route.remarks) !== 'N/A' ? displayRouteRemarks(route.remarks) : undefined,
+        forwardedAt: route.createdAt ? formatDate(route.createdAt) : undefined,
+      };
+    }
+    if (this.pendingPopupAction) {
+      return {
+        fromUser: this.pendingPopupAction.reminderSenderName || 'Forwarding Office',
+        fromDivision: '',
+        actionRequested: this.pendingPopupAction.reminderActionRequested || 'Appropriate Action',
+        remarks: this.pendingPopupAction.message,
+        forwardedAt: this.pendingPopupAction.createdAt ? formatDate(this.pendingPopupAction.createdAt) : undefined,
+      };
+    }
+    return undefined;
+  });
+
   latestDocumentDecision = computed(() => {
     this.docVersion();
     return [
@@ -610,7 +651,7 @@ export class DocumentDetailComponent implements OnChanges {
       !hasCompletedPart(this.document, this.currentUser) &&
       this.document.currentStatus !== 'RETURNED' &&
       this.latestDocumentDecision() !== 'DISAPPROVED' &&
-      !this.pendingDecisionRoute() &&
+      !this.isDecisionRequired() &&
       this.isDocumentParticipant()
     );
   });
@@ -735,6 +776,26 @@ export class DocumentDetailComponent implements OnChanges {
   });
 
   finalReleaseRoute = computed(() => [...(this.document.routes || [])].reverse().find((r) => r.statusAfter === 'COMPLETED'));
+
+  finalInstructionAuthor = computed(() => {
+    this.docVersion();
+    const instruction = this.finalHandoffInstructions().trim();
+    const matchingAudit = [...this.docAuditLogs()]
+      .filter((log) =>
+        /Updated final instructions/i.test(log.details) &&
+        (!instruction || log.details.includes(instruction)),
+      )
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+
+    if (matchingAudit) {
+      return { userId: matchingAudit.userId, userName: matchingAudit.userName };
+    }
+
+    const finalRoute = this.finalReleaseRoute();
+    return finalRoute
+      ? { userId: finalRoute.fromUserId, userName: finalRoute.fromUser }
+      : null;
+  });
 
   completedAtOffice = computed(() => {
     const route = this.finalReleaseRoute();
@@ -873,16 +934,17 @@ export class DocumentDetailComponent implements OnChanges {
     const latestActivity = activities.at(-1);
     const decisionIsLatest = decision && (!latestActivity || new Date(decision.createdAt).getTime() >= new Date(latestActivity.timestamp).getTime());
     const completedActivity = [...activities].reverse().find((a) => a.status === 'COMPLETED');
-    const ended = Boolean(completedActivity);
+    const routeCompleted = route.statusAfter === 'COMPLETED';
+    const ended = Boolean(completedActivity || routeCompleted);
     const status = ended ? 'Completed' : decisionIsLatest ? formatReadableStatus(response) : latestActivity?.destination ? 'Forwarded' : latestActivity ? 'Activity recorded' : 'No response recorded';
     return {
       route,
       status,
       response,
       ended,
-      finalAction: completedActivity?.remarks,
+      finalAction: completedActivity?.remarks || (routeCompleted ? route.remarks : undefined),
       progress: ended ? 2 : activities.length || decision ? 1 : 0,
-      lastUpdated: completedActivity?.timestamp || (decisionIsLatest ? decision!.createdAt : latestActivity?.timestamp || route.createdAt),
+      lastUpdated: completedActivity?.timestamp || (decisionIsLatest ? decision!.createdAt : latestActivity?.timestamp || route.processedAt || route.createdAt),
     };
   }
 
@@ -1054,6 +1116,18 @@ export class DocumentDetailComponent implements OnChanges {
   handleClose = () => {
     if (this.viewingPdf()) {
       this.closePdfViewer();
+      return;
+    }
+    if (this.isDecisionRequired() && this.onSnoozeClose) {
+      this.onSnoozeClose();
+    } else {
+      this.onClose();
+    }
+  };
+
+  handleSnoozeClose = (): void => {
+    if (this.onSnoozeClose) {
+      this.onSnoozeClose();
     } else {
       this.onClose();
     }
@@ -1074,17 +1148,18 @@ export class DocumentDetailComponent implements OnChanges {
     if (event.target === event.currentTarget) this.handleClose();
   }
 
-  safePdfUrl(url: string): SafeResourceUrl {
-    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
-  }
-
   handleViewAttachment(file: DocumentAttachment): void {
     if (!file.url) return;
     const isPreviewable = file.fileType === 'application/pdf' || file.fileType === 'image/jpeg' || file.fileType === 'image/png' || file.fileName.toLowerCase().endsWith('.pdf') || file.fileName.toLowerCase().endsWith('.jpg') || file.fileName.toLowerCase().endsWith('.jpeg') || file.fileName.toLowerCase().endsWith('.png');
     try {
       const preview = this.createAttachmentObjectUrl(file.url);
       if (isPreviewable) {
-        this.viewingPdf.set({ url: preview.url, name: file.fileName, shouldRevoke: preview.shouldRevoke });
+        this.viewingPdf.set({
+          url: preview.url,
+          safeUrl: this.sanitizer.bypassSecurityTrustResourceUrl(preview.url),
+          name: file.fileName,
+          shouldRevoke: preview.shouldRevoke,
+        });
         return;
       }
       const w = window.open(preview.url, '_blank', 'noopener,noreferrer');
@@ -1268,6 +1343,10 @@ export class DocumentDetailComponent implements OnChanges {
   }
 
   handleOpenRouteDoc(): void {
+    if (this.isDecisionRequired()) {
+      alert('Action Required: You must take an action (Approve or Disapprove) on this document before you can proceed with routing.');
+      return;
+    }
     this.onClose();
     this.onOpenRouteDoc(this.document);
   }
@@ -1446,6 +1525,16 @@ export class DocumentDetailComponent implements OnChanges {
     return this.computeFlowNodeHandoffInstruction(id);
   }
 
+  getFlowNodeInstructionAuthor(id: string): string {
+    const route = this.flowRecipients().find((item) => item.id === id);
+    if (!route) return 'Unknown personnel';
+    const author = this.finalInstructionAuthor();
+    if (author && this.matchesPerson(author.userId, author.userName, route.toUserId, route.toUser)) {
+      return this.resolveUserName(author.userId, author.userName) || route.toDivision;
+    }
+    return this.resolveUserName(route.toUserId, route.toUser) || route.toDivision;
+  }
+
   private computeFlowNodeHandoffInstruction(id: string): string | null {
     if (this.document.currentStatus !== 'COMPLETED') {
       return null;
@@ -1453,6 +1542,17 @@ export class DocumentDetailComponent implements OnChanges {
 
     const route = this.flowRecipients().find((r) => r.id === id);
     if (!route) return null;
+
+    const instructionAuthor = this.finalInstructionAuthor();
+    const isInstructionAuthor = Boolean(
+      instructionAuthor &&
+      this.matchesPerson(instructionAuthor.userId, instructionAuthor.userName, route.toUserId, route.toUser),
+    );
+    // Never attach a document-level instruction to a different recipient merely
+    // because that recipient happens to be the last card in the flow.
+    if (instructionAuthor && !isInstructionAuthor) {
+      return null;
+    }
 
     const snap = this.getFlowNodeSnapshot(id);
     if (!snap.ended && snap.status !== 'Completed') {
@@ -1471,14 +1571,14 @@ export class DocumentDetailComponent implements OnChanges {
     }
 
     // 2. Check if route itself has Handoff Instructions and was completed
-    if (route.remarks && /Handoff Instructions:/i.test(route.remarks)) {
+    if (route.remarks && /Handoff Instructions:/i.test(route.remarks) && (!instructionAuthor || isInstructionAuthor)) {
       const match = route.remarks.match(/Handoff Instructions:\s*(.*)$/is);
       if (match?.[1]?.trim()) return match[1].trim();
     }
 
     // 3. If this is the final release route handler or document is completed
     const finalRoute = this.finalReleaseRoute();
-    if (finalRoute && (this.matchesPerson(finalRoute.fromUserId, finalRoute.fromUser, route.toUserId, route.toUser) || finalRoute.id === route.id)) {
+    if (isInstructionAuthor || (!instructionAuthor && finalRoute && this.matchesPerson(finalRoute.fromUserId, finalRoute.fromUser, route.toUserId, route.toUser))) {
       if (this.finalHandoffInstructions()) {
         return this.finalHandoffInstructions();
       }

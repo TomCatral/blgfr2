@@ -2,8 +2,10 @@
   [isOpen]="isOpen"
   [onClose]="onClose"
   [maxWidth]="'42rem'"
+  [closeOnBackdrop]="false"
+  [closeOnEscape]="false"
 >
-  <div class="cd-dialog">
+  <form class="cd-dialog" (ngSubmit)="handleSubmit($event, 'none')">
     <!-- Header -->
     <div class="cd-header">
       <div class="cd-header-identity">
@@ -25,8 +27,33 @@
       </button>
     </div>
 
-    <!-- Main Form -->
-    <form class="cd-form" (ngSubmit)="handleSubmit($event, 'none')">
+    <!-- Scrollable Form Body -->
+    <div class="cd-form-body">
+      <!-- Prominent Inline Validation Warning Banner -->
+      @if (validationErrors().length > 0) {
+        <div class="cd-val-banner" role="alert">
+          <div class="cd-val-icon">
+            <ion-icon name="alert-circle"></ion-icon>
+          </div>
+          <div class="cd-val-content">
+            <h4 class="cd-val-title">Please complete all required fields before proceeding:</h4>
+            <ul class="cd-val-list">
+              @for (field of validationErrors(); track field) {
+                <li>&bull; {{ field }}</li>
+              }
+            </ul>
+          </div>
+          <button
+            type="button"
+            class="cd-val-dismiss"
+            (click)="clearValidationErrors()"
+            title="Dismiss warning"
+          >
+            <ion-icon name="close"></ion-icon>
+          </button>
+        </div>
+      }
+
       <!-- Stepper Guide -->
       <div class="cd-stepper-card">
         <div class="cd-stepper">
@@ -60,7 +87,7 @@
             [attr.aria-checked]="direction() === 'INCOMING'"
             class="cd-direction-btn"
             [class.active]="direction() === 'INCOMING'"
-            (click)="direction.set('INCOMING'); fetchServerRouteNo()"
+            (click)="setDirection('INCOMING')"
           >
             <ion-icon name="arrow-down-left"></ion-icon>
             INCOMING DOCUMENT
@@ -71,13 +98,51 @@
             [attr.aria-checked]="direction() === 'OUTGOING'"
             class="cd-direction-btn"
             [class.active]="direction() === 'OUTGOING'"
-            (click)="direction.set('OUTGOING'); fetchServerRouteNo()"
+            [class.is-outgoing]="direction() === 'OUTGOING'"
+            (click)="setDirection('OUTGOING')"
           >
             <ion-icon name="arrow-up-right"></ion-icon>
             OUTGOING DOCUMENT
           </button>
         </div>
       </div>
+
+      <!-- Outgoing Destination Scope Switch -->
+      @if (direction() === 'OUTGOING') {
+        <div class="cd-dest-scope-panel">
+          <div class="cd-label-badge-row">
+            <label class="cd-field-label">Outgoing Dispatch Scope</label>
+            <span class="cd-badge-subtle">{{ recipientType() === 'OUTSIDE' ? 'External Dispatch' : 'Internal BLGF' }}</span>
+          </div>
+          <div class="cd-dest-scope-switch">
+            <button
+              type="button"
+              class="cd-dest-scope-btn"
+              [class.active]="recipientType() === 'OUTSIDE'"
+              (click)="setRecipientType('OUTSIDE')"
+            >
+              <ion-icon name="business"></ion-icon>
+              <span>Outside Office (External Recipient)</span>
+            </button>
+            <button
+              type="button"
+              class="cd-dest-scope-btn"
+              [class.active]="recipientType() === 'INTERNAL'"
+              (click)="setRecipientType('INTERNAL')"
+            >
+              <ion-icon name="people"></ion-icon>
+              <span>BLGF Internal Office / Employee</span>
+            </button>
+          </div>
+          <p class="cd-field-hint">
+            @if (recipientType() === 'OUTSIDE') {
+              <span>Configured for external dispatch. Enter recipient details (Name, Position, Department, and Address) or select from the directory.</span>
+            } @else {
+              <span>Configured for internal BLGF routing using standard Division and Employee assignment.</span>
+            }
+          </p>
+        </div>
+      }
 
       <!-- Tracking Number -->
       <div>
@@ -217,177 +282,403 @@
         </div>
       </div>
 
-      <!-- Initial Division / Recipient Assignment -->
-      <div class="cd-panel">
-        <div class="cd-panel-title">
-          <ion-icon name="people"></ion-icon>
-          Initial Division / Recipient Assignment
-        </div>
-
-        <div>
-          <div class="cd-panel-header">
-            <label class="cd-field-label">Division Assignment *</label>
-            <button
-              type="button"
-              class="cd-btn-text"
-              [disabled]="!currentDivision() || currentDivision() === 'ALL'"
-              [title]="currentDivision() ? 'Route to another division' : 'Select the first division before adding another'"
-              (click)="showAddDivision.set(!showAddDivision())"
-            >
-              + Add Division
-            </button>
+      <!-- Recipient / Destination Assignment Section -->
+      @if (isOutsideOffice()) {
+        <!-- Manual Outside Office / External Recipient Assignment with Group, Per-Employee, and Manual -->
+        <div class="cd-panel cd-panel-outside">
+          <div class="cd-panel-title">
+            <ion-icon name="people"></ion-icon>
+            Initial Recipient Assignment (Outside Office)
           </div>
 
-          @if (showAddDivision()) {
+          <!-- 1. DEPARTMENT / OFFICE ASSIGNMENT -->
+          <div>
+            <div class="cd-panel-header">
+              <label class="cd-field-label">Department / Office Assignment *</label>
+              <button
+                type="button"
+                class="cd-btn-text"
+                (click)="showAddOutsideDepartment.set(!showAddOutsideDepartment())"
+                title="Add another department or office filter"
+              >
+                + Add Department / Office
+              </button>
+            </div>
+
+            @if (showAddOutsideDepartment()) {
+              <select
+                class="cd-select"
+                (change)="onAddOutsideDepartment($event)"
+              >
+                <option value="">-- Select additional department / office --</option>
+                <option value="PTO">🏛️ Provincial Treasury Offices (PTO)</option>
+                <option value="MTO">🏢 Municipal Treasury Offices / LGUs (MTO)</option>
+                <option value="PARTNER">🌐 Partner Agencies &amp; External Stakeholders</option>
+              </select>
+            }
+
             <select
               class="cd-select"
-              (change)="onAddDivision($event)"
+              [value]="outsideOfficeDepartment()"
+              (change)="onSelectOutsideDepartment($any($event.target).value)"
             >
-              <option value="">-- Select another division to route --</option>
-              @for (div of availableAdditionalDivisions(); track div[0]) {
-                <option [value]="div[0]">{{ div[1] }} ({{ div[0] }})</option>
-              }
+              <option value="">-- Select External Department / Office (PTO, MTO, Partner Agencies) --</option>
+              <option value="PTO">🏛️ Provincial Treasury Offices (PTO)</option>
+              <option value="MTO">🏢 Municipal Treasury Offices / LGUs (MTO)</option>
+              <option value="PARTNER">🌐 Partner Agencies &amp; External Stakeholders</option>
             </select>
-          }
 
-          <select
-            class="cd-select"
-            [value]="recipientUserId() || selectedRecipientIds().length > 0 ? '' : currentDivision()"
-            (change)="onDivisionChange($event)"
-          >
-            <option value="">None - Individual Recipient</option>
-            <option value="ALL">All Divisions</option>
-            @for (div of DIVISION_OPTIONS; track div[0]) {
-              <option [value]="div[0]">{{ div[1] }} ({{ div[0] }})</option>
-            }
-          </select>
-
-          @if (currentDivision()) {
-            <div class="cd-chips-row">
-              @for (div of selectedDivisionCodes(); track div; let idx = $index) {
-                <span class="cd-chip">
-                  {{ div }}
-                  <button
-                    type="button"
-                    class="cd-chip-remove"
-                    [attr.aria-label]="'Remove ' + div + ' division'"
-                    (click)="onRemoveDivision(div, idx)"
-                  >
-                    <ion-icon name="close"></ion-icon>
-                  </button>
-                </span>
-              }
-            </div>
-          }
-        </div>
-
-        <div>
-          <label class="cd-field-label">Assigned Handler / Individual Recipient *</label>
-          <div class="cd-recipient-input-row">
-            <select
-              class="cd-select"
-              [value]="recipientUserId()"
-              (change)="onRecipientSelect($event)"
-            >
-              <option value="">-- Select active BLGF user account --</option>
-              @for (user of availableRecipients(); track user.id) {
-                <option [value]="user.id">
-                  {{ user.fullName }} - {{ user.designation || user.role }}
-                </option>
-              }
-            </select>
-            <button
-              type="button"
-              class="cd-btn-add-recipient"
-              [disabled]="!recipientUserId()"
-              (click)="addRecipient()"
-            >
-              <ion-icon name="person-add"></ion-icon>
-              Add Recipient
-            </button>
-          </div>
-
-          @if (selectedRecipientIds().length > 0) {
-            <div class="cd-chips-row">
-              @for (id of selectedRecipientIds(); track id) {
-                <span class="cd-chip">
-                  {{ getEmployeeName(id) }}
-                  <button
-                    type="button"
-                    class="cd-chip-remove"
-                    [attr.aria-label]="'Remove ' + getEmployeeName(id)"
-                    (click)="removeRecipient(id)"
-                  >
-                    <ion-icon name="close"></ion-icon>
-                  </button>
-                </span>
-              }
-            </div>
-          }
-        </div>
-
-        @if (recipientName()) {
-          <div class="cd-selected-recipient-summary">
-            <div><strong>Selected:</strong> {{ recipientName() }}</div>
-            @if (recipientPosition()) {
-              <div><strong>Position:</strong> {{ recipientPosition() }}</div>
-            }
-            @if (recipientOffice()) {
-              <div><strong>Office:</strong> {{ recipientOffice() }}</div>
-            }
-            @if (recipientAddress()) {
-              <div><strong>Address:</strong> {{ recipientAddress() }}</div>
-            }
-          </div>
-        }
-
-        @if (!recipientUserId() && selectedRecipientIds().length === 0 && currentDivision()) {
-          <div class="cd-division-members-box">
-            <div class="cd-division-members-header">
-              <p class="cd-division-members-title">
-                Recipients from {{ currentDivision() === 'ALL' ? 'All Divisions' : selectedDivisionLabels() }}
-              </p>
-              <span class="cd-count-badge">
-                {{ holdingDivisionRecipients().length }}
-              </span>
-            </div>
-            @if (holdingDivisionRecipients().length > 0) {
+            @if (selectedOutsideDepartments().length > 0) {
               <div class="cd-chips-row">
-                @for (user of holdingDivisionRecipients(); track user.id) {
-                  <span class="cd-chip cd-chip-member">
-                    {{ user.fullName }}{{ user.designation ? ' - ' + user.designation : '' }}
+                @for (dept of selectedOutsideDepartments(); track dept) {
+                  <span class="cd-chip">
+                    {{ getDepartmentShortCode(dept) }}
                     <button
                       type="button"
                       class="cd-chip-remove"
-                      title="Remove employee from this route"
-                      [attr.aria-label]="'Remove ' + user.fullName + ' from recipients'"
-                      (click)="excludeRecipient(user.id)"
+                      [attr.aria-label]="'Remove ' + dept + ' department'"
+                      (click)="onRemoveOutsideDepartment(dept)"
                     >
                       <ion-icon name="close"></ion-icon>
                     </button>
                   </span>
                 }
               </div>
-            } @else {
-              <p class="cd-field-hint">No active users are assigned to this division.</p>
             }
           </div>
-        }
-      </div>
+
+          <!-- 2. PER EMPLOYEE / INDIVIDUAL RECIPIENT -->
+          <div style="margin-top: 1rem;">
+            <label class="cd-field-label">Assigned Handler / Individual Recipient *</label>
+            <div class="cd-recipient-input-row">
+              <select
+                class="cd-select"
+                [value]="selectedOutsideEmployeeId()"
+                (change)="onOutsideEmployeeSelect($any($event.target).value)"
+              >
+                <option value="">-- Select personnel from {{ outsideDepartmentLabel() }} directory --</option>
+                @for (emp of availableOutsideEmployees(); track emp.id) {
+                  <option [value]="emp.id">
+                    {{ emp.fullName }} &ndash; {{ emp.position || 'Official' }} ({{ emp.office }})
+                  </option>
+                }
+              </select>
+              <button
+                type="button"
+                class="cd-btn-add-recipient"
+                [disabled]="!selectedOutsideEmployeeId()"
+                (click)="addOutsideRecipientFromDirectory()"
+              >
+                <ion-icon name="person-add"></ion-icon>
+                Add Recipient
+              </button>
+            </div>
+
+            <!-- Recipients Box identical to Picture 2 (.cd-division-members-box) -->
+            <div class="cd-division-members-box" style="margin-top: 0.75rem;">
+              <div class="cd-division-members-header">
+                <p class="cd-division-members-title">
+                  RECIPIENTS FROM {{ outsideDepartmentLabel() }}
+                </p>
+                <span class="cd-count-badge">
+                  {{ outsideDepartmentRecipients().length }}
+                </span>
+              </div>
+
+              @if (outsideDepartmentRecipients().length > 0) {
+                <div class="cd-chips-row">
+                  @for (rec of outsideDepartmentRecipients(); track rec.id) {
+                    <span
+                      class="cd-chip cd-chip-member cd-chip-interactive"
+                      (click)="populateFieldsFromRecipient(rec)"
+                      [title]="'Click to view details: ' + (rec.office || rec.position)"
+                    >
+                      {{ rec.name }} &ndash; {{ rec.position || rec.office }}
+                      <button
+                        type="button"
+                        class="cd-chip-remove"
+                        [attr.aria-label]="'Remove ' + rec.name"
+                        (click)="removeOutsideRecipient(rec.id); $event.stopPropagation();"
+                      >
+                        <ion-icon name="close"></ion-icon>
+                      </button>
+                    </span>
+                  }
+                </div>
+              } @else {
+                <p class="cd-field-hint" style="margin: 0.25rem 0 0 0;">
+                  No personnel listed for this department / office.
+                </p>
+              }
+            </div>
+          </div>
+
+          <!-- 3. MANUAL ENTRY / RECIPIENT DETAILS -->
+          <div class="cd-manual-entry-section" style="margin-top: 1.25rem;">
+            <div class="cd-manual-header">
+              <div class="cd-manual-title">
+                <ion-icon name="create-outline"></ion-icon>
+                Manual Entry / Recipient Details
+              </div>
+              <button
+                type="button"
+                class="cd-btn-text"
+                (click)="addCurrentFieldsToRecipients()"
+                [disabled]="!recipientName().trim() || !recipientOffice().trim()"
+                title="Add current details to recipients list"
+              >
+                + Add as Recipient
+              </button>
+            </div>
+            <p class="cd-field-hint" style="margin-top: 0.15rem; margin-bottom: 0.75rem;">
+              Enter a directory recipient name to auto-fill their details, or enter custom details manually if not listed.
+            </p>
+
+            <div class="cd-grid-2col">
+              <div>
+                <label class="cd-field-label">Recipient Name / Addressee *</label>
+                <app-autocomplete-field
+                  [value]="recipientName()"
+                  [suggestions]="recipientNameSuggestions()"
+                  (onChange)="onOutsideRecipientNameChange($event)"
+                  [required]="true"
+                  [placeholder]="'e.g. Hon. Rodolfo T. Albano III'"
+                  [ariaLabel]="'Recipient Name or Addressee'"
+                  [className]="'cd-input' + (isFieldInvalid('Recipient Name') ? ' cd-input-invalid' : '')"
+                ></app-autocomplete-field>
+              </div>
+
+              <div>
+                <label class="cd-field-label">Position / Designation</label>
+                <app-autocomplete-field
+                  [value]="recipientPosition()"
+                  [suggestions]="recipientPositionSuggestions()"
+                  (onChange)="recipientPosition.set($event)"
+                  [placeholder]="'e.g. Provincial Governor / Municipal Treasurer'"
+                  [ariaLabel]="'Recipient Position'"
+                  [className]="'cd-input'"
+                ></app-autocomplete-field>
+              </div>
+
+              <div>
+                <label class="cd-field-label">Department / Agency / Office *</label>
+                <app-autocomplete-field
+                  [value]="recipientOffice()"
+                  [suggestions]="recipientOfficeSuggestions()"
+                  (onChange)="recipientOffice.set($event); clearFieldValidation('department')"
+                  [required]="true"
+                  [placeholder]="'e.g. Provincial Government of Isabela'"
+                  [ariaLabel]="'Department or Office'"
+                  [className]="'cd-input' + (isFieldInvalid('Department') ? ' cd-input-invalid' : '')"
+                ></app-autocomplete-field>
+              </div>
+
+              <div>
+                <label class="cd-field-label">Office Address *</label>
+                <app-autocomplete-field
+                  [value]="recipientAddress()"
+                  [suggestions]="recipientAddressSuggestions()"
+                  (onChange)="recipientAddress.set($event); clearFieldValidation('recipient address')"
+                  [required]="true"
+                  [placeholder]="'e.g. Capitol Compound, Alibagu, City of Ilagan, Isabela'"
+                  [ariaLabel]="'Office Address'"
+                  [className]="'cd-input' + (isFieldInvalid('Recipient Address') ? ' cd-input-invalid' : '')"
+                ></app-autocomplete-field>
+              </div>
+            </div>
+          </div>
+        </div>
+      } @else {
+        <!-- Original BLGF Internal Division / Recipient Assignment -->
+        <div class="cd-panel">
+          <div class="cd-panel-title">
+            <ion-icon name="people"></ion-icon>
+            Initial Division / Recipient Assignment
+          </div>
+
+          <div>
+            <div class="cd-panel-header">
+              <label class="cd-field-label">Division Assignment *</label>
+              <button
+                type="button"
+                class="cd-btn-text"
+                [disabled]="!currentDivision() || currentDivision() === 'ALL'"
+                [title]="currentDivision() ? 'Route to another division' : 'Select the first division before adding another'"
+                (click)="showAddDivision.set(!showAddDivision())"
+              >
+                + Add Division
+              </button>
+            </div>
+
+            @if (showAddDivision()) {
+              <select
+                class="cd-select"
+                (change)="onAddDivision($event)"
+              >
+                <option value="">-- Select another division to route --</option>
+                @for (div of availableAdditionalDivisions(); track div[0]) {
+                  <option [value]="div[0]">{{ div[1] }} ({{ div[0] }})</option>
+                }
+              </select>
+            }
+
+            <select
+              class="cd-select"
+              [value]="recipientUserId() || selectedRecipientIds().length > 0 ? '' : currentDivision()"
+              (change)="onDivisionChange($event)"
+            >
+              <option value="">None - Individual Recipient</option>
+              <option value="ALL">All Divisions</option>
+              @for (div of DIVISION_OPTIONS; track div[0]) {
+                <option [value]="div[0]">{{ div[1] }} ({{ div[0] }})</option>
+              }
+            </select>
+
+            @if (currentDivision()) {
+              <div class="cd-chips-row">
+                @for (div of selectedDivisionCodes(); track div; let idx = $index) {
+                  <span class="cd-chip">
+                    {{ div }}
+                    <button
+                      type="button"
+                      class="cd-chip-remove"
+                      [attr.aria-label]="'Remove ' + div + ' division'"
+                      (click)="onRemoveDivision(div, idx)"
+                    >
+                      <ion-icon name="close"></ion-icon>
+                    </button>
+                  </span>
+                }
+              </div>
+            }
+          </div>
+
+          <div>
+            <label class="cd-field-label">Assigned Handler / Individual Recipient *</label>
+            <div class="cd-recipient-input-row">
+              <select
+                class="cd-select"
+                [value]="recipientUserId()"
+                (change)="onRecipientSelect($event)"
+              >
+                <option value="">-- Select active BLGF user account --</option>
+                @for (user of availableRecipients(); track user.id) {
+                  <option [value]="user.id">
+                    {{ user.fullName }} - {{ user.designation || user.role }}
+                  </option>
+                }
+              </select>
+              <button
+                type="button"
+                class="cd-btn-add-recipient"
+                [disabled]="!recipientUserId()"
+                (click)="addRecipient()"
+              >
+                <ion-icon name="person-add"></ion-icon>
+                Add Recipient
+              </button>
+            </div>
+
+            @if (selectedRecipientIds().length > 0) {
+              <div class="cd-chips-row">
+                @for (id of selectedRecipientIds(); track id) {
+                  <span class="cd-chip">
+                    {{ getEmployeeName(id) }}
+                    <button
+                      type="button"
+                      class="cd-chip-remove"
+                      [attr.aria-label]="'Remove ' + getEmployeeName(id)"
+                      (click)="removeRecipient(id)"
+                    >
+                      <ion-icon name="close"></ion-icon>
+                    </button>
+                  </span>
+                }
+              </div>
+            }
+          </div>
+
+          @if (recipientName()) {
+            <div class="cd-selected-recipient-summary">
+              <div><strong>Selected:</strong> {{ recipientName() }}</div>
+              @if (recipientPosition()) {
+                <div><strong>Position:</strong> {{ recipientPosition() }}</div>
+              }
+              @if (recipientOffice()) {
+                <div><strong>Office:</strong> {{ recipientOffice() }}</div>
+              }
+              @if (recipientAddress()) {
+                <div><strong>Address:</strong> {{ recipientAddress() }}</div>
+              }
+            </div>
+          }
+
+          @if (!recipientUserId() && selectedRecipientIds().length === 0 && currentDivision()) {
+            <div class="cd-division-members-box">
+              <div class="cd-division-members-header">
+                <p class="cd-division-members-title">
+                  Recipients from {{ currentDivision() === 'ALL' ? 'All Divisions' : selectedDivisionLabels() }}
+                </p>
+                <span class="cd-count-badge">
+                  {{ holdingDivisionRecipients().length }}
+                </span>
+              </div>
+              @if (holdingDivisionRecipients().length > 0) {
+                <div class="cd-chips-row">
+                  @for (user of holdingDivisionRecipients(); track user.id) {
+                    <span class="cd-chip cd-chip-member">
+                      {{ user.fullName }}{{ user.designation ? ' - ' + user.designation : '' }}
+                      <button
+                        type="button"
+                        class="cd-chip-remove"
+                        title="Remove employee from this route"
+                        [attr.aria-label]="'Remove ' + user.fullName + ' from recipients'"
+                        (click)="excludeRecipient(user.id)"
+                      >
+                        <ion-icon name="close"></ion-icon>
+                      </button>
+                    </span>
+                  }
+                </div>
+              } @else {
+                <p class="cd-field-hint">No active users are assigned to this division.</p>
+              }
+            </div>
+          }
+        </div>
+      }
 
       <!-- Action Requested -->
       <div>
-        <label class="cd-field-label">Action Requested *</label>
-        <select
-          class="cd-select"
-          required
-          [value]="initialAction()"
-          (change)="initialAction.set($any($event.target).value)"
-        >
-          @for (opt of actionOptions; track opt.value) {
-            <option [value]="opt.value">{{ opt.label }}</option>
+        <div class="cd-label-badge-row">
+          <label class="cd-field-label">Action Requested *</label>
+          @if (isOutsideOffice()) {
+            <span class="cd-badge-subtle">Default: Appropriate Action</span>
           }
-        </select>
+        </div>
+        @if (isOutsideOffice()) {
+          <div class="cd-disabled-action-row">
+            <input
+              type="text"
+              class="cd-input cd-input-disabled"
+              [value]="initialAction() || 'Appropriate Action'"
+              disabled
+              readonly
+            />
+            <span class="cd-field-hint">Disabled for external communication (automatically assigned to Appropriate Action).</span>
+          </div>
+        } @else {
+          <select
+            class="cd-select"
+            required
+            [value]="initialAction()"
+            (change)="initialAction.set($any($event.target).value)"
+          >
+            @for (opt of actionOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        }
       </div>
 
       <!-- Priority Level & Target Completion Date -->
@@ -395,35 +686,67 @@
         <div>
           <div class="cd-label-badge-row">
             <label class="cd-field-label">Priority Level *</label>
-            @if (priority()) {
+            @if (isOutsideOffice()) {
+              <span class="cd-badge-subtle">Default: ROUTINE (Outside)</span>
+            } @else if (priority()) {
               <span class="cd-priority-badge" [ngClass]="priorityBadgeClasses(priority())">
                 {{ priority().replace('_', ' ') }}
               </span>
             }
           </div>
-          <select
-            class="cd-select"
-            required
-            [value]="priority()"
-            (change)="onPriorityChange($any($event.target).value)"
-          >
-            @for (opt of priorityOptions; track opt.value) {
-              <option [value]="opt.value">{{ opt.label }}</option>
-            }
-          </select>
+          @if (isOutsideOffice()) {
+            <input
+              type="text"
+              class="cd-input cd-input-disabled"
+              value="Routine (Outside Communication)"
+              disabled
+              readonly
+            />
+          } @else {
+            <select
+              class="cd-select"
+              required
+              [value]="priority()"
+              (change)="onPriorityChange($any($event.target).value)"
+            >
+              @for (opt of priorityOptions; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+          }
         </div>
 
         <div>
-          <label class="cd-field-label">Target Completion Date *</label>
-          <input
-            type="date"
-            required
-            [value]="targetCompletionDate()"
-            (change)="onTargetDateChange($event)"
-            class="cd-date-input"
-          />
+          <div class="cd-label-badge-row">
+            <label class="cd-field-label">Target Completion Date *</label>
+            @if (isOutsideOffice()) {
+              <span class="cd-badge-subtle">Not Applicable (Exempt)</span>
+            }
+          </div>
+          @if (isOutsideOffice()) {
+            <input
+              type="text"
+              class="cd-input cd-input-disabled"
+              value="N/A (Exempt for External Communication)"
+              disabled
+              readonly
+            />
+          } @else {
+            <input
+              type="date"
+              required
+              [value]="targetCompletionDate()"
+              (change)="onTargetDateChange($event)"
+              class="cd-date-input"
+            />
+          }
         </div>
       </div>
+      @if (isOutsideOffice()) {
+        <p class="cd-field-hint" style="margin-top: -0.5rem; margin-bottom: 0.75rem;">
+          Notice: Priority Level and Target Completion Date are disabled for external communications (internal SLA targets apply to internal BLGF routing only).
+        </p>
+      }
 
       <!-- Supporting Documents Section -->
       <div>
@@ -481,29 +804,31 @@
           [className]="'cd-textarea'"
         ></app-autocomplete-field>
       </div>
+    </div>
 
-      <!-- Sticky Action Footer -->
-      <div class="cd-footer">
-        <button
-          type="button"
-          class="cd-btn-cancel"
-          (click)="onClose()"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          [disabled]="submitting()"
-          class="cd-btn-secondary"
-          title="Register document without routing"
-        >
-          @if (submitting()) {
-            <span class="cd-spinner dark-spinner"></span>
-            <span>Saving...</span>
-          } @else {
-            Register Only
-          }
-        </button>
+    <!-- Pinned Action Footer (outside scroll area, never overlaps) -->
+    <div class="cd-footer">
+      <button
+        type="button"
+        class="cd-btn-cancel"
+        (click)="onClose()"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        [disabled]="submitting()"
+        class="cd-btn-secondary"
+        title="Register document without routing"
+      >
+        @if (submitting()) {
+          <span class="cd-spinner dark-spinner"></span>
+          <span>Saving...</span>
+        } @else {
+          Register Only
+        }
+      </button>
+      @if (!isOutsideOffice()) {
         <button
           type="button"
           [disabled]="submitting()"
@@ -519,7 +844,23 @@
             Register &amp; Route
           }
         </button>
-      </div>
-    </form>
-  </div>
+      } @else {
+        <button
+          type="button"
+          [disabled]="submitting()"
+          class="cd-btn-primary cd-btn-outside-save"
+          title="Register and save outgoing communication record"
+          (click)="handleSubmit($event, 'none')"
+        >
+          @if (submitting()) {
+            <span class="cd-spinner"></span>
+            <span>Saving...</span>
+          } @else {
+            <ion-icon name="send"></ion-icon>
+            Save &amp; Record Outgoing
+          }
+        </button>
+      }
+    </div>
+  </form>
 </app-modal-layer>
