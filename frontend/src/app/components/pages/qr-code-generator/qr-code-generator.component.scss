@@ -568,3 +568,14 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Double-box prevention for qr-code-generator */
+ion-input.qcg-textInput,
+ion-input.qcg-sizeInput,
+ion-input.qcg-rangeField {
+  --background: transparent !important;
+  --border-color: transparent !important;
+  --border-width: 0 !important;
+  --box-shadow: none !important;
+  --highlight-height: 0 !important;
+}

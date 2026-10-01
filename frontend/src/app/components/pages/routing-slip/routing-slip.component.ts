@@ -13,6 +13,7 @@ import {
 import { formatDate } from '../../../utils/status-utils';
 import { showConfirm } from '../../../services/dialog.service';
 import { IonicModule } from '@ionic/angular';
+import QRCode from 'qrcode';
 
 interface PrintFormatPreset {
   id: string;
@@ -173,6 +174,7 @@ export class RoutingSlipComponent implements OnInit, OnChanges {
   slipLayout = signal<'full' | 'simplified'>('simplified');
   docClass = signal('2026-1-005');
   docNo = signal('');
+  slipQrDataUrl = signal('');
   senderName = signal('ATTY. VERNON S. TALATTAG');
   senderOffice = signal('BLGF RO2');
   senderPosition = signal('Division Chief');
@@ -202,6 +204,7 @@ export class RoutingSlipComponent implements OnInit, OnChanges {
   });
   specialInstructionsText = signal('');
   isCustomizeOpen = signal(false);
+  canCustomizeSlip = computed(() => this.currentUser?.role === 'SYSTEM_ADMIN');
   signatoryFormats = signal<Array<{ id: string; name: string; signatoryName: string; position: string }>>([]);
   selectedSignatoryFormat = signal('regional-director');
   newSignatoryFormatName = signal('');
@@ -396,6 +399,10 @@ export class RoutingSlipComponent implements OnInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['currentUser'] && this.canCustomizeSlip()) {
+      this.slipLayout.set('full');
+      this.isCustomizeOpen.set(true);
+    }
     if (changes['document'] && changes['document'].currentValue) {
       this.selectedDocOverride.set(null);
     }
@@ -407,6 +414,7 @@ export class RoutingSlipComponent implements OnInit, OnChanges {
   private syncWithActiveDoc(): void {
     const doc = this.activeDoc();
     if (!doc) return;
+    void this.updateSlipQr(doc.routeNo || doc.trackingNumber || '');
     if (this.slipLayout() === 'simplified') {
       this.docNo.set(doc.routeNo || '');
       this.docClass.set(doc.direction || '');
@@ -452,6 +460,32 @@ export class RoutingSlipComponent implements OnInit, OnChanges {
     this.forActions.set(Object.fromEntries(ROUTING_SLIP_ACTIONS.map(a => [a, false])));
     if (doc.remarks) {
       this.specialInstructionsText.set(doc.remarks);
+    }
+  }
+
+  onDocNoChange(value: string): void {
+    this.docNo.set(value);
+    void this.updateSlipQr(value || this.activeDoc()?.routeNo || this.activeDoc()?.trackingNumber || '');
+  }
+
+  private async updateSlipQr(value: string): Promise<void> {
+    const payload = value.trim();
+    if (!payload) {
+      this.slipQrDataUrl.set('');
+      return;
+    }
+    try {
+      const dataUrl = await QRCode.toDataURL(payload, {
+        width: 256,
+        margin: 1,
+        errorCorrectionLevel: 'M',
+        color: { dark: '#000000', light: '#ffffff' },
+      });
+      if ((this.docNo() || this.activeDoc()?.routeNo || this.activeDoc()?.trackingNumber || '').trim() === payload) {
+        this.slipQrDataUrl.set(dataUrl);
+      }
+    } catch {
+      this.slipQrDataUrl.set('');
     }
   }
 
@@ -628,12 +662,17 @@ export class RoutingSlipComponent implements OnInit, OnChanges {
   }
 
   private applyPreset(preset: PrintFormatPreset): void {
+    if (preset.docClass !== undefined) this.docClass.set(preset.docClass);
+    if (preset.docNo !== undefined) this.docNo.set(preset.docNo);
     if (preset.senderName) this.senderName.set(preset.senderName);
     if (preset.senderOffice) this.senderOffice.set(preset.senderOffice);
     if (preset.senderPosition) this.senderPosition.set(preset.senderPosition);
     if (preset.rdName) this.rdName.set(preset.rdName);
     if (preset.rdPosition) this.rdPosition.set(preset.rdPosition);
     if (preset.receivedBy) this.receivedBy.set(preset.receivedBy);
+    if (preset.subjectMatter !== undefined) this.subjectMatter.set(preset.subjectMatter);
+    if (preset.assignedTo) this.assignedTo.set({ ...preset.assignedTo });
+    if (preset.forActions) this.forActions.set({ ...preset.forActions });
     if (preset.specialInstructionsText !== undefined) this.specialInstructionsText.set(preset.specialInstructionsText);
   }
 

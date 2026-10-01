@@ -252,28 +252,29 @@
             <div class="route-fields-row">
               <div class="route-field-col">
                 <label class="route-field-label">Action Requested <span class="required-star">*</span></label>
-                <select
-                  class="route-native-select"
+                <app-managed-options-select
+                  storageKey="blgf_workflow_action_options"
+                  [options]="actionOptions"
                   [value]="actionRequested"
-                  (change)="actionRequested = $any($event.target).value"
-                >
-                  @for (opt of actionOptions; track opt.value) {
-                    <option [value]="opt.value">{{ opt.label }}</option>
-                  }
-                </select>
+                  [required]="true"
+                  [canManageOptions]="canManageOptions"
+                  textAlign="left"
+                  (valueChange)="actionRequested = $event"
+                />
               </div>
 
               <div class="route-field-col">
                 <label class="route-field-label">Document Status <span class="required-star">*</span></label>
-                <select
-                  class="route-native-select"
+                <app-managed-options-select
+                  storageKey="blgf_workflow_status_options"
+                  [options]="statusOptions"
                   [value]="newStatus"
-                  (change)="onStatusChange($any($event.target).value)"
-                >
-                  @for (opt of statusOptions; track opt.value) {
-                    <option [value]="opt.value">{{ opt.colorDot }} {{ opt.label }}</option>
-                  }
-                </select>
+                  [required]="true"
+                  [colorCoding]="true"
+                  [canManageOptions]="canManageOptions"
+                  textAlign="left"
+                  (valueChange)="onStatusChange($event)"
+                />
               </div>
             </div>
 
@@ -308,7 +309,7 @@
                   <label class="completion-input-label">
                     Final Handoff / Claiming Instructions <span class="route43">*</span>
                   </label>
-                  <ion-textarea
+                  <textarea
                     required
                     rows="4"
                     [attr.minlength]="5"
@@ -316,7 +317,7 @@
                     name="handoffInstructions"
                     placeholder="e.g., Claim original copy at Records Unit, Room 204. Look for Ms. Rona, present valid official ID, and sign logbook before release."
                     class="completion-textarea"
-                  ></ion-textarea>
+                  ></textarea>
                 </div>
 
                 <div class="completion-info-note">

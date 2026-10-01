@@ -303,11 +303,11 @@ export class QRCodeGeneratorComponent implements OnInit {
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>BLGF QR Codes - Original and File Copies</title>
+  <title></title>
   <style>
-    @page { size: A4 portrait; margin: 8mm; }
+    @page { size: A4 portrait; margin: 0 !important; }
     * { box-sizing: border-box; }
-    html, body { margin: 0; background: #fff; font-family: Arial, sans-serif; color: #111827; }
+    html, body { margin: 0; padding: 8mm; background: #fff; font-family: Arial, sans-serif; color: #111827; }
     body {
       width: 194mm;
       display: grid;

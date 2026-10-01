@@ -92,9 +92,13 @@ export class StateService {
   readonly envelopeLogs = signal<AuditLog[]>([]);
   readonly notifications = signal<NotificationItem[]>([]);
 
-  private documentsRef: DocumentRecord[] = [];
-  private auditLogsRef: AuditLog[] = [];
-  private intervals: number[] = [];
+private lifecycle = 0;
+private snapshotSequence = 0;
+private lastCommittedSnapshot = 0;
+private snapshotInFlight: Promise<void> | null = null;
+private snapshotQueued = false;
+private pendingMarkLoaded = false;
+private intervals: number[] = [];
 
   readonly accessibleDocuments = computed<DocumentRecord[]>(() => {
     const user = this.session.currentUser();
@@ -112,54 +116,133 @@ export class StateService {
     );
   });
 
+  private snapshotToken(): { lifecycle: number; userId: string | null } {
+    return {
+      lifecycle: this.lifecycle,
+      userId: this.session.currentUser()?.id ?? null,
+    };
+  }
+
+  private canCommit(token: { lifecycle: number; userId: string | null }): boolean {
+    if (token.lifecycle !== this.lifecycle) return false;
+    return (this.session.currentUser()?.id ?? null) === token.userId;
+  }
+
+  private async loadSnapshot(
+    token: { lifecycle: number; userId: string | null },
+    markLoaded: boolean,
+  ): Promise<void> {
+    const requestId = ++this.snapshotSequence;
+    const [
+      docs,
+      statsData,
+      usersData,
+      divisionsData,
+      logs,
+      envelopeLogsData,
+    ] = await Promise.all([
+      firstValueFrom(this.api.getDocuments()).catch(() => null),
+      firstValueFrom(this.api.getStats()).catch(() => null),
+      firstValueFrom(this.api.getUsers()).catch(() => null),
+      firstValueFrom(this.api.getDivisions()).catch(() => null),
+      firstValueFrom(this.api.getAuditLogs()).catch(() => null),
+      firstValueFrom(this.api.getEnvelopeLogs()).catch(() => null),
+    ]);
+
+    if (
+      !this.canCommit(token) ||
+      requestId < this.lastCommittedSnapshot
+    ) {
+      return;
+    }
+
+    this.lastCommittedSnapshot = requestId;
+    if (docs) this.documents.set(docs);
+    if (statsData) this.stats.set(statsData);
+    if (usersData) this.users.set(usersData);
+    if (divisionsData) this.divisions.set(divisionsData);
+    if (logs) this.auditLogs.set(logs);
+    if (envelopeLogsData) this.envelopeLogs.set(envelopeLogsData);
+    if (markLoaded) this.session.markDataLoaded();
+  }
+
+  private enqueueSnapshot(markLoaded: boolean): Promise<void> {
+    const token = this.snapshotToken();
+    this.snapshotQueued = true;
+    this.pendingMarkLoaded = this.pendingMarkLoaded || markLoaded;
+
+    if (!this.snapshotInFlight) {
+      const runner = (async () => {
+        while (this.snapshotQueued && this.canCommit(token)) {
+          this.snapshotQueued = false;
+          const shouldMarkLoaded = this.pendingMarkLoaded;
+          this.pendingMarkLoaded = false;
+          await this.loadSnapshot(token, shouldMarkLoaded);
+        }
+        if (this.canCommit(token) && this.pendingMarkLoaded) {
+          this.session.markDataLoaded();
+        }
+      })();
+      this.snapshotInFlight = runner;
+      runner.then(
+        () => this.finishSnapshot(runner),
+        () => this.finishSnapshot(runner),
+      );
+    }
+
+    return this.snapshotInFlight;
+  }
+
+  private finishSnapshot(runner: Promise<void>): void {
+    if (this.snapshotInFlight !== runner) return;
+    this.snapshotInFlight = null;
+    if (this.snapshotQueued) this.enqueueSnapshot(false);
+  }
+
   async loadAll(): Promise<void> {
     try {
-      const [docs, statsData, usersData, divisionsData, logs, envelopeLogsData] =
-        await Promise.all([
-          firstValueFrom(this.api.getDocuments()).catch(() => null),
-          firstValueFrom(this.api.getStats()).catch(() => null),
-          firstValueFrom(this.api.getUsers()).catch(() => null),
-          firstValueFrom(this.api.getDivisions()).catch(() => null),
-          firstValueFrom(this.api.getAuditLogs()).catch(() => null),
-          firstValueFrom(this.api.getEnvelopeLogs()).catch(() => null),
-        ]);
-      if (docs) this.documents.set(docs);
-      if (statsData) this.stats.set(statsData);
-      if (usersData) this.users.set(usersData);
-      if (divisionsData) this.divisions.set(divisionsData);
-      if (logs) this.auditLogs.set(logs);
-      if (envelopeLogsData) this.envelopeLogs.set(envelopeLogsData);
+      await this.enqueueSnapshot(true);
     } catch {
-      // Fall through; in-memory state remains usable.
+      // Existing in-memory state remains usable when the API is unreachable.
     } finally {
-      this.session.markDataLoaded();
-      this.documentsRef = this.documents();
-      this.auditLogsRef = this.auditLogs();
+      const token = this.snapshotToken();
+      if (this.canCommit(token)) this.session.markDataLoaded();
     }
   }
 
   async refreshDashboard(): Promise<void> {
-    const [latestDocuments, latestStats, latestAuditLogs] = await Promise.all([
-      firstValueFrom(this.api.getDocuments()).catch(() => null),
-      firstValueFrom(this.api.getStats()).catch(() => null),
-      firstValueFrom(this.api.getAuditLogs()).catch(() => null),
-    ]);
-    if (latestDocuments) this.documents.set(latestDocuments);
-    if (latestStats) this.stats.set(latestStats);
-    if (latestAuditLogs) this.auditLogs.set(latestAuditLogs);
-    this.documentsRef = this.documents();
-    this.auditLogsRef = this.auditLogs();
+    try {
+      await this.enqueueSnapshot(false);
+    } catch {
+      // A failed poll must keep the last known good snapshot.
+    }
   }
 
   startPolling(): void {
     this.stopPolling();
     this.intervals.push(
-      window.setInterval(() => void this.refreshDashboard(), 2000),
-      window.setInterval(() => void this.refreshNotifications(), 2500),
+      window.setInterval(() => {
+        if (!this.session.isOnline()) {
+          return;
+        }
+        if (!this.session.currentUser()) {
+          return;
+        }
+        void this.refreshDashboard().catch(() => undefined);
+      }, 2000),
+      window.setInterval(() => {
+        if (!this.session.isOnline() || !this.session.currentUser()) {
+          return;
+        }
+        void this.refreshNotifications().catch(() => undefined);
+      }, 2500),
     );
   }
 
   stopPolling(): void {
+    this.lifecycle += 1;
+    this.snapshotQueued = false;
+    this.pendingMarkLoaded = false;
     this.intervals.forEach((id) => window.clearInterval(id));
     this.intervals = [];
   }
@@ -194,9 +277,18 @@ export class StateService {
   }
 
   removeDocument(id: string): void {
-    const current = this.documents().filter((document) => document.id !== id);
-    this.documents.set(current);
-    this.documentsRef = current;
+    this.documents.set(this.documents().filter((document) => document.id !== id));
+  }
+
+  reset(): void {
+    this.stopPolling();
+    this.documents.set([]);
+    this.users.set([]);
+    this.divisions.set([]);
+    this.stats.set(emptyStats);
+    this.auditLogs.set([]);
+    this.envelopeLogs.set([]);
+    this.notifications.set([]);
   }
 
   async refreshNotifications(): Promise<void> {
@@ -208,8 +300,8 @@ export class StateService {
     const latest = await firstValueFrom(this.api.getNotifications(user.id)).catch(
       () => [],
     );
-    const docs = this.documentsRef;
-    const logs = this.auditLogsRef;
+    const docs = this.documents();
+    const logs = this.auditLogs();
     const dismissedIds = this.getDismissedNotificationIds(user.id);
 
     const normalized = latest.map((notification) => {

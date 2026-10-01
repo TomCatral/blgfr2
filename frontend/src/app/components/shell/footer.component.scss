@@ -1,0 +1,104 @@
+:host {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 20;
+}
+
+.blgf-builtin-footer {
+  width: 100%;
+  background: var(--ui-surface-glass, rgba(255, 255, 255, 0.96));
+  border-top: 1px solid var(--ui-border, rgba(226, 232, 240, 0.95));
+  box-shadow: 0 -2px 10px rgba(15, 23, 42, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  overflow: hidden;
+  user-select: none;
+}
+
+:host-context(.dark) .blgf-builtin-footer,
+.dark .blgf-builtin-footer {
+  background: rgba(11, 19, 36, 0.96);
+  border-top-color: rgba(51, 65, 85, 0.65);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Philippine Flag Accent Ribbon */
+.footer-flag-bar {
+  display: flex;
+  height: 2px;
+  width: 100%;
+  overflow: hidden;
+
+  .bar-blue {
+    flex: 45;
+    background: #0038a8;
+  }
+
+  .bar-yellow {
+    flex: 10;
+    background: #fdb515;
+  }
+
+  .bar-red {
+    flex: 45;
+    background: #ce1126;
+  }
+}
+
+.footer-container {
+  padding: 0.28rem 1rem 0.32rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.footer-single-line {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  line-height: 1.25;
+  font-size: 0.715rem;
+
+  .copyright {
+    font-weight: 650;
+    color: var(--ui-text, #1e293b);
+    letter-spacing: -0.01em;
+  }
+
+  .footer-dot {
+    color: var(--ui-muted, #94a3b8);
+    font-weight: 700;
+  }
+
+  .legal {
+    font-weight: 500;
+    color: var(--ui-muted, #64748b);
+    letter-spacing: 0.005em;
+  }
+}
+
+:host-context(.dark) .footer-single-line,
+.dark .footer-single-line {
+  .copyright {
+    color: #e2e8f0;
+  }
+
+  .legal {
+    color: #94a3b8;
+  }
+}
+
+@media print {
+  :host {
+    display: none !important;
+  }
+}

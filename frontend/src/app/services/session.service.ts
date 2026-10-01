@@ -7,7 +7,9 @@ export class SessionService {
   readonly isDarkMode = signal<boolean>(
     localStorage.getItem('blgf_theme') === 'dark',
   );
-  readonly isOnline = signal(true);
+  readonly isOnline = signal(
+    typeof navigator === 'undefined' ? true : navigator.onLine,
+  );
   readonly isDataLoaded = signal(false);
 
   constructor() {
@@ -42,12 +44,19 @@ export class SessionService {
 
   login(user: User): void {
     this.currentUser.set(user);
+    this.isDataLoaded.set(false);
     sessionStorage.setItem('blgf_current_user', user.id);
     localStorage.setItem('blgf_current_user', user.id);
   }
 
   logout(): void {
     this.currentUser.set(null);
+    this.isDataLoaded.set(true);
+    sessionStorage.removeItem('blgf_current_user');
+    localStorage.removeItem('blgf_current_user');
+  }
+
+  clearPersistedUser(): void {
     sessionStorage.removeItem('blgf_current_user');
     localStorage.removeItem('blgf_current_user');
   }
@@ -57,6 +66,10 @@ export class SessionService {
       sessionStorage.getItem('blgf_current_user') ||
       localStorage.getItem('blgf_current_user')
     );
+  }
+
+  markDataLoading(): void {
+    this.isDataLoaded.set(false);
   }
 
   markDataLoaded(): void {

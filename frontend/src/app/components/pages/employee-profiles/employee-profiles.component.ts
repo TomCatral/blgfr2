@@ -17,6 +17,7 @@ import { UiService } from '../../../services/ui.service';
 import { showConfirm, showPrompt } from '../../../services/dialog.service';
 import { AppModalLayerComponent } from '../../ui/modal-layer.component';
 import { IonicModule } from '@ionic/angular';
+import { HighlightPipe } from '../../../shared/highlight.pipe';
 import {
   EmployeeProfile,
   DivisionCode,
@@ -159,7 +160,7 @@ const loadFolders = (): EmployeeFolder[] => {
   selector: 'app-employee-profiles',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [IonicModule, CommonModule, FormsModule, AppModalLayerComponent],
+  imports: [IonicModule, CommonModule, FormsModule, AppModalLayerComponent, HighlightPipe],
   templateUrl: './employee-profiles.component.html',
   styleUrl: './employee-profiles.component.scss',
 })
@@ -214,7 +215,11 @@ export class EmployeeProfilesComponent implements OnInit {
   expandedFolder = signal<string | null>(null);
   openFolderId = signal<string | null>(null);
   folderToDelete = signal<EmployeeFolder | null>(null);
-  viewingPdf = signal<{ name: string; dataUrl: string } | null>(null);
+  viewingPdf = signal<{
+    name: string;
+    dataUrl: string;
+    safeUrl: SafeResourceUrl;
+  } | null>(null);
   activeTab = signal('BLGF');
   formData = signal<Partial<EmployeeProfile>>({
     fullName: '',
@@ -227,7 +232,26 @@ export class EmployeeProfilesComponent implements OnInit {
     active: true,
   });
 
-  readonly visibleEmployees = computed(() => this.employees());
+  readonly visibleEmployees = computed(() => {
+    const canViewAllBlgf = this.canViewAllPersonnel();
+    if (canViewAllBlgf) {
+      return this.employees();
+    }
+    const currentUserId = this.currentUser.id;
+    const currentUserEmail = this.currentUser.email?.toLowerCase().trim();
+
+    return this.employees().filter((emp) => {
+      // In BLGF Personnel: non-admin employees only see their own folder/card
+      if (emp.officeType === 'BLGF') {
+        return (
+          emp.userId === currentUserId ||
+          Boolean(currentUserEmail && emp.email?.toLowerCase().trim() === currentUserEmail)
+        );
+      }
+      // In other sections (LGU, Treasurers, Other Agencies): all are visible
+      return true;
+    });
+  });
 
   readonly tabFilteredEmployees = computed(() => {
     const tab = this.activeTab();
@@ -307,7 +331,7 @@ export class EmployeeProfilesComponent implements OnInit {
     const loadedUsers = this.currentUser.role === 'SYSTEM_ADMIN'
       ? await firstValueFrom(this.api.getUsers()).catch(() => [] as User[])
       : ([] as User[]);
-    const accountUsers = this.currentUser.role === 'SYSTEM_ADMIN' ? loadedUsers : [];
+    const accountUsers = this.currentUser.role === 'SYSTEM_ADMIN' ? loadedUsers : [this.currentUser];
     const mergedEmployees = [...loadedEmployees];
     for (const user of accountUsers) {
       if (!mergedEmployees.some((employee) => employee.userId === user.id)) {
@@ -374,19 +398,24 @@ export class EmployeeProfilesComponent implements OnInit {
           ).catch(() => null);
         }
       }
+      if (!this.canViewAllPersonnel()) {
+        const myUserId = this.currentUser.id;
+        const myEmp = accessibleEmployees.find((e) => e.userId === myUserId);
+        const myEmpId = myEmp?.id;
+        return nextFolders.filter(
+          (f) =>
+            f.userId === myUserId ||
+            (myEmpId && f.employeeId === myEmpId) ||
+            f.id === `fld-auto-${myUserId}`,
+        );
+      }
       return nextFolders;
     });
   }
 
-    canViewAllPersonnel(): boolean {
+  canViewAllPersonnel(): boolean {
     if (this.currentUser.role === 'SYSTEM_ADMIN') return true;
-    const views = (this.currentUser.permissions || DEFAULT_ROLE_PERMISSIONS[this.currentUser.role])?.allowedViews || [];
-    if (views.includes('employees') || Boolean(this.currentUser.permissions?.mainMenu)) {
-      return true;
-    }
-    return ['DIRECTORY_BLGF_VIEW', 'DIRECTORY_LGU_VIEW', 'DIRECTORY_OTHER_VIEW'].some((action) =>
-      this.canManage(action),
-    );
+    return this.canManage('DIRECTORY_BLGF_VIEW');
   }
 
   canViewDirectorySection(section: DirectorySection): boolean {
@@ -782,7 +811,11 @@ export class EmployeeProfilesComponent implements OnInit {
   viewFile(file: EmployeeFolderRecord['files'][number]): void {
     if (!file.dataUrl) return;
     if (file.type === 'application/pdf') {
-      this.viewingPdf.set({ name: file.name, dataUrl: file.dataUrl });
+      this.viewingPdf.set({
+        name: file.name,
+        dataUrl: file.dataUrl,
+        safeUrl: this.sanitizer.bypassSecurityTrustResourceUrl(file.dataUrl),
+      });
     } else {
       window.open(file.dataUrl, '_blank', 'noopener,noreferrer');
     }
@@ -872,10 +905,6 @@ export class EmployeeProfilesComponent implements OnInit {
 
   stopPropagation(event: Event): void {
     event.stopPropagation();
-  }
-
-  safePdfUrl(url: string): SafeResourceUrl {
-    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
   }
 
   isPdf(fileName: string): boolean {
@@ -1021,11 +1050,25 @@ export class EmployeeProfilesComponent implements OnInit {
   }
 
   folderCountFor(emp: EmployeeProfile): number {
-    return this.folders().filter((f) => f.employeeId === emp.id).length;
+    return this.empFolders(emp).length;
   }
 
   empFolders(emp: EmployeeProfile): EmployeeFolder[] {
-    return this.folders().filter((f) => f.employeeId === emp.id);
+    if (emp.officeType === 'BLGF' && !this.canViewAllPersonnel()) {
+      const isOwn =
+        emp.userId === this.currentUser.id ||
+        Boolean(
+          this.currentUser.email &&
+            emp.email?.toLowerCase().trim() === this.currentUser.email.toLowerCase().trim(),
+        );
+      if (!isOwn) return [];
+    }
+    return this.folders().filter(
+      (f) =>
+        f.employeeId === emp.id ||
+        Boolean(emp.userId && f.userId === emp.userId) ||
+        f.id === `fld-auto-${emp.userId}`,
+    );
   }
 
   folderFileLabelClass(fld: EmployeeFolder): string {

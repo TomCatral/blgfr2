@@ -19,7 +19,7 @@
                 </div>
               </div>
               <div class="min-h-0 flex-1 bg-slate-200 dark:bg-slate-800">
-                <iframe [src]="safePdfUrl(pdf.url)" class="h-full w-full border-0" [title]="'PDF viewer: ' + pdf.name"></iframe>
+                <iframe [src]="pdf.safeUrl" class="h-full w-full border-0" [title]="'PDF viewer: ' + pdf.name"></iframe>
               </div>
             </div>
           </div>
@@ -49,6 +49,93 @@
                   </div>
                 </div>
               </header>
+
+              @if (isDecisionRequired()) {
+                <section class="decision-required-card" aria-labelledby="decision-required-title">
+                  <div class="decision-required-accent" aria-hidden="true"></div>
+
+                  <div class="decision-required-inner">
+                    <div class="decision-required-header">
+                      <div class="decision-beacon-icon">
+                        <ion-icon name="shield-checkmark"></ion-icon>
+                      </div>
+
+                      <div class="decision-title-group">
+                        <div class="decision-tag-pill">
+                          <span class="decision-pulse-dot" aria-hidden="true"></span>
+                          <span>Action Required Before Proceeding</span>
+                        </div>
+                        <h3 id="decision-required-title" class="decision-banner-title">
+                          Document Routed to You &mdash; Decision Required
+                        </h3>
+                        <p class="decision-banner-subtitle">
+                          You can review the full document details, attachments, and visual trail below. You cannot proceed with routing without taking an action: Approve, Disapprove, or Close.
+                        </p>
+                      </div>
+                    </div>
+
+                    @if (decisionRouteDetails(); as details) {
+                      <div class="decision-meta-row">
+                        <div class="decision-meta-chip">
+                          <span class="decision-chip-label">Forwarded by:</span>
+                          <span class="decision-chip-value">{{ details.fromUser }}{{ details.fromDivision ? ' (' + details.fromDivision + ')' : '' }}</span>
+                        </div>
+
+                        <div class="decision-meta-chip">
+                          <span class="decision-chip-label">Action Requested:</span>
+                          <span class="decision-chip-value highlight">{{ details.actionRequested }}</span>
+                        </div>
+
+                        @if (details.remarks) {
+                          <div class="decision-meta-chip full-width">
+                            <span class="decision-chip-label">Routing Remarks:</span>
+                            <span class="decision-chip-value italic">&ldquo;{{ details.remarks }}&rdquo;</span>
+                          </div>
+                        }
+                      </div>
+                    }
+
+                    <div class="decision-action-toolbar">
+                      <button
+                        type="button"
+                        class="decision-btn approve"
+                        [disabled]="isSubmittingDecision()"
+                        (click)="handleApprove()"
+                        title="Approve this document to unlock routing"
+                      >
+                        @if (isSubmittingDecision()) {
+                          <ion-icon name="sync" class="animate-spin"></ion-icon>
+                          <span>Saving Approval...</span>
+                        } @else {
+                          <ion-icon name="checkmark-circle"></ion-icon>
+                          <span>Approve Document</span>
+                        }
+                      </button>
+
+                      <button
+                        type="button"
+                        class="decision-btn disapprove"
+                        [disabled]="isSubmittingDecision()"
+                        (click)="handleDisapprove()"
+                        title="Disapprove and return this document to sender"
+                      >
+                        <ion-icon name="close-circle"></ion-icon>
+                        <span>Disapprove</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        class="decision-btn snooze"
+                        (click)="handleSnoozeClose()"
+                        title="Dismiss reminder for 24 hours and close view"
+                      >
+                        <ion-icon name="time-outline"></ion-icon>
+                        <span>Close for 24 hours</span>
+                      </button>
+                    </div>
+                  </div>
+                </section>
+              }
 
               <header class="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:p-4" aria-labelledby="document-information-title">
                 <div class="mb-2.5">
@@ -567,23 +654,31 @@
               </section>
             </div>
             <div class="document-detail-footer sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white/95 p-3.5 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95 sm:p-4">
-              <button type="button" (click)="handleClose()" class="rounded-xl bg-slate-100 border border-slate-200/80 px-4 py-2.5 text-sm font-bold text-slate-700 transition-all hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Close</button>
-              <div class="flex flex-wrap items-center gap-2">
+              <div class="ml-auto flex flex-wrap items-center justify-end gap-2">
+                <button
+                  type="button"
+                  (click)="handleClose()"
+                  class="document-detail-action document-detail-action--secondary rounded-xl px-4 py-2.5 text-sm font-bold"
+                  [title]="isDecisionRequired() ? 'Dismiss reminder for 24 hours and close view' : 'Close document details'"
+                >
+                  {{ isDecisionRequired() ? 'Close for 24 hours' : 'Close' }}
+                </button>
                 @if (onDeleteDoc && currentUser.role === 'SYSTEM_ADMIN') {
-                  <button type="button" (click)="handleDelete()" class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs transition-all hover:bg-rose-500 active:scale-98">
+                  <button type="button" (click)="handleDelete()" class="document-detail-action document-detail-action--danger flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold">
                     <ion-icon name="trash" class="h-4 w-4"></ion-icon> <span>Delete</span>
                   </button>
                 }
-                <button type="button" (click)="handlePrintSlip()" class="flex items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs transition-all hover:bg-teal-500 active:scale-98 cursor-pointer">
+                <button type="button" (click)="handlePrintSlip()" class="document-detail-action document-detail-action--print flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold cursor-pointer">
                   <ion-icon name="print" class="h-4 w-4"></ion-icon> <span>Print Slip</span>
                 </button>
-                @if (pendingDecisionRoute()) {
+
+                @if (isDecisionRequired()) {
                   <div class="flex items-center gap-2">
                     <button
                       type="button"
                       [disabled]="isSubmittingDecision()"
                       (click)="handleDisapprove()"
-                      class="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs transition-all hover:bg-rose-500 active:scale-98 disabled:opacity-50 cursor-pointer"
+                      class="document-detail-action document-detail-action--danger flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold cursor-pointer"
                       title="Disapprove and return this document to sender"
                     >
                       <ion-icon name="close-circle" class="h-4 w-4"></ion-icon>
@@ -593,7 +688,7 @@
                       type="button"
                       [disabled]="isSubmittingDecision()"
                       (click)="handleApprove()"
-                      class="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs transition-all hover:bg-emerald-500 active:scale-98 disabled:opacity-50 cursor-pointer ring-2 ring-emerald-400/30"
+                      class="document-detail-action document-detail-action--approve flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold cursor-pointer"
                       title="Approve this handoff to unlock routing"
                     >
                       @if (isSubmittingDecision()) {
@@ -606,15 +701,23 @@
                     </button>
                   </div>
                 }
+
                 @if (document.currentStatus !== 'COMPLETED') {
                   <button
                     type="button"
-                    [disabled]="!!pendingDecisionRoute() || isSubmittingDecision()"
+                    [disabled]="isDecisionRequired() || isSubmittingDecision()"
                     (click)="handleOpenRouteDoc()"
-                    [title]="pendingDecisionRoute() ? 'Action required: Approve or Disapprove this handoff first before routing' : 'Route / Forward this Document'"
-                    class="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs transition-all hover:bg-blue-500 active:scale-98 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 dark:disabled:bg-slate-700 dark:disabled:text-slate-400 cursor-pointer"
+                    [title]="isDecisionRequired() ? 'Action required: You must Approve or Disapprove this document before you can route/forward it' : 'Route / Forward this Document'"
+                    [class.is-locked]="isDecisionRequired()"
+                    class="document-detail-action document-detail-action--primary flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold cursor-pointer"
                   >
-                    <ion-icon name="paper-plane" class="h-4 w-4"></ion-icon> <span>Route / Forward</span>
+                    @if (isDecisionRequired()) {
+                      <ion-icon name="lock-closed" class="h-4 w-4"></ion-icon>
+                      <span>Route / Forward (Action Required First)</span>
+                    } @else {
+                      <ion-icon name="paper-plane" class="h-4 w-4"></ion-icon>
+                      <span>Route / Forward</span>
+                    }
                   </button>
                 }
               </div>

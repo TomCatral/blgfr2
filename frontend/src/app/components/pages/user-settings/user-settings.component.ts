@@ -358,7 +358,9 @@ export class UserSettingsComponent implements OnInit {
         password: this.newPasswordSignal(),
         currentPassword: this.currentPasswordSignal(),
       });
-      const msg = 'Password changed successfully!';
+      const msg = this.currentUser.email?.trim()
+        ? `Password changed successfully! A confirmation notice was sent to ${this.currentUser.email}.`
+        : 'Password changed successfully!';
       this.ui.showSuccess(msg);
       this.currentPasswordSignal.set('');
       this.newPasswordSignal.set('');

@@ -49,6 +49,15 @@ ion-select::part(container) {
   min-height: inherit;
 }
 
+/* Project-wide single-box enforcement: prevent double borders/boxes inside Ionic inputs */
+ion-input::part(native),
+ion-textarea::part(native) {
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
 ion-select::part(icon) {
   color: var(--ion-color-primary, #2563eb);
   opacity: 0.8;

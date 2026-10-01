@@ -66,8 +66,30 @@ export class ApiService {
     return this.post<{ user: User }>('/auth/login', { username, password });
   }
 
-  forgotAdminPassword(identifier: string): Observable<{ message: string }> {
-    return this.post<{ message: string }>('/auth/forgot-admin-password', { identifier });
+  forgotPassword(identifier: string): Observable<{
+    message: string;
+    temporaryPassword?: string;
+    username?: string;
+    targetEmail?: string;
+    emailSent?: boolean;
+    success?: boolean;
+    notice?: string;
+    expiresInMinutes?: number;
+  }> {
+    return this.post('/auth/forgot-password', { identifier });
+  }
+
+  forgotAdminPassword(identifier: string): Observable<{
+    message: string;
+    temporaryPassword?: string;
+    username?: string;
+    targetEmail?: string;
+    emailSent?: boolean;
+    success?: boolean;
+    notice?: string;
+    expiresInMinutes?: number;
+  }> {
+    return this.forgotPassword(identifier);
   }
 
   // ---------------------------------------------------------------
@@ -224,6 +246,24 @@ export class ApiService {
 
   deleteUser(id: string): Observable<{ success: boolean }> {
     return this.delete<{ success: boolean }>(`/users/${id}`);
+  }
+
+  resetUserPassword(
+    id: string,
+    actingUserId?: string,
+  ): Observable<{
+    success: boolean;
+    message: string;
+    targetEmail?: string;
+    username?: string;
+  }> {
+    const headers = actingUserId ? { 'X-User-Id': actingUserId } : undefined;
+    return this.post<{
+      success: boolean;
+      message: string;
+      targetEmail?: string;
+      username?: string;
+    }>(`/users/${id}/reset-password`, {}, headers);
   }
 
   // ---------------------------------------------------------------

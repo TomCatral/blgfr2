@@ -349,26 +349,6 @@
           </button>
         </div>
 
-        <!-- Search Box -->
-        <div class="dash-search-box">
-          <ion-icon name="search-outline" class="dash-search-icon"></ion-icon>
-          <input
-            type="text"
-            [value]="searchQuery()"
-            (input)="onSearchQueryChange($any($event.target).value)"
-            placeholder="Search documents..."
-            class="dash-search-input" />
-          @if (searchQuery()) {
-            <button
-              type="button"
-              (click)="clearSearch()"
-              class="dash-search-clear-btn"
-              title="Clear search">
-              <ion-icon name="close-circle"></ion-icon>
-            </button>
-          }
-        </div>
-
         <!-- View all button -->
         <button
           type="button"

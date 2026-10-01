@@ -21,9 +21,9 @@
           [notifications]="state.notifications()"
           [isDarkMode]="session.isDarkMode()"
           [isOnline]="session.isOnline()"
-          [searchQuery]="searchQuery()"
+          [searchQuery]="headerSearchQuery()"
           (onSearchDoc)="handleSearchDoc($event)"
-          (onClearSearch)="clearSearch()"
+          (onClearSearch)="clearHeaderSearch()"
           (onSelectDoc)="openDetailFromHeader($event)"
           (onOpenNotifications)="isNotifDrawerOpen.set(true)"
           (onLogout)="handleLogout()"
@@ -64,114 +64,116 @@
           }
 
           <main class="app-content">
-            <div class="app-view-container">
-              @if (activeView() === 'dashboard') {
-                <app-dashboard
-                  [stats]="state.stats()"
-                  [documents]="accessibleDocuments()"
-                  [currentUser]="currentUser()!"
-                  [users]="state.users()"
-                  [isOnline]="session.isOnline()"
-                  [auditLogs]="state.auditLogs()"
-                  [onSelectDoc]="openDetail"
-                  [onOpenCreateDoc]="openCreate"
-                  [onNavigateToView]="navigateTo"
-                  [onReapproveDocument]="reapproveDocument"
-                  [onSendRoutingReminder]="sendRoutingReminder"
-                />
-              }
-              @if (activeView() === 'routing-followup') {
-                <app-routing-follow-up
-                  [documents]="accessibleDocuments()"
-                  [auditLogs]="state.auditLogs()"
-                  [users]="state.users()"
-                  [currentUser]="currentUser()!"
-                  [onSelectDoc]="openDetail"
-                  [onSendReminder]="sendRoutingReminder"
-                />
-              }
-              @if (activeView() === 'incoming-report') {
-                <app-incoming-report [documents]="accessibleDocuments()" [envelopeLogs]="state.envelopeLogs()" [auditLogs]="state.auditLogs()" />
-              }
-              @if (activeView() === 'outgoing-report') {
-                <app-outgoing-report [documents]="accessibleDocuments()" [envelopeLogs]="state.envelopeLogs()" [auditLogs]="state.auditLogs()" />
-              }
-              @if (activeView() === 'envelope-report') {
-                <app-envelope-report [documents]="accessibleDocuments()" [envelopeLogs]="state.envelopeLogs()" [auditLogs]="state.auditLogs()" />
-              }
-              @if (activeView() === 'incoming' || activeView() === 'outgoing') {
-                <app-document-list
-                  [documents]="accessibleDocuments()"
-                  [initialDirection]="activeView() === 'outgoing' ? 'OUTGOING' : 'INCOMING'"
-                  [searchQuery]="searchQuery()"
-                  (onSearchChange)="searchQuery.set($event)"
-                  [currentUser]="currentUser()!"
-                  [onClearSearch]="clearSearch"
-                  [onSelectDoc]="openDetail"
-                  [onOpenRouteDoc]="openRoute"
-                  [onOpenCreateDoc]="openCreate"
-                  [onPrintSlip]="printSlip"
-                  [onDeleteDoc]="deleteDocument"
-                />
-              }
-              @if (activeView() === 'slip' && canViewSlip()) {
-                <app-routing-slip
-                  [document]="slipSelectedDoc()"
-                  [documents]="accessibleDocuments()"
-                  [currentUser]="currentUser()!"
-                  [users]="state.users()"
-                  [onSelectDocument]="setSlipDoc"
-                  [onBack]="backToIncoming"
-                />
-              }
-              @if (activeView() === 'envelope') {
-                <app-outgoing-envelope
-                  [document]="null"
-                  [documents]="state.documents()"
-                  [currentUser]="currentUser()!"
-                  [onBack]="backToOutgoing"
-                  [onLogDispatch]="logEnvelopeDispatch"
-                />
-              }
-              @if (activeView() === 'qr') {
-                <app-qr-code-generator />
-              }
-              @if (activeView() === 'employees') {
-                <app-employee-profiles [currentUser]="currentUser()!" />
-              }
-              @if (activeView() === 'audit') {
-                <app-audit-logs [auditLogs]="state.auditLogs()" [title]="'Detailed Audit Logs'" [subtitle]="''" />
-              }
-              @if (activeView() === 'envelope-logs') {
-                <app-audit-logs
-                  [auditLogs]="state.envelopeLogs()"
-                  [title]="'Outgoing Envelope Dispatch Logs'"
-                  [subtitle]="'Separate record of every outgoing envelope dispatch, Document Route No., releasing user, and recipient details'"
-                />
-              }
-              @if (activeView() === 'settings') {
-                <app-user-settings [currentUser]="currentUser()!" [onUpdateUser]="selfUpdateUser" />
-              }
-              @if (activeView() === 'users') {
-                <app-user-management
-                  [users]="state.users()"
-                  [divisions]="state.divisions()"
-                  [currentUser]="currentUser()!"
-                  [onCreateUser]="createUser"
-                  [onUpdateUser]="updateUser"
-                  [onDeleteUser]="deleteUser"
-                  [onCreateDivision]="createDivision"
-                  [onUpdateDivision]="updateDivision"
-                  [onDeleteDivision]="deleteDivision"
-                />
-              }
-            </div>
-          </main>
-        </div>
+              <div class="app-view-container">
+                @if (activeView() === 'dashboard') {
+                  <app-dashboard
+                    [stats]="state.stats()"
+                    [documents]="accessibleDocuments()"
+                    [currentUser]="currentUser()!"
+                    [users]="state.users()"
+                    [isOnline]="session.isOnline()"
+                    [auditLogs]="state.auditLogs()"
+                    [onSelectDoc]="openDetail"
+                    [onOpenCreateDoc]="openCreate"
+                    [onNavigateToView]="navigateTo"
+                    [onReapproveDocument]="reapproveDocument"
+                    [onSendRoutingReminder]="sendRoutingReminder"
+                  />
+                }
+                @if (activeView() === 'routing-followup') {
+                  <app-routing-follow-up
+                    [documents]="accessibleDocuments()"
+                    [auditLogs]="state.auditLogs()"
+                    [users]="state.users()"
+                    [currentUser]="currentUser()!"
+                    [onSelectDoc]="openDetail"
+                    [onSendReminder]="sendRoutingReminder"
+                  />
+                }
+                @if (activeView() === 'incoming-report') {
+                  <app-incoming-report [documents]="accessibleDocuments()" [envelopeLogs]="state.envelopeLogs()" [auditLogs]="state.auditLogs()" />
+                }
+                @if (activeView() === 'outgoing-report') {
+                  <app-outgoing-report [documents]="accessibleDocuments()" [envelopeLogs]="state.envelopeLogs()" [auditLogs]="state.auditLogs()" />
+                }
+                @if (activeView() === 'envelope-report') {
+                  <app-envelope-report [documents]="accessibleDocuments()" [envelopeLogs]="state.envelopeLogs()" [auditLogs]="state.auditLogs()" />
+                }
+                @if (activeView() === 'incoming' || activeView() === 'outgoing') {
+                  <app-document-list
+                    [documents]="accessibleDocuments()"
+                    [initialDirection]="activeView() === 'outgoing' ? 'OUTGOING' : 'INCOMING'"
+                    [searchQuery]="docListSearchQuery()"
+                    (onSearchChange)="docListSearchQuery.set($event)"
+                    [currentUser]="currentUser()!"
+                    [onClearSearch]="clearDocListSearch"
+                    [onSelectDoc]="openDetail"
+                    [onOpenRouteDoc]="openRoute"
+                    [onOpenCreateDoc]="openCreate"
+                    [onPrintSlip]="printSlip"
+                    [onDeleteDoc]="deleteDocument"
+                  />
+                }
+                @if (activeView() === 'slip' && canViewSlip()) {
+                  <app-routing-slip
+                    [document]="slipSelectedDoc()"
+                    [documents]="accessibleDocuments()"
+                    [currentUser]="currentUser()!"
+                    [users]="state.users()"
+                    [onSelectDocument]="setSlipDoc"
+                    [onBack]="backToIncoming"
+                  />
+                }
+                @if (activeView() === 'envelope') {
+                  <app-outgoing-envelope
+                    [document]="null"
+                    [documents]="state.documents()"
+                    [currentUser]="currentUser()!"
+                    [onBack]="backToOutgoing"
+                    [onLogDispatch]="logEnvelopeDispatch"
+                  />
+                }
+                @if (activeView() === 'qr') {
+                  <app-qr-code-generator />
+                }
+                @if (activeView() === 'employees') {
+                  <app-employee-profiles [currentUser]="currentUser()!" />
+                }
+                @if (activeView() === 'audit') {
+                  <app-audit-logs [auditLogs]="state.auditLogs()" [title]="'Detailed Audit Logs'" [subtitle]="''" />
+                }
+                @if (activeView() === 'envelope-logs') {
+                  <app-audit-logs
+                    [auditLogs]="state.envelopeLogs()"
+                    [title]="'Outgoing Envelope Dispatch Logs'"
+                    [subtitle]="'Separate record of every outgoing envelope dispatch, Document Route No., releasing user, and recipient details'"
+                  />
+                }
+                @if (activeView() === 'settings') {
+                  <app-user-settings [currentUser]="currentUser()!" [onUpdateUser]="selfUpdateUser" />
+                }
+                @if (activeView() === 'users' && currentUser()?.role === 'SYSTEM_ADMIN') {
+                  <app-user-management
+                    [users]="state.users()"
+                    [divisions]="state.divisions()"
+                    [currentUser]="currentUser()!"
+                    [onCreateUser]="createUser"
+                    [onUpdateUser]="updateUser"
+                    [onDeleteUser]="deleteUser"
+                    [onCreateDivision]="createDivision"
+                    [onUpdateDivision]="updateDivision"
+                    [onDeleteDivision]="deleteDivision"
+                  />
+                }
+              </div>
+            </main>
+          </div>
 
-        <footer class="app-footer" [ngClass]="'appApp' | cls">
-          DOF &bull; BLGF REGION II &bull; Document Tracking System
-        </footer>
+          <app-footer
+            [isOnline]="session.isOnline()"
+            [activeView]="activeView()"
+            (navigate)="navigateTo($event)"
+          />
 
         @if (selectedDocTyped(); as doc) {
           <app-document-detail
@@ -180,7 +182,9 @@
             [currentUser]="currentUser()!"
             [users]="state.users()"
             [auditLogs]="state.auditLogs()"
+            [pendingPopupAction]="reviewingRoutingPopup() || getPendingPopupAction(doc)"
             [onClose]="closeDetail"
+            [onSnoozeClose]="handleDetailSnoozeClose"
             [onOpenRouteDoc]="openRoute"
             [onPrintSlip]="printSlipFromDetail"
             [onDeleteDoc]="deleteDocument"
@@ -194,7 +198,7 @@
           [currentUser]="currentUser()!"
           [existingDocuments]="state.documents()"
           [existingRouteNumbers]="existingRouteNumbers()"
-          [initialDirection]="activeView() === 'outgoing' ? 'OUTGOING' : 'INCOMING'"
+          [initialDirection]="createModalDirection()"
           [onClose]="closeCreate"
           [onSubmit]="createDocument"
         />
@@ -294,94 +298,304 @@
 
 
         @if (routingPopup(); as popup) {
-          <app-modal-layer [isOpen]="true" [onClose]="closeRoutingActionPopup">
-            <div class="app3">
-              <div role="dialog" aria-modal="true" aria-labelledby="routing-popup-title" class="app1"
-                [ngClass]="'app24' | cls">
-                <header class="app16" [ngClass]="'app24' | cls">
-                  <div class="app12" [ngClass]="'app232' | cls">
-                    @if (popup.decisionStatus === 'APPROVED') {
-                      <ion-icon name="checkmark-circle" class="appCheckmarkCircleIcon"></ion-icon>
-                    } @else if (popup.decisionStatus === 'DISAPPROVED') {
-                      <ion-icon name="close-circle" class="appCloseCircleIcon"></ion-icon>
+          @if (!selectedDoc() && !reviewingRoutingPopup()) {
+            <app-modal-layer [isOpen]="true" [maxWidth]="'38rem'" [onClose]="closeRoutingActionPopup">
+              <div
+                class="routing-alert-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="routing-popup-title"
+            >
+              <!-- Top Accent Strip -->
+              <div
+                class="routing-accent-bar"
+                [class.approved]="popup.decisionStatus === 'APPROVED'"
+                [class.disapproved]="popup.decisionStatus === 'DISAPPROVED'"
+                aria-hidden="true"
+              ></div>
+
+              <!-- Modal Header -->
+              <header
+                class="routing-alert-header"
+                [class.approved]="popup.decisionStatus === 'APPROVED'"
+                [class.disapproved]="popup.decisionStatus === 'DISAPPROVED'"
+              >
+                <!-- Glowing Icon Beacon -->
+                <div
+                  class="routing-icon-beacon"
+                  [class.approved]="popup.decisionStatus === 'APPROVED'"
+                  [class.disapproved]="popup.decisionStatus === 'DISAPPROVED'"
+                >
+                  @if (popup.decisionStatus === 'APPROVED') {
+                    <ion-icon name="checkmark-done-circle"></ion-icon>
+                  } @else if (popup.decisionStatus === 'DISAPPROVED') {
+                    <ion-icon name="close-circle"></ion-icon>
+                  } @else if (popup.title.includes('Reminder')) {
+                    <ion-icon name="notifications-circle"></ion-icon>
+                  } @else {
+                    <ion-icon name="navigate-circle"></ion-icon>
+                  }
+                </div>
+
+                <div class="routing-title-group">
+                  <div
+                    class="routing-tag-pill"
+                    [class.approved]="popup.decisionStatus === 'APPROVED'"
+                    [class.disapproved]="popup.decisionStatus === 'DISAPPROVED'"
+                  >
+                    <span class="routing-pulse-dot" aria-hidden="true"></span>
+                    @if (popup.decisionStatus) {
+                      <span>Decision: {{ popup.decisionStatus }}</span>
+                    } @else if (popup.title.includes('Reminder')) {
+                      <span>Action Reminder</span>
                     } @else {
-                      <ion-icon name="arrow-forward-circle" class="appArrowForwardCircleIcon"></ion-icon>
+                      <span>Document Routed to You</span>
                     }
                   </div>
-                  <div class="app4">
-                    <h2 id="routing-popup-title" class="appRoutingPopupTitle">{{ popup.title }}</h2>
-                    <p class="appP">{{ popup.decisionStatus ? 'Decision: ' + popup.decisionStatus.toLowerCase() : 'Review the document and requested action.' }}</p>
+                  <h2 id="routing-popup-title" class="routing-alert-title">{{ popup.title }}</h2>
+                  <p class="routing-alert-subtitle">
+                    {{ popup.decisionStatus ? 'Official routing decision update' : 'Review the document details, attached files, and requested action.' }}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  class="routing-close-btn"
+                  aria-label="Close notification"
+                  (click)="closeRoutingActionPopup()"
+                >
+                  <ion-icon name="close"></ion-icon>
+                </button>
+              </header>
+
+              <!-- Modal Body Content -->
+              <div class="routing-alert-body">
+                <!-- Document Hero Summary Card -->
+                <div class="routing-hero-card">
+                  <div class="routing-hero-header">
+                    <div class="routing-tracking-pill" title="Official Document Tracking Number">
+                      <ion-icon name="barcode-outline"></ion-icon>
+                      <span>{{ routingPopupDocument()?.routeNo || popup.trackingNumber || 'Not recorded' }}</span>
+                      <button
+                        type="button"
+                        class="routing-copy-btn"
+                        (click)="copyRoutingTracking(routingPopupDocument()?.routeNo || popup.trackingNumber)"
+                        title="Copy tracking number"
+                      >
+                        <ion-icon name="copy-outline"></ion-icon>
+                        <span>Copy</span>
+                      </button>
+                    </div>
+
+                    @if (routingPopupDocument()?.direction; as dir) {
+                      <span class="routing-dir-pill" [class.incoming]="dir === 'INCOMING'" [class.outgoing]="dir === 'OUTGOING'">
+                        {{ dir }}
+                      </span>
+                    }
                   </div>
-                  <button type="button" class="appCloseRoutingActionBtn" aria-label="Close notification" (click)="closeRoutingActionPopup()">&times;</button>
-                </header>
-                <div class="app5">
-                  <p class="app22">Document tracking number</p>
-                  <p class="app32">{{ routingPopupDocument()?.routeNo || popup.trackingNumber || 'Not recorded' }}</p>
-                  <h3 class="appH3">{{ routingPopupDocument()?.title || popup.message }}</h3>
-                  <div class="app13" [ngClass]="'app24' | cls">
-                    <div class="app6">
-                      <p class="app22">Last forwarded to you by</p>
-                      <p class="app42">{{ routingPopupForwardedBy() || 'Not recorded' }}</p>
+
+                  <h3 class="routing-doc-title" [title]="routingPopupDocument()?.title || popup.message">
+                    {{ routingPopupDocument()?.title || popup.message }}
+                  </h3>
+                </div>
+
+                <!-- 2-Column Metadata Grid -->
+                <div class="routing-meta-grid">
+                  <div class="routing-meta-item">
+                    <div class="routing-meta-icon">
+                      <ion-icon name="person-circle-outline"></ion-icon>
                     </div>
-                    <div class="app6">
-                      <p class="app22">Date & time forwarded (Philippine time)</p>
-                      <p class="app42">{{ routingPopupForwardedAt() || 'Not recorded' }}</p>
-                    </div>
-                    <div class="app6">
-                      <p class="app22">Forwarding office</p>
-                      <p class="app42">{{ routingPopupRouteFromDivision() || 'Not recorded' }}</p>
-                    </div>
-                    <div class="app6">
-                      <p class="app22">Original sender</p>
-                      <p class="app42">{{ routingPopupDocument()?.senderName || 'Not recorded' }}</p>
-                    </div>
-                    <div class="app7">
-                      <p class="app22">Originating office</p>
-                      <p class="app42">{{ routingPopupDocument()?.originatingOffice || 'Not recorded' }}</p>
+                    <div class="routing-meta-content">
+                      <span class="routing-meta-label">Last forwarded to you by</span>
+                      <span class="routing-meta-val">{{ routingPopupForwardedBy() || 'Not recorded' }}</span>
                     </div>
                   </div>
-                  <div class="app14" [ngClass]="'app232' | cls">
-                    <p class="app22">Action requested</p>
-                    <p class="app52">{{ routingPopupDocument()?.actionRequested || 'Appropriate Action' }}</p>
+
+                  <div class="routing-meta-item">
+                    <div class="routing-meta-icon">
+                      <ion-icon name="calendar-outline"></ion-icon>
+                    </div>
+                    <div class="routing-meta-content">
+                      <span class="routing-meta-label">Date &amp; time forwarded</span>
+                      <span class="routing-meta-val">{{ routingPopupForwardedAt() || 'Not recorded' }}</span>
+                    </div>
                   </div>
-                  <h3 class="app2">Attachments ({{ routingPopupAttachments().length }})</h3>
+
+                  <div class="routing-meta-item">
+                    <div class="routing-meta-icon">
+                      <ion-icon name="business-outline"></ion-icon>
+                    </div>
+                    <div class="routing-meta-content">
+                      <span class="routing-meta-label">Forwarding office</span>
+                      <span class="routing-meta-val">{{ routingPopupRouteFromDivision() || 'Not recorded' }}</span>
+                    </div>
+                  </div>
+
+                  <div class="routing-meta-item">
+                    <div class="routing-meta-icon">
+                      <ion-icon name="paper-plane-outline"></ion-icon>
+                    </div>
+                    <div class="routing-meta-content">
+                      <span class="routing-meta-label">Original sender</span>
+                      <span class="routing-meta-val">{{ routingPopupDocument()?.senderName || 'Not recorded' }}</span>
+                    </div>
+                  </div>
+
+                  <div class="routing-meta-item" style="grid-column: span 2;">
+                    <div class="routing-meta-icon">
+                      <ion-icon name="location-outline"></ion-icon>
+                    </div>
+                    <div class="routing-meta-content">
+                      <span class="routing-meta-label">Originating office</span>
+                      <span class="routing-meta-val">{{ routingPopupDocument()?.originatingOffice || 'Not recorded' }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Action Requested Banner -->
+                <div class="routing-action-box">
+                  <div class="routing-action-icon">
+                    <ion-icon name="flash-outline"></ion-icon>
+                  </div>
+                  <div class="routing-action-content">
+                    <div class="routing-action-label">Action Requested</div>
+                    <div class="routing-action-val">
+                      {{ routingPopupActionRequested() }}
+                    </div>
+                    @if (routingPopupRouteRemarks(); as remarks) {
+                      <div class="routing-action-remarks">
+                        <ion-icon name="chatbox-ellipses-outline"></ion-icon>
+                        <span>&ldquo;{{ remarks }}&rdquo;</span>
+                      </div>
+                    }
+                  </div>
+                </div>
+
+                <!-- Attachments Section -->
+                <div class="routing-attachments-card">
+                  <div class="routing-attachments-header">
+                    <h4 class="routing-attachments-title">
+                      <ion-icon name="attach-outline"></ion-icon>
+                      <span>Attachments</span>
+                    </h4>
+                    <span class="routing-attachments-badge">
+                      {{ routingPopupAttachments().length }} {{ routingPopupAttachments().length === 1 ? 'file' : 'files' }}
+                    </span>
+                  </div>
+
                   @if (routingPopupAttachments().length) {
-                    <ul class="appUl">
+                    <ul class="routing-attachments-list">
                       @for (attachment of routingPopupAttachments(); track attachment.id) {
-                        <li class="appLi1" [ngClass]="'app24' | cls">
-                          <p class="app62">{{ attachment.fileName }}</p>
-                          <p class="app72">{{ attachment.fileSize || 'Attached document' }}</p>
-                          <div class="app8">
-                            <button type="button" class="appOpenPopupFileBtn" [disabled]="!attachment.url" (click)="openPopupAttachment(attachment)" [attr.aria-label]="'View ' + attachment.fileName">View</button>
-                            <button type="button" class="appOpenPopupFileBtn" [disabled]="!attachment.url" (click)="downloadPopupAttachment(attachment)" [attr.aria-label]="'Download ' + attachment.fileName">Download</button>
+                        <li class="routing-attachment-row">
+                          <div class="routing-att-left">
+                            <div
+                              class="routing-att-icon-box"
+                              [class.pdf]="isPdfAttachment(attachment.fileName)"
+                              [class.image]="isImageAttachment(attachment.fileName)"
+                            >
+                              @if (isPdfAttachment(attachment.fileName)) {
+                                <ion-icon name="document-text"></ion-icon>
+                              } @else if (isImageAttachment(attachment.fileName)) {
+                                <ion-icon name="image"></ion-icon>
+                              } @else {
+                                <ion-icon name="document"></ion-icon>
+                              }
+                            </div>
+                            <div class="routing-att-info">
+                              <p class="routing-att-name" [title]="attachment.fileName">
+                                {{ attachment.fileName }}
+                              </p>
+                              <div class="routing-att-meta">
+                                <span class="routing-att-ext">{{ getFileExtension(attachment.fileName) }}</span>
+                                <span class="routing-att-size">{{ attachment.fileSize || 'Attached document' }}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div class="routing-att-actions">
+                            <button
+                              type="button"
+                              class="routing-att-btn view"
+                              [disabled]="!attachment.url"
+                              (click)="openPopupAttachment(attachment)"
+                              [attr.aria-label]="'View ' + attachment.fileName"
+                              title="View attachment in new tab"
+                            >
+                              <ion-icon name="eye-outline"></ion-icon>
+                              <span>View</span>
+                            </button>
+                            <button
+                              type="button"
+                              class="routing-att-btn download"
+                              [disabled]="!attachment.url"
+                              (click)="downloadPopupAttachment(attachment)"
+                              [attr.aria-label]="'Download ' + attachment.fileName"
+                              title="Download attachment file"
+                            >
+                              <ion-icon name="download-outline"></ion-icon>
+                              <span>Download</span>
+                            </button>
                           </div>
                         </li>
                       }
                     </ul>
                   } @else {
-                    <p class="app82">No attachments included.</p>
+                    <p class="routing-att-empty">No attachments included.</p>
                   }
                 </div>
-                <footer class="app15" [ngClass]="'app24' | cls">
+              </div>
+
+              <!-- Modal Footer Actions -->
+              <footer class="routing-alert-footer">
+                <div class="routing-footer-left">
+                  <ion-button
+                    type="button"
+                    class="routing-btn-review"
+                    (click)="reviewRoutingPopupDocument(popup)"
+                    title="View full document trail and details"
+                  >
+                    <ion-icon name="open-outline"></ion-icon>
+                    <span>Review Document</span>
+                  </ion-button>
+                </div>
+
+                <div class="routing-footer-right">
                   @if (popup.requiresDecision) {
                     <ion-button
                       type="button"
-                      class="appRouteDecisionBtn"
+                      class="routing-btn-approve"
                       [disabled]="decisionSubmittingId() === popup.id"
                       (click)="routeDecision(popup, 'APPROVED')"
-                    >{{ decisionSubmittingId() === popup.id ? 'Saving...' : 'Approve' }}</ion-button>
+                    >
+                      <ion-icon name="checkmark-circle-outline"></ion-icon>
+                      <span>{{ decisionSubmittingId() === popup.id ? 'Saving...' : 'Approve' }}</span>
+                    </ion-button>
+
                     <ion-button
                       type="button"
-                      class="appRouteDecision2Btn"
+                      class="routing-btn-disapprove"
                       [disabled]="decisionSubmittingId() === popup.id"
                       (click)="routeDecision(popup, 'DISAPPROVED')"
-                    >Disapprove</ion-button>
+                    >
+                      <ion-icon name="close-circle-outline"></ion-icon>
+                      <span>Disapprove</span>
+                    </ion-button>
                   }
-                  <ion-button type="button" class="appCloseRoutingActionBtn2" (click)="closeRoutingActionPopup()">Close for 24 hours</ion-button>
-                </footer>
-              </div>
+
+                  <ion-button
+                    type="button"
+                    class="routing-btn-snooze"
+                    (click)="closeRoutingActionPopup()"
+                    title="Dismiss reminder for 24 hours"
+                  >
+                    <ion-icon name="time-outline"></ion-icon>
+                    <span>Close for 24 hours</span>
+                  </ion-button>
+                </div>
+              </footer>
             </div>
           </app-modal-layer>
+          }
         }
 
         <app-notification-drawer

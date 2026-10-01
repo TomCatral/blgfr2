@@ -25,7 +25,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
   { id: 'incoming-report', label: 'Incoming Report', miniLabel: 'In-Report', icon: 'stats-chart', section: 'Reports' },
   { id: 'outgoing-report', label: 'Outgoing Report', miniLabel: 'Out-Report', icon: 'bar-chart', section: 'Reports' },
   { id: 'envelope-report', label: 'Envelope Report', miniLabel: 'Env-Report', icon: 'file-tray', section: 'Reports' },
-  { id: 'users', label: 'User Accounts', miniLabel: 'Users', icon: 'people', section: 'Management' },
+  { id: 'users', label: 'User Accounts', miniLabel: 'Users', icon: 'people', section: 'Management', adminOnly: true },
   { id: 'audit', label: 'Audit Logs', miniLabel: 'Audit', icon: 'clipboard', section: 'Logs' },
   { id: 'envelope-logs', label: 'Envelope Dispatch Logs', miniLabel: 'Env-Logs', icon: 'receipt', section: 'Logs' },
 ];
@@ -83,11 +83,10 @@ export class SidebarComponent {
 
   private canViewItem(item: NavigationItem): boolean {
     if (this.currentUser.role === 'SYSTEM_ADMIN') return true;
+    if (item.id === 'users' || item.adminOnly) return false;
 
     const permissions = this.permissions();
     const allowedViews = permissions.allowedViews || [];
-
-    if (item.adminOnly) return false;
     if ((item.section === 'Management' || item.section === 'Logs') && !permissions.management) return false;
     if (item.section !== 'Management' && item.section !== 'Logs' && !permissions.mainMenu) return false;
     if (item.actionPermission) {

@@ -28,8 +28,11 @@ npm run dev
 ```
 
 The command installs/builds the Ionic Angular frontend, then serves the full
-application at `http://localhost:3001`. For Ionic live reload during frontend
-work, run `npm run preview` in a second terminal while the API is running.
+application at `http://localhost:3001`. If that port belongs to another process,
+the launcher automatically selects the next free port and prints the URL it
+selected. It never terminates a process it does not own. For Ionic live reload
+during frontend work, run `npm run preview` in a second terminal while the API
+is running; the preview proxy automatically follows the selected API port.
 
 ## Production build
 
@@ -53,7 +56,10 @@ Copy-Item .env.docker.example .env.docker
 docker compose --env-file .env.docker up -d --build
 ```
 
-Open `http://localhost:3000`. The MySQL database, application data, and uploaded
+Open `http://localhost:3002`. Port `3000` is reserved for the local MySQL
+service on this workstation, so the default published port is `3002`. Change
+`APP_PORT` in `.env.docker` if you need a different host port. The MySQL
+database, application data, and uploaded
 records are kept in Docker volumes, so normal container restarts do not erase
 them. View status and logs with:
 

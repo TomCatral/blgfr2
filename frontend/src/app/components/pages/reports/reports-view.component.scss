@@ -87,6 +87,7 @@
   gap: .5rem;
 }
 
+.reports-printButton,
 .reports-exportButton,
 .reports-folderButton,
 .reports-historyButton {
@@ -101,6 +102,7 @@
   transition: background-color .15s, box-shadow .15s, transform .15s;
 }
 
+.reports-printButton,
 .reports-exportButton,
 .reports-folderButton {
   padding: .5rem .875rem;
@@ -232,7 +234,10 @@
 }
 
 .reports-searchInput {
-  padding: .5rem .75rem .5rem 38px !important;
+  padding: .5rem 1rem !important;
+  --padding-start: 1rem !important;
+  --caret-color: #2563eb !important;
+  caret-color: #2563eb !important;
 }
 
 .reports-monthSelect {
@@ -285,7 +290,7 @@
 }
 
 .reports-tableScroll table {
-  min-width: 1280px;
+  min-width: 66rem;
   table-layout: auto;
 }
 
@@ -302,7 +307,7 @@
 }
 
 .reports-documentTable {
-  min-width: 90rem;
+  min-width: 66rem;
 }
 
 .reports-tableHead {
@@ -324,7 +329,7 @@
 .reports-cell,
 .reports-envelopeTable td,
 .reports-documentTable td {
-  padding: .75rem;
+  padding: .45rem .55rem;
 }
 
 .reports-tableBody tr {
@@ -340,16 +345,17 @@
 }
 
 .reports-nowrapCell {
-  padding: .75rem;
+  padding: .45rem .55rem;
+  font-size: .72rem;
   white-space: nowrap;
 }
 
 .reports-routeCell {
-  min-width: 190px;
-  padding: .75rem;
+  min-width: 135px;
+  padding: .45rem .55rem;
   color: #334155;
   font-family: monospace;
-  font-size: 12px !important;
+  font-size: 11px !important;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -428,39 +434,9 @@
   color: #92400e;
 }
 
-.reports-handoffCell {
-  min-width: 17.5rem;
-  max-width: 28rem;
-  padding: .75rem;
-}
-
-.reports-handoff {
-  display: grid;
-  gap: .375rem;
-  padding: .625rem;
-  border: 1px solid #a7f3d0;
-  border-radius: .5rem;
-  background: #ecfdf5;
-  font-size: .6875rem;
-}
-
 .reports-detailLabel {
   color: #64748b;
   font-weight: 700;
-}
-
-.reports-instructions,
-.reports-completionNotes {
-  white-space: pre-wrap;
-}
-
-.reports-instructions {
-  line-height: 1.6;
-}
-
-.reports-completionNotes {
-  padding-top: .375rem;
-  border-top: 1px solid #a7f3d0;
 }
 
 .reports-muted {
@@ -468,12 +444,15 @@
 }
 
 .reports-activityCell {
-  max-width: 20rem;
-  padding: .75rem;
+  max-width: 12rem;
+  padding: .45rem .55rem;
+  font-size: .72rem;
 }
 
 .reports-historyButton {
-  padding: .375rem .75rem;
+  padding: .28rem .55rem;
+  font-size: .72rem;
+  font-weight: 700;
   border: 1px solid #e2e8f0;
   border-radius: .5rem;
   background: #f8fafc;
@@ -514,7 +493,7 @@
 
 .reports-historyEvent {
   display: grid;
-  grid-template-columns: 4.375rem 11.25rem 11.25rem 1fr;
+  grid-template-columns: 4.375rem 9.5rem 9.5rem 9.5rem 1fr;
   gap: .5rem;
   padding: .75rem;
   border: 1px solid #f1f5f9;
@@ -624,15 +603,6 @@
 
   .reports-tableBody tr {
     border-color: rgba(51, 65, 85, 0.45);
-  }
-
-  .reports-handoff {
-    border-color: #064e3b;
-    background: rgba(2, 44, 34, 0.35);
-  }
-
-  .reports-completionNotes {
-    border-color: #064e3b;
   }
 
   .reports-historyButton {
@@ -747,4 +717,60 @@
   .reports-header {
     padding: 14px !important;
   }
+}
+
+/* Double-box prevention for reports-view */
+ion-input.reports-searchInput,
+ion-select.reports-monthSelect {
+  --background: transparent !important;
+  --border-color: transparent !important;
+  --border-width: 0 !important;
+  --box-shadow: none !important;
+  --highlight-height: 0 !important;
+}
+
+.reports-printButton {
+  position: relative;
+  background: #fff;
+  color: #164ea6;
+}
+
+.reports-printButton:hover {
+  background: #eff6ff;
+  box-shadow: 0 6px 16px rgb(15 23 42 / .28);
+  transform: translateY(-1px);
+}
+
+/* Sticky Full History Column so it is never cut off */
+.reports-historyTh,
+.reports-historyTd {
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  text-align: center;
+  background: #f1f5f9;
+  box-shadow: -4px 0 8px -3px rgba(15, 23, 42, 0.08);
+}
+
+.reports-historyTd {
+  background: #ffffff;
+  z-index: 1;
+}
+
+.reports-row:hover .reports-historyTd {
+  background: #f8fafc;
+}
+
+.dark .reports-historyTh {
+  background: #1e293b;
+  box-shadow: -4px 0 8px -3px rgba(0, 0, 0, 0.4);
+}
+
+.dark .reports-historyTd {
+  background: #0f172a;
+  box-shadow: -4px 0 8px -3px rgba(0, 0, 0, 0.4);
+}
+
+.dark .reports-row:hover .reports-historyTd {
+  background: #1e293b;
 }

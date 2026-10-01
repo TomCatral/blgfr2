@@ -27,10 +27,12 @@
           <ion-select-option value="simplified">Limited Slip</ion-select-option>
           <ion-select-option value="full">Complete Slip</ion-select-option>
         </ion-select>
-        <ion-button type="button" (click)="isCustomizeOpen.set(!isCustomizeOpen())" [ngClass]="'slipSetBtn' | cls">
-          <ion-icon name="create" [ngClass]="'slipCreateIcon' | cls"></ion-icon>
-          <span>{{ isCustomizeOpen() ? 'Close Form Edit' : 'Edit Routing Form' }}</span>
-        </ion-button>
+        @if (canCustomizeSlip()) {
+          <ion-button type="button" (click)="isCustomizeOpen.set(!isCustomizeOpen())" [ngClass]="'slipSetBtn' | cls">
+            <ion-icon name="create" [ngClass]="'slipCreateIcon' | cls"></ion-icon>
+            <span>{{ isCustomizeOpen() ? 'Close Form Edit' : 'Edit Routing Form' }}</span>
+          </ion-button>
+        }
         <ion-button type="button" (click)="handlePrint()" [ngClass]="'slipHandlePrintBtn' | cls">
           <ion-icon name="print" [ngClass]="'slipPrint2Icon' | cls"></ion-icon>
           <span>Print Slip Only</span>
@@ -38,8 +40,50 @@
       </div>
     </div>
 
-    @if (isCustomizeOpen()) {
+    @if (isCustomizeOpen() && canCustomizeSlip()) {
       <div class="document-slip-customize-wrap animate-fadeIn slipSlipCustomize">
+        <section class="slip-admin-section">
+          <div class="slip-admin-heading">
+            <div>
+              <span class="slip-admin-kicker">System Administrator</span>
+              <h3>Routing Slip Format &amp; Presets</h3>
+            </div>
+            <ion-button type="button" fill="outline" color="medium" (click)="handleResetToDefault()">
+              <ion-icon name="refresh" slot="start"></ion-icon>
+              Reset Defaults
+            </ion-button>
+          </div>
+          <div class="slip-admin-preset-grid">
+            <div>
+              <label class="slip-admin-label">Saved Print Format</label>
+              <ion-select interface="popover" [ngModel]="selectedFormat()" (ngModelChange)="handleSelectFormat($event)" class="slip-admin-control">
+                @for (format of printFormats(); track format.id) {
+                  <ion-select-option [value]="format.id">{{ format.name }}</ion-select-option>
+                }
+              </ion-select>
+            </div>
+            <div class="slip-admin-actions">
+              <ion-button type="button" (click)="handleSaveCurrentPreset()">
+                <ion-icon name="save" slot="start"></ion-icon>
+                Save Changes
+              </ion-button>
+              <ion-button type="button" fill="outline" color="danger" [disabled]="selectedFormat() === 'FORMAT_1'" (click)="handleDeleteFormat(selectedFormat())">
+                <ion-icon name="trash" slot="icon-only"></ion-icon>
+              </ion-button>
+            </div>
+            <div>
+              <label class="slip-admin-label">New Format Name</label>
+              <ion-input type="text" [ngModel]="newFormatName()" (ngModelChange)="newFormatName.set($event)" placeholder="e.g. Executive Routing Slip" class="slip-admin-control" />
+            </div>
+            <div class="slip-admin-actions">
+              <ion-button type="button" fill="outline" (click)="handleAddFormat()">
+                <ion-icon name="add" slot="start"></ion-icon>
+                Add Format
+              </ion-button>
+            </div>
+          </div>
+        </section>
+
         <div [ngClass]="'slip5' | cls">
           <h3 [ngClass]="'slipH3' | cls">
             <ion-icon name="color-palette" [ngClass]="'slipColorPaletteIcon' | cls"></ion-icon>
@@ -74,6 +118,10 @@
         <div [ngClass]="'slip8' | cls">
           <div [ngClass]="'slip9' | cls">
             <div>
+              <label [ngClass]="'slipLabel2' | cls">Route / Document No.:</label>
+              <ion-input type="text" [ngModel]="docNo()" (ngModelChange)="onDocNoChange($event)" [ngClass]="'slipInput' | cls" />
+            </div>
+            <div>
               <label [ngClass]="'slipLabel2' | cls">Class Code / No.:</label>
               <ion-input type="text" [ngModel]="docClass()" (ngModelChange)="docClass.set($event)" [ngClass]="'slipInput' | cls" />
             </div>
@@ -102,6 +150,10 @@
               <ion-input type="text" [ngModel]="receivedBy()" (ngModelChange)="receivedBy.set($event)" [ngClass]="'slip4Input' | cls" />
             </div>
             <div>
+              <label [ngClass]="'slipLabel2' | cls">Routed By:</label>
+              <ion-input type="text" [ngModel]="routingBy()" (ngModelChange)="routingBy.set($event)" [ngClass]="'slip4Input' | cls" />
+            </div>
+            <div>
               <label [ngClass]="'slipLabel2' | cls">Subject Matter:</label>
               <ion-input type="text" [ngModel]="subjectMatter()" (ngModelChange)="subjectMatter.set($event)" [ngClass]="'slip2Input' | cls" />
             </div>
@@ -113,6 +165,14 @@
           <div>
             <label [ngClass]="'slipLabel2' | cls">Signatory Position / Title:</label>
             <ion-input type="text" [ngModel]="rdPosition()" (ngModelChange)="rdPosition.set($event)" placeholder="e.g. Regional Director" [ngClass]="'slip5Input' | cls" />
+          </div>
+          <div class="slip-admin-wide-field">
+            <label [ngClass]="'slipLabel2' | cls">Routing History / Action Notes:</label>
+            <ion-textarea [autoGrow]="true" [rows]="4" [ngModel]="routingHistoryText()" (ngModelChange)="routingHistoryText.set($event)" placeholder="Enter routing history and action notes..." class="slip-admin-textarea" />
+          </div>
+          <div class="slip-admin-wide-field">
+            <label [ngClass]="'slipLabel2' | cls">Special Instructions / Remarks:</label>
+            <ion-textarea [autoGrow]="true" [rows]="3" [ngModel]="specialInstructionsText()" (ngModelChange)="specialInstructionsText.set($event)" placeholder="Enter special instructions or remarks..." class="slip-admin-textarea" />
           </div>
         </div>
       </div>
@@ -134,7 +194,6 @@
         <!-- Search Input Box & Dropdown (Strictly Separated Wrapper) -->
         <div class="document-search-container slipSearch">
           <div class="document-search-input-wrap slipSearchInput">
-            <ion-icon name="search" class="slipSearch2Icon"></ion-icon>
             <ion-input
               class="document-search-input"
               type="text"
@@ -269,10 +328,15 @@
             <div [ngClass]="'slip18' | cls">Department of Finance</div>
             <div [ngClass]="'slip19' | cls">Bureau of Local Government Finance</div>
                 <div [ngClass]="'slip20' | cls">Regional Office No. II &middot; Carig, Tuguegarao City</div>
-                <div [ngClass]="'slip21' | cls">{{ slipLayout() === 'full' ? 'Official Document Routing Slip' : 'Limited Document Routing Slip' }}</div>
+                <div [ngClass]="'slip21' | cls">{{ slipLayout() === 'full' ? 'Official BLGF RO2 Document Routing Slip' : 'Limited BLGF RO2 Document Routing Slip' }}</div>
               </div>
               <div [ngClass]="'slip222' | cls">
-                <div [ngClass]="'slip232' | cls">{{ docNo() || activeDoc().routeNo || activeDoc().trackingNumber || '' }}</div>
+                <div [ngClass]="'slip232' | cls" class="slip-route-qr-box">
+                  @if (slipQrDataUrl()) {
+                    <img [src]="slipQrDataUrl()" alt="Route number QR code" class="slip-route-qr-image">
+                  }
+                  <span class="slip-route-qr-label">{{ docNo() || activeDoc().routeNo || activeDoc().trackingNumber || '' }}</span>
+                </div>
                 <div [ngClass]="'slip24' | cls">Records<br>Copy</div>
               </div>
             </div>

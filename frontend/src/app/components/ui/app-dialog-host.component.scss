@@ -1,5 +1,70 @@
 /* APP DIALOG HOST: confirm, prompt, success, and error dialog content. */
 
+:host {
+  position: relative;
+  z-index: 100000;
+  display: block;
+}
+
+/* Toast warning/error alerts must ALWAYS be in front of all modals, sheets, and backdrops */
+.dialog7,
+.dialog4 {
+  position: fixed !important;
+  top: 1.25rem !important;
+  right: 1.25rem !important;
+  z-index: 100000 !important;
+  max-width: 32rem !important;
+  width: calc(100vw - 2.5rem) !important;
+  border-radius: 1.25rem !important;
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 2px solid #f43f5e !important;
+  box-shadow: 0 25px 60px -10px rgba(225, 29, 72, 0.35), 0 0 0 1px rgba(244, 63, 94, 0.25) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  pointer-events: auto !important;
+}
+
+.dialog7 .dialog5,
+.dialog4 .dialog5 {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 0.875rem !important;
+  padding: 1.125rem 1.25rem !important;
+}
+
+.dialog7 .dialogAlertCircleIcon {
+  font-size: 1.75rem !important;
+  color: #e11d48 !important;
+  flex-shrink: 0 !important;
+  margin-top: 2px !important;
+}
+
+.dialog7 .dialog6 {
+  flex: 1 !important;
+  font-size: 0.875rem !important;
+  line-height: 1.55 !important;
+  font-weight: 600 !important;
+  color: #881337 !important;
+  white-space: pre-line !important;
+  word-break: break-word !important;
+}
+
+.dialog7 .dialogClearSuccessBtn {
+  margin: -0.25rem -0.25rem 0 0 !important;
+  --color: #9f1239 !important;
+  cursor: pointer !important;
+}
+
+/* Confirm and prompt dialogs must conceal the header, navigation, and page. */
+.dialogDismiss {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 99998 !important;
+  background: rgba(226, 232, 240, 0.72);
+  backdrop-filter: blur(9px) saturate(0.82);
+  -webkit-backdrop-filter: blur(9px) saturate(0.82);
+}
+
 .dialog-symbol {
   display: flex;
   width: 3rem;
@@ -20,6 +85,20 @@
 }
 
 :host-context(.dark) {
+  .dialog7 {
+    background: rgba(15, 23, 42, 0.98) !important;
+    border-color: #fb7185 !important;
+    box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.85), 0 0 25px rgba(244, 63, 94, 0.3) !important;
+  }
+
+  .dialog7 .dialog6 {
+    color: #fecdd3 !important;
+  }
+
+  .dialogDismiss {
+    background: rgba(15, 23, 42, 0.72);
+  }
+
   .dialog-symbol-confirm {
     background: rgba(244, 63, 94, 0.2);
     color: #fb7185;

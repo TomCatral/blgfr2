@@ -231,9 +231,11 @@ html.dark ion-button.cancelButton {
 ion-input,
 ion-select,
 ion-textarea {
-  --background: #ffffff;
-  --border-color: #cbd5e1;
-  --border-radius: 12px;
+  --background: transparent;
+  --border-color: transparent;
+  --border-width: 0;
+  --border-style: none;
+  --highlight-height: 0;
   --padding-start: 14px;
   --padding-end: 14px;
   font-size: 14px;
@@ -243,8 +245,11 @@ ion-textarea {
 html.dark ion-input,
 html.dark ion-select,
 html.dark ion-textarea {
-  --background: #0e1628;
-  --border-color: rgba(51, 65, 85, 0.75);
+  --background: transparent;
+  --border-color: transparent;
+  --border-width: 0;
+  --border-style: none;
+  --highlight-height: 0;
   color: #f8fafc;
 }
 

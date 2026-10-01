@@ -1,4 +1,4 @@
-﻿
+
     <header
       class="header-shell"
       [ngClass]="('headShell1' + (scrolled ? 'headShell2' : '')) | cls"
@@ -35,24 +35,21 @@
 
         <div class="global-document-search" [ngClass]="'headGlobalSearch' | cls">
           <div class="headStyle">
-            <span class="headSpan">
-              <ion-icon name="search" class="headSearchIcon"></ion-icon>
-            </span>
             <input
               #searchInput
               type="text"
               class="global-search-input headGlobalSearchInput"
-              placeholder="Search documents, tracking numbers, subjects..."
+              placeholder="Search tracking no., title, subject, sender, office..."
               [(ngModel)]="searchQuery"
-              (focus)="isSearchFocused = true"
+              (focus)="onInputFocus()"
               (blur)="closeSearchDelayed()"
-              (input)="onSearchInput()"
+              (input)="onSearchInput($event)"
               (keydown)="onSearchKeyDown($event)"
               autocomplete="off"
               data-autocomplete-managed="true"
             />
             <span class="head24">
-              <span class="head33">
+              <span class="head33" title="Shortcut: press Ctrl+K to search">
                 Ctrl+K
               </span>
               <button
@@ -69,6 +66,7 @@
                   type="button"
                   class="headClearSearchBtn"
                   aria-label="Clear search"
+                  title="Clear search"
                   (click)="clearSearch()"
                 >
                   <ion-icon name="close"></ion-icon>
@@ -78,7 +76,7 @@
           </div>
 
           @if (isSearchFocused && searchQuery.trim()) {
-            <div class="head2">
+            <div class="head2 header-search-dropdown" (mousedown)="$event.preventDefault()">
               @if (searchResults.length === 0) {
                 <div class="head3">
                   <div class="head4">
@@ -92,7 +90,11 @@
                   <span class="head43">
                     Results ({{ searchResults.length }})
                   </span>
-                  <button type="button" class="headViewAllResultsBtn" (mousedown)="viewAllResults(); $event.preventDefault()" (click)="viewAllResults()">
+                  <button
+                    type="button"
+                    class="headViewAllResultsBtn"
+                    (click)="viewAllResults()"
+                  >
                     View all results &rarr;
                   </button>
                 </div>
@@ -103,7 +105,6 @@
                       class="search-result-row headSearchResultRowBtn"
                       [class.active-result]="activeResultIndex === $index"
                       (mouseenter)="activeResultIndex = $index"
-                      (mousedown)="chooseResult(result.doc); $event.preventDefault()"
                       (click)="chooseResult(result.doc)"
                     >
                       <div class="search-result-content">
@@ -133,7 +134,11 @@
                 </div>
                 @if (searchResults.length > 8) {
                   <div class="head13" [ngClass]="'head25' | cls">
-                    <button type="button" class="headViewAllResultsBtn2" (mousedown)="viewAllResults(); $event.preventDefault()" (click)="viewAllResults()">
+                    <button
+                      type="button"
+                      class="headViewAllResultsBtn2"
+                      (click)="viewAllResults()"
+                    >
                       + {{ searchResults.length - 8 }} more results - View all
                     </button>
                   </div>
@@ -295,7 +300,6 @@
           <!-- Search & Filter Controls -->
           <div class="user-dir-controls">
             <div class="user-dir-search-wrap">
-              <ion-icon name="search-outline" class="user-dir-search-icon"></ion-icon>
               <input
                 type="text"
                 class="user-dir-search-input"
@@ -391,7 +395,7 @@
                     <!-- Right: Info Details -->
                     <div class="user-dir-info-col">
                       <div class="user-dir-row-header">
-                        <span class="user-dir-name" [title]="user.fullName">{{ user.fullName }}</span>
+                        <span class="user-dir-name" [title]="user.fullName" [innerHTML]="user.fullName | highlight:userDirectorySearch"></span>
                         @if (user.id === currentUser.id) {
                           <span class="user-dir-you-badge">
                             <ion-icon name="checkmark-circle"></ion-icon>
@@ -401,8 +405,7 @@
                       </div>
 
                       <!-- Subtitle (Designation & Division - safe format, no dangling dot!) -->
-                      <p class="user-dir-designation" [title]="getUserSubtitle(user)">
-                        {{ getUserSubtitle(user) }}
+                      <p class="user-dir-designation" [title]="getUserSubtitle(user)" [innerHTML]="getUserSubtitle(user) | highlight:userDirectorySearch">
                       </p>
 
                       <!-- Meta Badges (Division, Role, Email) -->
@@ -414,7 +417,7 @@
                         @if (user.email && user.email !== 'N/A') {
                           <span class="user-dir-email" [title]="user.email">
                             <ion-icon name="mail-outline"></ion-icon>
-                            {{ user.email }}
+                            <span [innerHTML]="user.email | highlight:userDirectorySearch"></span>
                           </span>
                         }
                       </div>

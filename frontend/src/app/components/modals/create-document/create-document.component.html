@@ -1,6 +1,6 @@
 <app-modal-layer
   [isOpen]="isOpen"
-  [onClose]="onClose"
+  [onClose]="discardAndClose"
   [maxWidth]="'42rem'"
   [closeOnBackdrop]="false"
   [closeOnEscape]="false"
@@ -21,7 +21,7 @@
         type="button"
         aria-label="Close new document form"
         class="cd-close-btn"
-        (click)="onClose()"
+        (click)="discardAndClose()"
       >
         <ion-icon name="close"></ion-icon>
       </button>
@@ -178,16 +178,15 @@
       <div class="cd-grid-2col">
         <div>
           <label class="cd-field-label">Category / Type *</label>
-          <select
-            class="cd-select"
-            required
+          <app-managed-options-select
+            storageKey="blgf_document_categories"
+            [options]="categoryOptions()"
             [value]="category()"
-            (change)="category.set($any($event.target).value)"
-          >
-            @for (opt of categoryOptions(); track opt.value) {
-              <option [value]="opt.value">{{ opt.label }}</option>
-            }
-          </select>
+            [required]="true"
+            [canManageOptions]="canManageWorkflowOptions()"
+            textAlign="left"
+            (valueChange)="category.set($event)"
+          />
         </div>
 
         <div>
@@ -598,21 +597,6 @@
             }
           </div>
 
-          @if (recipientName()) {
-            <div class="cd-selected-recipient-summary">
-              <div><strong>Selected:</strong> {{ recipientName() }}</div>
-              @if (recipientPosition()) {
-                <div><strong>Position:</strong> {{ recipientPosition() }}</div>
-              }
-              @if (recipientOffice()) {
-                <div><strong>Office:</strong> {{ recipientOffice() }}</div>
-              }
-              @if (recipientAddress()) {
-                <div><strong>Address:</strong> {{ recipientAddress() }}</div>
-              }
-            </div>
-          }
-
           @if (!recipientUserId() && selectedRecipientIds().length === 0 && currentDivision()) {
             <div class="cd-division-members-box">
               <div class="cd-division-members-header">
@@ -668,16 +652,15 @@
             <span class="cd-field-hint">Disabled for external communication (automatically assigned to Appropriate Action).</span>
           </div>
         } @else {
-          <select
-            class="cd-select"
-            required
+          <app-managed-options-select
+            storageKey="blgf_workflow_action_options"
+            [options]="actionOptions"
             [value]="initialAction()"
-            (change)="initialAction.set($any($event.target).value)"
-          >
-            @for (opt of actionOptions; track opt.value) {
-              <option [value]="opt.value">{{ opt.label }}</option>
-            }
-          </select>
+            [required]="true"
+            [canManageOptions]="canManageWorkflowOptions()"
+            textAlign="left"
+            (valueChange)="initialAction.set($event)"
+          />
         }
       </div>
 
@@ -703,16 +686,16 @@
               readonly
             />
           } @else {
-            <select
-              class="cd-select"
-              required
+            <app-managed-options-select
+              storageKey="blgf_priority_options"
+              [options]="priorityOptions"
               [value]="priority()"
-              (change)="onPriorityChange($any($event.target).value)"
-            >
-              @for (opt of priorityOptions; track opt.value) {
-                <option [value]="opt.value">{{ opt.label }}</option>
-              }
-            </select>
+              [required]="true"
+              [colorCoding]="true"
+              [canManageOptions]="canManageWorkflowOptions()"
+              textAlign="left"
+              (valueChange)="onPriorityChange($event)"
+            />
           }
         </div>
 
@@ -811,7 +794,7 @@
       <button
         type="button"
         class="cd-btn-cancel"
-        (click)="onClose()"
+        (click)="discardAndClose()"
       >
         Cancel
       </button>

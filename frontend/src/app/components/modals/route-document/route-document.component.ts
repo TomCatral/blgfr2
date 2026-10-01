@@ -14,6 +14,7 @@ import {
 import { hasCompletedPart, findPreviousDelivery } from '../../../utils/routing-recipients';
 import { documentFileType, isReplyAttachment } from '../../../utils/document-files';
 import { ApiService } from '../../../services/api.service';
+import { ManagedOptionsSelectComponent } from '../../ui/managed-options-select.component';
 
 const ACTION_OPTIONS = [
   'Appropriate Action',
@@ -52,6 +53,7 @@ const AVAILABLE_DIVISIONS: { code: DivisionCode; name: string }[] = [
     CommonModule,
     FormsModule,
     AppModalLayerComponent,
+    ManagedOptionsSelectComponent,
   ],
   styleUrl: './route-document.component.scss',
   templateUrl: './route-document.component.html',
@@ -171,6 +173,7 @@ export class RouteDocumentComponent implements OnChanges {
     if (!this.currentUser) return false;
     return (
       this.currentUser.role === 'SYSTEM_ADMIN' ||
+      this.currentUser.role === 'ADMIN' ||
       Boolean(
         (this.currentUser.permissions || DEFAULT_ROLE_PERMISSIONS[this.currentUser.role]).allowedActions?.includes(
           'WORKFLOW_OPTION_MANAGE',

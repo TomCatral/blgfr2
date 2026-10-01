@@ -14,8 +14,10 @@ const matchesParticipant = (
   const userName = normalizeName(user.username);
   const userFullName = normalizeName(user.fullName);
 
-  if (targetId && (targetId === userId || targetId === userName)) {
-    return true;
+  // An explicit ID is authoritative: a matching display name must not grant
+  // access to a record that belongs to a different user.
+  if (targetId) {
+    return targetId === userId || targetId === userName;
   }
   if (targetName && (targetName === userFullName || targetName === userName)) {
     return true;

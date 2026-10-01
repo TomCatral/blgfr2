@@ -7,29 +7,12 @@
       </h2>
       <p [ngClass]="'subtitle' | cls">Search, filter, and manage your document records.</p>
     </div>
-    <ion-button type="button" [ngClass]="'createButton' | cls" (click)="onOpenCreateDoc()">
+    <ion-button type="button" [ngClass]="'createButton' | cls" (click)="handleOpenCreate()">
       <ion-icon name="add" [ngClass]="'buttonIcon' | cls"></ion-icon>
       <span>{{ createLabel }}</span>
     </ion-button>
   </div>
 
-  @if (normalizedQuery()) {
-    <div [ngClass]="'searchBanner' | cls">
-      <ion-icon name="search" [ngClass]="'searchBannerIcon' | cls"></ion-icon>
-      <div class="searchBannerCopy">
-        <h3 [ngClass]="'searchBannerTitle' | cls">Search results for &ldquo;{{ searchQuery.trim() }}&rdquo;</h3>
-        <p [ngClass]="'searchBannerText' | cls">
-          {{ filteredDocs().length }} matching document{{ filteredDocs().length === 1 ? '' : 's' }} by tracking number, title, handler &amp; details
-        </p>
-      </div>
-      @if (canClearSearch) {
-        <ion-button type="button" [ngClass]="'searchClearButton' | cls" (click)="clearLocalSearch()">
-          <ion-icon name="close" [ngClass]="'smallIcon' | cls"></ion-icon>
-          <span>Clear search</span>
-        </ion-button>
-      }
-    </div>
-  }
 
   <div [ngClass]="'filters' | cls">
     <div [ngClass]="'filterHeader' | cls">
@@ -53,11 +36,11 @@
 
     <div [ngClass]="'filterGrid' | cls">
       <div class="doc-search-wrap">
-        <ion-icon name="search" class="doc-search-icon"></ion-icon>
         <ion-input
           type="text"
           class="doc-search-input"
-          placeholder="Filter by tracking no, title, handler, division..."
+          aria-label="Search documents"
+          placeholder="Search tracking no., title, handler, or division..."
           [ngModel]="searchQuery"
           (ngModelChange)="onLocalSearchChange($event)"
         />
@@ -149,10 +132,10 @@
                 </td>
                 <td [ngClass]="'documentCell' | cls">
                   <div [ngClass]="'documentTitle' | cls" [innerHTML]="highlightText(doc.title, normalizedQuery())"></div>
-                  <div [ngClass]="'subject' | cls">{{ doc.subject }}</div>
+                  <div [ngClass]="'subject' | cls" [innerHTML]="highlightText(doc.subject, normalizedQuery())"></div>
                   <div [ngClass]="'category' | cls">
                     <ion-icon name="pricetag" [ngClass]="'smallIcon' | cls"></ion-icon>
-                    <span>{{ doc.category }}</span>
+                    <span [innerHTML]="highlightText(doc.category, normalizedQuery())"></span>
                   </div>
                   <div [ngClass]="'latestAction' | cls">Action: {{ latestAction(doc) }}</div>
                 </td>
@@ -174,8 +157,8 @@
                   </span>
                 </td>
                 <td [ngClass]="'cell' | cls">
-                  <div [ngClass]="'division' | cls">{{ doc.currentDivision }}</div>
-                  <div [ngClass]="'assignee' | cls">{{ doc.assignedUser || 'Unassigned' }}</div>
+                  <div [ngClass]="'division' | cls" [innerHTML]="highlightText(doc.currentDivision, normalizedQuery())"></div>
+                  <div [ngClass]="'assignee' | cls" [innerHTML]="highlightText(doc.assignedUser || 'Unassigned', normalizedQuery())"></div>
                 </td>
                 <td [ngClass]="'dateCell' | cls">
                   <div [ngClass]="'receivedDate' | cls">

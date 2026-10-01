@@ -1,4 +1,4 @@
-﻿<div class="ep-container">
+<div class="ep-container">
   <!-- Hero / Header Banner -->
   <header class="ep-hero">
     <div class="ep-hero-content">
@@ -76,7 +76,6 @@
   <!-- Search & Filter Controls Toolbar -->
   <section class="ep-toolbar" aria-label="Directory Filters">
     <div class="ep-search-wrap">
-      <ion-icon name="search-outline" class="ep-search-icon"></ion-icon>
       <ion-input
         type="text"
         placeholder="Search personnel by name, office, designation, or email..."
@@ -156,8 +155,8 @@
               </div>
 
               <div class="ep-identity">
-                <h2 class="ep-name" [title]="emp.fullName">{{ emp.fullName }}</h2>
-                <div class="ep-position" [title]="emp.position">{{ emp.position }}</div>
+                <h2 class="ep-name" [title]="emp.fullName" [innerHTML]="emp.fullName | highlight:searchTerm()"></h2>
+                <div class="ep-position" [title]="emp.position" [innerHTML]="emp.position | highlight:searchTerm()"></div>
                 <div class="ep-badge-row">
                   <span class="ep-type-pill" [ngClass]="officeTypeBadgeClass(emp.officeType)">
                     {{ officeTypeLabel(emp.officeType) }}
@@ -213,7 +212,7 @@
             <ion-icon name="business-outline" class="ep-dept-icon"></ion-icon>
             <div class="ep-dept-text">
               <span class="ep-dept-label">Office / Department</span>
-              <span class="ep-dept-val">{{ officeDepartmentName(emp) }}</span>
+              <span class="ep-dept-val" [innerHTML]="officeDepartmentName(emp) | highlight:searchTerm()"></span>
             </div>
           </div>
 
@@ -592,7 +591,6 @@
           </div>
           <!-- Quick Search -->
           <div class="ep-titles-search-box">
-            <ion-icon name="search-outline"></ion-icon>
             <ion-input
               type="text"
               [ngModel]="titleFilter()"
@@ -843,14 +841,14 @@
                 Office / Department / Division <span class="ep-req">*</span>
               </label>
               <div class="ep-textarea-wrapper">
-                <ion-textarea
+                <textarea
                   rows="2"
                   [ngModel]="formData().office || ''"
                   (ngModelChange)="setForm('office', $event)"
                   (keydown)="stopPropagation($event)"
                   placeholder="e.g. Bureau of Local Government Finance&#10;Local Treasury Operations Division"
                   class="ep-modal-textarea ep-textarea-field"
-                ></ion-textarea>
+                ></textarea>
               </div>
             </div>
 
@@ -858,14 +856,14 @@
             <div class="ep-col-span-2 ep-field-group">
               <label class="ep-form-label">Office / Physical Address</label>
               <div class="ep-textarea-wrapper">
-                <ion-textarea
+                <textarea
                   rows="2"
                   [ngModel]="formData().address || ''"
                   (ngModelChange)="setForm('address', $event)"
                   (keydown)="stopPropagation($event)"
                   placeholder="e.g. Regional Government Center, Carig Sur, Tuguegarao City, Cagayan"
                   class="ep-modal-textarea ep-textarea-field"
-                ></ion-textarea>
+                ></textarea>
               </div>
             </div>
           </div>
@@ -1059,7 +1057,7 @@
           </ion-button>
         </div>
         <iframe
-          [src]="safePdfUrl(pdf.dataUrl)"
+          [src]="pdf.safeUrl"
           [title]="'PDF viewer: ' + pdf.name"
           class="ep-pdf-iframe"
         ></iframe>

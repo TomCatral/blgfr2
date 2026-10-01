@@ -42,7 +42,7 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
     ports:
-      - "${APP_PORT:-3000}:3000"
+      - "${APP_PORT:-3002}:3000"
     volumes:
       - app_data:/app/backend/data
       - records_data:/app/backend/records-management

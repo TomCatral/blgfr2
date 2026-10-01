@@ -2066,7 +2066,8 @@ div[role="dialog"] {
 
 .dash-search-input {
   width: 100%;
-  padding: 0.45rem 2rem 0.45rem 2.2rem;
+  padding: 0.45rem 2rem 0.45rem 1rem;
+  caret-color: #2563eb;
   font-size: 0.8125rem;
   border-radius: 0.75rem;
   border: 1px solid #e2e8f0;

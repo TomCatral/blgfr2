@@ -338,6 +338,13 @@
             </div>
           </div>
 
+          @if (currentUser.email) {
+            <p class="settings-email-hint">
+              <ion-icon name="mail-outline"></ion-icon>
+              <span>A security notification will be automatically delivered to <strong>{{ currentUser.email }}</strong> after updating your password.</span>
+            </p>
+          }
+
           <div class="settings-passwordSaveRow">
             <ion-button type="submit" [disabled]="saving" class="settings-passwordButton">
               <ion-icon name="lock-closed" class="settings-smallIcon"></ion-icon>

@@ -23,9 +23,11 @@ import { isRoutingPopupSnoozed, routingPopupSnoozeKey } from './utils/routing-po
 import {
   DEFAULT_ROLE_PERMISSIONS,
   DocumentAttachment,
+  DocumentDirection,
   DocumentRecord,
   Division,
   NotificationItem,
+  PopupAction,
   RolePermission,
   User,
 } from './types';
@@ -33,6 +35,7 @@ import {
 import { HeaderComponent } from './components/shell/header.component';
 import { SidebarComponent } from './components/shell/sidebar.component';
 import { NotificationDrawerComponent } from './components/shell/notification-drawer.component';
+import { FooterComponent } from './components/shell/footer.component';
 import { LoginComponent } from './components/modals/login.component';
 import { AppDialogHostComponent } from './components/ui/app-dialog-host.component';
 import { GlobalInputAutocompleteComponent } from './components/ui/global-input-autocomplete.component';
@@ -57,21 +60,6 @@ import { CreateDocumentComponent } from './components/modals/create-document/cre
 import { RouteDocumentComponent } from './components/modals/route-document/route-document.component';
 import { IonicModule } from '@ionic/angular';
 
-type PopupAction = {
-  id: string;
-  userId: string;
-  title: string;
-  message: string;
-  documentId: string;
-  trackingNumber: string;
-  type: 'ACTION_REQUIRED';
-  requiresDecision: boolean;
-  createdAt: string;
-  reminderSenderName?: string;
-  reminderActionRequested?: string;
-  decisionStatus?: 'APPROVED' | 'DISAPPROVED';
-};
-
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -88,6 +76,7 @@ type PopupAction = {
     HeaderComponent,
     SidebarComponent,
     NotificationDrawerComponent,
+    FooterComponent,
     LoginComponent,
     AppDialogHostComponent,
     GlobalInputAutocompleteComponent,
@@ -122,6 +111,8 @@ export class AppComponent implements OnInit, OnDestroy {
   isDarkMode = this.session.isDarkMode;
 
   readonly activeView = signal<string>('dashboard');
+  readonly headerSearchQuery = signal<string>('');
+  readonly docListSearchQuery = signal<string>('');
   readonly searchQuery = signal<string>('');
   readonly isSidebarCollapsed = signal(false);
   readonly isMobileSidebarOpen = signal(false);
@@ -130,8 +121,10 @@ export class AppComponent implements OnInit, OnDestroy {
   readonly fullFlowDocumentId = signal<string | null>(null);
   readonly routeModalDoc = signal<DocumentRecord | null>(null);
   readonly isCreateModalOpen = signal(false);
+  readonly createModalDirection = signal<DocumentDirection>('INCOMING');
   readonly isNotifDrawerOpen = signal(false);
   readonly routingPopup = signal<PopupAction | null>(null);
+  readonly reviewingRoutingPopup = signal<PopupAction | null>(null);
   readonly decisionSubmittingId = signal<string | null>(null);
   readonly targetDatePopup = signal<DocumentRecord | null>(null);
   readonly slipSelectedDoc = signal<DocumentRecord | null>(null);
@@ -255,20 +248,34 @@ export class AppComponent implements OnInit, OnDestroy {
     );
   });
 
+  readonly routingPopupRouteRemarks = computed(
+    () => this.routingPopupRoute()?.remarks?.trim() || undefined,
+  );
+
+  readonly routingPopupActionRequested = computed(
+    () => this.routingPopupRoute()?.actionRequested || this.routingPopupDocument()?.actionRequested || 'Appropriate Action',
+  );
+
   constructor() {
     effect(() => {
-      this.checkTargetDates();
-      this.syncRoutingPopup();
+      if (this.session.currentUser()) {
+        this.checkTargetDates();
+        this.syncRoutingPopup();
+      }
     });
     effect(() => {
-      const user = this.currentUser();
-      if (user) {
-        void this.loadBackendData();
-        this.state.startPolling();
-        void this.state.refreshNotifications();
-      } else {
+      const userId = this.currentUser()?.id ?? null;
+      if (!userId) {
         this.state.stopPolling();
+        return;
       }
+      this.session.markDataLoading();
+      void this.loadBackendData().finally(() => {
+        if (this.currentUser()?.id === userId) {
+          this.state.startPolling();
+        }
+      });
+      void this.state.refreshNotifications();
     });
     this.syncTargetDatePopup();
   }
@@ -281,7 +288,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
     const onOnline = (): void => {
       this.session.isOnline.set(true);
-      if (this.currentUser()) void this.loadBackendData();
+      if (this.currentUser()) void this.state.refreshDashboard();
     };
     const onOffline = (): void => this.session.isOnline.set(false);
     window.addEventListener('online', onOnline);
@@ -315,9 +322,6 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private async initializeSession(): Promise<void> {
     if (this.currentUser()) {
-      void this.loadBackendData();
-      this.state.startPolling();
-      void this.state.refreshNotifications();
       return;
     }
     const savedUserId = this.session.persistedUserId();
@@ -333,18 +337,16 @@ export class AppComponent implements OnInit, OnDestroy {
       if (savedUser) {
         this.state.users.set(savedUsers);
         this.session.login(savedUser);
-        void this.loadBackendData();
-        this.state.startPolling();
-        void this.state.refreshNotifications();
+        if (savedUser.role !== 'SYSTEM_ADMIN' && this.activeView() === 'users') {
+          this.activeView.set('dashboard');
+        }
       } else {
-        localStorage.removeItem('blgf_current_user');
-        sessionStorage.removeItem('blgf_current_user');
+        this.session.clearPersistedUser();
       }
     } catch {
-      localStorage.removeItem('blgf_current_user');
-      sessionStorage.removeItem('blgf_current_user');
+      this.session.clearPersistedUser();
     } finally {
-      this.session.markDataLoaded();
+      if (!this.currentUser()) this.session.markDataLoaded();
     }
   }
 
@@ -376,7 +378,7 @@ export class AppComponent implements OnInit, OnDestroy {
   handleSearchDoc(query: string): void {
     const trimmed = query.trim();
     if (!trimmed) return;
-    this.searchQuery.set(trimmed);
+    this.headerSearchQuery.set(trimmed);
     const q = trimmed.toUpperCase();
 
     const exactMatch = this.accessibleDocuments().find((doc) => {
@@ -391,8 +393,10 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     const normalized = trimmed.toLowerCase();
-    const firstMatchingDocument = this.accessibleDocuments().find((doc) =>
-      [
+    const tokens = normalized.split(/\s+/).filter(Boolean);
+
+    const firstMatchingDocument = this.accessibleDocuments().find((doc) => {
+      const searchable = [
         doc.routeNo,
         doc.trackingNumber,
         doc.title,
@@ -400,7 +404,12 @@ export class AppComponent implements OnInit, OnDestroy {
         doc.originatingOffice,
         doc.destinationOffice,
         doc.senderName,
+        doc.senderPosition,
+        doc.senderAddress,
         doc.recipientName,
+        doc.recipientPosition,
+        doc.recipientOffice,
+        doc.recipientAddress,
         doc.currentDivision,
         doc.category,
         doc.assignedUser,
@@ -421,9 +430,10 @@ export class AppComponent implements OnInit, OnDestroy {
       ]
         .filter(Boolean)
         .join(' ')
-        .toLowerCase()
-        .includes(normalized),
-    );
+        .toLowerCase();
+
+      return tokens.every((token) => searchable.includes(token));
+    });
 
     if (firstMatchingDocument) {
       this.activeView.set(firstMatchingDocument.direction === 'OUTGOING' ? 'outgoing' : 'incoming');
@@ -439,9 +449,6 @@ export class AppComponent implements OnInit, OnDestroy {
 
   openDetailFromHeader(doc: DocumentRecord): void {
     this.activeView.set(doc.direction === 'OUTGOING' ? 'outgoing' : 'incoming');
-    if (doc.routeNo || doc.trackingNumber) {
-      this.searchQuery.set(doc.routeNo || doc.trackingNumber);
-    }
     this.fullFlowDocumentId.set(doc.id);
     this.selectedDoc.set({ ...doc });
     this.api.getDocumentById(doc.id).subscribe({
@@ -468,7 +475,12 @@ export class AppComponent implements OnInit, OnDestroy {
     });
   };
 
-  openCreate = (): void => this.isCreateModalOpen.set(true);
+  openCreate = (direction?: DocumentDirection): void => {
+    const dir: DocumentDirection =
+      direction || (this.activeView() === 'outgoing' ? 'OUTGOING' : 'INCOMING');
+    this.createModalDirection.set(dir);
+    this.isCreateModalOpen.set(true);
+  };
 
   openRoute = (doc: DocumentRecord): void => this.routeModalDoc.set(doc);
 
@@ -477,6 +489,11 @@ export class AppComponent implements OnInit, OnDestroy {
   closeRoute = (): void => this.routeModalDoc.set(null);
 
   closeDetail = (): void => {
+    const popup = this.reviewingRoutingPopup();
+    if (popup) {
+      this.snoozeRoutingActionPopup(popup);
+      this.reviewingRoutingPopup.set(null);
+    }
     this.selectedDoc.set(null);
     this.fullFlowDocumentId.set(null);
   };
@@ -495,15 +512,32 @@ export class AppComponent implements OnInit, OnDestroy {
 
   setSlipDoc = (doc: DocumentRecord): void => this.slipSelectedDoc.set(doc);
 
-  clearSearch = (): void => this.searchQuery.set('');
+  clearHeaderSearch = (): void => this.headerSearchQuery.set('');
+
+  clearDocListSearch = (): void => this.docListSearchQuery.set('');
+
+  clearSearch = (): void => {
+    this.headerSearchQuery.set('');
+    this.docListSearchQuery.set('');
+    this.searchQuery.set('');
+  };
 
   backToIncoming = (): void => this.activeView.set('incoming');
 
   backToOutgoing = (): void => this.activeView.set('outgoing');
 
   navigateTo = (view: string): void => {
+    if (view === 'users' && this.currentUser()?.role !== 'SYSTEM_ADMIN') {
+      this.activeView.set('dashboard');
+      return;
+    }
+    this.headerSearchQuery.set('');
+    this.docListSearchQuery.set('');
     this.searchQuery.set('');
     this.activeView.set(view);
+    if (view.endsWith('-report')) {
+      void this.loadBackendData();
+    }
   };
 
   toggleCollapse = (): void =>
@@ -557,15 +591,21 @@ export class AppComponent implements OnInit, OnDestroy {
 
   handleLogin = (user: User): void => {
     this.session.login(user);
+    if (user.role !== 'SYSTEM_ADMIN' && this.activeView() === 'users') {
+      this.activeView.set('dashboard');
+    }
   };
 
   handleLogout(): void {
     this.session.logout();
+    this.state.reset();
     this.activeView.set('dashboard');
     this.selectedDoc.set(null);
     this.fullFlowDocumentId.set(null);
     this.routeModalDoc.set(null);
     this.slipSelectedDoc.set(null);
+    this.headerSearchQuery.set('');
+    this.docListSearchQuery.set('');
     this.searchQuery.set('');
     this.state.notifications.set([]);
   }
@@ -662,6 +702,7 @@ export class AppComponent implements OnInit, OnDestroy {
     } catch (err: unknown) {
       const message = String((err as Error)?.message || '');
       alert('Failed to register document: ' + message);
+      throw err;
     }
   };
 
@@ -902,8 +943,9 @@ export class AppComponent implements OnInit, OnDestroy {
   ): Promise<boolean> => {
     const user = this.currentUser();
     if (!user) return false;
+    const popup = this.reviewingRoutingPopup() || this.routingPopup();
     const pseudoNotif: NotificationItem = {
-      id: `doc-decision-${doc.id}-${Date.now()}`,
+      id: popup?.id || `doc-decision-${doc.id}-${Date.now()}`,
       userId: user.id,
       title: 'Routing Decision',
       message: `Decision for document ${doc.routeNo || doc.trackingNumber}`,
@@ -915,10 +957,9 @@ export class AppComponent implements OnInit, OnDestroy {
     };
     const success = await this.routeDecision(pseudoNotif, decision);
     if (success) {
-      const refreshed = this.state.documents().find((d) => d.id === doc.id);
-      if (refreshed) {
-        this.selectedDoc.set(refreshed);
-      }
+      this.reviewingRoutingPopup.set(null);
+      this.selectedDoc.set(null);
+      this.fullFlowDocumentId.set(null);
     }
     return success;
   };
@@ -1319,12 +1360,12 @@ export class AppComponent implements OnInit, OnDestroy {
     );
   }
 
-  closeRoutingActionPopup = (): void => {
-    const popup = this.routingPopup();
-    if (popup?.id.startsWith('approval-popup-')) {
+  snoozeRoutingActionPopup = (popup?: PopupAction | null): void => {
+    const target = popup || this.routingPopup();
+    if (target?.id.startsWith('approval-popup-')) {
       const key = routingPopupSnoozeKey(
         this.currentUser()?.id || '',
-        popup.id.slice('approval-popup-'.length),
+        target.id.slice('approval-popup-'.length),
       );
       const closedAt = Date.now();
       this.closedApprovalPopupIds.set(key, closedAt);
@@ -1335,10 +1376,54 @@ export class AppComponent implements OnInit, OnDestroy {
       }
       this.ui.showToast('Approval reminder snoozed for 24 hours. It remains available in Notifications.');
     }
-    this.routingPopup.set(null);
+    if (this.routingPopup()?.id === target?.id) {
+      this.routingPopup.set(null);
+    }
   };
 
+  closeRoutingActionPopup = (): void => {
+    this.snoozeRoutingActionPopup(this.routingPopup());
+  };
 
+  handleDetailSnoozeClose = (): void => {
+    const popup = this.reviewingRoutingPopup() || this.routingPopup();
+    if (popup) {
+      this.snoozeRoutingActionPopup(popup);
+    }
+    this.reviewingRoutingPopup.set(null);
+    this.closeDetail();
+  };
+
+  getPendingPopupAction = (doc: DocumentRecord): PopupAction | null => {
+    if (this.reviewingRoutingPopup()?.documentId === doc.id) {
+      return this.reviewingRoutingPopup();
+    }
+    if (this.routingPopup()?.documentId === doc.id) {
+      return this.routingPopup();
+    }
+    const notif = this.state.notifications().find(
+      (n) =>
+        n.requiresDecision &&
+        (n.documentId === doc.id ||
+          (n.trackingNumber &&
+            (n.trackingNumber === doc.routeNo ||
+              n.trackingNumber === doc.trackingNumber))),
+    );
+    if (notif) {
+      return {
+        id: notif.id,
+        userId: this.currentUser()?.id || '',
+        title: notif.title,
+        message: notif.message,
+        documentId: doc.id,
+        trackingNumber: doc.routeNo || doc.trackingNumber,
+        type: 'ACTION_REQUIRED',
+        requiresDecision: true,
+        createdAt: notif.createdAt,
+      };
+    }
+    return null;
+  };
 
   openPopupAttachment(attachment: DocumentAttachment): void {
     if (!attachment.url) return;
@@ -1353,6 +1438,37 @@ export class AppComponent implements OnInit, OnDestroy {
     window.document.body.appendChild(link);
     link.click();
     link.remove();
+  }
+
+  copyRoutingTracking = (trackingNo?: string): void => {
+    if (!trackingNo) return;
+    try {
+      void navigator.clipboard.writeText(trackingNo);
+      this.ui.showToast(`Tracking # ${trackingNo} copied.`);
+    } catch {
+      this.ui.showToast(trackingNo);
+    }
+  };
+
+  reviewRoutingPopupDocument = (popup: PopupAction): void => {
+    this.reviewingRoutingPopup.set(popup);
+    void this.openNotificationDocument(popup);
+  };
+
+  getFileExtension(fileName?: string): string {
+    if (!fileName) return 'FILE';
+    const ext = fileName.split('.').pop();
+    return ext ? ext.toUpperCase() : 'FILE';
+  }
+
+  isImageAttachment(fileName?: string): boolean {
+    if (!fileName) return false;
+    return /\.(jpe?g|png|gif|webp|svg)$/i.test(fileName);
+  }
+
+  isPdfAttachment(fileName?: string): boolean {
+    if (!fileName) return false;
+    return /\.pdf$/i.test(fileName);
   }
 
   readonly selectedDocTyped = computed<DocumentRecord | null>(() => {

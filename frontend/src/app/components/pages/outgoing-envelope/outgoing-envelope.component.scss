@@ -1195,13 +1195,111 @@
         gap: 0.2rem;
         min-width: 0;
 
-        .template-name {
-          font-size: 0.8125rem;
-          font-weight: 800;
-          color: #92400e;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+        .template-name-row {
+          display: flex;
+          align-items: center;
+          gap: 0.35rem;
+
+          .template-name {
+            font-size: 0.8125rem;
+            font-weight: 800;
+            color: #92400e;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+
+            &:hover {
+              text-decoration: underline;
+              text-decoration-style: dotted;
+            }
+          }
+
+          .btn-rename-trigger {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.35rem;
+            height: 1.35rem;
+            border-radius: 0.35rem;
+            border: none;
+            background: transparent;
+            color: #b45309;
+            opacity: 0.65;
+            cursor: pointer;
+            transition: all 0.15s ease;
+
+            ion-icon {
+              font-size: 0.8rem;
+            }
+
+            &:hover {
+              opacity: 1;
+              background: rgba(217, 119, 6, 0.12);
+              color: #92400e;
+              transform: scale(1.08);
+            }
+          }
+        }
+
+        .template-rename-box {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+
+          .template-rename-input {
+            font-size: 0.775rem;
+            font-weight: 700;
+            color: #92400e;
+            background: #ffffff;
+            border: 1.5px solid #f59e0b;
+            border-radius: 0.4rem;
+            padding: 0.2rem 0.45rem;
+            outline: none;
+            width: 150px;
+            box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+            transition: border-color 0.15s ease;
+
+            &:focus {
+              border-color: #d97706;
+            }
+          }
+
+          .btn-rename-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 0.35rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.15s ease;
+
+            ion-icon {
+              font-size: 0.9rem;
+            }
+
+            &.btn-rename-save {
+              background: #10b981;
+              color: #ffffff;
+
+              &:hover {
+                background: #059669;
+                transform: scale(1.05);
+              }
+            }
+
+            &.btn-rename-cancel {
+              background: #f1f5f9;
+              color: #64748b;
+
+              &:hover {
+                background: #e2e8f0;
+                color: #334155;
+              }
+            }
+          }
         }
 
         .template-meta-pills {
@@ -1240,6 +1338,35 @@
       align-items: center;
       gap: 0.35rem;
       flex-shrink: 0;
+
+      .btn-edit-template {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.85rem;
+        height: 1.85rem;
+        border-radius: 0.5rem;
+        border: 1px solid rgba(217, 119, 6, 0.2);
+        background: #fffbeb;
+        color: #b45309;
+        cursor: pointer;
+        transition: all 0.15s ease;
+
+        ion-icon {
+          font-size: 0.95rem;
+        }
+
+        &:hover {
+          background: #fef3c7;
+          color: #92400e;
+          border-color: rgba(217, 119, 6, 0.45);
+          transform: translateY(-1px);
+        }
+
+        &:active {
+          transform: scale(0.95);
+        }
+      }
 
       .btn-apply-template {
         display: inline-flex;
@@ -2013,7 +2140,8 @@
 
   .modal-search-input {
     width: 100%;
-    padding: 0.65rem 2.25rem 0.65rem 2.4rem;
+    padding: 0.65rem 2.25rem 0.65rem 1rem;
+    caret-color: #2563eb;
     border-radius: 0.65rem;
     border: 1px solid #cbd5e1;
     background: #ffffff;
@@ -2023,7 +2151,7 @@
 
     &:focus {
       border-color: #2563eb;
-      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
     }
   }
 
@@ -2649,8 +2777,37 @@
         }
 
         .template-text-group {
-          .template-name {
-            color: #fde68a;
+          .template-name-row {
+            .template-name {
+              color: #fde68a;
+            }
+
+            .btn-rename-trigger {
+              color: #fde68a;
+
+              &:hover {
+                background: rgba(245, 158, 11, 0.2);
+                color: #fbbf24;
+              }
+            }
+          }
+
+          .template-rename-box {
+            .template-rename-input {
+              background: #1e293b;
+              color: #fde68a;
+              border-color: #f59e0b;
+            }
+
+            .btn-rename-action.btn-rename-cancel {
+              background: #334155;
+              color: #94a3b8;
+
+              &:hover {
+                background: #475569;
+                color: #e2e8f0;
+              }
+            }
           }
 
           .template-meta-pills {
@@ -2664,6 +2821,18 @@
       }
 
       .template-actions {
+        .btn-edit-template {
+          background: #0e1628;
+          color: #fde68a;
+          border-color: rgba(217, 119, 6, 0.35);
+
+          &:hover {
+            background: rgba(217, 119, 6, 0.2);
+            color: #ffffff;
+            border-color: rgba(217, 119, 6, 0.5);
+          }
+        }
+
         .btn-apply-template {
           background: #0e1628;
           color: #fde68a;
@@ -2805,7 +2974,16 @@
   color: #1e293b;
 }
 
+@page {
+  margin: 0 !important;
+  size: auto;
+}
+
 @media print {
+  @page {
+    margin: 0 !important;
+    size: auto;
+  }
   ::ng-deep {
     app-header,
     header.header-shell,

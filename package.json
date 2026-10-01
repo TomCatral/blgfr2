@@ -7,8 +7,8 @@
     "postinstall": "prisma generate --schema prisma/mysql/schema.prisma",
     "prisma:generate": "prisma generate --schema prisma/mysql/schema.prisma",
 
-    "predev": "node scripts/free_ports.cjs",
-    "dev": "npm run build:frontend:dev && concurrently --names server,frontend \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev": "node scripts/dev.cjs",
+    "dev:concurrent": "concurrently --kill-others-on-fail --names server,frontend \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "tsx watch backend/server.ts",
     "dev:frontend": "npm run watch --prefix frontend",
 
@@ -23,7 +23,7 @@
 
     "start": "node dist/backend/server.cjs",
 
-    "preview": "npm run start --prefix frontend",
+    "preview": "node scripts/preview.cjs",
 
     "clean": "node scripts/clean.mjs",
 

@@ -382,6 +382,109 @@
   }
 }
 
+/* Recovery Result Card */
+.recovery-result-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  padding: 0 1.5rem 1.5rem;
+}
+
+.recovery-result-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  align-self: flex-start;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #059669;
+  font-size: 0.75rem;
+  font-weight: 700;
+
+  ion-icon {
+    font-size: 1rem;
+    color: #10b981;
+  }
+}
+
+.recovery-email-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: linear-gradient(135deg, rgba(239, 246, 255, 0.9) 0%, rgba(240, 253, 250, 0.7) 100%);
+  border: 1px solid #bfdbfe;
+  border-radius: 0.875rem;
+  padding: 1rem;
+}
+
+.recovery-email-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+
+  ion-icon {
+    font-size: 1.15rem;
+  }
+}
+
+.recovery-email-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.recovery-email-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: #1e3a8a;
+}
+
+.recovery-email-desc {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: #475569;
+}
+
+.recovery-email-target {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #ffffff;
+  border: 1px solid #93c5fd;
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #1d4ed8;
+
+  ion-icon {
+    font-size: 1rem;
+    color: #2563eb;
+  }
+}
+
+.recovery-email-notes {
+  margin: 0.25rem 0 0;
+  padding-left: 1.15rem;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: #64748b;
+
+  li {
+    margin-bottom: 0.15rem;
+  }
+}
+
 /* --------------------------------------------------------------------------
    Dark Mode - Activated when .dark class is on html or host
    -------------------------------------------------------------------------- */
@@ -431,9 +534,70 @@
     }
   }
 
+  .recovery-result-badge {
+    background: rgba(16, 185, 129, 0.18);
+    border-color: rgba(16, 185, 129, 0.35);
+    color: #34d399;
+
+    ion-icon {
+      color: #34d399;
+    }
+  }
+
+  .recovery-email-box {
+    background: linear-gradient(135deg, rgba(30, 58, 138, 0.25) 0%, rgba(15, 23, 42, 0.6) 100%);
+    border-color: rgba(59, 130, 246, 0.3);
+  }
+
+  .recovery-email-title {
+    color: #93c5fd;
+  }
+
+  .recovery-email-desc {
+    color: #94a3b8;
+  }
+
+  .recovery-email-target {
+    background: #0f172a;
+    border-color: rgba(96, 165, 250, 0.4);
+    color: #60a5fa;
+
+    ion-icon {
+      color: #93c5fd;
+    }
+  }
+
+  .recovery-email-notes {
+    color: #94a3b8;
+  }
+
+  .recovery-account-meta {
+    background: #0f172a;
+    border-color: #334155;
+
+    .meta-label {
+      color: #94a3b8;
+    }
+
+    .meta-value {
+      color: #f1f5f9;
+    }
+  }
+
   .login-footer {
     border-color: #1e293b;
     background: rgba(15, 23, 42, 0.5);
     color: #64748b;
   }
+}
+
+
+/* Double-box prevention for login */
+ion-input.login-input {
+  --background: transparent !important;
+  --border-color: transparent !important;
+  --border-width: 0 !important;
+  --border-style: none !important;
+  --box-shadow: none !important;
+  --highlight-height: 0 !important;
 }

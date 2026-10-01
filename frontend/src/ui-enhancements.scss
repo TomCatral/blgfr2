@@ -29,6 +29,14 @@ body {
   accent-color: var(--ion-color-primary, #2563eb);
 }
 
+body.app-modal-open {
+  overflow: hidden;
+}
+
+body.app-modal-open .app-content {
+  overflow: hidden !important;
+}
+
 .app-content {
   scroll-behavior: smooth;
   background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 10rem) !important;
@@ -39,12 +47,12 @@ body {
 }
 
 .app-view-container {
-  animation: ui-view-enter 320ms var(--ui-ease) both;
+  animation: ui-view-enter 260ms var(--ui-ease);
 }
 
 @keyframes ui-view-enter {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 :where(button, a, input, select, textarea, [role='button'], [tabindex]):focus-visible {
@@ -69,16 +77,16 @@ ion-button:not([disabled]):active::part(native) {
   transform: translateY(1px) scale(0.985);
 }
 
-:where(input, select, textarea) {
+:where(input:not(.native-input):not(.searchbar-input):not([class*="native-"]), select:not(.native-select), textarea:not(.native-textarea):not([class*="native-"])) {
   caret-color: var(--ion-color-primary, #2563eb);
   transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
 }
 
-:where(input, select, textarea):not(:disabled):hover {
+:where(input:not(.native-input):not(.searchbar-input):not([class*="native-"]), select:not(.native-select), textarea:not(.native-textarea):not([class*="native-"])):not(:disabled):hover {
   border-color: rgba(var(--ion-color-primary-rgb, 37, 99, 235), 0.5) !important;
 }
 
-:where(input, select, textarea):focus {
+:where(input:not(.native-input):not(.searchbar-input):not([class*="native-"]), select:not(.native-select), textarea:not(.native-textarea):not([class*="native-"])):focus {
   border-color: var(--ion-color-primary, #2563eb) !important;
   box-shadow: 0 0 0 3px var(--ui-focus) !important;
 }
@@ -178,3 +186,145 @@ ion-textarea {
   .app-view-container { animation: none; }
   .app-content { background: #fff !important; }
 }
+
+/* Consistent, unmistakable search controls across pages, dialogs, and header. */
+:where(
+  .global-document-search,
+  [class*='search-wrap' i],
+  [class*='searchwrap' i],
+  [class*='search-field' i],
+  [class*='searchfield' i],
+  [class*='search-box' i]
+) {
+  position: relative;
+}
+
+:where(
+  .global-document-search,
+  [class*='search-wrap' i],
+  [class*='searchwrap' i],
+  [class*='search-field' i],
+  [class*='searchfield' i],
+  [class*='search-box' i]
+):focus-within {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+}
+
+:where(
+  ion-input[class*='search' i],
+  input[class*='search' i],
+  .doc-search-input,
+  .routing-followup-searchInput,
+  .reports-searchInput,
+  .audit-searchInput,
+  .user-dir-search-input,
+  .ua-search-input,
+  .ep-search-field,
+  .dash-search-input,
+  .modal-search-input,
+  .document-search-input
+) {
+  --padding-start: 1rem !important;
+  --padding-end: 2.5rem !important;
+  --caret-color: #2563eb !important;
+  padding-left: 1rem !important;
+  caret-color: #2563eb !important;
+  border-color: #cbd5e1 !important;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+
+ion-input[class*='search' i]::part(native),
+.doc-search-input::part(native),
+.routing-followup-searchInput::part(native),
+.reports-searchInput::part(native),
+.audit-searchInput::part(native),
+.ua-search-input::part(native),
+.ep-search-field::part(native),
+.document-search-input::part(native) {
+  caret-color: #2563eb !important;
+}
+
+:where(
+  ion-input[class*='search' i]:focus-within,
+  input[class*='search' i]:focus,
+  .doc-search-input:focus-within,
+  .routing-followup-searchInput:focus-within,
+  .reports-searchInput:focus-within,
+  .audit-searchInput:focus-within,
+  .user-dir-search-input:focus,
+  .ua-search-input:focus-within,
+  .ep-search-field:focus-within,
+  .dash-search-input:focus,
+  .modal-search-input:focus,
+  .document-search-input:focus-within
+) {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.16), 0 4px 12px rgba(15, 23, 42, 0.05) !important;
+}
+
+:where(
+  [class*='search' i] > ion-icon:first-child,
+  [class*='search' i] ion-icon[name*='search' i],
+  ion-icon[class*='search-icon' i],
+  ion-icon[class*='searchicon' i],
+  .doc-search-icon,
+  .routing-followup-searchIcon,
+  .reports-searchIcon,
+  .audit-searchIcon,
+  .user-dir-search-icon,
+  .ua-search-icon,
+  .ep-search-icon,
+  .dash-search-icon,
+  .slipSearch2Icon
+) {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.dark :where(
+  ion-input[class*='search' i],
+  input[class*='search' i],
+  .doc-search-input,
+  .routing-followup-searchInput,
+  .reports-searchInput,
+  .audit-searchInput,
+  .user-dir-search-input,
+  .ua-search-input,
+  .ep-search-field,
+  .dash-search-input,
+  .modal-search-input,
+  .document-search-input
+) {
+  --caret-color: #60a5fa !important;
+  caret-color: #60a5fa !important;
+  border-color: #334155 !important;
+}
+
+.dark ion-input[class*='search' i]::part(native),
+.dark .doc-search-input::part(native),
+.dark .routing-followup-searchInput::part(native),
+.dark .reports-searchInput::part(native),
+.dark .audit-searchInput::part(native),
+.dark .ua-search-input::part(native),
+.dark .ep-search-field::part(native),
+.dark .document-search-input::part(native) {
+  caret-color: #60a5fa !important;
+}
+
+/* Global dialog priority ensuring warning toasts and error alerts are ALWAYS on top of modals */
+app-dialog-host {
+  position: relative;
+  z-index: 100000 !important;
+}
+
+.dialog7,
+.dialog4 {
+  z-index: 100000 !important;
+}
+

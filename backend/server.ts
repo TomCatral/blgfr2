@@ -10,6 +10,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import multer from 'multer';
 import nodemailer from 'nodemailer';
+import { sendTemporaryPasswordEmail, getSmtpConfig } from './emailService.js';
 import {
   connectMySQLReplica,
   disconnectMySQLReplica,
@@ -44,6 +45,7 @@ dotenv.config({ quiet: true });
 
 const DEFAULT_PORT = 3001;
 const PORT = Number(process.env.PORT || DEFAULT_PORT);
+const HOST = process.env.HOST || '0.0.0.0';
 const IS_VERCEL = Boolean(process.env.VERCEL);
 const ADMIN_PASSWORD_RESET_COOLDOWN_MS = 15 * 60 * 1000;
 const TEMPORARY_PASSWORD_VALIDITY_MS = 5 * 60 * 1000;
@@ -125,6 +127,12 @@ const storageFileUrl = (kind: StorageKind, fileName: string) =>
 let mysqlSyncQueue: Promise<void> = Promise.resolve();
 let mysqlSyncRequested = false;
 let mysqlSyncWorkerActive = false;
+let mysqlRefreshPromise: Promise<void> | null = null;
+let lastMySQLRefreshAt = 0;
+const MYSQL_LIVE_REFRESH_MS = Math.max(
+  500,
+  Number(process.env.MYSQL_LIVE_REFRESH_MS || 1500),
+);
 
 // Memory Data State
 export let divisionsState: Division[] = [];
@@ -307,6 +315,28 @@ const storageUpload = multer({
   limits: { fileSize: 1024 * 1024 * 1024 },
 });
 
+function sanitizeUserPermissionsOnLoad(user: User): User {
+  if (user.role === 'SYSTEM_ADMIN') {
+    return { ...user, divisionCode: 'ITMS' as const };
+  }
+  const adminActions = [
+    'USER_ACCOUNT_CREATE',
+    'USER_ACCOUNT_EDIT',
+    'USER_ACCOUNT_DELETE',
+    'USER_SYSTEM_ADMIN_MANAGE',
+  ];
+  const permissions = user.permissions
+    ? {
+        ...user.permissions,
+        allowedViews: (user.permissions.allowedViews || []).filter((v) => v !== 'users'),
+        allowedActions: (user.permissions.allowedActions || []).filter(
+          (a) => !adminActions.includes(a),
+        ),
+      }
+    : undefined;
+  return { ...user, permissions };
+}
+
 function initDatabaseStorage() {
   if (IS_VERCEL) {
     divisionsState = [];
@@ -343,11 +373,7 @@ function initDatabaseStorage() {
         .replace(/\u2014/g, '-');
       const data = JSON.parse(raw);
       divisionsState = data.divisions || [];
-      usersState = (data.users || []).map((user: User) =>
-        user.role === 'SYSTEM_ADMIN'
-          ? { ...user, divisionCode: 'ITMS' as const }
-          : user,
-      );
+      usersState = (data.users || []).map(sanitizeUserPermissionsOnLoad);
       documentsState = data.documents || [];
       auditLogsState = data.auditLogs || [];
       if (fs.existsSync(ENVELOPE_LOG_DB_FILE)) {
@@ -389,11 +415,7 @@ function applyDatabaseState(entries: Array<[string, unknown[]]>) {
     return Array.isArray(value) ? (value as T) : fallback;
   };
   divisionsState = use('divisions', divisionsState);
-  usersState = use<User[]>('users', usersState).map((user) =>
-    user.role === 'SYSTEM_ADMIN'
-      ? { ...user, divisionCode: 'ITMS' as const }
-      : user,
-  );
+  usersState = use<User[]>('users', usersState).map(sanitizeUserPermissionsOnLoad);
   documentsState = use('documents', documentsState);
   auditLogsState = use('audit_logs', auditLogsState);
   envelopeLogsState = use('envelope_logs', envelopeLogsState);
@@ -415,8 +437,12 @@ function getDatabaseStateEntries(): Array<[string, unknown[]]> {
   ];
 }
 
-function queueDatabaseSync() {
+// Full-snapshot replication deletes and rewrites every table. That must never
+// happen implicitly from an ordinary save, so it stays opt-in via
+// BLGF_MYSQL_SYNC_ON_SAVE=1 or an explicit request to /api/admin/sync.
+function queueDatabaseSync(force = false) {
   if (!getMySQLReplicaStatus().connected) return;
+  if (!force && process.env.BLGF_MYSQL_SYNC_ON_SAVE !== '1') return;
   mysqlSyncRequested = true;
   if (mysqlSyncWorkerActive) return;
 
@@ -435,12 +461,37 @@ function queueDatabaseSync() {
     .catch((error) => console.error('MySQL synchronization failed:', error))
     .finally(() => {
       mysqlSyncWorkerActive = false;
-      if (mysqlSyncRequested) queueDatabaseSync();
+      if (mysqlSyncRequested) queueDatabaseSync(true);
     });
 }
 
 export async function flushDatabaseSync() {
   await mysqlSyncQueue;
+}
+
+async function refreshDatabaseStateFromMySQL(force = false) {
+  if (!getMySQLReplicaStatus().connected) return;
+  if (mysqlSyncWorkerActive || mysqlSyncRequested) {
+    await flushDatabaseSync();
+  }
+  if (!force && Date.now() - lastMySQLRefreshAt < MYSQL_LIVE_REFRESH_MS) return;
+  if (mysqlRefreshPromise) return mysqlRefreshPromise;
+
+  mysqlRefreshPromise = (async () => {
+    const entries = await loadMySQLState();
+    if (entries.length > 0) {
+      applyDatabaseState(entries);
+      lastMySQLRefreshAt = Date.now();
+    }
+  })()
+    .catch((error) => {
+      console.error('Live MySQL refresh failed:', error);
+    })
+    .finally(() => {
+      mysqlRefreshPromise = null;
+    });
+
+  return mysqlRefreshPromise;
 }
 
 function syncEmployeeProfileFromUser(user: User, persist = true) {
@@ -605,6 +656,12 @@ function resetDatabaseToDefault() {
   saveDatabaseToFile();
 }
 
+function writeJsonFileAtomic(target: string, contents: string) {
+  const tempFile = `${target}.${process.pid}.tmp`;
+  fs.writeFileSync(tempFile, contents, 'utf-8');
+  fs.renameSync(tempFile, target);
+}
+
 export function saveDatabaseToFile(queueSync = true) {
   if (IS_VERCEL) {
     if (queueSync) queueDatabaseSync();
@@ -624,7 +681,7 @@ export function saveDatabaseToFile(queueSync = true) {
     const serialized = JSON.stringify(payload, null, 2)
       .replace(/\u0410/g, 'A')
       .replace(/\u2014/g, '-');
-    fs.writeFileSync(DB_FILE, serialized, 'utf-8');
+    writeJsonFileAtomic(DB_FILE, serialized);
     if (queueSync) queueDatabaseSync();
   } catch (err) {
     console.error('[ERROR] Error saving database file:', err);
@@ -636,7 +693,7 @@ function saveEnvelopeLogsToFile() {
     queueDatabaseSync();
     return;
   }
-  fs.writeFileSync(
+  writeJsonFileAtomic(
     ENVELOPE_LOG_DB_FILE,
     JSON.stringify(
       {
@@ -647,7 +704,6 @@ function saveEnvelopeLogsToFile() {
       null,
       2,
     ),
-    'utf-8',
   );
 }
 
@@ -717,6 +773,11 @@ export async function createApp() {
     }
     next();
   });
+
+  // MySQL is the source of truth and is loaded into shared server state at
+  // startup (and refreshed by an explicit sync). Read requests must never
+  // replace shared state, otherwise concurrent polling can overwrite newer
+  // in-memory writes mid-request.
 
   // -------------------------------------------------------------
   // REST API ENDPOINTS
@@ -913,6 +974,21 @@ export async function createApp() {
     });
   });
 
+  // Explicit full MySQL replication for system administrators. Ordinary saves
+  // persist to the local JSON store only.
+  app.post('/api/admin/sync', (req, res) => {
+    const actingUser = usersState.find(
+      (user) => user.id === req.header('X-User-Id'),
+    );
+    if (!actingUser || actingUser.role !== 'SYSTEM_ADMIN') {
+      return res.status(403).json({ error: 'System administrator access required.' });
+    }
+    queueDatabaseSync(true);
+    void flushDatabaseSync().then(() =>
+      res.json({ synced: true, recordsCount: getDatabaseStateEntries().length }),
+    );
+  });
+
   // Auth / Current Session Mock Login
   app.post('/api/auth/login', (req, res) => {
     const username = String(req.body?.username ?? '')
@@ -979,155 +1055,126 @@ export async function createApp() {
     return res.json({ user: safeUser });
   });
 
-  app.post('/api/auth/forgot-admin-password', async (req, res) => {
-    const identifier = String(req.body?.identifier || '')
+  const handleForgotPassword = async (req: express.Request, res: express.Response) => {
+    const identifier = String(
+      req.body?.identifier ||
+        req.body?.usernameOrEmail ||
+        req.body?.email ||
+        req.body?.username ||
+        '',
+    )
       .trim()
       .toLowerCase();
     if (!identifier) {
       return res.status(400).json({
-        error: 'Administrator username or email is required.',
+        error: 'Username or email is required.',
       });
     }
 
-    const matchingAdministrators = usersState.filter(
+    const matchingUsers = usersState.filter(
       (user) =>
-        user.role === 'SYSTEM_ADMIN' &&
         user.active &&
         (user.username.trim().toLowerCase() === identifier ||
-          user.email.trim().toLowerCase() === identifier),
+          (user.email && user.email.trim().toLowerCase() === identifier)),
     );
-    const administrator = matchingAdministrators.find(
-      (user) => user.username.trim().toLowerCase() === identifier,
-    ) || matchingAdministrators[0];
-    if (!administrator) {
+    const targetUser =
+      matchingUsers.find(
+        (user) => user.username.trim().toLowerCase() === identifier,
+      ) ||
+      matchingUsers.find(
+        (user) => user.email && user.email.trim().toLowerCase() === identifier,
+      ) ||
+      matchingUsers[0];
+
+    if (!targetUser) {
       return res.status(404).json({
         error:
-          'No active administrator account matches that username or email.',
-      });
-    }
-    if (!administrator.email?.trim()) {
-      return res.status(400).json({
-        error: 'This administrator account does not have an email address.',
+          'No active user account matches that username or email.',
       });
     }
 
-    const smtpHost = process.env.SMTP_HOST?.trim();
-    const smtpUser = process.env.SMTP_USER?.trim();
-    const smtpPassword = process.env.SMTP_PASSWORD?.replace(/\s+/g, '');
-    if (!smtpHost || !smtpUser || !smtpPassword) {
-      return res.status(503).json({
-        error: 'Password-reset email is not configured on the server.',
-      });
-    }
-
-    const lastRequest = adminPasswordResetRequests.get(administrator.id) || 0;
-    if (Date.now() - lastRequest < ADMIN_PASSWORD_RESET_COOLDOWN_MS) {
+    const lastRequest = adminPasswordResetRequests.get(targetUser.id) || 0;
+    if (Date.now() - lastRequest < 15_000) {
       return res.status(429).json({
         error:
-          'A temporary password was recently sent. Please wait 15 minutes before trying again.',
+          'A temporary recovery password was recently generated. Please wait 15 seconds before trying again.',
       });
     }
 
-    const temporaryPassword = `BLGF-${crypto.randomBytes(9).toString('base64url')}`;
-    const temporaryPasswordExpiresAt = new Date(
-      Date.now() + TEMPORARY_PASSWORD_VALIDITY_MS,
-    );
-    const smtpPort = Number(process.env.SMTP_PORT || 587);
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure:
-        process.env.SMTP_SECURE === 'true' ||
-        (process.env.SMTP_SECURE !== 'false' && smtpPort === 465),
-      auth: {
-        user: smtpUser,
-        pass: smtpPassword,
-      },
-      connectionTimeout: 10_000,
-      greetingTimeout: 10_000,
-      socketTimeout: 20_000,
-    });
+    const recipientEmail = targetUser.email?.trim();
+    if (!recipientEmail || recipientEmail === 'N/A' || !recipientEmail.includes('@')) {
+      return res.status(400).json({
+        error: `User account "${targetUser.fullName}" (${targetUser.username}) does not have an official email address on file. Please contact your system administrator to configure your email address.`,
+      });
+    }
+
+    const smtpConfig = getSmtpConfig();
+    if (!smtpConfig.isConfigured) {
+      return res.status(503).json({
+        error:
+          'Email delivery is currently unconfigured. Please configure SMTP_USER and SMTP_PASSWORD in .env so the temporary password can be delivered directly to your email address.',
+      });
+    }
+
+    // Generate secure, readable recovery password
+    const temporaryPassword = `BLGF-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+    const temporaryPasswordExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes validity
 
     try {
-      await transporter.sendMail({
-        from: process.env.SMTP_FROM || smtpUser,
-        to: administrator.email,
-        subject: 'BLGF Document Tracking System temporary password',
-        text: [
-          `Hello ${administrator.fullName},`,
-          '',
-          'A password reset was requested for your administrator account.',
-          `Username: ${administrator.username}`,
-          `Temporary password: ${temporaryPassword}`,
-          'This temporary password is valid for 5 minutes only.',
-          '',
-          'Sign in with this temporary password, then change it immediately in User Settings.',
-          'If you did not request this reset, contact your system administrator.',
-        ].join('\n'),
-      });
+      const emailResult = await sendTemporaryPasswordEmail(
+        targetUser,
+        temporaryPassword,
+        15,
+      );
 
-      administrator.password = temporaryPassword;
-      administrator.temporaryPasswordExpiresAt =
-        temporaryPasswordExpiresAt.toISOString();
+      if (!emailResult.success) {
+        return res.status(500).json({
+          error: `Failed to deliver recovery email to ${recipientEmail}: ${emailResult.error || 'SMTP delivery failed'}. Please verify SMTP settings in .env.`,
+        });
+      }
+
+      // Update password only after email is successfully dispatched
+      targetUser.password = temporaryPassword;
+      targetUser.temporaryPasswordExpiresAt = temporaryPasswordExpiresAt.toISOString();
+
       try {
         await updateUserPassword(
-          administrator.id,
+          targetUser.id,
           temporaryPassword,
           temporaryPasswordExpiresAt,
         );
       } catch (databaseError) {
-        console.error(
-          'Temporary password email was sent but MySQL update failed:',
-          databaseError,
-        );
-        return res.status(503).json({
-          error:
-            'The email was sent, but the database could not save the temporary password. Request another reset after the database connection is restored.',
-          existingPasswordChanged: false,
-        });
+        console.warn('[AUTH] Direct MySQL password update warning:', databaseError);
       }
-      adminPasswordResetRequests.set(administrator.id, Date.now());
+      adminPasswordResetRequests.set(targetUser.id, Date.now());
+
       addAuditLog(auditLogsState, {
-        userId: administrator.id,
-        userName: administrator.fullName,
-        userRole: administrator.role,
+        userId: targetUser.id,
+        userName: targetUser.fullName,
+        userRole: targetUser.role,
         action: 'UPDATE_USER',
-        details: `A temporary password was emailed to administrator ${administrator.username}.`,
+        details: `A temporary password was successfully emailed to ${targetUser.fullName} (${targetUser.username}) at ${recipientEmail}.`,
         ipAddress: req.ip || '127.0.0.1',
       });
 
       return res.json({
-        message: `A temporary password was sent to ${administrator.email} for username ${administrator.username}.`,
+        success: true,
+        emailSent: true,
+        message: `A temporary password has been dispatched to your email address: ${recipientEmail}.`,
+        targetEmail: recipientEmail,
+        username: targetUser.username,
+        expiresInMinutes: 15,
       });
-    } catch (error) {
-      console.error(
-        'Could not send administrator password-reset email:',
-        error,
-      );
-      const smtpError = error as {
-        code?: string;
-        responseCode?: number;
-        command?: string;
-      };
-      const authenticationFailed =
-        smtpError.code === 'EAUTH' || smtpError.responseCode === 535;
-      const connectionFailed = [
-        'ECONNECTION',
-        'ETIMEDOUT',
-        'ESOCKET',
-        'ECONNREFUSED',
-      ].includes(String(smtpError.code || ''));
-      return res.status(502).json({
-        error: authenticationFailed
-          ? 'Gmail rejected the SMTP login. Use a Google App Password for SMTP_PASSWORD, not the Gmail account password.'
-          : connectionFailed
-            ? 'The email server could not be reached. Check SMTP_HOST, SMTP_PORT, and SMTP_SECURE.'
-            : 'The temporary password email could not be sent. Check the recipient and SMTP_FROM settings.',
-        code: smtpError.code || 'SMTP_SEND_FAILED',
-        existingPasswordChanged: false,
+    } catch (emailError: any) {
+      console.error('[AUTH] SMTP dispatch failed:', emailError);
+      return res.status(500).json({
+        error: `Failed to deliver recovery email to ${recipientEmail}: ${emailError?.message || 'SMTP connection failed'}. Please verify SMTP settings in .env.`,
       });
     }
-  });
+  };
+
+  app.post('/api/auth/forgot-password', handleForgotPassword);
+  app.post('/api/auth/forgot-admin-password', handleForgotPassword);
 
   app.get('/api/records/folders', (_req, res) => {
     const metadata = readRecordMetadata();
@@ -1948,7 +1995,7 @@ export async function createApp() {
     const actions = directoryActionsFor(user);
 
     if (officeType === 'BLGF') {
-      return hasDirectoryView || actions.includes('DIRECTORY_BLGF_VIEW');
+      return actions.includes('DIRECTORY_BLGF_VIEW');
     }
     if (['PROVINCIAL_TREASURER', 'MUNICIPAL_TREASURER', 'LGU'].includes(officeType)) {
       return hasDirectoryView || actions.includes('DIRECTORY_LGU_VIEW');
@@ -1971,6 +2018,9 @@ export async function createApp() {
 
   const canAccessDirectorySection = (user: User, section: DirectorySectionRecord): boolean => {
     if (!section) return false;
+    if (user.role === 'SYSTEM_ADMIN') return true;
+    const views = directoryViewsFor(user);
+    if (views.includes('employees') || Boolean(user.permissions?.mainMenu)) return true;
     const types = normalizeOfficeTypes(section.officeTypes);
     return types.some((officeType) => canAccessDirectoryOfficeType(user, officeType));
   };
@@ -1984,9 +2034,29 @@ export async function createApp() {
     // Self-heal deleted or legacy directory cards. The immutable user ID is
     // the owner key; names, usernames, roles, and passwords may safely change.
     ensureUserEmployeeProfiles();
-    res.json(employeesState.filter((employee) =>
-      canAccessDirectoryOfficeType(actingUser, employee.officeType),
-    ));
+
+    const canViewAllBlgf =
+      actingUser.role === 'SYSTEM_ADMIN' ||
+      directoryActionsFor(actingUser).includes('DIRECTORY_BLGF_VIEW');
+
+    const filtered = employeesState.filter((employee) => {
+      if (employee.officeType === 'BLGF') {
+        if (!canViewAllBlgf) {
+          return (
+            employee.userId === actingUser.id ||
+            Boolean(
+              employee.email &&
+                actingUser.email &&
+                employee.email.toLowerCase().trim() === actingUser.email.toLowerCase().trim(),
+            )
+          );
+        }
+        return true;
+      }
+      return canAccessDirectoryOfficeType(actingUser, employee.officeType);
+    });
+
+    res.json(filtered);
   });
 
   const canManageEmployees = (req: express.Request) => {
@@ -2057,11 +2127,10 @@ export async function createApp() {
       return res.status(403).json({ error: 'Personnel management permission required.' });
     }
     const targetOfficeType = req.body?.officeType || employeesState[idx].officeType;
-    if (
-      !actingUser ||
-      !canAccessDirectoryOfficeType(actingUser, employeesState[idx].officeType) ||
-      !canAccessDirectoryOfficeType(actingUser, targetOfficeType)
-    ) {
+    const isOwnRecord = Boolean(actingUser && employeesState[idx].userId === actingUser.id);
+    const canAccessCurrent = isOwnRecord || canAccessDirectoryOfficeType(actingUser, employeesState[idx].officeType);
+    const canAccessTarget = isOwnRecord || canAccessDirectoryOfficeType(actingUser, targetOfficeType);
+    if (!actingUser || !canAccessCurrent || !canAccessTarget) {
       return res.status(403).json({ error: 'Directory category access permission required.' });
     }
 
@@ -2185,9 +2254,19 @@ export async function createApp() {
   });
 
   await new Promise<void>((resolve, reject) => {
-    const server = app.listen(PORT, '0.0.0.0');
+    const server = app.listen(PORT, HOST);
     server.once('listening', resolve);
-    server.once('error', reject);
+    server.once('error', (error: NodeJS.ErrnoException) => {
+      if (error.code === 'EADDRINUSE') {
+        reject(
+          new Error(
+            `Port ${PORT} is already in use. Stop the process using that port or run "npm run dev" so the launcher can select a free port.`,
+          ),
+        );
+        return;
+      }
+      reject(error);
+    });
   });
 
   console.log(`=======================================================`);

@@ -13,12 +13,14 @@ import {
 import { NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ClsPipe } from '../../shared/cls.pipe';
+import { HighlightPipe } from '../../shared/highlight.pipe';
 import { AuditLog, DocumentRecord, NotificationItem, User } from '../../types';
 import { isDocumentParticipant } from '../../utils/document-visibility';
 import { Html5Qrcode } from 'html5-qrcode';
 interface SearchResult {
   doc: DocumentRecord;
   matchedField: string;
+  score: number;
 }
 
 interface HighlightSegment {
@@ -38,7 +40,7 @@ interface BeforeInstallPromptEvent extends Event {
   selector: 'app-header',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [NgClass, ClsPipe, FormsModule],
+  imports: [NgClass, ClsPipe, FormsModule, HighlightPipe],
   styleUrl: './header.component.scss',
   templateUrl: './header.component.html',
 })
@@ -68,21 +70,26 @@ export class HeaderComponent implements OnInit, OnDestroy {
   @ViewChild('searchInput', { read: ElementRef }) searchInputRef?: ElementRef<HTMLInputElement | HTMLElement>;
 
   get connectedDocuments(): DocumentRecord[] {
-    if (!this.currentUser || !this.currentUser.id) return this.documents;
-    return this.documents.filter((doc) =>
-      isDocumentParticipant(doc, this.currentUser, this.auditLogs),
-    );
+    return this.documents || [];
+  }
+
+  get recentDocuments(): DocumentRecord[] {
+    return (this.connectedDocuments || []).slice(0, 4);
   }
 
   get displayResults(): SearchResult[] {
-    const q = this._searchQuery.trim();
-    if (!q) {
-      return this.connectedDocuments.slice(0, 8).map((doc) => ({
-        doc,
-        matchedField: '',
-      }));
-    }
     return this.searchResults;
+  }
+
+  quickSearch(term: string): void {
+    if (this.searchBlurTimer !== null) {
+      window.clearTimeout(this.searchBlurTimer);
+      this.searchBlurTimer = null;
+    }
+    this._searchQuery = term;
+    this.isSearchFocused = true;
+    this.activeResultIndex = -1;
+    this.focusSearchInput();
   }
 
   private blurSearchInput(): void {
@@ -143,7 +150,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     }
     if (event.key === 'Escape') {
       this.showUserMenu = false;
-      this.isUserStatusOpen = false;
+      this.closeUserStatusModal();
     }
   };
   private readonly onMouseDown = (event: MouseEvent): void => {
@@ -168,67 +175,123 @@ export class HeaderComponent implements OnInit, OnDestroy {
   get searchResults(): SearchResult[] {
     const query = this._searchQuery.trim();
     if (!query) return [];
-    const q = query.toLowerCase();
+    const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+    if (!tokens.length) return [];
+    const fullQuery = query.toLowerCase();
     const results: SearchResult[] = [];
 
     for (const doc of this.connectedDocuments) {
-      const fields: Array<[string, string]> = [
-        ['Tracking No.', `${doc.routeNo || doc.trackingNumber || ''}`],
-        ['Title', `${doc.title || ''}`],
-        ['Subject', `${doc.subject || ''}`],
-        ['Originating Office', `${doc.originatingOffice || ''}`],
-        ['Sender', `${doc.senderName || ''}`],
-        ['Recipient', `${doc.recipientName || ''}`],
-        ['Division', `${doc.currentDivision || ''}`],
-        ['Category', `${doc.category || ''}`],
-        ['Status', `${(doc.currentStatus || '').replaceAll('_', ' ')}`],
-        ['Priority', `${doc.priority || ''}`],
-        ['Remarks', `${doc.remarks || ''}`],
-      ];
-
-      const matchedField = fields.find(([, value]) =>
-        value.toLowerCase().includes(q),
-      )?.[0];
-
-      if (matchedField) {
-        results.push({ doc, matchedField });
-        continue;
-      }
-
+      const routeNo = (doc.routeNo || doc.trackingNumber || '').toLowerCase();
+      const title = (doc.title || '').toLowerCase();
+      const subject = (doc.subject || '').toLowerCase();
+      const originating = (doc.originatingOffice || '').toLowerCase();
+      const destination = (doc.destinationOffice || '').toLowerCase();
+      const sender = (doc.senderName || '').toLowerCase();
+      const recipient = (doc.recipientName || '').toLowerCase();
+      const division = (doc.currentDivision || '').toLowerCase();
+      const category = (doc.category || '').toLowerCase();
+      const status = (doc.currentStatus || '').toLowerCase().replaceAll('_', ' ');
+      const priority = (doc.priority || '').toLowerCase().replaceAll('_', ' ');
+      const remarks = (doc.remarks || '').toLowerCase();
       const assignedUser = this.users.find((u) => u.id === doc.assignedUserId);
-      const assignedName = assignedUser?.fullName || doc.assignedUser || '';
-      if (assignedName.toLowerCase().includes(q)) {
-        results.push({ doc, matchedField: `Assigned: ${assignedName}` });
-        continue;
-      }
+      const assignedName = (assignedUser?.fullName || doc.assignedUser || '').toLowerCase();
+      const tags = (doc.tags || []).map((t) => t.toLowerCase()).join(' ');
+      const routeTrail = (doc.routes || [])
+        .flatMap((r) => [r.toUser, r.fromUser, r.toDivision, r.fromDivision, r.actionRequested, r.actionTaken, r.remarks])
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
 
-      if (doc.actionRequested && doc.actionRequested.toLowerCase().includes(q)) {
-        results.push({ doc, matchedField: `Action: ${doc.actionRequested}` });
-        continue;
-      }
-
-      const matchedTag = (doc.tags || []).find((t) => t.toLowerCase().includes(q));
-      if (matchedTag) {
-        results.push({ doc, matchedField: `Tag: ${matchedTag}` });
-        continue;
-      }
-
-      const matchedRoute = (doc.routes || []).find((r) =>
-        (r.toUser && r.toUser.toLowerCase().includes(q)) ||
-        (r.fromUser && r.fromUser.toLowerCase().includes(q)) ||
-        (r.toDivision && r.toDivision.toLowerCase().includes(q)) ||
-        (r.actionRequested && r.actionRequested.toLowerCase().includes(q)) ||
-        (r.actionTaken && r.actionTaken.toLowerCase().includes(q)) ||
-        (r.remarks && r.remarks.toLowerCase().includes(q)),
+      // Check if EVERY token matches at least one field of this document
+      const allTokensMatch = tokens.every(
+        (t) =>
+          routeNo.includes(t) ||
+          title.includes(t) ||
+          subject.includes(t) ||
+          originating.includes(t) ||
+          destination.includes(t) ||
+          sender.includes(t) ||
+          recipient.includes(t) ||
+          division.includes(t) ||
+          category.includes(t) ||
+          status.includes(t) ||
+          priority.includes(t) ||
+          remarks.includes(t) ||
+          assignedName.includes(t) ||
+          tags.includes(t) ||
+          routeTrail.includes(t),
       );
-      if (matchedRoute) {
-        results.push({
-          doc,
-          matchedField: `Route: ${matchedRoute.actionRequested || matchedRoute.toUser || matchedRoute.toDivision}`,
-        });
-        continue;
+
+      if (!allTokensMatch) continue;
+
+      // Smart relevance score & matched field badge
+      let score = 0;
+      let matchedField = '';
+
+      if (routeNo === fullQuery) {
+        score += 200;
+        matchedField = 'Exact Route #';
+      } else if (routeNo.startsWith(fullQuery)) {
+        score += 150;
+        matchedField = 'Route #';
+      } else if (routeNo.includes(fullQuery)) {
+        score += 120;
+        matchedField = 'Route #';
+      } else if (title.includes(fullQuery)) {
+        score += 90;
+        matchedField = 'Title Match';
+      } else if (tokens.some((t) => title.includes(t))) {
+        score += 80;
+        matchedField = 'Title';
+      } else if (subject.includes(fullQuery)) {
+        score += 70;
+        matchedField = 'Subject';
+      } else if (originating.includes(fullQuery) || destination.includes(fullQuery)) {
+        score += 65;
+        matchedField = `Office: ${doc.originatingOffice || doc.destinationOffice}`;
+      } else if (sender.includes(fullQuery)) {
+        score += 60;
+        matchedField = `Sender: ${doc.senderName}`;
+      } else if (recipient.includes(fullQuery)) {
+        score += 60;
+        matchedField = `Recipient: ${doc.recipientName}`;
+      } else if (assignedName.includes(fullQuery)) {
+        score += 55;
+        matchedField = `Assigned: ${assignedUser?.fullName || doc.assignedUser}`;
+      } else if (division.includes(fullQuery)) {
+        score += 50;
+        matchedField = `Division: ${doc.currentDivision}`;
+      } else if (category.includes(fullQuery)) {
+        score += 45;
+        matchedField = `Category: ${doc.category}`;
+      } else if (status.includes(fullQuery)) {
+        score += 40;
+        matchedField = `Status: ${doc.currentStatus.replaceAll('_', ' ')}`;
+      } else if (priority.includes(fullQuery)) {
+        score += 40;
+        matchedField = `Priority: ${doc.priority.replaceAll('_', ' ')}`;
+      } else if (remarks.includes(fullQuery)) {
+        score += 35;
+        matchedField = 'Remarks';
+      } else if (tags.includes(fullQuery)) {
+        score += 30;
+        matchedField = 'Tag';
+      } else {
+        score += 25;
+        matchedField = 'Routing Trail';
       }
+
+      // Bonus for recent documents
+      if (doc.createdAt) {
+        const ageHours = (Date.now() - new Date(doc.createdAt).getTime()) / (1000 * 60 * 60);
+        if (ageHours < 24) score += 10;
+        else if (ageHours < 72) score += 5;
+      }
+
+      results.push({ doc, matchedField, score });
     }
+
+    results.sort((a, b) => b.score - a.score);
     return results;
   }
 
@@ -246,6 +309,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     document.removeEventListener('mousedown', this.onMouseDown);
     window.removeEventListener('beforeinstallprompt', this.onBeforeInstallPrompt);
     window.removeEventListener('appinstalled', this.onAppInstalled);
+    document.body.classList.remove('personnel-directory-open');
     this.closeScanner();
   }
 
@@ -544,23 +608,18 @@ export class HeaderComponent implements OnInit, OnDestroy {
   private buildSegments(source: string, query: string): HighlightSegment[] {
     const q = query.trim();
     if (!q || !source) return [{ text: source || '', highlighted: false }];
-    const lowerSource = source.toLowerCase();
-    const lowerQ = q.toLowerCase();
+    const tokens = q.toLowerCase().split(/\s+/).filter(Boolean);
+    if (!tokens.length) return [{ text: source, highlighted: false }];
+
+    const escaped = tokens.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+    const regex = new RegExp(`(${escaped})`, 'gi');
+    const parts = source.split(regex);
     const segments: HighlightSegment[] = [];
-    let startIdx = 0;
-    let matchIdx = lowerSource.indexOf(lowerQ, startIdx);
 
-    while (matchIdx !== -1) {
-      if (matchIdx > startIdx) {
-        segments.push({ text: source.slice(startIdx, matchIdx), highlighted: false });
-      }
-      segments.push({ text: source.slice(matchIdx, matchIdx + q.length), highlighted: true });
-      startIdx = matchIdx + q.length;
-      matchIdx = lowerSource.indexOf(lowerQ, startIdx);
-    }
-
-    if (startIdx < source.length) {
-      segments.push({ text: source.slice(startIdx), highlighted: false });
+    for (const part of parts) {
+      if (!part) continue;
+      const isMatch = tokens.some((t) => t.toLowerCase() === part.toLowerCase());
+      segments.push({ text: part, highlighted: isMatch });
     }
 
     return segments.length > 0 ? segments : [{ text: source, highlighted: false }];
@@ -665,10 +724,12 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.userDirectorySearch = '';
     this.userDirectoryFilter = 'ALL';
     this.isUserStatusOpen = true;
+    document.body.classList.add('personnel-directory-open');
   }
 
   closeUserStatusModal(): void {
     this.isUserStatusOpen = false;
     this.userDirectorySearch = '';
+    document.body.classList.remove('personnel-directory-open');
   }
 }

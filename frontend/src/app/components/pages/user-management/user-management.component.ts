@@ -16,6 +16,7 @@ import { showConfirm } from '../../../services/dialog.service';
 import { UiService } from '../../../services/ui.service';
 import { ApiService } from '../../../services/api.service';
 import { IonicModule } from '@ionic/angular';
+import { HighlightPipe } from '../../../shared/highlight.pipe';
 
 interface RoleOption {
   role: Role;
@@ -137,21 +138,49 @@ const DIVISION_CODES: DivisionCode[] = [
   'LU',
 ];
 
+function sanitizeRolePermissions(
+  perms: Record<Role, RolePermission>,
+): Record<Role, RolePermission> {
+  const sanitized = { ...perms };
+  const adminActions = [
+    'USER_ACCOUNT_CREATE',
+    'USER_ACCOUNT_EDIT',
+    'USER_ACCOUNT_DELETE',
+    'USER_SYSTEM_ADMIN_MANAGE',
+  ];
+  for (const role of Object.keys(sanitized) as Role[]) {
+    if (role !== 'SYSTEM_ADMIN') {
+      const p =
+        sanitized[role] ||
+        DEFAULT_ROLE_PERMISSIONS[role] ||
+        DEFAULT_ROLE_PERMISSIONS.STAFF;
+      sanitized[role] = {
+        ...p,
+        allowedViews: (p.allowedViews || []).filter((v) => v !== 'users'),
+        allowedActions: (p.allowedActions || []).filter(
+          (a) => !adminActions.includes(a),
+        ),
+      };
+    }
+  }
+  return sanitized;
+}
+
 function loadRolePermissions(): Record<Role, RolePermission> {
   try {
     const stored = localStorage.getItem('blgf_role_permissions');
-    if (stored) return JSON.parse(stored);
+    if (stored) return sanitizeRolePermissions(JSON.parse(stored));
   } catch (e) {
     console.error(e);
   }
-  return DEFAULT_ROLE_PERMISSIONS;
+  return sanitizeRolePermissions(DEFAULT_ROLE_PERMISSIONS);
 }
 
 @Component({
   selector: 'app-user-management',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [IonicModule, FormsModule, NgClass, AppModalLayerComponent],
+  imports: [IonicModule, FormsModule, NgClass, AppModalLayerComponent, HighlightPipe],
   templateUrl: './user-management.component.html',
   styleUrl: './user-management.component.scss',
 })
@@ -177,11 +206,13 @@ export class UserManagementComponent {
   activeTab = signal<'users' | 'roles' | 'divisions'>('users');
   showCreatePassword = signal(false);
   showEditPassword = signal(false);
+  showCurrentPassword = signal(false);
   rolePermissions = signal<Record<Role, RolePermission>>(loadRolePermissions());
   showCreateModal = signal(false);
   editingUser = signal<User | null>(null);
   targetUserForAvatar = signal<User | null>(null);
   isUploadingAvatar = signal(false);
+  isResettingPassword = signal<string | null>(null);
   searchTerm = signal('');
   roleFilter = signal<string>('ALL');
   divisionFilter = signal<string>('ALL');
@@ -201,6 +232,7 @@ export class UserManagementComponent {
   fullName = signal('');
   username = signal('');
   password = signal('');
+  currentPassword = signal('');
   email = signal('');
   avatarUrl = signal('');
   role = signal<Role>('STAFF');
@@ -214,10 +246,17 @@ export class UserManagementComponent {
 
   noop = () => {};
 
+  isActionRestrictedToAdmin(actionId: string): boolean {
+    return [
+      'USER_ACCOUNT_CREATE',
+      'USER_ACCOUNT_EDIT',
+      'USER_ACCOUNT_DELETE',
+      'USER_SYSTEM_ADMIN_MANAGE',
+    ].includes(actionId);
+  }
+
   get visibleUsers(): User[] {
-    return this.currentUser.role === 'SYSTEM_ADMIN'
-      ? this.users
-      : this.users.filter((user) => user.role !== 'SYSTEM_ADMIN');
+    return this.users;
   }
 
   get permFilteredUsers(): User[] {
@@ -332,6 +371,51 @@ export class UserManagementComponent {
     }
   }
 
+  initialsOf(name: string): string {
+    if (!name) return 'U';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+
+  formatRoleName(role?: string): string {
+    if (!role) return '';
+    switch (role.toUpperCase()) {
+      case 'SYSTEM_ADMIN':
+        return 'System Administrator';
+      case 'ADMIN':
+        return 'Administrator';
+      case 'RECORDS_OFFICER':
+        return 'Records Officer';
+      case 'DIVISION_CHIEF':
+        return 'Division Chief';
+      case 'ACTION_OFFICER':
+        return 'Action Officer';
+      case 'STAFF':
+        return 'Staff';
+      default:
+        return role.replaceAll('_', ' ');
+    }
+  }
+
+  getUserSubtitle(user: User): string {
+    const designation = user.designation?.trim();
+    const roleText = this.formatRoleName(user.role);
+    const title = designation || roleText;
+    const division = user.divisionCode?.trim();
+
+    if (title && division) {
+      return `${title} · ${division}`;
+    }
+    if (title) {
+      return title;
+    }
+    if (division) {
+      return division;
+    }
+    return roleText;
+  }
+
   get filteredUsers(): User[] {
     const normalizedSearchTerm = this.searchTerm().trim().toLowerCase();
     return this.visibleUsers.filter((user) => {
@@ -436,6 +520,38 @@ export class UserManagementComponent {
     void this.onUpdateUser(user.id, { active: !user.active });
   }
 
+  async handleResetPassword(user: User): Promise<void> {
+    const email = user.email?.trim();
+    if (!email || email === 'N/A' || !email.includes('@')) {
+      this.ui.showError(
+        `User "${user.fullName}" does not have a valid email address configured. Please edit their account and add an email address first.`,
+      );
+      return;
+    }
+
+    const confirmed = await showConfirm(
+      `Are you sure you want to generate and dispatch a temporary recovery password directly to ${user.fullName}'s email (${email})?`,
+    );
+    if (!confirmed) return;
+
+    this.isResettingPassword.set(user.id);
+    try {
+      const res = await firstValueFrom(
+        this.api.resetUserPassword(user.id, this.currentUser.id),
+      );
+      this.ui.showSuccess(
+        res.message ||
+          `Password reset email with temporary password successfully sent to ${email}.`,
+      );
+    } catch (err: unknown) {
+      this.ui.showError(
+        String((err as Error)?.message || 'Failed to dispatch password reset email.'),
+      );
+    } finally {
+      this.isResettingPassword.set(null);
+    }
+  }
+
   generateTemporaryPassword(): void {
     const alphabet =
       'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$';
@@ -463,7 +579,7 @@ export class UserManagementComponent {
     const checked = (event.target as HTMLInputElement).checked;
     this.formPermissions.update((prev) => {
       const views = prev.allowedViews || [];
-      const updatedViews = checked
+      const updatedViews = (checked && this.role() === 'SYSTEM_ADMIN')
         ? Array.from(new Set([...views, 'users']))
         : views.filter((v) => v !== 'users');
       return { ...prev, management: checked, allowedViews: updatedViews };
@@ -499,6 +615,17 @@ export class UserManagementComponent {
     }
 
     const name = this.fullName();
+    const rawPerms = this.formPermissions();
+    const finalPermissions: RolePermission =
+      this.role() === 'SYSTEM_ADMIN'
+        ? rawPerms
+        : {
+            ...rawPerms,
+            allowedViews: (rawPerms.allowedViews || []).filter((v) => v !== 'users'),
+            allowedActions: (rawPerms.allowedActions || []).filter(
+              (a) => !this.isActionRestrictedToAdmin(a),
+            ),
+          };
 
     void this.onCreateUser({
       fullName: this.fullName(),
@@ -511,7 +638,7 @@ export class UserManagementComponent {
       contactNo: this.contactNo() || '0917-000-0000',
       avatarUrl: this.avatarUrl(),
       active: true,
-      permissions: this.formPermissions(),
+      permissions: finalPermissions,
     });
 
     this.showCreateModal.set(false);
@@ -523,6 +650,7 @@ export class UserManagementComponent {
     this.fullName.set('');
     this.username.set('');
     this.password.set('');
+    this.currentPassword.set('');
     this.email.set('');
     this.avatarUrl.set('');
     this.designation.set('');
@@ -531,6 +659,7 @@ export class UserManagementComponent {
     this.divisionCode.set('AD');
     this.showCreatePassword.set(false);
     this.showEditPassword.set(false);
+    this.showCurrentPassword.set(false);
     this.formPermissions.set(
       this.rolePermissions()['STAFF'] || DEFAULT_ROLE_PERMISSIONS['STAFF'],
     );
@@ -541,6 +670,7 @@ export class UserManagementComponent {
     this.fullName.set(user.fullName);
     this.username.set(user.username);
     this.password.set('');
+    this.currentPassword.set('');
     this.email.set(user.email);
     this.avatarUrl.set(user.avatarUrl || '');
     this.role.set(user.role);
@@ -548,6 +678,7 @@ export class UserManagementComponent {
     this.designation.set(user.designation);
     this.contactNo.set(user.contactNo || '');
     this.showEditPassword.set(false);
+    this.showCurrentPassword.set(false);
     this.formPermissions.set(
       user.permissions ||
         this.rolePermissions()[user.role] ||
@@ -570,18 +701,32 @@ export class UserManagementComponent {
     const name = this.fullName();
     const passwordTrimmed = this.password().trim();
     const newAvatar = this.avatarUrl();
+    const rawPerms = this.formPermissions();
+    const finalPermissions: RolePermission =
+      this.role() === 'SYSTEM_ADMIN'
+        ? rawPerms
+        : {
+            ...rawPerms,
+            allowedViews: (rawPerms.allowedViews || []).filter((v) => v !== 'users'),
+            allowedActions: (rawPerms.allowedActions || []).filter(
+              (a) => !this.isActionRestrictedToAdmin(a),
+            ),
+          };
 
     await this.onUpdateUser(user.id, {
       fullName: this.fullName(),
       username: this.username(),
       ...(passwordTrimmed ? { password: passwordTrimmed } : {}),
+      ...(passwordTrimmed && user.id === this.currentUser.id
+        ? { currentPassword: this.currentPassword() }
+        : {}),
       email: this.email().trim() || 'N/A',
       role: this.role(),
       divisionCode: this.divisionCode(),
       designation: this.designation(),
       contactNo: this.contactNo(),
       avatarUrl: newAvatar,
-      permissions: this.formPermissions(),
+      permissions: finalPermissions,
     });
 
     user.avatarUrl = newAvatar;
@@ -800,7 +945,7 @@ export class UserManagementComponent {
         updated = { ...current, mainMenu: turningOn };
       } else {
         const views = current.allowedViews || [];
-        const updatedViews = turningOn
+        const updatedViews = (turningOn && roleName === 'SYSTEM_ADMIN')
           ? Array.from(new Set([...views, 'users']))
           : views.filter((v) => v !== 'users');
         updated = { ...current, management: turningOn, allowedViews: updatedViews };
@@ -810,6 +955,7 @@ export class UserManagementComponent {
   }
 
   toggleViewPermission(roleName: Role, viewId: string): void {
+    if (viewId === 'users' && roleName !== 'SYSTEM_ADMIN') return;
     this.rolePermissions.update((prev) => {
       const current = prev[roleName] || DEFAULT_ROLE_PERMISSIONS[roleName];
       const currentAllowed = current.allowedViews || [];
@@ -830,6 +976,7 @@ export class UserManagementComponent {
   }
 
   toggleActionPermission(roleName: Role, actionId: string): void {
+    if (this.isActionRestrictedToAdmin(actionId) && roleName !== 'SYSTEM_ADMIN') return;
     this.rolePermissions.update((prev) => {
       const current = prev[roleName] || DEFAULT_ROLE_PERMISSIONS[roleName];
       const actions = current.allowedActions || [];
@@ -847,10 +994,19 @@ export class UserManagementComponent {
   }
 
   async handleApplyRolePermissionsToUsers(roleName: Role, showMessage = true): Promise<void> {
-    const targetPerms = {
+    const rawTargetPerms = {
       ...(this.rolePermissions()[roleName] || DEFAULT_ROLE_PERMISSIONS[roleName]),
       notificationViewAllConfigured: true,
     };
+    const targetPerms: RolePermission = roleName === 'SYSTEM_ADMIN'
+      ? rawTargetPerms
+      : {
+          ...rawTargetPerms,
+          allowedViews: (rawTargetPerms.allowedViews || []).filter((v) => v !== 'users'),
+          allowedActions: (rawTargetPerms.allowedActions || []).filter(
+            (a) => !this.isActionRestrictedToAdmin(a),
+          ),
+        };
     const roleUsers = this.users.filter((u) => u.role === roleName);
 
     if (roleUsers.length === 0) {
@@ -879,15 +1035,17 @@ export class UserManagementComponent {
         'Reset all user role menu access permissions back to System Defaults?',
       )
     ) {
-      this.rolePermissions.set(DEFAULT_ROLE_PERMISSIONS);
+      this.rolePermissions.set(sanitizeRolePermissions(DEFAULT_ROLE_PERMISSIONS));
       this.ui.showSuccess('Role menu permissions reset to defaults.');
     }
   }
 
   async saveAllRolePermissions(): Promise<void> {
+    const sanitized = sanitizeRolePermissions(this.rolePermissions());
+    this.rolePermissions.set(sanitized);
     localStorage.setItem(
       'blgf_role_permissions',
-      JSON.stringify(this.rolePermissions()),
+      JSON.stringify(sanitized),
     );
     await Promise.all(
       ALL_ROLES.map((r) => this.handleApplyRolePermissionsToUsers(r.role, false)),
@@ -944,6 +1102,12 @@ export class UserManagementComponent {
             DEFAULT_ROLE_PERMISSIONS[user.role] ||
             DEFAULT_ROLE_PERMISSIONS.STAFF,
         );
+    if (user.role !== 'SYSTEM_ADMIN') {
+      activePerm.allowedViews = (activePerm.allowedViews || []).filter((v) => v !== 'users');
+      activePerm.allowedActions = (activePerm.allowedActions || []).filter(
+        (a) => !this.isActionRestrictedToAdmin(a),
+      );
+    }
     this.userPermForm.set(activePerm);
     this.isUserPermDirty.set(false);
   }
@@ -964,6 +1128,7 @@ export class UserManagementComponent {
   }
 
   toggleUserSectionPermission(section: 'mainMenu' | 'management'): void {
+    const targetUser = this.selectedPermUser();
     this.userPermForm.update((p) => {
       const turningOn = !p[section];
       let updated: RolePermission;
@@ -971,7 +1136,7 @@ export class UserManagementComponent {
         updated = { ...p, mainMenu: turningOn };
       } else {
         const views = p.allowedViews || [];
-        const updatedViews = turningOn
+        const updatedViews = (turningOn && targetUser?.role === 'SYSTEM_ADMIN')
           ? Array.from(new Set([...views, 'users']))
           : views.filter((v) => v !== 'users');
         updated = { ...p, management: turningOn, allowedViews: updatedViews };
@@ -982,6 +1147,8 @@ export class UserManagementComponent {
   }
 
   toggleUserActionPermission(actionId: string): void {
+    const targetUser = this.selectedPermUser();
+    if (this.isActionRestrictedToAdmin(actionId) && targetUser?.role !== 'SYSTEM_ADMIN') return;
     this.userPermForm.update((p) => {
       const actions = p.allowedActions || [];
       const updated = actions.includes(actionId)
@@ -993,6 +1160,8 @@ export class UserManagementComponent {
   }
 
   toggleUserViewPermission(viewId: string): void {
+    const targetUser = this.selectedPermUser();
+    if (viewId === 'users' && targetUser?.role !== 'SYSTEM_ADMIN') return;
     this.userPermForm.update((p) => {
       const views = p.allowedViews || [];
       const hasView = views.includes(viewId);
@@ -1018,8 +1187,14 @@ export class UserManagementComponent {
   }
 
   grantAllUserPermissions(): void {
-    const allViews = MENU_ITEMS_LIST.map((m) => m.id);
-    const allActions = ACTION_PERMISSIONS.map((a) => a.id);
+    const targetUser = this.selectedPermUser();
+    const isSysAdmin = targetUser?.role === 'SYSTEM_ADMIN';
+    const allViews = MENU_ITEMS_LIST
+      .map((m) => m.id)
+      .filter((id) => isSysAdmin || id !== 'users');
+    const allActions = ACTION_PERMISSIONS
+      .map((a) => a.id)
+      .filter((id) => isSysAdmin || !this.isActionRestrictedToAdmin(id));
     this.userPermForm.set({
       canViewAllRoutes: true,
       canViewAllDocuments: true,
@@ -1055,6 +1230,12 @@ export class UserManagementComponent {
         DEFAULT_ROLE_PERMISSIONS[user.role] ||
         DEFAULT_ROLE_PERMISSIONS.STAFF,
     );
+    if (user.role !== 'SYSTEM_ADMIN') {
+      defaultPerm.allowedViews = (defaultPerm.allowedViews || []).filter((v) => v !== 'users');
+      defaultPerm.allowedActions = (defaultPerm.allowedActions || []).filter(
+        (a) => !this.isActionRestrictedToAdmin(a),
+      );
+    }
     this.userPermForm.set(defaultPerm);
     await this.onUpdateUser(user.id, { permissions: defaultPerm });
     user.permissions = defaultPerm;
@@ -1068,6 +1249,12 @@ export class UserManagementComponent {
     const user = this.selectedPermUser();
     if (!user) return;
     const perms = structuredClone(this.userPermForm());
+    if (user.role !== 'SYSTEM_ADMIN') {
+      perms.allowedViews = (perms.allowedViews || []).filter((v) => v !== 'users');
+      perms.allowedActions = (perms.allowedActions || []).filter(
+        (a) => !this.isActionRestrictedToAdmin(a),
+      );
+    }
     await this.onUpdateUser(user.id, { permissions: perms });
     user.permissions = perms;
     this.isUserPermDirty.set(false);

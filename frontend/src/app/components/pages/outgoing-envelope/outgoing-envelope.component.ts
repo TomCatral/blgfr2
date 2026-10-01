@@ -125,6 +125,8 @@ export class OutgoingEnvelopeComponent implements OnInit {
   savedFormats: SavedEnvelopeFormat[] = this.loadStoredFormats();
   activeFormatId: string | null = null;
   formatName = '';
+  editingFormatId: string | null = null;
+  editingFormatName = '';
   showSaveFormat = true;
   showSenderDrawer = false;
 
@@ -675,6 +677,37 @@ export class OutgoingEnvelopeComponent implements OnInit {
     }
   }
 
+  startEditFormat(fmt: SavedEnvelopeFormat): void {
+    this.editingFormatId = fmt.id;
+    this.editingFormatName = fmt.name;
+    setTimeout(() => {
+      const input = document.getElementById(`template-rename-input-${fmt.id}`) as HTMLInputElement | null;
+      input?.focus();
+      input?.select();
+    }, 50);
+  }
+
+  saveFormatName(fmt: SavedEnvelopeFormat): void {
+    const trimmed = this.editingFormatName.trim();
+    if (!trimmed) {
+      this.ui.showError('Template name cannot be empty.');
+      return;
+    }
+    const updated = this.savedFormats.map((f: SavedEnvelopeFormat) =>
+      f.id === fmt.id ? { ...f, name: trimmed } : f,
+    );
+    this.savedFormats = updated;
+    localStorage.setItem('blgf_envelope_formats', JSON.stringify(updated));
+    this.editingFormatId = null;
+    this.editingFormatName = '';
+    this.ui.showSuccess(`Template renamed to "${trimmed}".`);
+  }
+
+  cancelEditFormat(): void {
+    this.editingFormatId = null;
+    this.editingFormatName = '';
+  }
+
   async recordDispatch(): Promise<boolean> {
     const dispatchDetails = [
       ...this.addressees.flatMap((addressee, index) => [
@@ -706,17 +739,15 @@ export class OutgoingEnvelopeComponent implements OnInit {
     this.envelopePdfUrl = null;
   }
 
-  async printPreparedEnvelope(): Promise<void> {
+  printPreparedEnvelope(): void {
     try {
       const printWindow = this.envelopePdfFrameRef?.nativeElement.contentWindow;
       if (!printWindow) {
         throw new Error('Envelope PDF is not ready.');
       }
+      this.recordDispatchAfterPrint(printWindow);
       printWindow.focus();
       printWindow.print();
-      if (!this.logged) {
-        await this.recordDispatch();
-      }
     } catch {
       this.ui.showError('Unable to open the envelope print dialog. No dispatch log was saved.');
     }
@@ -726,7 +757,14 @@ export class OutgoingEnvelopeComponent implements OnInit {
     if (!this.validateEnvelopeFields()) return;
     try {
       this.closeEnvelopePdf();
-      if (!this.logged) void this.recordDispatch();
+      const originalTitle = window.document.title;
+      const restore = () => {
+        window.document.title = originalTitle;
+        window.removeEventListener('afterprint', restore);
+        if (!this.logged) void this.recordDispatch();
+      };
+      window.document.title = '';
+      window.addEventListener('afterprint', restore);
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {
           try {
@@ -755,7 +793,6 @@ export class OutgoingEnvelopeComponent implements OnInit {
   printFromToCutOut(): void {
     if (!this.validateEnvelopeFields()) return;
     if (!this.validateSenderFields()) return;
-    if (!this.logged) void this.recordDispatch();
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       this.ui.showError('Please allow pop-ups to print the FROM/TO cut-out labels.');
@@ -766,7 +803,7 @@ export class OutgoingEnvelopeComponent implements OnInit {
     const safeSenderDesignation = this.escapePrintText(this.sender.position.trim());
     const safeSenderOffice = this.escapePrintText(this.sender.office.trim());
     const safeSenderAddress = this.escapePrintText(this.sender.address.trim());
-    const pageRule = 'size: A4 portrait; margin: 12mm;';
+    const pageRule = 'size: A4 portrait; margin: 0 !important;';
     const pageWidth = '150mm';
     const pageHeight = '88mm';
     const pageRows = '44mm 44mm';
@@ -799,11 +836,11 @@ export class OutgoingEnvelopeComponent implements OnInit {
       <html lang="en">
         <head>
           <meta charset="utf-8" />
-          <title>BLGF FROM and TO Cut-Out Labels</title>
+          <title></title>
           <style>
             @page { ${pageRule} }
             * { box-sizing: border-box; }
-            html, body { margin: 0; padding: 0; font-family: Arial, sans-serif; color: #111; background: #fff; }
+            html, body { margin: 0; padding: 12mm; font-family: Arial, sans-serif; color: #111; background: #fff; }
             body { width: auto; }
             .half-bond-page { width: ${pageWidth}; height: ${pageHeight}; display: grid; grid-template-rows: ${pageRows}; margin: 16mm auto 0; break-after: page; page-break-after: always; overflow: hidden; }
             .half-bond-page:last-child { break-after: auto; page-break-after: auto; }
@@ -816,12 +853,23 @@ export class OutgoingEnvelopeComponent implements OnInit {
         </head>
         <body>${pages}
           <script>
-            window.onload = function () { window.print(); window.close(); };
+            window.onload = function () { window.print(); };
           <\/script>
         </body>
       </html>
     `);
     printWindow.document.close();
+    this.recordDispatchAfterPrint(printWindow, () => printWindow.close());
+  }
+
+  private recordDispatchAfterPrint(printWindow: Window, onComplete?: () => void): void {
+    const handleAfterPrint = (): void => {
+      printWindow.removeEventListener('afterprint', handleAfterPrint);
+      if (!this.logged) void this.recordDispatch();
+      onComplete?.();
+    };
+
+    printWindow.addEventListener('afterprint', handleAfterPrint, { once: true });
   }
 
   private loadStoredEmployees(): EmployeeProfile[] {

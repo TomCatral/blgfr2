@@ -44,42 +44,90 @@
     }
 
     @if (showForgotPassword) {
-      <form class="login-form" (ngSubmit)="handleForgotPassword()">
-        <label class="login-field">
-          <span class="login-label">Administrator Username or Email</span>
-          <div class="login-input-wrap">
-            <span class="login-input-icon">
-              <ion-icon name="key"></ion-icon>
-            </span>
-            <ion-input
-              type="text"
-              required
-              autoFocus
-              [(ngModel)]="resetIdentifier"
-              name="resetIdentifier"
-              placeholder="Enter administrator username or email"
-              class="login-input"
-            />
+      @if (recoveryEmailSent) {
+        <div class="recovery-result-card">
+          <div class="recovery-result-badge">
+            <ion-icon name="mail-unread"></ion-icon>
+            <span>Password Sent to Email</span>
           </div>
-          <span class="login-field-hint">A temporary recovery code will be dispatched to the verified email.</span>
-        </label>
-        <ion-button
-          type="submit"
-          [disabled]="loading"
-          class="login-btn-primary"
-        >
-          @if (loading) {
-            <span class="login-spinner"></span>
-            <span>Sending Recovery Email...</span>
-          } @else {
-            <ion-icon name="mail"></ion-icon>
-            <span>Email Recovery Password</span>
-          }
-        </ion-button>
-        <ion-button type="button" class="login-btn-link" (click)="backToSignIn()">
-          &larr; Back to Sign In
-        </ion-button>
-      </form>
+
+          <div class="recovery-email-box">
+            <div class="recovery-email-icon-wrap">
+              <ion-icon name="send"></ion-icon>
+            </div>
+            <div class="recovery-email-body">
+              <h3 class="recovery-email-title">Recovery Email Dispatched</h3>
+              <p class="recovery-email-desc">
+                Your temporary password has been sent to your verified email:
+              </p>
+              <div class="recovery-email-target">
+                <ion-icon name="mail-outline"></ion-icon>
+                <span>{{ recoveredEmail || 'catraltom@gmail.com' }}</span>
+              </div>
+              <ul class="recovery-email-notes">
+                <li>Valid for <strong>15 minutes only</strong></li>
+                <li>Check your <strong>Inbox</strong> or <strong>Spam/Junk</strong> folder</li>
+                <li>Temporary password is <strong>not shown on screen</strong> for security</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="recovery-account-meta">
+            <span class="meta-label">Account Username:</span>
+            <strong class="meta-value">{{ recoveredUsername || resetIdentifier }}</strong>
+          </div>
+
+          <ion-button
+            type="button"
+            class="login-btn-primary"
+            (click)="proceedToSignInWithEmailCode()"
+          >
+            <ion-icon slot="start" name="log-in-outline"></ion-icon>
+            <span>Proceed to Sign In</span>
+          </ion-button>
+
+          <ion-button type="button" class="login-btn-link" (click)="backToSignIn()">
+            &larr; Back to Sign In
+          </ion-button>
+        </div>
+      } @else {
+        <form class="login-form" (ngSubmit)="handleForgotPassword()">
+          <label class="login-field">
+            <span class="login-label">Username or Email</span>
+            <div class="login-input-wrap">
+              <span class="login-input-icon">
+                <ion-icon name="key"></ion-icon>
+              </span>
+              <ion-input
+                type="text"
+                required
+                autoFocus
+                [(ngModel)]="resetIdentifier"
+                name="resetIdentifier"
+                placeholder="Enter your username or registered email"
+                class="login-input"
+              />
+            </div>
+            <span class="login-field-hint">A temporary recovery password will be sent directly to your account's registered email address.</span>
+          </label>
+          <ion-button
+            type="submit"
+            [disabled]="loading"
+            class="login-btn-primary"
+          >
+            @if (loading) {
+              <span class="login-spinner"></span>
+              <span>Sending Email...</span>
+            } @else {
+              <ion-icon slot="start" name="mail"></ion-icon>
+              <span>Email Recovery Password</span>
+            }
+          </ion-button>
+          <ion-button type="button" class="login-btn-link" (click)="backToSignIn()">
+            &larr; Back to Sign In
+          </ion-button>
+        </form>
+      }
     } @else {
       <form class="login-form" (ngSubmit)="handleSubmit()">
         <label class="login-field">
@@ -136,13 +184,13 @@
             <span class="login-spinner"></span>
             <span>Authenticating Credentials...</span>
           } @else {
-            <ion-icon name="log-in"></ion-icon>
+            <ion-icon slot="start" name="log-in"></ion-icon>
             <span>Sign In to System</span>
           }
         </ion-button>
 
         <ion-button type="button" class="login-btn-link" (click)="openForgotPassword()">
-          Forgot administrator password?
+          Forgot password?
         </ion-button>
       </form>
     }

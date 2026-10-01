@@ -272,7 +272,7 @@
   }
 }
 
-/* Handoff Instruction Card below completed badge */
+/* Handoff instruction belongs above the flow card of its actual author. */
 .flow-handoff-instruction-card {
   width: 100%;
   max-width: 28rem;
@@ -290,6 +290,10 @@
     border-color: #6ee7b7;
     box-shadow: 0 6px 16px -2px rgba(16, 185, 129, 0.18);
   }
+}
+
+.flow-handoff-instruction-card--above {
+  margin: 0 auto 0.65rem;
 }
 
 .flow-handoff-header {

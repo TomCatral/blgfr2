@@ -3,6 +3,22 @@
     <span class="flow-branch-line" aria-hidden="true"></span>
     <span class="flow-branch-arrow" aria-hidden="true"></span>
   }
+
+  @if (parent.getFlowNodeHandoffInstruction(recipient.id); as instruction) {
+    <div class="flow-handoff-instruction-card flow-handoff-instruction-card--above" role="note" aria-label="Handoff instructions">
+      <div class="flow-handoff-header">
+        <ion-icon name="document-text-outline" class="flow-handoff-icon"></ion-icon>
+        <span class="flow-handoff-title">Handoff Instructions</span>
+      </div>
+      <p class="flow-handoff-body">
+        &ldquo;{{ instruction }}&rdquo;
+      </p>
+      <div class="flow-handoff-user">
+        Instruction by {{ parent.getFlowNodeInstructionAuthor(recipient.id) }}
+      </div>
+    </div>
+  }
+
   <button
     type="button"
     class="flow-node-btn"
@@ -72,20 +88,6 @@
         <p>End - Transaction completed</p>
       </div>
 
-      @if (parent.getFlowNodeHandoffInstruction(recipient.id); as instruction) {
-        <div class="flow-handoff-instruction-card" role="note" aria-label="Handoff instructions">
-          <div class="flow-handoff-header">
-            <ion-icon name="location-outline" class="flow-handoff-icon"></ion-icon>
-            <span class="flow-handoff-title">Handoff Instructions</span>
-          </div>
-          <p class="flow-handoff-body">
-            &ldquo;{{ instruction }}&rdquo;
-          </p>
-          <div class="flow-handoff-user">
-            Completed by {{ parent.resolveUserName(recipient.toUserId, recipient.toUser) || recipient.toDivision }}
-          </div>
-        </div>
-      }
     </div>
   }
 

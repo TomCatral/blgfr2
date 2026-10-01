@@ -376,7 +376,10 @@
 .ep-search-field {
   width: 100%;
   height: 2.5rem;
-  padding: 0 2.25rem 0 2.5rem;
+  padding: 0 2.25rem 0 1rem;
+  --padding-start: 1rem;
+  --caret-color: #2563eb;
+  caret-color: #2563eb;
   background: var(--ui-bg, #f8fafc);
   border: 1px solid var(--ui-border, #e2e8f0);
   border-radius: 0.75rem;
@@ -388,11 +391,12 @@
     color: #94a3b8;
   }
 
-  &:focus {
+  &:focus,
+  &:focus-within {
     outline: none;
     border-color: #2563eb;
     background: #ffffff;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.16);
   }
 }
 
@@ -2615,8 +2619,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(4px);
+  background: rgba(226, 232, 240, 0.72);
+  backdrop-filter: blur(9px) saturate(0.82);
+  -webkit-backdrop-filter: blur(9px) saturate(0.82);
   padding: 1rem;
 }
 
@@ -2672,8 +2677,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(4px);
+  background: rgba(226, 232, 240, 0.72);
+  backdrop-filter: blur(9px) saturate(0.82);
+  -webkit-backdrop-filter: blur(9px) saturate(0.82);
   padding: 1rem;
 }
 
@@ -2751,6 +2757,11 @@
    8. DARK MODE OVERRIDES (:host-context(.dark))
    ========================================================================== */
 :host-context(.dark) {
+  .ep-dialog-overlay,
+  .ep-pdf-viewer-overlay {
+    background: rgba(15, 23, 42, 0.72);
+  }
+
   .ep-hero,
   .ep-tabs-card,
   .ep-toolbar,
@@ -3131,4 +3142,20 @@
       }
     }
   }
+}
+
+/* Double-box prevention for ion-input in employee-profiles */
+ion-input.ep-modal-input,
+ion-input.ep-input-field,
+ion-input.ep-search-field {
+  --background: transparent !important;
+  --border-color: transparent !important;
+  --border-width: 0 !important;
+  --border-style: none !important;
+  --box-shadow: none !important;
+  --highlight-height: 0 !important;
+  --padding-start: 0 !important;
+  --padding-end: 0 !important;
+  --padding-top: 0 !important;
+  --padding-bottom: 0 !important;
 }

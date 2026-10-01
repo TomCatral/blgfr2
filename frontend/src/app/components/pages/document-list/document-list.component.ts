@@ -62,7 +62,7 @@ export class DocumentListComponent implements OnInit {
 
   @Input({ required: true }) onSelectDoc: (doc: DocumentRecord) => void = () => {};
   @Input({ required: true }) onOpenRouteDoc: (doc: DocumentRecord) => void = () => {};
-  @Input({ required: true }) onOpenCreateDoc: () => void = () => {};
+  @Input({ required: true }) onOpenCreateDoc: (direction?: DocumentDirection) => void = () => {};
   @Input({ required: true }) onPrintSlip: (doc: DocumentRecord) => void = () => {};
   @Input({ required: true }) onDeleteDoc: (doc: DocumentRecord) => Promise<void> = () => Promise.resolve();
 
@@ -98,8 +98,15 @@ export class DocumentListComponent implements OnInit {
     const division = this.divisionFilter();
     const priority = this.priorityFilter();
 
-    return this.userFilteredDocs().filter((doc) => {
-      if (query) {
+    const tokens = query ? query.split(/\s+/).filter(Boolean) : [];
+
+    const matches = this.userFilteredDocs().filter((doc) => {
+      if (direction !== 'ALL' && doc.direction !== direction) return false;
+      if (status !== 'ALL' && doc.currentStatus !== status) return false;
+      if (division !== 'ALL' && doc.currentDivision !== division) return false;
+      if (priority !== 'ALL' && doc.priority !== priority) return false;
+
+      if (tokens.length > 0) {
         const searchable = [
           doc.routeNo || '',
           doc.trackingNumber || '',
@@ -109,9 +116,11 @@ export class DocumentListComponent implements OnInit {
           doc.destinationOffice || '',
           doc.senderName || '',
           doc.senderPosition || '',
+          doc.senderAddress || '',
           doc.recipientName || '',
           doc.recipientPosition || '',
           doc.recipientOffice || '',
+          doc.recipientAddress || '',
           doc.currentDivision || '',
           doc.category || '',
           doc.assignedUser || '',
@@ -133,13 +142,41 @@ export class DocumentListComponent implements OnInit {
           .join(' ')
           .toLowerCase();
 
-        if (!searchable.includes(query)) return false;
+        const allTokensMatch = tokens.every((token) => searchable.includes(token));
+        if (!allTokensMatch) return false;
       }
-      if (direction !== 'ALL' && doc.direction !== direction) return false;
-      if (status !== 'ALL' && doc.currentStatus !== status) return false;
-      if (division !== 'ALL' && doc.currentDivision !== division) return false;
-      if (priority !== 'ALL' && doc.priority !== priority) return false;
+
       return true;
+    });
+
+    if (tokens.length === 0) {
+      return matches;
+    }
+
+    return [...matches].sort((a, b) => {
+      const aRoute = (a.routeNo || a.trackingNumber || '').toLowerCase();
+      const bRoute = (b.routeNo || b.trackingNumber || '').toLowerCase();
+      const aTitle = (a.title || '').toLowerCase();
+      const bTitle = (b.title || '').toLowerCase();
+
+      let aScore = 0;
+      let bScore = 0;
+
+      if (aRoute === query) aScore += 200;
+      if (bRoute === query) bScore += 200;
+      if (aRoute.includes(query)) aScore += 100;
+      if (bRoute.includes(query)) bScore += 100;
+      if (aTitle.includes(query)) aScore += 60;
+      if (bTitle.includes(query)) bScore += 60;
+
+      for (const t of tokens) {
+        if (aRoute.includes(t)) aScore += 25;
+        if (bRoute.includes(t)) bScore += 25;
+        if (aTitle.includes(t)) aScore += 15;
+        if (bTitle.includes(t)) bScore += 15;
+      }
+
+      return bScore - aScore;
     });
   });
 
@@ -151,7 +188,9 @@ export class DocumentListComponent implements OnInit {
   clearLocalSearch(): void {
     this.searchQuerySig.set('');
     this.onSearchChange.emit('');
-    this.onClearSearchFn();
+    if (typeof this.onClearSearchFn === 'function') {
+      this.onClearSearchFn();
+    }
   }
 
   constructor(private sanitizer: DomSanitizer) {}
@@ -170,6 +209,20 @@ export class DocumentListComponent implements OnInit {
 
   setDirection(dir: DocumentDirection | 'ALL'): void {
     this.directionFilter.set(dir);
+    if (dir === 'OUTGOING') {
+      this.createLabel = 'Log Outgoing Document';
+    } else if (dir === 'INCOMING') {
+      this.createLabel = 'Log New Document';
+    } else {
+      this.createLabel =
+        this.initialDirectionVal === 'OUTGOING' ? 'Log Outgoing Document' : 'Log New Document';
+    }
+  }
+
+  handleOpenCreate(): void {
+    const dir: DocumentDirection =
+      this.effectiveDirection() === 'OUTGOING' ? 'OUTGOING' : 'INCOMING';
+    this.onOpenCreateDoc(dir);
   }
 
   dirTabClass(dir: DocumentDirection | 'ALL'): string {
@@ -253,16 +306,22 @@ export class DocumentListComponent implements OnInit {
 
   highlightText(text: string | undefined, query: string): SafeHtml {
     const source = String(text || '');
-    const q = query.trim();
+    const q = query ? query.trim() : '';
     if (!q || !source) return this.sanitizer.bypassSecurityTrustHtml(this.escapeHtml(source));
-    const index = source.toLowerCase().indexOf(q.toLowerCase());
-    if (index === -1) return this.sanitizer.bypassSecurityTrustHtml(this.escapeHtml(source));
-    const before = this.escapeHtml(source.slice(0, index));
-    const match = this.escapeHtml(source.slice(index, index + q.length));
-    const after = this.escapeHtml(source.slice(index + q.length));
-    return this.sanitizer.bypassSecurityTrustHtml(
-      `${before}<mark class="match">${match}</mark>${after}`
+
+    const tokens = q.split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return this.sanitizer.bypassSecurityTrustHtml(this.escapeHtml(source));
+
+    const escapedTokens = tokens.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const regex = new RegExp(`(${escapedTokens.join('|')})`, 'gi');
+
+    const escaped = this.escapeHtml(source);
+    const highlighted = escaped.replace(
+      regex,
+      '<mark class="search-highlight match is-highlighted">$1</mark>',
     );
+
+    return this.sanitizer.bypassSecurityTrustHtml(highlighted);
   }
 
   formatShortDate(dateString: string): string {

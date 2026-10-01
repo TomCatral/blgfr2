@@ -124,8 +124,6 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, RolePermission> = {
       'EMPLOYEE_FOLDER_MANAGE',
       'DIRECTORY_LGU_VIEW',
       'DIRECTORY_OTHER_VIEW',
-      'USER_ACCOUNT_CREATE',
-      'USER_ACCOUNT_EDIT',
       'ROUTING_MONITOR_VIEW',
       'ROUTING_REMINDER_SEND',
     ],
@@ -155,15 +153,12 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, RolePermission> = {
       'ROUTING_MONITOR_VIEW',
       'ROUTING_REMINDER_SEND',
       'NOTIFICATION_VIEW_ALL',
-      'DIRECTORY_BLGF_VIEW',
       'DIRECTORY_LGU_VIEW',
       'DIRECTORY_OTHER_VIEW',
       'EMPLOYEE_CREATE',
       'EMPLOYEE_EDIT',
       'EMPLOYEE_DELETE',
       'EMPLOYEE_FOLDER_MANAGE',
-      'USER_ACCOUNT_CREATE',
-      'USER_ACCOUNT_EDIT',
     ],
     allowedViews: [
       'dashboard',
@@ -190,7 +185,6 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, RolePermission> = {
     allowedActions: [
       'ROUTING_MONITOR_VIEW',
       'ROUTING_REMINDER_SEND',
-      'DIRECTORY_BLGF_VIEW',
       'DIRECTORY_LGU_VIEW',
       'DIRECTORY_OTHER_VIEW',
     ],
@@ -216,7 +210,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, RolePermission> = {
     canDelete: false,
     canViewAllDocuments: false,
     canViewAllRoutes: false,
-    allowedActions: ['DIRECTORY_BLGF_VIEW', 'DIRECTORY_LGU_VIEW', 'DIRECTORY_OTHER_VIEW'],
+    allowedActions: ['DIRECTORY_LGU_VIEW', 'DIRECTORY_OTHER_VIEW'],
     allowedViews: [
       'dashboard',
       'division-workload',
@@ -238,7 +232,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, RolePermission> = {
     canDelete: false,
     canViewAllDocuments: false,
     canViewAllRoutes: false,
-    allowedActions: ['DIRECTORY_BLGF_VIEW', 'DIRECTORY_LGU_VIEW', 'DIRECTORY_OTHER_VIEW'],
+    allowedActions: ['DIRECTORY_LGU_VIEW', 'DIRECTORY_OTHER_VIEW'],
     allowedViews: [
       'dashboard',
       'division-workload',
@@ -444,4 +438,19 @@ export interface DashboardStats {
     color: string;
   }[];
   recentActivity: AuditLog[];
+}
+
+export interface PopupAction {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  documentId: string;
+  trackingNumber: string;
+  type: 'ACTION_REQUIRED';
+  requiresDecision: boolean;
+  createdAt: string;
+  reminderSenderName?: string;
+  reminderActionRequested?: string;
+  decisionStatus?: 'APPROVED' | 'DISAPPROVED';
 }

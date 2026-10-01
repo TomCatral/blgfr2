@@ -26,6 +26,9 @@ export class LoginComponent {
   showPassword = false;
   errorMsg = '';
   loading = false;
+  recoveryEmailSent = false;
+  recoveredUsername = '';
+  recoveredEmail = '';
 
   async handleSubmit(): Promise<void> {
     this.errorMsg = '';
@@ -45,32 +48,46 @@ export class LoginComponent {
   async handleForgotPassword(): Promise<void> {
     this.errorMsg = '';
     this.successMsg = '';
+    this.recoveryEmailSent = false;
     this.loading = true;
     try {
-      const result = await firstValueFrom(this.api.forgotAdminPassword(
+      const result = await firstValueFrom(this.api.forgotPassword(
         this.resetIdentifier.trim(),
       ));
-      this.successMsg = result.message;
-      this.resetIdentifier = '';
+      this.recoveryEmailSent = true;
+      this.recoveredUsername = result.username || this.resetIdentifier.trim();
+      this.recoveredEmail = result.targetEmail || '';
+      this.successMsg = result.message || 'A temporary recovery password has been sent to your email address.';
     } catch (error: unknown) {
       this.errorMsg =
         error instanceof Error
           ? error.message
-          : 'Unable to reset the administrator password.';
+          : 'Unable to send recovery email. Please check your SMTP settings in .env.';
     } finally {
       this.loading = false;
     }
   }
 
+  proceedToSignInWithEmailCode(): void {
+    this.username = this.recoveredUsername || this.username || this.resetIdentifier.trim();
+    this.password = '';
+    this.showForgotPassword = false;
+    this.recoveryEmailSent = false;
+    this.errorMsg = '';
+    this.successMsg = 'Please enter the temporary password sent to your email to sign in.';
+  }
+
   openForgotPassword(): void {
     this.showForgotPassword = true;
     this.resetIdentifier = this.username;
+    this.recoveryEmailSent = false;
     this.errorMsg = '';
     this.successMsg = '';
   }
 
   backToSignIn(): void {
     this.showForgotPassword = false;
+    this.recoveryEmailSent = false;
     this.errorMsg = '';
   }
 }

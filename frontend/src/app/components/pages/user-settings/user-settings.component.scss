@@ -436,6 +436,26 @@
   transform: translateY(-1px);
 }
 
+.settings-email-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.25rem 0 0.5rem;
+  padding: 0.625rem 0.875rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 0.5rem;
+  color: #166534;
+  font-size: 0.75rem;
+  line-height: 1.4;
+
+  ion-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    color: #16a34a;
+  }
+}
+
 .settings-securityForm {
   max-width: 32rem;
   display: grid;
@@ -631,4 +651,18 @@
   .settings-passwordButton {
     width: 100%;
   }
+}
+
+/* Double-box prevention for user-settings */
+ion-input.settings-input,
+ion-input.settings-strongInput,
+ion-input.settings-mediumInput,
+ion-input.settings-idInput,
+ion-input.settings-passwordInput {
+  --background: transparent !important;
+  --border-color: transparent !important;
+  --border-width: 0 !important;
+  --border-style: none !important;
+  --box-shadow: none !important;
+  --highlight-height: 0 !important;
 }

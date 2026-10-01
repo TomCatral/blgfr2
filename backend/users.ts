@@ -1,12 +1,17 @@
 import express from 'express';
-import { randomUUID } from 'node:crypto';
+import crypto, { randomUUID } from 'node:crypto';
 import { addAuditLog } from './serverUtils.js';
 import {
   loadLiveUsers,
   saveUserDirect,
   saveAuditLogDirect,
   deleteUserDirect,
+  updateUserPassword,
 } from './mysqlReplica.js';
+import {
+  sendPasswordUpdatedEmail,
+  sendTemporaryPasswordEmail,
+} from './emailService.js';
 import {
   User,
   AuditLog,
@@ -24,7 +29,7 @@ export function createUsersRouter(
   getUsersState: () => User[],
   setUsersState: (users: User[]) => void,
   getAuditLogsState: () => AuditLog[],
-  syncEmployeeProfile: (user: User) => void,
+  syncEmployeeProfile: (user: User, persist?: boolean) => void,
 ) {
   const router = express.Router();
   const getActingUser = (req: express.Request) =>
@@ -34,36 +39,38 @@ export function createUsersRouter(
 
   const canManageUsers = (user?: User): boolean => {
     if (!user) return false;
-    if (user.role === 'SYSTEM_ADMIN') return true;
-    const permissions =
-      user.permissions ||
-      DEFAULT_ROLE_PERMISSIONS[user.role] ||
-      DEFAULT_ROLE_PERMISSIONS.STAFF;
-    return Boolean(permissions.management || permissions.allowedViews?.includes('users'));
+    return user.role === 'SYSTEM_ADMIN';
   };
 
   const hasUserAction = (user: User | undefined, action: string): boolean => {
     if (!user) return false;
     if (user.role === 'SYSTEM_ADMIN') return true;
+    if (action.startsWith('USER_')) return false;
     const permissions =
       user.permissions ||
       DEFAULT_ROLE_PERMISSIONS[user.role] ||
       DEFAULT_ROLE_PERMISSIONS.STAFF;
-    if (permissions.allowedActions?.includes(action)) return true;
-    if (
-      canManageUsers(user) &&
-      (action === 'USER_ACCOUNT_CREATE' || action === 'USER_ACCOUNT_EDIT')
-    ) {
-      return true;
-    }
-    if (
-      canManageUsers(user) &&
-      action === 'USER_ACCOUNT_DELETE' &&
-      permissions.canDelete
-    ) {
-      return true;
-    }
-    return false;
+    return Boolean(permissions.allowedActions?.includes(action));
+  };
+
+  const sanitizeUserAccountPermissions = (user: User): User => {
+    if (user.role === 'SYSTEM_ADMIN') return user;
+    const adminActions = [
+      'USER_ACCOUNT_CREATE',
+      'USER_ACCOUNT_EDIT',
+      'USER_ACCOUNT_DELETE',
+      'USER_SYSTEM_ADMIN_MANAGE',
+    ];
+    const permissions = user.permissions
+      ? {
+          ...user.permissions,
+          allowedViews: (user.permissions.allowedViews || []).filter((v) => v !== 'users'),
+          allowedActions: (user.permissions.allowedActions || []).filter(
+            (a) => !adminActions.includes(a),
+          ),
+        }
+      : undefined;
+    return { ...user, permissions };
   };
 
   // GET Users
@@ -71,19 +78,24 @@ export function createUsersRouter(
     try {
       const liveUsers = await loadLiveUsers();
       if (liveUsers) {
-        const databaseUsers = liveUsers as User[];
+        const databaseUsers = (liveUsers as User[]).map(sanitizeUserAccountPermissions);
         setUsersState(databaseUsers);
         // User accounts are the source of truth for BLGF Personnel. Recreate
         // any missing profile by permanent user ID, including legacy accounts
         // that existed before automatic directory synchronization.
-        databaseUsers.forEach(syncEmployeeProfile);
+        // Keep the in-memory directory aligned without writing a full database
+        // snapshot during a read-only GET request. Persisting here could
+        // overwrite changes made directly in MySQL between polling cycles.
+        databaseUsers.forEach((user) => syncEmployeeProfile(user, false));
       }
       const actingUser = getActingUser(req);
       if (!actingUser) return res.json([]);
       const visibleUsers =
         actingUser.role === 'SYSTEM_ADMIN'
           ? getUsersState()
-          : getUsersState().filter((user) => user.active);
+          : getUsersState()
+              .filter((user) => user.active)
+              .map(sanitizeUserAccountPermissions);
       res.json(visibleUsers.map(withoutCredentials));
     } catch (error) {
       console.error('[GET /api/users] Live MySQL read failed:', error);
@@ -95,7 +107,9 @@ export function createUsersRouter(
       const visibleUsers =
         actingUser.role === 'SYSTEM_ADMIN'
           ? getUsersState()
-          : getUsersState().filter((user) => user.active);
+          : getUsersState()
+              .filter((user) => user.active)
+              .map(sanitizeUserAccountPermissions);
       res.json(visibleUsers.map(withoutCredentials));
     }
   });
@@ -108,8 +122,8 @@ export function createUsersRouter(
     if (!actingUser) {
       return res.status(401).json({ error: 'Active database user required.' });
     }
-    if (!canManageUsers(actingUser) || !hasUserAction(actingUser, 'USER_ACCOUNT_CREATE')) {
-      return res.status(403).json({ error: 'Create user account permission required.' });
+    if (actingUser.role !== 'SYSTEM_ADMIN') {
+      return res.status(403).json({ error: 'System Administrator access required to create user accounts.' });
     }
     if (body.role === 'SYSTEM_ADMIN' && !hasUserAction(actingUser, 'USER_SYSTEM_ADMIN_MANAGE')) {
       return res.status(403).json({
@@ -145,7 +159,7 @@ export function createUsersRouter(
     ) {
       return res.status(409).json({ error: 'Username already exists' });
     }
-    const newUser: User = {
+    const newUser: User = sanitizeUserAccountPermissions({
       id: `usr-${randomUUID()}`,
       username,
       password: body.password,
@@ -169,7 +183,7 @@ export function createUsersRouter(
         ),
       active: true,
       createdAt: new Date().toISOString(),
-    };
+    });
 
     setUsersState([...usersState, newUser]);
 
@@ -214,11 +228,8 @@ export function createUsersRouter(
       return res.status(404).json({ error: 'User not found' });
     }
     const isSelfUpdate = actingUser.id === req.params.id;
-    if (
-      !isSelfUpdate &&
-      (!canManageUsers(actingUser) || !hasUserAction(actingUser, 'USER_ACCOUNT_EDIT'))
-    ) {
-      return res.status(403).json({ error: 'Edit user account permission required.' });
+    if (!isSelfUpdate && actingUser.role !== 'SYSTEM_ADMIN') {
+      return res.status(403).json({ error: 'System Administrator access required to modify user accounts.' });
     }
     const isSystemAdministrator = usersState[uIdx].role === 'SYSTEM_ADMIN';
     if (
@@ -316,14 +327,15 @@ export function createUsersRouter(
     ) {
       return res.status(409).json({ error: 'Username already exists' });
     }
+    const passwordWillChange = Boolean(updates.password);
     if (updates.password) {
-      const authorizedManagerResettingAnotherUser =
-        !isSelfUpdate && hasUserAction(actingUser, 'USER_ACCOUNT_EDIT');
-      if (!authorizedManagerResettingAnotherUser && !requestedCurrentPassword) {
+      const administratorResettingAnotherUser =
+        !isSelfUpdate && actingUser.role === 'SYSTEM_ADMIN';
+      if (!administratorResettingAnotherUser && !requestedCurrentPassword) {
         return res.status(400).json({ error: 'Current password is required.' });
       }
       if (
-        !authorizedManagerResettingAnotherUser &&
+        !administratorResettingAnotherUser &&
         usersState[uIdx].password &&
         usersState[uIdx].password !== requestedCurrentPassword
       ) {
@@ -335,11 +347,11 @@ export function createUsersRouter(
     }
 
     const previousUser = { ...usersState[uIdx] };
-    const updatedUser = {
+    const updatedUser = sanitizeUserAccountPermissions({
       ...usersState[uIdx],
       ...updates,
       username,
-    };
+    });
 
     if (updatedUser.role === 'ADMIN') {
       updatedUser.divisionCode = 'AD';
@@ -362,7 +374,9 @@ export function createUsersRouter(
       userName: actingUser.fullName,
       userRole: actingUser.role,
       action: 'UPDATE_USER',
-      details: `Updated account details for ${updatedUser.fullName}`,
+      details: passwordWillChange
+        ? `Updated account details and changed the database login password for ${updatedUser.fullName}`
+        : `Updated account details for ${updatedUser.fullName}`,
       ipAddress: req.ip || '127.0.0.1',
     });
 
@@ -385,7 +399,105 @@ export function createUsersRouter(
         });
     }
     syncEmployeeProfile(updatedUser);
+
+    if (
+      passwordWillChange &&
+      updatedUser.email &&
+      updatedUser.email.trim() &&
+      updatedUser.email.trim() !== 'N/A' &&
+      updatedUser.email.includes('@')
+    ) {
+      void sendPasswordUpdatedEmail(
+        updatedUser,
+        isSelfUpdate ? undefined : updates.password,
+        !isSelfUpdate,
+      ).catch((err) =>
+        console.warn('[USERS] Password update email delivery warning:', err),
+      );
+    }
+
     res.json(withoutCredentials(updatedUser));
+  });
+
+  // POST /api/users/:id/reset-password
+  router.post('/:id/reset-password', async (req, res) => {
+    const actingUser = getActingUser(req);
+    if (!actingUser) {
+      return res.status(401).json({ error: 'Active database user required.' });
+    }
+    if (actingUser.role !== 'SYSTEM_ADMIN') {
+      return res.status(403).json({
+        error: 'System Administrator access required to reset user passwords.',
+      });
+    }
+
+    const usersState = getUsersState();
+    const targetUser = usersState.find((u) => u.id === req.params.id);
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User account not found.' });
+    }
+
+    const recipientEmail = targetUser.email?.trim();
+    if (
+      !recipientEmail ||
+      recipientEmail === 'N/A' ||
+      !recipientEmail.includes('@')
+    ) {
+      return res.status(400).json({
+        error: `User "${targetUser.fullName}" does not have an official email address on file. Please configure their email address first.`,
+      });
+    }
+
+    // Generate secure temporary recovery password
+    const temporaryPassword = `BLGF-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+    const temporaryPasswordExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    const emailResult = await sendTemporaryPasswordEmail(
+      targetUser,
+      temporaryPassword,
+      15,
+    );
+
+    if (!emailResult.success) {
+      return res.status(500).json({
+        error: `Failed to dispatch temporary password email to ${recipientEmail}: ${emailResult.error || 'SMTP delivery failure'}.`,
+      });
+    }
+
+    targetUser.password = temporaryPassword;
+    targetUser.temporaryPasswordExpiresAt = temporaryPasswordExpiresAt.toISOString();
+
+    try {
+      await updateUserPassword(
+        targetUser.id,
+        temporaryPassword,
+        temporaryPasswordExpiresAt,
+      );
+    } catch (err) {
+      console.warn('[USERS] MySQL updateUserPassword error:', err);
+    }
+
+    const auditLog = addAuditLog(getAuditLogsState(), {
+      userId: actingUser.id,
+      userName: actingUser.fullName,
+      userRole: actingUser.role,
+      action: 'UPDATE_USER',
+      details: `Administrator ${actingUser.fullName} dispatched a temporary password reset email to ${targetUser.fullName} (${recipientEmail}).`,
+      ipAddress: req.ip || '127.0.0.1',
+    });
+
+    try {
+      await saveAuditLogDirect(auditLog);
+    } catch (err) {
+      console.warn('[USERS] Audit log direct save warning:', err);
+    }
+
+    return res.json({
+      success: true,
+      message: `A temporary password has been successfully sent to ${targetUser.fullName}'s email (${recipientEmail}).`,
+      targetEmail: recipientEmail,
+      username: targetUser.username,
+    });
   });
 
   // DELETE User
@@ -395,22 +507,8 @@ export function createUsersRouter(
     if (!actingUser) {
       return res.status(401).json({ error: 'Active database user required.' });
     }
-    if (
-      !canManageUsers(actingUser) ||
-      !hasUserAction(actingUser, 'USER_ACCOUNT_DELETE')
-    ) {
-      return res.status(403).json({ error: 'Delete user account permission required.' });
-    }
-    const permissions =
-      actingUser.permissions ||
-      DEFAULT_ROLE_PERMISSIONS[actingUser.role] ||
-      DEFAULT_ROLE_PERMISSIONS.STAFF;
-    if (
-      actingUser.role !== 'SYSTEM_ADMIN' &&
-      !permissions.canDelete &&
-      !hasUserAction(actingUser, 'USER_ACCOUNT_DELETE')
-    ) {
-      return res.status(403).json({ error: 'Delete permission required.' });
+    if (actingUser.role !== 'SYSTEM_ADMIN') {
+      return res.status(403).json({ error: 'System Administrator access required to delete user accounts.' });
     }
     const accountToDelete = usersState.find(
       (user) => user.id === req.params.id,

@@ -14,7 +14,7 @@ import { CommonModule } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../../services/api.service';
 import { AppModalLayerComponent } from '../../ui/modal-layer.component';
-import { ManagedOption } from '../../ui/managed-options-select.component';
+import { ManagedOption, ManagedOptionsSelectComponent } from '../../ui/managed-options-select.component';
 import { AutocompleteFieldComponent } from '../../ui/autocomplete-field.component';
 import {
   DocumentDirection,
@@ -89,6 +89,7 @@ const DIVISION_OPTIONS: Array<[string, string]> = [
     CommonModule,
     AppModalLayerComponent,
     AutocompleteFieldComponent,
+    ManagedOptionsSelectComponent,
   ],
   templateUrl: './create-document.component.html',
   styleUrl: './create-document.component.scss',
@@ -115,7 +116,7 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
   });
   title = signal('');
   subject = signal('');
-  category = signal('Treasury Circular');
+  category = signal('');
   senderName = signal('');
   senderPosition = signal('');
   originatingOffice = signal('');
@@ -126,13 +127,11 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
   recipientPosition = signal('');
   recipientOffice = signal('');
   recipientAddress = signal('');
-  priority = signal<PriorityLevel>('ROUTINE');
+  priority = signal<PriorityLevel | ''>('');
   currentDivision = signal<DivisionCode | 'ALL' | ''>('');
-  targetCompletionDate = signal(
-    new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
-  );
+  targetCompletionDate = signal('');
   remarks = signal('');
-  initialAction = signal('Appropriate Action');
+  initialAction = signal('');
   attachments = signal<DocumentAttachment[]>([]);
   allEmployees = signal<User[]>([]);
   excludedRecipientIds = signal<string[]>([]);
@@ -417,30 +416,35 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
   onOutsideRecipientNameChange(name: string): void {
     this.recipientName.set(name);
     this.clearFieldValidation('recipient');
+    if (!name || !name.trim()) return;
 
     const normalizedName = this.normalizeRecipientName(name);
-    const matchingProfiles = normalizedName
-      ? this.directoryProfiles().filter(
-          (profile) =>
-            profile.active &&
-            profile.officeType !== 'BLGF' &&
-            this.normalizeRecipientName(profile.fullName) === normalizedName,
-        )
-      : [];
+    if (!normalizedName) return;
 
-    if (matchingProfiles.length !== 1) {
-      this.clearOutsideRecipientLookupDetails();
-      return;
+    // 1. Exact match against outside directory profiles
+    let profile = this.directoryProfiles().find(
+      (p) => p.officeType !== 'BLGF' && this.normalizeRecipientName(p.fullName) === normalizedName,
+    );
+
+    // 2. If no exact match, try prefix / title-stripped or substring match
+    if (!profile) {
+      const cleanInput = normalizedName.replace(/^(mr\.|ms\.|atty\.|hon\.|dir\.|engr\.)\s+/i, '').trim();
+      profile = this.directoryProfiles().find((p) => {
+        if (p.officeType === 'BLGF') return false;
+        const cleanName = this.normalizeRecipientName(p.fullName).replace(/^(mr\.|ms\.|atty\.|hon\.|dir\.|engr\.)\s+/i, '').trim();
+        return cleanName === cleanInput || cleanName.includes(cleanInput) || cleanInput.includes(cleanName);
+      });
     }
 
-    const profile = matchingProfiles[0];
-    this.populateFieldsFromRecipient({
-      id: profile.id,
-      name: profile.fullName || '',
-      position: profile.position || '',
-      office: profile.office || '',
-      address: profile.address || '',
-    });
+    if (profile) {
+      this.populateFieldsFromRecipient({
+        id: profile.id,
+        name: profile.fullName || name,
+        position: profile.position || '',
+        office: profile.office || '',
+        address: profile.address || '',
+      });
+    }
   }
 
   populateFieldsFromRecipient(rec: OutsideRecipientEntry): void {
@@ -501,7 +505,9 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     firstValueFrom(this.api.getEmployees())
       .then((employees) => {
         const nonBlgf = (employees || []).filter(
-          (employee) => employee.active && employee.officeType !== 'BLGF',
+          (employee) =>
+            employee.active !== false &&
+            employee.officeType !== 'BLGF',
         );
         this.directoryProfiles.set(nonBlgf);
       })
@@ -612,13 +618,18 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
+  discardAndClose = (): void => {
+    this.resetForm();
+    this.onClose();
+  };
+
   private resetForm(): void {
     const dir = this.initialDirection || 'INCOMING';
     this.direction.set(dir);
     this.recipientType.set(dir === 'OUTGOING' ? 'OUTSIDE' : 'INTERNAL');
     this.title.set('');
     this.subject.set('');
-    this.category.set('Treasury Circular');
+    this.category.set('');
     this.senderName.set('');
     this.senderPosition.set('');
     this.originatingOffice.set('');
@@ -630,13 +641,11 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     this.recipientOffice.set('');
     this.recipientAddress.set('');
     this.selectedDirectoryProfileId.set('');
-    this.priority.set('ROUTINE');
+    this.priority.set('');
     this.currentDivision.set('');
-    this.targetCompletionDate.set(
-      new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
-    );
+    this.targetCompletionDate.set('');
     this.remarks.set('');
-    this.initialAction.set('Appropriate Action');
+    this.initialAction.set('');
     this.attachments.set([]);
     this.excludedRecipientIds.set([]);
     this.additionalDivisions.set([]);
@@ -648,6 +657,7 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     this.showAddOutsideDepartment.set(false);
     this.excludedOutsideRecipientIds.set([]);
     this.customOutsideRecipients.set([]);
+    this.validationErrors.set([]);
     this.loadEmployees();
     this.fetchServerRouteNo();
   }
@@ -740,10 +750,7 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     return [div, ...this.additionalDivisions()].filter(Boolean).join(', ');
   });
 
-  categoryOptions = computed<ManagedOption[]>(() => {
-    const categories = this.loadDocumentCategories();
-    return categories.map((c) => ({ value: c, label: c }));
-  });
+  categoryOptions = computed<ManagedOption[]>(() => this.loadDocumentCategories());
 
   get typeOptions(): ManagedOption[] {
     return this.direction() === 'INCOMING'
@@ -759,17 +766,17 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     return [...PRIORITY_OPTIONS];
   }
 
-  canManageWorkflowOptions = computed(() => {
+  canManageWorkflowOptions(): boolean {
     const role = this.currentUser?.role;
-    if (role === 'SYSTEM_ADMIN') return true;
+    if (role === 'SYSTEM_ADMIN' || role === 'ADMIN') return true;
     const perms =
       this.currentUser?.permissions ||
-      DEFAULT_ROLE_PERMISSIONS[role] ||
+      (role ? DEFAULT_ROLE_PERMISSIONS[role] : undefined) ||
       DEFAULT_ROLE_PERMISSIONS.STAFF;
     return Boolean(
       perms.allowedActions?.includes('WORKFLOW_OPTION_MANAGE'),
     );
-  });
+  }
 
   availableAdditionalDivisions = computed(() => {
     const cur = this.currentDivision();
@@ -836,7 +843,7 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     ),
   ]);
 
-  private loadDocumentCategories(): string[] {
+  private loadDocumentCategories(): ManagedOption[] {
     const DEFAULTS = [
       'Treasury Circular',
       'Real Property Tax Assessment',
@@ -844,7 +851,7 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
       'Legal Opinion',
       'Personnel Memo',
       'General Correspondence',
-    ];
+    ].map((label) => ({ value: label, label }));
     try {
       const raw = localStorage.getItem('blgf_document_categories');
       if (!raw) return DEFAULTS;
@@ -852,13 +859,18 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
       if (!Array.isArray(parsed)) return DEFAULTS;
       const cats = parsed
         .map((item) => {
-          if (typeof item === 'string') return item.trim();
-          if (!item || typeof item !== 'object') return '';
+          if (typeof item === 'string') {
+            const label = item.trim();
+            return label ? { value: label, label } : null;
+          }
+          if (!item || typeof item !== 'object') return null;
           const opt = item as { label?: unknown; value?: unknown };
-          if (typeof opt.label === 'string') return opt.label.trim();
-          return typeof opt.value === 'string' ? opt.value.trim() : '';
+          const label = typeof opt.label === 'string' ? opt.label.trim() : '';
+          const value = typeof opt.value === 'string' ? opt.value.trim() : '';
+          return label || value ? { value: value || label, label: label || value } : null;
         })
-        .filter((item, index, all) => item && all.indexOf(item) === index);
+        .filter((item): item is ManagedOption => item !== null)
+        .filter((item, index, all) => all.findIndex((candidate) => candidate.value === item.value) === index);
       return cats.length ? cats : DEFAULTS;
     } catch {
       return DEFAULTS;

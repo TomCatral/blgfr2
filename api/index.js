@@ -7,7 +7,7 @@ import os from "os";
 
 // backend/users.ts
 import express from "express";
-import { randomUUID as randomUUID2 } from "node:crypto";
+import crypto, { randomUUID as randomUUID2 } from "node:crypto";
 
 // backend/serverUtils.ts
 import { randomUUID } from "node:crypto";
@@ -958,6 +958,260 @@ async function disconnectMySQLReplica() {
   status.connected = false;
 }
 
+// backend/emailService.ts
+import nodemailer from "nodemailer";
+import dotenv from "dotenv";
+try {
+  dotenv.config({ override: true, quiet: true });
+} catch {
+}
+function getSmtpConfig() {
+  try {
+    dotenv.config({ override: true, quiet: true });
+  } catch {
+  }
+  const smtpHost = process.env.SMTP_HOST?.trim();
+  const smtpUser = process.env.SMTP_USER?.trim();
+  const smtpPassword = process.env.SMTP_PASSWORD?.replace(/\s+/g, "");
+  const smtpPort = Number(process.env.SMTP_PORT || 587);
+  const isSecure = process.env.SMTP_SECURE === "true" || process.env.SMTP_SECURE !== "false" && smtpPort === 465;
+  const isConfigured = Boolean(
+    smtpHost && smtpUser && smtpPassword && !smtpHost.includes("example.com") && !smtpUser.includes("example.com")
+  );
+  return {
+    host: smtpHost,
+    port: smtpPort,
+    secure: isSecure,
+    user: smtpUser,
+    pass: smtpPassword,
+    from: process.env.SMTP_FROM || `"BLGF Region II DTS" <${smtpUser}>`,
+    isConfigured
+  };
+}
+function createTransporter() {
+  const config = getSmtpConfig();
+  if (!config.isConfigured || !config.host || !config.user || !config.pass) {
+    return null;
+  }
+  const isGmail = config.host.includes("gmail.com");
+  if (isGmail) {
+    return nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: config.user,
+        pass: config.pass
+      }
+    });
+  }
+  return nodemailer.createTransport({
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    auth: {
+      user: config.user,
+      pass: config.pass
+    },
+    connectionTimeout: 1e4,
+    greetingTimeout: 1e4,
+    socketTimeout: 15e3,
+    tls: {
+      rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== "false"
+    }
+  });
+}
+async function sendTemporaryPasswordEmail(user, temporaryPassword, expiresInMinutes = 15) {
+  const email = user.email?.trim();
+  if (!email) {
+    return { success: false, error: `User "${user.username}" does not have an email address.` };
+  }
+  const config = getSmtpConfig();
+  if (!config.isConfigured) {
+    return {
+      success: false,
+      error: "SMTP email delivery is not configured. Please verify SMTP_USER and SMTP_PASSWORD in .env."
+    };
+  }
+  const transporter = createTransporter();
+  if (!transporter) {
+    return { success: false, error: "Could not initialize email transporter." };
+  }
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>BLGF DTS - Account Recovery</title>
+    </head>
+    <body style="margin: 0; padding: 24px; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+        <tr>
+          <td style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 28px 24px; text-align: center;">
+            <h1 style="margin: 0; color: #ffffff; font-size: 17px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;">
+              Bureau of Local Government Finance
+            </h1>
+            <p style="margin: 6px 0 0; color: #bfdbfe; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;">
+              Regional Office No. II &bull; Document Tracking System
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 28px 24px; color: #1e293b;">
+            <p style="margin: 0 0 16px; font-size: 15px; font-weight: 700; color: #0f172a;">
+              Dear ${user.fullName},
+            </p>
+            <p style="margin: 0 0 18px; font-size: 14px; line-height: 1.55; color: #475569;">
+              A temporary password was requested for your account (<strong>${user.username}</strong>). Use the recovery password below to sign in to the BLGF DTS portal:
+            </p>
+            
+            <div style="background: #f8fafc; border: 2px dashed #2563eb; border-radius: 10px; padding: 20px; text-align: center; margin: 22px 0;">
+              <span style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 6px;">
+                Temporary Recovery Password
+              </span>
+              <span style="display: inline-block; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 26px; font-weight: 800; color: #1d4ed8; letter-spacing: 0.12em; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 18px;">
+                ${temporaryPassword}
+              </span>
+              <span style="display: block; margin-top: 10px; font-size: 12px; font-weight: 700; color: #dc2626;">
+                &bull; Expires in ${expiresInMinutes} minutes &bull;
+              </span>
+            </div>
+
+            <p style="margin: 0 0 12px; font-size: 13px; line-height: 1.55; color: #334155;">
+              <strong>Next Steps:</strong> Sign in with your username (<code>${user.username}</code>) and this temporary password, then immediately update your password under User Settings.
+            </p>
+            
+            <div style="margin: 20px 0 0; padding: 12px 14px; background: #fef2f2; border-left: 3px solid #ef4444; border-radius: 0 6px 6px 0; font-size: 12px; color: #991b1b; line-height: 1.5;">
+              If you did not request this recovery, please review your account immediately or notify your system administrator.
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 24px; text-align: center; font-size: 11px; color: #94a3b8; line-height: 1.4;">
+            This is an automated notification from BLGF Regional Office No. II Document Tracking System.<br>
+            Delivered directly to your official email: ${email}
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+  try {
+    await transporter.sendMail({
+      from: config.from,
+      to: email,
+      subject: "BLGF DTS - Temporary Account Recovery Password",
+      text: [
+        "BUREAU OF LOCAL GOVERNMENT FINANCE - REGIONAL OFFICE NO. II",
+        "Document Tracking System (DTS)",
+        "",
+        `Hello ${user.fullName},`,
+        "",
+        `A temporary recovery password was requested for your account (${user.username}).`,
+        "",
+        `Temporary Password: ${temporaryPassword}`,
+        `Validity: ${expiresInMinutes} minutes only`,
+        "",
+        "Please sign in immediately using this temporary password and update your password under User Settings.",
+        "If you did not request this recovery, please check your account immediately."
+      ].join("\n"),
+      html: htmlContent
+    });
+    return { success: true };
+  } catch (err) {
+    console.error(`[EMAIL] Failed to send temporary password email to ${email}:`, err);
+    return { success: false, error: err?.message || "Failed to dispatch email" };
+  }
+}
+async function sendPasswordUpdatedEmail(user, newPassword, changedByAdmin = false) {
+  const email = user.email?.trim();
+  if (!email) return { success: false, error: "User has no email" };
+  const config = getSmtpConfig();
+  if (!config.isConfigured) return { success: false, error: "SMTP unconfigured" };
+  const transporter = createTransporter();
+  if (!transporter) return { success: false, error: "No transporter" };
+  const subject = changedByAdmin ? "BLGF DTS - Account Password Updated by Administrator" : "BLGF DTS - Account Password Successfully Changed";
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${subject}</title>
+    </head>
+    <body style="margin: 0; padding: 24px; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+        <tr>
+          <td style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 28px 24px; text-align: center;">
+            <h1 style="margin: 0; color: #ffffff; font-size: 17px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;">
+              Bureau of Local Government Finance
+            </h1>
+            <p style="margin: 6px 0 0; color: #bfdbfe; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;">
+              Regional Office No. II &bull; Document Tracking System
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 28px 24px; color: #1e293b;">
+            <p style="margin: 0 0 16px; font-size: 15px; font-weight: 700; color: #0f172a;">
+              Dear ${user.fullName},
+            </p>
+            <p style="margin: 0 0 18px; font-size: 14px; line-height: 1.55; color: #475569;">
+              ${changedByAdmin ? `Your login password for BLGF DTS (<strong>${user.username}</strong>) has been updated by the system administrator.` : `Your login password for BLGF DTS (<strong>${user.username}</strong>) was successfully changed on <strong>${(/* @__PURE__ */ new Date()).toLocaleString()}</strong>.`}
+            </p>
+            
+            ${changedByAdmin && newPassword ? `
+                <div style="background: #f8fafc; border: 2px dashed #2563eb; border-radius: 10px; padding: 20px; text-align: center; margin: 22px 0;">
+                  <span style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 6px;">
+                    Your New Login Password
+                  </span>
+                  <span style="display: inline-block; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 22px; font-weight: 800; color: #1d4ed8; letter-spacing: 0.08em; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 18px;">
+                    ${newPassword}
+                  </span>
+                </div>
+                <p style="margin: 0 0 12px; font-size: 13px; line-height: 1.55; color: #334155;">
+                  Please sign in with this password and update it to your personal preference under User Settings.
+                </p>
+                ` : ""}
+
+            <div style="margin: 20px 0 0; padding: 12px 14px; background: #f0fdf4; border-left: 3px solid #22c55e; border-radius: 0 6px 6px 0; font-size: 12px; color: #166534; line-height: 1.5;">
+              If you did not authorize or expect this password update, please contact the BLGF DTS Administrator immediately.
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 24px; text-align: center; font-size: 11px; color: #94a3b8; line-height: 1.4;">
+            This is an automated notification from BLGF Regional Office No. II Document Tracking System.<br>
+            Delivered directly to: ${email}
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+  try {
+    await transporter.sendMail({
+      from: config.from,
+      to: email,
+      subject,
+      text: [
+        "BUREAU OF LOCAL GOVERNMENT FINANCE - REGIONAL OFFICE NO. II",
+        "Document Tracking System (DTS)",
+        "",
+        `Hello ${user.fullName},`,
+        "",
+        changedByAdmin ? `Your BLGF DTS password (${user.username}) was updated by the administrator.${newPassword ? ` New Password: ${newPassword}` : ""}` : `Your BLGF DTS password (${user.username}) was successfully changed.`,
+        "",
+        "If you did not authorize this, please contact administration immediately."
+      ].join("\n"),
+      html: htmlContent
+    });
+    return { success: true };
+  } catch (err) {
+    console.error(`[EMAIL] Failed to send password update email to ${email}:`, err);
+    return { success: false, error: err?.message };
+  }
+}
+
 // frontend/src/app/types.ts
 var DEFAULT_ROLE_PERMISSIONS = {
   SYSTEM_ADMIN: {
@@ -1031,8 +1285,6 @@ var DEFAULT_ROLE_PERMISSIONS = {
       "EMPLOYEE_FOLDER_MANAGE",
       "DIRECTORY_LGU_VIEW",
       "DIRECTORY_OTHER_VIEW",
-      "USER_ACCOUNT_CREATE",
-      "USER_ACCOUNT_EDIT",
       "ROUTING_MONITOR_VIEW",
       "ROUTING_REMINDER_SEND"
     ],
@@ -1062,15 +1314,12 @@ var DEFAULT_ROLE_PERMISSIONS = {
       "ROUTING_MONITOR_VIEW",
       "ROUTING_REMINDER_SEND",
       "NOTIFICATION_VIEW_ALL",
-      "DIRECTORY_BLGF_VIEW",
       "DIRECTORY_LGU_VIEW",
       "DIRECTORY_OTHER_VIEW",
       "EMPLOYEE_CREATE",
       "EMPLOYEE_EDIT",
       "EMPLOYEE_DELETE",
-      "EMPLOYEE_FOLDER_MANAGE",
-      "USER_ACCOUNT_CREATE",
-      "USER_ACCOUNT_EDIT"
+      "EMPLOYEE_FOLDER_MANAGE"
     ],
     allowedViews: [
       "dashboard",
@@ -1097,7 +1346,6 @@ var DEFAULT_ROLE_PERMISSIONS = {
     allowedActions: [
       "ROUTING_MONITOR_VIEW",
       "ROUTING_REMINDER_SEND",
-      "DIRECTORY_BLGF_VIEW",
       "DIRECTORY_LGU_VIEW",
       "DIRECTORY_OTHER_VIEW"
     ],
@@ -1123,7 +1371,7 @@ var DEFAULT_ROLE_PERMISSIONS = {
     canDelete: false,
     canViewAllDocuments: false,
     canViewAllRoutes: false,
-    allowedActions: ["DIRECTORY_BLGF_VIEW", "DIRECTORY_LGU_VIEW", "DIRECTORY_OTHER_VIEW"],
+    allowedActions: ["DIRECTORY_LGU_VIEW", "DIRECTORY_OTHER_VIEW"],
     allowedViews: [
       "dashboard",
       "division-workload",
@@ -1145,7 +1393,7 @@ var DEFAULT_ROLE_PERMISSIONS = {
     canDelete: false,
     canViewAllDocuments: false,
     canViewAllRoutes: false,
-    allowedActions: ["DIRECTORY_BLGF_VIEW", "DIRECTORY_LGU_VIEW", "DIRECTORY_OTHER_VIEW"],
+    allowedActions: ["DIRECTORY_LGU_VIEW", "DIRECTORY_OTHER_VIEW"],
     allowedViews: [
       "dashboard",
       "division-workload",
@@ -1173,40 +1421,49 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
   );
   const canManageUsers = (user) => {
     if (!user) return false;
-    if (user.role === "SYSTEM_ADMIN") return true;
-    const permissions = user.permissions || DEFAULT_ROLE_PERMISSIONS[user.role] || DEFAULT_ROLE_PERMISSIONS.STAFF;
-    return Boolean(permissions.management || permissions.allowedViews?.includes("users"));
+    return user.role === "SYSTEM_ADMIN";
   };
   const hasUserAction = (user, action) => {
     if (!user) return false;
     if (user.role === "SYSTEM_ADMIN") return true;
+    if (action.startsWith("USER_")) return false;
     const permissions = user.permissions || DEFAULT_ROLE_PERMISSIONS[user.role] || DEFAULT_ROLE_PERMISSIONS.STAFF;
-    if (permissions.allowedActions?.includes(action)) return true;
-    if (canManageUsers(user) && (action === "USER_ACCOUNT_CREATE" || action === "USER_ACCOUNT_EDIT")) {
-      return true;
-    }
-    if (canManageUsers(user) && action === "USER_ACCOUNT_DELETE" && permissions.canDelete) {
-      return true;
-    }
-    return false;
+    return Boolean(permissions.allowedActions?.includes(action));
+  };
+  const sanitizeUserAccountPermissions = (user) => {
+    if (user.role === "SYSTEM_ADMIN") return user;
+    const adminActions = [
+      "USER_ACCOUNT_CREATE",
+      "USER_ACCOUNT_EDIT",
+      "USER_ACCOUNT_DELETE",
+      "USER_SYSTEM_ADMIN_MANAGE"
+    ];
+    const permissions = user.permissions ? {
+      ...user.permissions,
+      allowedViews: (user.permissions.allowedViews || []).filter((v) => v !== "users"),
+      allowedActions: (user.permissions.allowedActions || []).filter(
+        (a) => !adminActions.includes(a)
+      )
+    } : void 0;
+    return { ...user, permissions };
   };
   router.get("/", async (req, res) => {
     try {
       const liveUsers = await loadLiveUsers();
       if (liveUsers) {
-        const databaseUsers = liveUsers;
+        const databaseUsers = liveUsers.map(sanitizeUserAccountPermissions);
         setUsersState(databaseUsers);
-        databaseUsers.forEach(syncEmployeeProfile);
+        databaseUsers.forEach((user) => syncEmployeeProfile(user, false));
       }
       const actingUser = getActingUser(req);
       if (!actingUser) return res.json([]);
-      const visibleUsers = actingUser.role === "SYSTEM_ADMIN" ? getUsersState() : getUsersState().filter((user) => user.active);
+      const visibleUsers = actingUser.role === "SYSTEM_ADMIN" ? getUsersState() : getUsersState().filter((user) => user.active).map(sanitizeUserAccountPermissions);
       res.json(visibleUsers.map(withoutCredentials));
     } catch (error) {
       console.error("[GET /api/users] Live MySQL read failed:", error);
       const actingUser = getActingUser(req);
       if (!actingUser) return res.json([]);
-      const visibleUsers = actingUser.role === "SYSTEM_ADMIN" ? getUsersState() : getUsersState().filter((user) => user.active);
+      const visibleUsers = actingUser.role === "SYSTEM_ADMIN" ? getUsersState() : getUsersState().filter((user) => user.active).map(sanitizeUserAccountPermissions);
       res.json(visibleUsers.map(withoutCredentials));
     }
   });
@@ -1217,8 +1474,8 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
     if (!actingUser) {
       return res.status(401).json({ error: "Active database user required." });
     }
-    if (!canManageUsers(actingUser) || !hasUserAction(actingUser, "USER_ACCOUNT_CREATE")) {
-      return res.status(403).json({ error: "Create user account permission required." });
+    if (actingUser.role !== "SYSTEM_ADMIN") {
+      return res.status(403).json({ error: "System Administrator access required to create user accounts." });
     }
     if (body.role === "SYSTEM_ADMIN" && !hasUserAction(actingUser, "USER_SYSTEM_ADMIN_MANAGE")) {
       return res.status(403).json({
@@ -1244,7 +1501,7 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
     )) {
       return res.status(409).json({ error: "Username already exists" });
     }
-    const newUser = {
+    const newUser = sanitizeUserAccountPermissions({
       id: `usr-${randomUUID2()}`,
       username,
       password: body.password,
@@ -1260,7 +1517,7 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
       ),
       active: true,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
-    };
+    });
     setUsersState([...usersState2, newUser]);
     const auditLog = addAuditLog(getAuditLogsState(), {
       userId: actingUser.id,
@@ -1296,8 +1553,8 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
       return res.status(404).json({ error: "User not found" });
     }
     const isSelfUpdate = actingUser.id === req.params.id;
-    if (!isSelfUpdate && (!canManageUsers(actingUser) || !hasUserAction(actingUser, "USER_ACCOUNT_EDIT"))) {
-      return res.status(403).json({ error: "Edit user account permission required." });
+    if (!isSelfUpdate && actingUser.role !== "SYSTEM_ADMIN") {
+      return res.status(403).json({ error: "System Administrator access required to modify user accounts." });
     }
     const isSystemAdministrator = usersState2[uIdx].role === "SYSTEM_ADMIN";
     if (!isSelfUpdate && isSystemAdministrator && !hasUserAction(actingUser, "USER_SYSTEM_ADMIN_MANAGE")) {
@@ -1366,22 +1623,23 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
     )) {
       return res.status(409).json({ error: "Username already exists" });
     }
+    const passwordWillChange = Boolean(updates.password);
     if (updates.password) {
-      const authorizedManagerResettingAnotherUser = !isSelfUpdate && hasUserAction(actingUser, "USER_ACCOUNT_EDIT");
-      if (!authorizedManagerResettingAnotherUser && !requestedCurrentPassword) {
+      const administratorResettingAnotherUser = !isSelfUpdate && actingUser.role === "SYSTEM_ADMIN";
+      if (!administratorResettingAnotherUser && !requestedCurrentPassword) {
         return res.status(400).json({ error: "Current password is required." });
       }
-      if (!authorizedManagerResettingAnotherUser && usersState2[uIdx].password && usersState2[uIdx].password !== requestedCurrentPassword) {
+      if (!administratorResettingAnotherUser && usersState2[uIdx].password && usersState2[uIdx].password !== requestedCurrentPassword) {
         return res.status(401).json({ error: "Current password is incorrect." });
       }
       updates.temporaryPasswordExpiresAt = null;
     }
     const previousUser = { ...usersState2[uIdx] };
-    const updatedUser = {
+    const updatedUser = sanitizeUserAccountPermissions({
       ...usersState2[uIdx],
       ...updates,
       username
-    };
+    });
     if (updatedUser.role === "ADMIN") {
       updatedUser.divisionCode = "AD";
       if (!updates.permissions) {
@@ -1402,7 +1660,7 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
       userName: actingUser.fullName,
       userRole: actingUser.role,
       action: "UPDATE_USER",
-      details: `Updated account details for ${updatedUser.fullName}`,
+      details: passwordWillChange ? `Updated account details and changed the database login password for ${updatedUser.fullName}` : `Updated account details for ${updatedUser.fullName}`,
       ipAddress: req.ip || "127.0.0.1"
     });
     try {
@@ -1420,7 +1678,80 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
       });
     }
     syncEmployeeProfile(updatedUser);
+    if (passwordWillChange && updatedUser.email && updatedUser.email.trim() && updatedUser.email.trim() !== "N/A" && updatedUser.email.includes("@")) {
+      void sendPasswordUpdatedEmail(
+        updatedUser,
+        isSelfUpdate ? void 0 : updates.password,
+        !isSelfUpdate
+      ).catch(
+        (err) => console.warn("[USERS] Password update email delivery warning:", err)
+      );
+    }
     res.json(withoutCredentials(updatedUser));
+  });
+  router.post("/:id/reset-password", async (req, res) => {
+    const actingUser = getActingUser(req);
+    if (!actingUser) {
+      return res.status(401).json({ error: "Active database user required." });
+    }
+    if (actingUser.role !== "SYSTEM_ADMIN") {
+      return res.status(403).json({
+        error: "System Administrator access required to reset user passwords."
+      });
+    }
+    const usersState2 = getUsersState();
+    const targetUser = usersState2.find((u) => u.id === req.params.id);
+    if (!targetUser) {
+      return res.status(404).json({ error: "User account not found." });
+    }
+    const recipientEmail = targetUser.email?.trim();
+    if (!recipientEmail || recipientEmail === "N/A" || !recipientEmail.includes("@")) {
+      return res.status(400).json({
+        error: `User "${targetUser.fullName}" does not have an official email address on file. Please configure their email address first.`
+      });
+    }
+    const temporaryPassword = `BLGF-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
+    const temporaryPasswordExpiresAt = new Date(Date.now() + 15 * 60 * 1e3);
+    const emailResult = await sendTemporaryPasswordEmail(
+      targetUser,
+      temporaryPassword,
+      15
+    );
+    if (!emailResult.success) {
+      return res.status(500).json({
+        error: `Failed to dispatch temporary password email to ${recipientEmail}: ${emailResult.error || "SMTP delivery failure"}.`
+      });
+    }
+    targetUser.password = temporaryPassword;
+    targetUser.temporaryPasswordExpiresAt = temporaryPasswordExpiresAt.toISOString();
+    try {
+      await updateUserPassword(
+        targetUser.id,
+        temporaryPassword,
+        temporaryPasswordExpiresAt
+      );
+    } catch (err) {
+      console.warn("[USERS] MySQL updateUserPassword error:", err);
+    }
+    const auditLog = addAuditLog(getAuditLogsState(), {
+      userId: actingUser.id,
+      userName: actingUser.fullName,
+      userRole: actingUser.role,
+      action: "UPDATE_USER",
+      details: `Administrator ${actingUser.fullName} dispatched a temporary password reset email to ${targetUser.fullName} (${recipientEmail}).`,
+      ipAddress: req.ip || "127.0.0.1"
+    });
+    try {
+      await saveAuditLogDirect(auditLog);
+    } catch (err) {
+      console.warn("[USERS] Audit log direct save warning:", err);
+    }
+    return res.json({
+      success: true,
+      message: `A temporary password has been successfully sent to ${targetUser.fullName}'s email (${recipientEmail}).`,
+      targetEmail: recipientEmail,
+      username: targetUser.username
+    });
   });
   router.delete("/:id", async (req, res) => {
     const usersState2 = getUsersState();
@@ -1428,12 +1759,8 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
     if (!actingUser) {
       return res.status(401).json({ error: "Active database user required." });
     }
-    if (!canManageUsers(actingUser) || !hasUserAction(actingUser, "USER_ACCOUNT_DELETE")) {
-      return res.status(403).json({ error: "Delete user account permission required." });
-    }
-    const permissions = actingUser.permissions || DEFAULT_ROLE_PERMISSIONS[actingUser.role] || DEFAULT_ROLE_PERMISSIONS.STAFF;
-    if (actingUser.role !== "SYSTEM_ADMIN" && !permissions.canDelete && !hasUserAction(actingUser, "USER_ACCOUNT_DELETE")) {
-      return res.status(403).json({ error: "Delete permission required." });
+    if (actingUser.role !== "SYSTEM_ADMIN") {
+      return res.status(403).json({ error: "System Administrator access required to delete user accounts." });
     }
     const accountToDelete = usersState2.find(
       (user) => user.id === req.params.id
@@ -1713,6 +2040,8 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
         error: "System administrators cannot be document recipients or handlers."
       });
     }
+    const isOutside = Boolean(body.isOutside);
+    const completedRemarks = body.remarks && String(body.remarks).trim() !== "" && String(body.remarks).trim() !== "N/A" ? String(body.remarks).trim() : "Completed - Recorded as Outside Office Outgoing Dispatch";
     const newDoc = {
       id: newDocumentId,
       trackingNumber,
@@ -1722,7 +2051,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       subject: body.subject || "",
       category: body.category || "General Correspondence",
       originatingOffice: body.originatingOffice || "External Office",
-      destinationOffice: body.destinationOffice || "BLGF Region II",
+      destinationOffice: body.destinationOffice || (isOutside ? "External Office" : "BLGF Region II"),
       senderName: body.senderName || "",
       senderPosition: body.senderPosition || "",
       senderAddress: body.senderAddress || "",
@@ -1730,17 +2059,36 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       recipientPosition: body.recipientPosition || "",
       recipientOffice: body.recipientOffice || "",
       recipientAddress: body.recipientAddress || "",
-      priority: body.priority || "ROUTINE",
-      currentStatus: body.currentStatus || "PENDING",
+      priority: isOutside ? "ROUTINE" : body.priority || "ROUTINE",
+      currentStatus: isOutside ? "COMPLETED" : body.currentStatus || "PENDING",
       currentDivision: body.currentDivision || "AD",
-      assignedUser: directlyAssignedUser?.fullName || "",
-      assignedUserId: directlyAssignedUser?.id,
+      assignedUser: isOutside ? body.recipientName || "External Recipient" : directlyAssignedUser?.fullName || "",
+      assignedUserId: isOutside ? void 0 : directlyAssignedUser?.id,
       dateReceived: body.dateReceived || now,
       targetCompletionDate: body.targetCompletionDate || new Date(Date.now() + 3 * 864e5).toISOString(),
       tags: body.tags || [],
       attachments: (body.attachments || []).map((file) => ({ ...file, attachmentScope: "DOCUMENT", uploadedByUserId: actingUser.id })),
-      actionRequested: body.initialAction || "Appropriate Action",
-      routes: initialRecipients.length > 0 ? initialRecipients.map((recipient, index) => ({
+      actionRequested: isOutside ? "Dispatched / Recorded (Outside Office)" : body.initialAction || "Appropriate Action",
+      routes: isOutside ? [
+        {
+          id: `route-${randomUUID3()}`,
+          documentId: newDocumentId,
+          stepNumber: 1,
+          routeNo: trackingNumber,
+          fromDivision: actingUser.divisionCode || body.currentDivision || "AD",
+          fromUserId: actingUser.id,
+          fromUser: actingUser.fullName,
+          toDivision: void 0,
+          toUser: body.recipientName || "External Recipient",
+          toUserId: void 0,
+          actionRequested: "Dispatched / Recorded (Outside Office)",
+          remarks: completedRemarks,
+          statusBefore: "PENDING",
+          statusAfter: "COMPLETED",
+          receivedAt: now,
+          createdAt: now
+        }
+      ] : initialRecipients.length > 0 ? initialRecipients.map((recipient, index) => ({
         id: `route-${randomUUID3()}`,
         documentId: newDocumentId,
         stepNumber: index + 1,
@@ -1796,19 +2144,24 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
         details: [
           `Created by: ${actingUser.fullName}`,
           `Document: ${body.title || "Untitled"} [${trackingNumber}]`,
+          `Direction: ${body.direction || "INCOMING"}`,
+          `Status: ${isOutside ? "COMPLETED" : body.currentStatus || "PENDING"}`,
           `Subject: ${body.subject || "N/A"}`,
           `Sender: ${body.senderName || "N/A"}`,
           `Position: ${body.senderPosition || "N/A"}`,
           `Originating office: ${body.originatingOffice || "N/A"}`,
           `Address: ${body.senderAddress || "N/A"}`,
-          `Action: ${body.initialAction || "Appropriate Action"}`
-        ].join(" | "),
+          body.recipientName ? `Recipient: ${body.recipientName} (${body.recipientOffice || "External Office"})` : "",
+          body.recipientAddress ? `Recipient Address: ${body.recipientAddress}` : "",
+          `Action: ${isOutside ? "Dispatched / Recorded (Outside Office)" : body.initialAction || "Appropriate Action"}`,
+          `Remarks: ${completedRemarks}`
+        ].filter(Boolean).join(" | "),
         ipAddress: req.ip || "127.0.0.1"
       },
       false
     );
     const createdNotifications = [];
-    if (body.assignedUserId) {
+    if (!isOutside && body.assignedUserId) {
       const assignedRecipient = usersState2.find(
         (user) => user.id === body.assignedUserId && user.active && user.role !== "SYSTEM_ADMIN" && user.divisionCode !== "ITMS"
       );
@@ -1826,7 +2179,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
           )
         );
       }
-    } else if (body.currentDivision) {
+    } else if (!isOutside && body.currentDivision) {
       const excludedRecipientIds = Array.isArray(body.excludedRecipientIds) ? body.excludedRecipientIds : [];
       usersState2.filter(
         (user) => user.active && (isMultiDivisionInitialRoute ? Array.isArray(body.initialRecipientIds) && body.initialRecipientIds.includes(user.id) : user.divisionCode === body.currentDivision) && !excludedRecipientIds.includes(user.id)
@@ -2585,11 +2938,10 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
 }
 
 // backend/server.ts
-import crypto from "crypto";
+import crypto2 from "crypto";
 import cors from "cors";
-import dotenv from "dotenv";
+import dotenv2 from "dotenv";
 import multer from "multer";
-import nodemailer from "nodemailer";
 
 // backend/pdfGenerator.ts
 function escapePdf(text2) {
@@ -2812,7 +3164,7 @@ ${preStreamLen}
 }
 
 // backend/server.ts
-dotenv.config({ quiet: true });
+dotenv2.config({ quiet: true });
 var DEFAULT_PORT = 3001;
 var PORT = Number(process.env.PORT || DEFAULT_PORT);
 var IS_VERCEL = Boolean(process.env.VERCEL);
@@ -2870,6 +3222,12 @@ var storageFileUrl = (kind, fileName) => `/api/storage/files/${kind}/${encodeURI
 var mysqlSyncQueue = Promise.resolve();
 var mysqlSyncRequested = false;
 var mysqlSyncWorkerActive = false;
+var mysqlRefreshPromise = null;
+var lastMySQLRefreshAt = 0;
+var MYSQL_LIVE_REFRESH_MS = Math.max(
+  500,
+  Number(process.env.MYSQL_LIVE_REFRESH_MS || 1500)
+);
 var divisionsState = [];
 var usersState = [];
 var documentsState = [];
@@ -3014,6 +3372,25 @@ var storageUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 1024 * 1024 * 1024 }
 });
+function sanitizeUserPermissionsOnLoad(user) {
+  if (user.role === "SYSTEM_ADMIN") {
+    return { ...user, divisionCode: "ITMS" };
+  }
+  const adminActions = [
+    "USER_ACCOUNT_CREATE",
+    "USER_ACCOUNT_EDIT",
+    "USER_ACCOUNT_DELETE",
+    "USER_SYSTEM_ADMIN_MANAGE"
+  ];
+  const permissions = user.permissions ? {
+    ...user.permissions,
+    allowedViews: (user.permissions.allowedViews || []).filter((v) => v !== "users"),
+    allowedActions: (user.permissions.allowedActions || []).filter(
+      (a) => !adminActions.includes(a)
+    )
+  } : void 0;
+  return { ...user, permissions };
+}
 function initDatabaseStorage() {
   if (IS_VERCEL) {
     divisionsState = [];
@@ -3041,9 +3418,7 @@ function initDatabaseStorage() {
       const raw = fs.readFileSync(DB_FILE, "utf-8").replace(/\u0410/g, "A").replace(/\u2014/g, "-");
       const data = JSON.parse(raw);
       divisionsState = data.divisions || [];
-      usersState = (data.users || []).map(
-        (user) => user.role === "SYSTEM_ADMIN" ? { ...user, divisionCode: "ITMS" } : user
-      );
+      usersState = (data.users || []).map(sanitizeUserPermissionsOnLoad);
       documentsState = data.documents || [];
       auditLogsState = data.auditLogs || [];
       if (fs.existsSync(ENVELOPE_LOG_DB_FILE)) {
@@ -3083,9 +3458,7 @@ function applyDatabaseState(entries) {
     return Array.isArray(value) ? value : fallback;
   };
   divisionsState = use("divisions", divisionsState);
-  usersState = use("users", usersState).map(
-    (user) => user.role === "SYSTEM_ADMIN" ? { ...user, divisionCode: "ITMS" } : user
-  );
+  usersState = use("users", usersState).map(sanitizeUserPermissionsOnLoad);
   documentsState = use("documents", documentsState);
   auditLogsState = use("audit_logs", auditLogsState);
   envelopeLogsState = use("envelope_logs", envelopeLogsState);
@@ -3123,6 +3496,26 @@ function queueDatabaseSync() {
 }
 async function flushDatabaseSync() {
   await mysqlSyncQueue;
+}
+async function refreshDatabaseStateFromMySQL(force = false) {
+  if (!getMySQLReplicaStatus().connected) return;
+  if (mysqlSyncWorkerActive || mysqlSyncRequested) {
+    await flushDatabaseSync();
+  }
+  if (!force && Date.now() - lastMySQLRefreshAt < MYSQL_LIVE_REFRESH_MS) return;
+  if (mysqlRefreshPromise) return mysqlRefreshPromise;
+  mysqlRefreshPromise = (async () => {
+    const entries = await loadMySQLState();
+    if (entries.length > 0) {
+      applyDatabaseState(entries);
+      lastMySQLRefreshAt = Date.now();
+    }
+  })().catch((error) => {
+    console.error("Live MySQL refresh failed:", error);
+  }).finally(() => {
+    mysqlRefreshPromise = null;
+  });
+  return mysqlRefreshPromise;
 }
 function syncEmployeeProfileFromUser(user, persist = true) {
   const matchingIndices = [];
@@ -3359,6 +3752,12 @@ async function createApp() {
     }
     next();
   });
+  app.use(async (req, _res, next) => {
+    if (req.method === "GET" && req.path.startsWith("/api")) {
+      await refreshDatabaseStateFromMySQL();
+    }
+    next();
+  });
   app.use(
     "/api/documents",
     createDocumentsRouter(
@@ -3542,127 +3941,96 @@ async function createApp() {
     } = user;
     return res.json({ user: safeUser });
   });
-  app.post("/api/auth/forgot-admin-password", async (req, res) => {
-    const identifier = String(req.body?.identifier || "").trim().toLowerCase();
+  const handleForgotPassword = async (req, res) => {
+    const identifier = String(
+      req.body?.identifier || req.body?.usernameOrEmail || req.body?.email || req.body?.username || ""
+    ).trim().toLowerCase();
     if (!identifier) {
       return res.status(400).json({
-        error: "Administrator username or email is required."
+        error: "Username or email is required."
       });
     }
-    const matchingAdministrators = usersState.filter(
-      (user) => user.role === "SYSTEM_ADMIN" && user.active && (user.username.trim().toLowerCase() === identifier || user.email.trim().toLowerCase() === identifier)
+    const matchingUsers = usersState.filter(
+      (user) => user.active && (user.username.trim().toLowerCase() === identifier || user.email && user.email.trim().toLowerCase() === identifier)
     );
-    const administrator = matchingAdministrators.find(
+    const targetUser = matchingUsers.find(
       (user) => user.username.trim().toLowerCase() === identifier
-    ) || matchingAdministrators[0];
-    if (!administrator) {
+    ) || matchingUsers.find(
+      (user) => user.email && user.email.trim().toLowerCase() === identifier
+    ) || matchingUsers[0];
+    if (!targetUser) {
       return res.status(404).json({
-        error: "No active administrator account matches that username or email."
+        error: "No active user account matches that username or email."
       });
     }
-    if (!administrator.email?.trim()) {
-      return res.status(400).json({
-        error: "This administrator account does not have an email address."
-      });
-    }
-    const smtpHost = process.env.SMTP_HOST?.trim();
-    const smtpUser = process.env.SMTP_USER?.trim();
-    const smtpPassword = process.env.SMTP_PASSWORD?.replace(/\s+/g, "");
-    if (!smtpHost || !smtpUser || !smtpPassword) {
-      return res.status(503).json({
-        error: "Password-reset email is not configured on the server."
-      });
-    }
-    const lastRequest = adminPasswordResetRequests.get(administrator.id) || 0;
-    if (Date.now() - lastRequest < ADMIN_PASSWORD_RESET_COOLDOWN_MS) {
+    const lastRequest = adminPasswordResetRequests.get(targetUser.id) || 0;
+    if (Date.now() - lastRequest < 15e3) {
       return res.status(429).json({
-        error: "A temporary password was recently sent. Please wait 15 minutes before trying again."
+        error: "A temporary recovery password was recently generated. Please wait 15 seconds before trying again."
       });
     }
-    const temporaryPassword = `BLGF-${crypto.randomBytes(9).toString("base64url")}`;
-    const temporaryPasswordExpiresAt = new Date(
-      Date.now() + TEMPORARY_PASSWORD_VALIDITY_MS
-    );
-    const smtpPort = Number(process.env.SMTP_PORT || 587);
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: process.env.SMTP_SECURE === "true" || process.env.SMTP_SECURE !== "false" && smtpPort === 465,
-      auth: {
-        user: smtpUser,
-        pass: smtpPassword
-      },
-      connectionTimeout: 1e4,
-      greetingTimeout: 1e4,
-      socketTimeout: 2e4
-    });
-    try {
-      await transporter.sendMail({
-        from: process.env.SMTP_FROM || smtpUser,
-        to: administrator.email,
-        subject: "BLGF Document Tracking System temporary password",
-        text: [
-          `Hello ${administrator.fullName},`,
-          "",
-          "A password reset was requested for your administrator account.",
-          `Username: ${administrator.username}`,
-          `Temporary password: ${temporaryPassword}`,
-          "This temporary password is valid for 5 minutes only.",
-          "",
-          "Sign in with this temporary password, then change it immediately in User Settings.",
-          "If you did not request this reset, contact your system administrator."
-        ].join("\n")
+    const recipientEmail = targetUser.email?.trim();
+    if (!recipientEmail || recipientEmail === "N/A" || !recipientEmail.includes("@")) {
+      return res.status(400).json({
+        error: `User account "${targetUser.fullName}" (${targetUser.username}) does not have an official email address on file. Please contact your system administrator to configure your email address.`
       });
-      administrator.password = temporaryPassword;
-      administrator.temporaryPasswordExpiresAt = temporaryPasswordExpiresAt.toISOString();
+    }
+    const smtpConfig = getSmtpConfig();
+    if (!smtpConfig.isConfigured) {
+      return res.status(503).json({
+        error: "Email delivery is currently unconfigured. Please configure SMTP_USER and SMTP_PASSWORD in .env so the temporary password can be delivered directly to your email address."
+      });
+    }
+    const temporaryPassword = `BLGF-${crypto2.randomBytes(4).toString("hex").toUpperCase()}`;
+    const temporaryPasswordExpiresAt = new Date(Date.now() + 15 * 60 * 1e3);
+    try {
+      const emailResult = await sendTemporaryPasswordEmail(
+        targetUser,
+        temporaryPassword,
+        15
+      );
+      if (!emailResult.success) {
+        return res.status(500).json({
+          error: `Failed to deliver recovery email to ${recipientEmail}: ${emailResult.error || "SMTP delivery failed"}. Please verify SMTP settings in .env.`
+        });
+      }
+      targetUser.password = temporaryPassword;
+      targetUser.temporaryPasswordExpiresAt = temporaryPasswordExpiresAt.toISOString();
       try {
         await updateUserPassword(
-          administrator.id,
+          targetUser.id,
           temporaryPassword,
           temporaryPasswordExpiresAt
         );
       } catch (databaseError) {
-        console.error(
-          "Temporary password email was sent but MySQL update failed:",
-          databaseError
-        );
-        return res.status(503).json({
-          error: "The email was sent, but the database could not save the temporary password. Request another reset after the database connection is restored.",
-          existingPasswordChanged: false
-        });
+        console.warn("[AUTH] Direct MySQL password update warning:", databaseError);
       }
-      adminPasswordResetRequests.set(administrator.id, Date.now());
+      adminPasswordResetRequests.set(targetUser.id, Date.now());
       addAuditLog(auditLogsState, {
-        userId: administrator.id,
-        userName: administrator.fullName,
-        userRole: administrator.role,
+        userId: targetUser.id,
+        userName: targetUser.fullName,
+        userRole: targetUser.role,
         action: "UPDATE_USER",
-        details: `A temporary password was emailed to administrator ${administrator.username}.`,
+        details: `A temporary password was successfully emailed to ${targetUser.fullName} (${targetUser.username}) at ${recipientEmail}.`,
         ipAddress: req.ip || "127.0.0.1"
       });
       return res.json({
-        message: `A temporary password was sent to ${administrator.email} for username ${administrator.username}.`
+        success: true,
+        emailSent: true,
+        message: `A temporary password has been dispatched to your email address: ${recipientEmail}.`,
+        targetEmail: recipientEmail,
+        username: targetUser.username,
+        expiresInMinutes: 15
       });
-    } catch (error) {
-      console.error(
-        "Could not send administrator password-reset email:",
-        error
-      );
-      const smtpError = error;
-      const authenticationFailed = smtpError.code === "EAUTH" || smtpError.responseCode === 535;
-      const connectionFailed = [
-        "ECONNECTION",
-        "ETIMEDOUT",
-        "ESOCKET",
-        "ECONNREFUSED"
-      ].includes(String(smtpError.code || ""));
-      return res.status(502).json({
-        error: authenticationFailed ? "Gmail rejected the SMTP login. Use a Google App Password for SMTP_PASSWORD, not the Gmail account password." : connectionFailed ? "The email server could not be reached. Check SMTP_HOST, SMTP_PORT, and SMTP_SECURE." : "The temporary password email could not be sent. Check the recipient and SMTP_FROM settings.",
-        code: smtpError.code || "SMTP_SEND_FAILED",
-        existingPasswordChanged: false
+    } catch (emailError) {
+      console.error("[AUTH] SMTP dispatch failed:", emailError);
+      return res.status(500).json({
+        error: `Failed to deliver recovery email to ${recipientEmail}: ${emailError?.message || "SMTP connection failed"}. Please verify SMTP settings in .env.`
       });
     }
-  });
+  };
+  app.post("/api/auth/forgot-password", handleForgotPassword);
+  app.post("/api/auth/forgot-admin-password", handleForgotPassword);
   app.get("/api/records/folders", (_req, res) => {
     const metadata = readRecordMetadata();
     const folders = RECORD_CATEGORIES.map((category) => {
@@ -4280,7 +4648,7 @@ async function createApp() {
     const hasDirectoryView = views.includes("employees") || Boolean(user.permissions?.mainMenu);
     const actions = directoryActionsFor(user);
     if (officeType === "BLGF") {
-      return hasDirectoryView || actions.includes("DIRECTORY_BLGF_VIEW");
+      return actions.includes("DIRECTORY_BLGF_VIEW");
     }
     if (["PROVINCIAL_TREASURER", "MUNICIPAL_TREASURER", "LGU"].includes(officeType)) {
       return hasDirectoryView || actions.includes("DIRECTORY_LGU_VIEW");
@@ -4301,6 +4669,9 @@ async function createApp() {
   };
   const canAccessDirectorySection = (user, section) => {
     if (!section) return false;
+    if (user.role === "SYSTEM_ADMIN") return true;
+    const views = directoryViewsFor(user);
+    if (views.includes("employees") || Boolean(user.permissions?.mainMenu)) return true;
     const types = normalizeOfficeTypes(section.officeTypes);
     return types.some((officeType) => canAccessDirectoryOfficeType(user, officeType));
   };
@@ -4310,9 +4681,19 @@ async function createApp() {
       return res.status(401).json({ error: "Active database user required." });
     }
     ensureUserEmployeeProfiles();
-    res.json(employeesState.filter(
-      (employee) => canAccessDirectoryOfficeType(actingUser, employee.officeType)
-    ));
+    const canViewAllBlgf = actingUser.role === "SYSTEM_ADMIN" || directoryActionsFor(actingUser).includes("DIRECTORY_BLGF_VIEW");
+    const filtered = employeesState.filter((employee) => {
+      if (employee.officeType === "BLGF") {
+        if (!canViewAllBlgf) {
+          return employee.userId === actingUser.id || Boolean(
+            employee.email && actingUser.email && employee.email.toLowerCase().trim() === actingUser.email.toLowerCase().trim()
+          );
+        }
+        return true;
+      }
+      return canAccessDirectoryOfficeType(actingUser, employee.officeType);
+    });
+    res.json(filtered);
   });
   const canManageEmployees = (req) => {
     const user = getRequestUser(req);
@@ -4366,7 +4747,10 @@ async function createApp() {
       return res.status(403).json({ error: "Personnel management permission required." });
     }
     const targetOfficeType = req.body?.officeType || employeesState[idx].officeType;
-    if (!actingUser || !canAccessDirectoryOfficeType(actingUser, employeesState[idx].officeType) || !canAccessDirectoryOfficeType(actingUser, targetOfficeType)) {
+    const isOwnRecord = Boolean(actingUser && employeesState[idx].userId === actingUser.id);
+    const canAccessCurrent = isOwnRecord || canAccessDirectoryOfficeType(actingUser, employeesState[idx].officeType);
+    const canAccessTarget = isOwnRecord || canAccessDirectoryOfficeType(actingUser, targetOfficeType);
+    if (!actingUser || !canAccessCurrent || !canAccessTarget) {
       return res.status(403).json({ error: "Directory category access permission required." });
     }
     employeesState[idx] = { ...employeesState[idx], ...req.body };

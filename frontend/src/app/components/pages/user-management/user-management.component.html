@@ -109,7 +109,6 @@
       <!-- Search & Filters Toolbar -->
       <div class="ua-toolbar">
         <div class="ua-search-wrap">
-          <ion-icon name="search-outline" class="ua-search-icon"></ion-icon>
           <ion-input
             type="text"
             [ngModel]="searchTerm()"
@@ -289,13 +288,13 @@
                             </span>
                           </div>
                           <div class="ua-user-meta">
-                            <div class="ua-user-name" [title]="usr.fullName">{{ usr.fullName }}</div>
+                            <div class="ua-user-name" [title]="usr.fullName" [innerHTML]="usr.fullName | highlight:searchTerm()"></div>
                             <div class="ua-user-sub">
-                              <span class="ua-user-handle">&#64;{{ usr.username }}</span>
+                              <span class="ua-user-handle">&#64;<span [innerHTML]="usr.username | highlight:searchTerm()"></span></span>
                               <span class="ua-user-sep">&bull;</span>
                               <span class="ua-user-email" [title]="usr.email">
                                 <ion-icon name="mail-outline" class="ua-inline-icon"></ion-icon>
-                                <span>{{ usr.email || 'No email' }}</span>
+                                <span [innerHTML]="(usr.email || 'No email') | highlight:searchTerm()"></span>
                               </span>
                             </div>
                           </div>
@@ -315,8 +314,8 @@
                         <div class="ua-div-cell">
                           <span class="ua-div-name">{{ divisionNameFor(usr.divisionCode) }}</span>
                           <div class="ua-div-sub">
-                            <span class="ua-div-code-badge">{{ usr.divisionCode }}</span>
-                            <span class="ua-designation-text">{{ usr.designation || 'Staff Officer' }}</span>
+                            <span class="ua-div-code-badge" [innerHTML]="usr.divisionCode | highlight:searchTerm()"></span>
+                            <span class="ua-designation-text" [innerHTML]="(usr.designation || 'Staff Officer') | highlight:searchTerm()"></span>
                           </div>
                         </div>
                       </td>
@@ -364,6 +363,17 @@
 
                           <ion-button
                             type="button"
+                            (click)="handleResetPassword(usr)"
+                            class="ua-action-btn ua-action-btn-reset-pw"
+                            [title]="usr.email && usr.email !== 'N/A' ? 'Send temporary password directly to ' + usr.email : 'No email address on file'"
+                            [disabled]="isResettingPassword() === usr.id"
+                          >
+                            <ion-icon [name]="isResettingPassword() === usr.id ? 'sync-outline' : 'mail-unread-outline'"></ion-icon>
+                            <span>{{ isResettingPassword() === usr.id ? 'Sending...' : 'Reset Pass' }}</span>
+                          </ion-button>
+
+                          <ion-button
+                            type="button"
                             (click)="openUserPermissions(usr)"
                             class="ua-action-btn ua-action-btn-perm"
                             title="Configure granular permissions for this user"
@@ -403,10 +413,12 @@
       @if (viewMode() === 'cards') {
         <div class="ua-cards-grid">
           @for (usr of filteredUsers; track usr.id) {
-            <article class="ua-card" [ngClass]="roleAccentClass(usr.role)">
+            <article class="ua-card" [ngClass]="roleAccentClass(usr.role)" [class.is-current-user]="usr.id === currentUser.id">
               <div class="ua-card-accent-bar"></div>
               <div class="ua-card-inner">
+                <!-- Top Main: Avatar + User Info -->
                 <div class="ua-card-header">
+                  <!-- Circular Avatar with Presence Dot -->
                   <div class="ua-card-avatar-wrap">
                     <div
                       class="ua-card-avatar"
@@ -418,89 +430,65 @@
                       @if (usr.avatarUrl) {
                         <img [src]="usr.avatarUrl" [alt]="usr.fullName + ' photo'" class="ua-avatar-img" />
                       } @else {
-                        <span class="ua-avatar-letter">{{ usr.fullName ? usr.fullName.charAt(0) : 'U' }}</span>
+                        <span class="ua-avatar-initials">{{ initialsOf(usr.fullName) }}</span>
                       }
                       <span class="ua-avatar-edit-overlay" title="Change photo">
                         <ion-icon name="camera"></ion-icon>
                       </span>
                     </div>
-                    <span class="ua-avatar-status" [class.active]="usr.active"></span>
+                    <span
+                      class="ua-avatar-status"
+                      [class.active]="usr.active"
+                      [title]="usr.active ? 'Account Active' : 'Account Deactivated'"
+                    ></span>
                   </div>
 
+                  <!-- User Details Column -->
                   <div class="ua-card-user-info">
-                    <h3 class="ua-card-name" [title]="usr.fullName">{{ usr.fullName }}</h3>
-                    <div class="ua-card-username">&#64;{{ usr.username }}</div>
-                    <div class="ua-card-role-row">
-                      <span class="ua-role-pill" [ngClass]="roleBadgeClass(usr.role)">
-                        {{ usr.role }}
+                    <div class="ua-card-row-title">
+                      <h3 class="ua-card-name" [title]="usr.fullName" [innerHTML]="usr.fullName | highlight:searchTerm()"></h3>
+                      @if (usr.id === currentUser.id) {
+                        <span class="ua-you-badge">
+                          <ion-icon name="checkmark-circle"></ion-icon>
+                          You
+                        </span>
+                      }
+                    </div>
+
+                    <!-- Subtitle: Designation · Division & Username -->
+                    <div class="ua-card-subtitle-line">
+                      <p class="ua-card-subtitle" [title]="getUserSubtitle(usr)">
+                        <span [innerHTML]="getUserSubtitle(usr) | highlight:searchTerm()"></span>
+                      </p>
+                      <span class="ua-card-handle">&#64;{{ usr.username }}</span>
+                    </div>
+
+                    <!-- Meta Badges: Division, Role, Email & Contact -->
+                    <div class="ua-card-meta-row">
+                      @if (usr.divisionCode) {
+                        <span class="ua-pill-division">{{ usr.divisionCode }}</span>
+                      }
+                      <span class="ua-pill-role" [ngClass]="roleBadgeClass(usr.role)">
+                        {{ formatRoleName(usr.role) }}
                       </span>
+                      @if (usr.email && usr.email !== 'N/A') {
+                        <span class="ua-meta-contact email" [title]="usr.email">
+                          <ion-icon name="mail-outline"></ion-icon>
+                          <span class="ua-contact-text" [innerHTML]="usr.email | highlight:searchTerm()"></span>
+                        </span>
+                      }
+                      @if (usr.contactNo) {
+                        <span class="ua-meta-contact phone" [title]="usr.contactNo">
+                          <ion-icon name="call-outline"></ion-icon>
+                          <span class="ua-contact-text">{{ usr.contactNo }}</span>
+                        </span>
+                      }
                     </div>
                   </div>
-
-                  <div class="ua-card-actions">
-                    <ion-button
-                      type="button"
-                      (click)="handleOpenEdit(usr)"
-                      class="ua-action-btn ua-action-btn-edit ua-action-btn-sm"
-                      title="Edit User"
-                    >
-                      <ion-icon name="create-outline"></ion-icon>
-                      <span>Edit</span>
-                    </ion-button>
-                    <ion-button
-                      type="button"
-                      (click)="openUserPermissions(usr)"
-                      class="ua-action-btn ua-action-btn-perm ua-action-btn-sm"
-                      title="Configure Permissions"
-                    >
-                      <ion-icon name="key-outline"></ion-icon>
-                      <span>Perms</span>
-                    </ion-button>
-                    @if (usr.role !== 'SYSTEM_ADMIN' && usr.id !== currentUser.id) {
-                      <ion-button
-                        type="button"
-                        (click)="handleDelete(usr)"
-                        class="ua-action-btn ua-action-btn-delete ua-action-btn-sm"
-                        title="Delete User"
-                      >
-                        <ion-icon name="trash-outline"></ion-icon>
-                        <span>Delete</span>
-                      </ion-button>
-                    } @else {
-                      <span class="ua-protected-badge ua-action-btn-sm" title="Protected System Account">
-                        <ion-icon name="shield-checkmark-outline"></ion-icon>
-                        <span>Protected</span>
-                      </span>
-                    }
-                  </div>
                 </div>
 
-                <!-- Division & Designation Box -->
-                <div class="ua-card-dept-box">
-                  <ion-icon name="business-outline" class="ua-dept-icon"></ion-icon>
-                  <div class="ua-dept-text">
-                    <span class="ua-dept-label">{{ usr.divisionCode }} &bull; Division</span>
-                    <span class="ua-dept-val">{{ divisionNameFor(usr.divisionCode) }}</span>
-                    <span class="ua-dept-sub">{{ usr.designation || 'Staff Officer' }}</span>
-                  </div>
-                </div>
-
-                <!-- Contact Details -->
-                <div class="ua-card-contacts">
-                  <div class="ua-contact-row" [title]="usr.email || 'No email'">
-                    <ion-icon name="mail-outline"></ion-icon>
-                    <span class="ua-contact-truncate">{{ usr.email || 'Email not provided' }}</span>
-                  </div>
-                  @if (usr.contactNo) {
-                    <div class="ua-contact-row">
-                      <ion-icon name="call-outline"></ion-icon>
-                      <span>{{ usr.contactNo }}</span>
-                    </div>
-                  }
-                </div>
-
-                <!-- Footer with Menu Tags & Status -->
-                <div class="ua-card-footer">
+                <!-- Middle Status & Access Permissions Row -->
+                <div class="ua-card-status-row">
                   <div class="ua-access-tags">
                     <span class="ua-access-tag" [class.allowed]="userPerms(usr).mainMenu" title="Main Menu Access">
                       <ion-icon [name]="userPerms(usr).mainMenu ? 'checkmark-circle' : 'close-circle'"></ion-icon>
@@ -512,15 +500,68 @@
                     </span>
                   </div>
 
-                  <ion-button
+                  <!-- Clean Interactive Status Toggle Button -->
+                  <button
                     type="button"
                     (click)="toggleActiveUser(usr)"
-                    class="ua-status-pill"
+                    class="ua-status-pill-btn"
                     [class.is-active]="usr.active"
+                    [title]="usr.active ? 'Account is Active (click to deactivate)' : 'Account is Inactive (click to activate)'"
                   >
-                    <span class="ua-status-dot" [class.ua-dot-online]="usr.active"></span>
-                    <span>{{ usr.active ? 'Active' : 'Inactive' }}</span>
-                  </ion-button>
+                    <span class="ua-status-dot" [class.is-active]="usr.active"></span>
+                    <span>{{ usr.active ? 'Account Active' : 'Deactivated' }}</span>
+                  </button>
+                </div>
+
+                <!-- Bottom Action Buttons Toolbar -->
+                <div class="ua-card-actions-bar">
+                  <button
+                    type="button"
+                    (click)="handleOpenEdit(usr)"
+                    class="ua-card-action-btn edit"
+                    title="Edit User Details"
+                  >
+                    <ion-icon name="create-outline"></ion-icon>
+                    <span>Edit</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    (click)="handleResetPassword(usr)"
+                    class="ua-card-action-btn reset-pw"
+                    [title]="usr.email && usr.email !== 'N/A' ? 'Send temporary password to ' + usr.email : 'No email address on file'"
+                    [disabled]="isResettingPassword() === usr.id"
+                  >
+                    <ion-icon [name]="isResettingPassword() === usr.id ? 'sync-outline' : 'mail-unread-outline'"></ion-icon>
+                    <span>{{ isResettingPassword() === usr.id ? 'Sending...' : 'Reset' }}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    (click)="openUserPermissions(usr)"
+                    class="ua-card-action-btn perms"
+                    title="Configure Permissions"
+                  >
+                    <ion-icon name="key-outline"></ion-icon>
+                    <span>Perms</span>
+                  </button>
+
+                  @if (usr.role !== 'SYSTEM_ADMIN' && usr.id !== currentUser.id) {
+                    <button
+                      type="button"
+                      (click)="handleDelete(usr)"
+                      class="ua-card-action-btn delete"
+                      title="Delete User"
+                    >
+                      <ion-icon name="trash-outline"></ion-icon>
+                      <span>Delete</span>
+                    </button>
+                  } @else {
+                    <span class="ua-card-action-btn protected" title="Protected System Account">
+                      <ion-icon name="shield-checkmark-outline"></ion-icon>
+                      <span>Protected</span>
+                    </span>
+                  }
                 </div>
               </div>
             </article>
@@ -720,11 +761,13 @@
                       <ion-button
                         type="button"
                         (click)="toggleActionPermission(r.role, action.id)"
+                        [disabled]="isActionRestrictedToAdmin(action.id) && r.role !== 'SYSTEM_ADMIN'"
                         class="ua-toggle-box"
+                        [class.disabled]="isActionRestrictedToAdmin(action.id) && r.role !== 'SYSTEM_ADMIN'"
                         [class.checked]="permittedAction(r.role, action.id)"
-                        [title]="'Toggle ' + action.label + ' for ' + r.role"
+                        [title]="isActionRestrictedToAdmin(action.id) && r.role !== 'SYSTEM_ADMIN' ? 'Restricted: System Administrator only' : ('Toggle ' + action.label + ' for ' + r.role)"
                       >
-                        <ion-icon name="checkmark"></ion-icon>
+                        <ion-icon [name]="isActionRestrictedToAdmin(action.id) && r.role !== 'SYSTEM_ADMIN' ? 'lock-closed' : 'checkmark'"></ion-icon>
                       </ion-button>
                     </td>
                   }
@@ -850,11 +893,13 @@
                       <ion-button
                         type="button"
                         (click)="toggleViewPermission(r.role, item.id)"
+                        [disabled]="item.id === 'users' && r.role !== 'SYSTEM_ADMIN'"
                         class="ua-toggle-box"
+                        [class.disabled]="item.id === 'users' && r.role !== 'SYSTEM_ADMIN'"
                         [class.checked]="isMgmtViewAllowed(r.role, item.id)"
-                        [title]="viewToggleTitle(isMgmtViewAllowed(r.role, item.id), item.label, r.role)"
+                        [title]="item.id === 'users' && r.role !== 'SYSTEM_ADMIN' ? 'Restricted: System Administrator only' : viewToggleTitle(isMgmtViewAllowed(r.role, item.id), item.label, r.role)"
                       >
-                        <ion-icon name="checkmark"></ion-icon>
+                        <ion-icon [name]="item.id === 'users' && r.role !== 'SYSTEM_ADMIN' ? 'lock-closed' : 'checkmark'"></ion-icon>
                       </ion-button>
                     </td>
                   }
@@ -1202,9 +1247,10 @@
 
                 <div class="ua-perm-toggle-grid">
                   @for (action of ACTION_PERMISSIONS; track action.id) {
-                    <label class="ua-perm-toggle-row">
+                    <label class="ua-perm-toggle-row" [class.is-disabled]="isActionRestrictedToAdmin(action.id) && selectedPermUser()?.role !== 'SYSTEM_ADMIN'">
                       <input
                         type="checkbox"
+                        [disabled]="isActionRestrictedToAdmin(action.id) && selectedPermUser()?.role !== 'SYSTEM_ADMIN'"
                         [checked]="isUserActionAllowed(action.id)"
                         (change)="toggleUserActionPermission(action.id)"
                         class="ua-perm-checkbox"
@@ -1212,6 +1258,9 @@
                       <div class="ua-perm-toggle-text">
                         <span class="ua-perm-toggle-label">
                           {{ action.label }}
+                          @if (isActionRestrictedToAdmin(action.id) && selectedPermUser()?.role !== 'SYSTEM_ADMIN') {
+                            <span class="ua-restricted-tag font-sans ml-1 text-xs text-rose-500 font-semibold">(Admin Only)</span>
+                          }
                         </span>
                         <span class="ua-perm-toggle-desc font-mono">
                           {{ action.id }}
@@ -1337,15 +1386,16 @@
 
                 <div class="ua-perm-tiles-grid" [class.is-disabled]="!userPermForm().management">
                   @for (item of managementMenuItems; track item.id) {
-                    <label class="ua-perm-view-tile" [class.is-active]="isUserViewAllowed(item.id)">
+                    <label class="ua-perm-view-tile" [class.is-active]="isUserViewAllowed(item.id)" [class.is-disabled]="item.id === 'users' && selectedPermUser()?.role !== 'SYSTEM_ADMIN'">
                       <input
                         type="checkbox"
+                        [disabled]="item.id === 'users' && selectedPermUser()?.role !== 'SYSTEM_ADMIN'"
                         [checked]="isUserViewAllowed(item.id)"
                         (change)="toggleUserViewPermission(item.id)"
                         class="ua-perm-checkbox"
                       />
                       <div class="ua-perm-tile-inner">
-                        <ion-icon [name]="item.icon + '-outline'" class="ua-perm-tile-icon"></ion-icon>
+                        <ion-icon [name]="(item.id === 'users' && selectedPermUser()?.role !== 'SYSTEM_ADMIN') ? 'lock-closed-outline' : (item.icon + '-outline')" class="ua-perm-tile-icon"></ion-icon>
                         <span class="ua-perm-tile-label">{{ item.label }}</span>
                       </div>
                     </label>
@@ -1951,18 +2001,60 @@
               </div>
 
               <!-- Password with Inline Generator -->
+              @if (editingUser()?.id === currentUser.id && password().trim()) {
+                <div class="ua-form-group">
+                  <label class="ua-label">Current Password <span class="ua-req">*</span></label>
+                  <div class="ua-input-wrap">
+                    <ion-icon name="shield-checkmark-outline" class="ua-input-icon"></ion-icon>
+                    <input
+                      [type]="showCurrentPassword() ? 'text' : 'password'"
+                      [(ngModel)]="currentPassword"
+                      name="edit-current-password"
+                      placeholder="Enter your current password"
+                      autocomplete="current-password"
+                      required
+                      class="ua-modal-input ua-input-with-icon ua-pr-10"
+                    />
+                    <button
+                      type="button"
+                      (click)="showCurrentPassword.set(!showCurrentPassword())"
+                      class="ua-pwd-toggle-btn"
+                      [title]="showCurrentPassword() ? 'Hide current password' : 'Show current password'"
+                      [attr.aria-label]="showCurrentPassword() ? 'Hide current password' : 'Show current password'"
+                    >
+                      <ion-icon [name]="showCurrentPassword() ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+                    </button>
+                  </div>
+                  <p class="ua-field-hint">Required only when changing your own System Administrator password.</p>
+                </div>
+              }
+
               <div class="ua-form-group">
                 <div class="ua-label-row">
                   <label class="ua-label">New / Temporary Password</label>
-                  <button
-                    type="button"
-                    (click)="generateTemporaryPassword()"
-                    class="ua-btn-link-action"
-                    title="Generate temporary password"
-                  >
-                    <ion-icon name="key-outline"></ion-icon>
-                    <span>Generate Key</span>
-                  </button>
+                  <div class="ua-label-actions">
+                    <button
+                      type="button"
+                      (click)="generateTemporaryPassword()"
+                      class="ua-btn-link-action"
+                      title="Generate temporary password"
+                    >
+                      <ion-icon name="key-outline"></ion-icon>
+                      <span>Generate Key</span>
+                    </button>
+                    @if (email().trim() && email().trim() !== 'N/A') {
+                      <button
+                        type="button"
+                        (click)="handleResetPassword(user)"
+                        class="ua-btn-link-action ua-btn-link-email"
+                        [disabled]="isResettingPassword() === user.id"
+                        title="Send a temporary password directly to this user's email"
+                      >
+                        <ion-icon [name]="isResettingPassword() === user.id ? 'sync-outline' : 'send-outline'"></ion-icon>
+                        <span>{{ isResettingPassword() === user.id ? 'Sending...' : 'Email Reset Key' }}</span>
+                      </button>
+                    }
+                  </div>
                 </div>
                 <div class="ua-input-wrap">
                   <ion-icon name="lock-closed-outline" class="ua-input-icon"></ion-icon>
@@ -1978,11 +2070,20 @@
                     type="button"
                     (click)="showEditPassword.set(!showEditPassword())"
                     class="ua-pwd-toggle-btn"
-                    aria-label="Toggle password visibility"
+                    [title]="showEditPassword() ? 'Hide new password' : 'Show new password'"
+                    [attr.aria-label]="showEditPassword() ? 'Hide new password' : 'Show new password'"
                   >
                     <ion-icon [name]="showEditPassword() ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
                   </button>
                 </div>
+                @if (password().trim()) {
+                  <p class="ua-field-hint">
+                    This password will be saved as the user's new login password upon clicking Save Changes.
+                    @if (email().trim() && email().trim() !== 'N/A') {
+                      An email notification will also be dispatched directly to <strong>{{ email() }}</strong>.
+                    }
+                  </p>
+                }
               </div>
 
               <!-- Email Address -->

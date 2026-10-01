@@ -299,6 +299,12 @@ export function createDocumentsRouter(
         error: 'System administrators cannot be document recipients or handlers.',
       });
     }
+    const isOutside = Boolean(body.isOutside);
+    const completedRemarks =
+      body.remarks && String(body.remarks).trim() !== '' && String(body.remarks).trim() !== 'N/A'
+        ? String(body.remarks).trim()
+        : 'Completed - Recorded as Outside Office Outgoing Dispatch';
+
     const newDoc: DocumentRecord = {
       id: newDocumentId,
       trackingNumber,
@@ -308,7 +314,7 @@ export function createDocumentsRouter(
       subject: body.subject || '',
       category: body.category || 'General Correspondence',
       originatingOffice: body.originatingOffice || 'External Office',
-      destinationOffice: body.destinationOffice || 'BLGF Region II',
+      destinationOffice: body.destinationOffice || (isOutside ? 'External Office' : 'BLGF Region II'),
       senderName: body.senderName || '',
       senderPosition: body.senderPosition || '',
       senderAddress: body.senderAddress || '',
@@ -316,20 +322,40 @@ export function createDocumentsRouter(
       recipientPosition: body.recipientPosition || '',
       recipientOffice: body.recipientOffice || '',
       recipientAddress: body.recipientAddress || '',
-      priority: body.priority || 'ROUTINE',
-      currentStatus: body.currentStatus || 'PENDING',
+      priority: isOutside ? 'ROUTINE' : (body.priority || 'ROUTINE'),
+      currentStatus: isOutside ? 'COMPLETED' : (body.currentStatus || 'PENDING'),
       currentDivision: body.currentDivision || 'AD',
-      assignedUser: directlyAssignedUser?.fullName || '',
-      assignedUserId: directlyAssignedUser?.id,
+      assignedUser: isOutside ? (body.recipientName || 'External Recipient') : (directlyAssignedUser?.fullName || ''),
+      assignedUserId: isOutside ? undefined : directlyAssignedUser?.id,
       dateReceived: body.dateReceived || now,
       targetCompletionDate:
         body.targetCompletionDate ||
         new Date(Date.now() + 3 * 86400000).toISOString(),
       tags: body.tags || [],
       attachments: (body.attachments || []).map((file: any) => ({ ...file, attachmentScope: 'DOCUMENT', uploadedByUserId: actingUser.id })),
-      actionRequested: body.initialAction || 'Appropriate Action',
-      routes:
-        initialRecipients.length > 0
+      actionRequested: isOutside ? 'Dispatched / Recorded (Outside Office)' : (body.initialAction || 'Appropriate Action'),
+      routes: isOutside
+        ? [
+            {
+              id: `route-${randomUUID()}`,
+              documentId: newDocumentId,
+              stepNumber: 1,
+              routeNo: trackingNumber,
+              fromDivision: actingUser.divisionCode || body.currentDivision || 'AD',
+              fromUserId: actingUser.id,
+              fromUser: actingUser.fullName,
+              toDivision: undefined,
+              toUser: body.recipientName || 'External Recipient',
+              toUserId: undefined,
+              actionRequested: 'Dispatched / Recorded (Outside Office)',
+              remarks: completedRemarks,
+              statusBefore: 'PENDING' as DocumentStatus,
+              statusAfter: 'COMPLETED' as DocumentStatus,
+              receivedAt: now,
+              createdAt: now,
+            },
+          ]
+        : (initialRecipients.length > 0
           ? initialRecipients.map((recipient, index) => ({
               id: `route-${randomUUID()}`,
               documentId: newDocumentId,
@@ -369,7 +395,7 @@ export function createDocumentsRouter(
                 receivedAt: now,
                 createdAt: now,
               },
-            ],
+            ]),
       createdBy: actingUser.fullName,
       createdByUserId: actingUser.id,
       createdAt: now,
@@ -390,20 +416,25 @@ export function createDocumentsRouter(
         details: [
           `Created by: ${actingUser.fullName}`,
           `Document: ${body.title || 'Untitled'} [${trackingNumber}]`,
+          `Direction: ${body.direction || 'INCOMING'}`,
+          `Status: ${isOutside ? 'COMPLETED' : (body.currentStatus || 'PENDING')}`,
           `Subject: ${body.subject || 'N/A'}`,
           `Sender: ${body.senderName || 'N/A'}`,
           `Position: ${body.senderPosition || 'N/A'}`,
           `Originating office: ${body.originatingOffice || 'N/A'}`,
           `Address: ${body.senderAddress || 'N/A'}`,
-          `Action: ${body.initialAction || 'Appropriate Action'}`,
-        ].join(' | '),
+          body.recipientName ? `Recipient: ${body.recipientName} (${body.recipientOffice || 'External Office'})` : '',
+          body.recipientAddress ? `Recipient Address: ${body.recipientAddress}` : '',
+          `Action: ${isOutside ? 'Dispatched / Recorded (Outside Office)' : (body.initialAction || 'Appropriate Action')}`,
+          `Remarks: ${completedRemarks}`,
+        ].filter(Boolean).join(' | '),
         ipAddress: req.ip || '127.0.0.1',
       },
       false,
     );
 
     const createdNotifications: NotificationItem[] = [];
-    if (body.assignedUserId) {
+    if (!isOutside && body.assignedUserId) {
       const assignedRecipient = usersState.find(
         (user) =>
           user.id === body.assignedUserId &&
@@ -425,7 +456,7 @@ export function createDocumentsRouter(
           ),
         );
       }
-    } else if (body.currentDivision) {
+    } else if (!isOutside && body.currentDivision) {
       const excludedRecipientIds = Array.isArray(body.excludedRecipientIds)
         ? body.excludedRecipientIds
         : [];

@@ -688,19 +688,60 @@
                 <div
                   class="template-item"
                   [class.active-template]="activeFormatId === fmt.id"
-                  (click)="loadFormat(fmt)"
+                  [class.editing-template]="editingFormatId === fmt.id"
+                  (click)="editingFormatId !== fmt.id && loadFormat(fmt)"
                   role="button"
                   tabindex="0"
-                  (keydown.enter)="loadFormat(fmt)"
-                  (keydown.space)="loadFormat(fmt)"
-                  title="Click to load this envelope template"
+                  (keydown.enter)="editingFormatId !== fmt.id && loadFormat(fmt)"
+                  (keydown.space)="editingFormatId !== fmt.id && loadFormat(fmt)"
+                  [title]="editingFormatId === fmt.id ? '' : 'Click to load this envelope template'"
                 >
                   <div class="template-main-info">
                     <div class="template-icon-badge">
                       <ion-icon [name]="activeFormatId === fmt.id ? 'checkmark-circle' : 'bookmark'"></ion-icon>
                     </div>
                     <div class="template-text-group">
-                      <div class="template-name">{{ fmt.name }}</div>
+                      @if (editingFormatId === fmt.id) {
+                        <div class="template-rename-box" (click)="$event.stopPropagation()">
+                          <input
+                            [id]="'template-rename-input-' + fmt.id"
+                            type="text"
+                            class="template-rename-input"
+                            [(ngModel)]="editingFormatName"
+                            (keydown.enter)="saveFormatName(fmt)"
+                            (keydown.escape)="cancelEditFormat()"
+                            placeholder="Enter template name..."
+                          />
+                          <button
+                            type="button"
+                            class="btn-rename-action btn-rename-save"
+                            (click)="saveFormatName(fmt)"
+                            title="Save template name"
+                          >
+                            <ion-icon name="checkmark-sharp"></ion-icon>
+                          </button>
+                          <button
+                            type="button"
+                            class="btn-rename-action btn-rename-cancel"
+                            (click)="cancelEditFormat()"
+                            title="Cancel"
+                          >
+                            <ion-icon name="close-sharp"></ion-icon>
+                          </button>
+                        </div>
+                      } @else {
+                        <div class="template-name-row">
+                          <div class="template-name" (dblclick)="$event.stopPropagation(); startEditFormat(fmt)">{{ fmt.name }}</div>
+                          <button
+                            type="button"
+                            class="btn-rename-trigger"
+                            (click)="$event.stopPropagation(); startEditFormat(fmt)"
+                            title="Rename template"
+                          >
+                            <ion-icon name="pencil-sharp"></ion-icon>
+                          </button>
+                        </div>
+                      }
                       <div class="template-meta-pills">
                         <span class="meta-pill">
                           <ion-icon name="people" class="meta-icon"></ion-icon>
@@ -717,6 +758,16 @@
                   </div>
 
                   <div class="template-actions">
+                    @if (editingFormatId !== fmt.id) {
+                      <button
+                        type="button"
+                        (click)="$event.stopPropagation(); startEditFormat(fmt)"
+                        class="btn-edit-template"
+                        title="Rename template"
+                      >
+                        <ion-icon name="create-outline" class="icon-xs"></ion-icon>
+                      </button>
+                    }
                     <button
                       type="button"
                       (click)="$event.stopPropagation(); loadFormat(fmt)"
@@ -799,7 +850,6 @@
       <!-- Search & Filter Controls -->
       <div class="modal-search-row">
         <div class="search-input-box">
-          <ion-icon name="search-outline" class="icon-sm search-icon"></ion-icon>
           <input
             type="text"
             [(ngModel)]="docSearchQuery"
@@ -908,7 +958,6 @@
       <!-- Directory Search & Category Filters -->
       <div class="modal-search-row">
         <div class="search-input-box">
-          <ion-icon name="search-outline" class="icon-sm search-icon"></ion-icon>
           <input
             type="text"
             [(ngModel)]="dirSearchQuery"

@@ -242,10 +242,14 @@
 }
 
 .audit-searchInput {
-  padding-left: 2.5rem;
+  padding-left: 1rem;
+  --padding-start: 1rem;
+  --caret-color: #2563eb;
+  caret-color: #2563eb;
 }
 
 .audit-searchInput:focus,
+.audit-searchInput:focus-within,
 .audit-select:focus {
   outline: none;
   border-color: #2563eb;
@@ -602,4 +606,14 @@
     background: rgb(112 26 117 / 45%);
     border-color: #a21caf;
   }
+}
+
+/* Double-box prevention for audit-logs */
+ion-input.audit-searchInput,
+ion-select.audit-select {
+  --background: transparent !important;
+  --border-color: transparent !important;
+  --border-width: 0 !important;
+  --box-shadow: none !important;
+  --highlight-height: 0 !important;
 }

@@ -227,3 +227,405 @@
 :host-context(.dark) .document-detail-style-087-724a05:not(.is-selected) {
   color: #cbd5e1;
 }
+/* Footer actions use explicit colors so they remain crisp even when utility
+   classes are regenerated or removed from the global stylesheet. */
+.document-detail-action {
+  min-height: 2.625rem;
+  border: 1px solid transparent;
+  color: #fff;
+  box-shadow: 0 4px 10px -3px rgba(15, 23, 42, 0.3), 0 1px 2px rgba(15, 23, 42, 0.16);
+  transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
+
+  ion-icon {
+    color: currentColor;
+    font-size: 1rem;
+  }
+
+  &:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 7px 14px -5px rgba(15, 23, 42, 0.38), 0 2px 4px rgba(15, 23, 42, 0.16);
+  }
+
+  &:not(:disabled):active {
+    transform: translateY(0) scale(0.98);
+  }
+
+  &:focus-visible {
+    outline: 3px solid rgba(59, 130, 246, 0.35);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    border-color: #cbd5e1;
+    background: #e2e8f0;
+    color: #64748b;
+    opacity: 1;
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+}
+
+.document-detail-action--secondary {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+
+  &:not(:disabled):hover { background: #e2e8f0; }
+}
+
+.document-detail-action--danger {
+  background: linear-gradient(135deg, #e11d48, #be123c);
+  &:not(:disabled):hover { background: linear-gradient(135deg, #f43f5e, #be123c); }
+}
+
+.document-detail-action--print {
+  background: linear-gradient(135deg, #0f766e, #047857);
+  &:not(:disabled):hover { background: linear-gradient(135deg, #0d9488, #059669); }
+}
+
+.document-detail-action--approve {
+  background: linear-gradient(135deg, #059669, #047857);
+  &:not(:disabled):hover { background: linear-gradient(135deg, #10b981, #047857); }
+}
+
+.document-detail-action--primary {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  &:not(:disabled):hover { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+}
+
+:host-context(.dark) {
+  .document-detail-action--secondary {
+    border-color: #475569;
+    background: #1e293b;
+    color: #f1f5f9;
+    &:not(:disabled):hover { background: #334155; }
+  }
+
+  .document-detail-action:disabled {
+    border-color: #475569;
+    background: #334155;
+    color: #94a3b8;
+  }
+}
+
+.document-detail-action--primary.is-locked {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  color: #64748b;
+  cursor: not-allowed;
+  box-shadow: none;
+
+  &:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  ion-icon {
+    color: #94a3b8;
+  }
+}
+
+:host-context(.dark) .document-detail-action--primary.is-locked {
+  background: #1e293b;
+  border-color: #334155;
+  color: #94a3b8;
+
+  ion-icon {
+    color: #64748b;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Decision Required Banner Card
+   -------------------------------------------------------------------------- */
+.decision-required-card {
+  position: relative;
+  border-radius: 1.25rem;
+  overflow: hidden;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 60%, #f0fdf4 100%);
+  box-shadow: 0 4px 16px -2px rgba(37, 99, 235, 0.12), 0 2px 6px rgba(15, 23, 42, 0.04);
+  animation: bannerSlideIn 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.decision-required-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #3b82f6 0%, #10b981 50%, #f59e0b 100%);
+}
+
+.decision-required-inner {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.decision-required-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.decision-beacon-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.875rem;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.5rem;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+}
+
+.decision-title-group {
+  flex: 1;
+  min-width: 0;
+}
+
+.decision-tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  margin-bottom: 0.35rem;
+}
+
+.decision-pulse-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: #2563eb;
+  animation: beaconPulse 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+.decision-banner-title {
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.decision-banner-subtitle {
+  font-size: 0.8125rem;
+  color: #475569;
+  margin: 0.25rem 0 0;
+  line-height: 1.5;
+}
+
+.decision-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.875rem;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.decision-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+
+  &.full-width {
+    width: 100%;
+    border-top: 1px dashed rgba(226, 232, 240, 0.8);
+    padding-top: 0.375rem;
+    margin-top: 0.125rem;
+  }
+}
+
+.decision-chip-label {
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+}
+
+.decision-chip-value {
+  font-weight: 600;
+  color: #0f172a;
+
+  &.highlight {
+    color: #1d4ed8;
+    font-weight: 700;
+    background: rgba(37, 99, 235, 0.08);
+    padding: 0.125rem 0.45rem;
+    border-radius: 0.375rem;
+  }
+
+  &.italic {
+    font-style: italic;
+    color: #334155;
+  }
+}
+
+.decision-action-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.625rem;
+  padding-top: 0.25rem;
+}
+
+.decision-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+
+  ion-icon {
+    font-size: 1.125rem;
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  &.approve {
+    background: linear-gradient(135deg, #059669, #047857);
+    color: #ffffff;
+    border-color: rgba(5, 150, 105, 0.4);
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+
+    &:hover:not(:disabled) {
+      background: linear-gradient(135deg, #10b981, #059669);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(5, 150, 105, 0.4);
+    }
+  }
+
+  &.disapprove {
+    background: linear-gradient(135deg, #e11d48, #be123c);
+    color: #ffffff;
+    border-color: rgba(225, 29, 72, 0.4);
+    box-shadow: 0 4px 12px rgba(225, 29, 72, 0.28);
+
+    &:hover:not(:disabled) {
+      background: linear-gradient(135deg, #f43f5e, #be123c);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(225, 29, 72, 0.38);
+    }
+  }
+
+  &.snooze {
+    background: #ffffff;
+    color: #475569;
+    border-color: #cbd5e1;
+
+    &:hover:not(:disabled) {
+      background: #f1f5f9;
+      color: #0f172a;
+      transform: translateY(-1px);
+    }
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+}
+
+:host-context(.dark) {
+  .decision-required-card {
+    border-color: rgba(59, 130, 246, 0.35);
+    background: linear-gradient(135deg, #0f172a 0%, #162032 60%, #064e3b 100%);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  }
+
+  .decision-banner-title {
+    color: #f8fafc;
+  }
+
+  .decision-banner-subtitle {
+    color: #94a3b8;
+  }
+
+  .decision-tag-pill {
+    background: rgba(59, 130, 246, 0.2);
+    color: #93c5fd;
+    border-color: rgba(59, 130, 246, 0.4);
+  }
+
+  .decision-meta-row {
+    background: rgba(15, 23, 42, 0.7);
+    border-color: rgba(51, 65, 85, 0.8);
+  }
+
+  .decision-chip-label {
+    color: #94a3b8;
+  }
+
+  .decision-chip-value {
+    color: #f1f5f9;
+
+    &.highlight {
+      color: #93c5fd;
+      background: rgba(59, 130, 246, 0.2);
+    }
+
+    &.italic {
+      color: #cbd5e1;
+    }
+  }
+
+  .decision-btn.snooze {
+    background: #1e293b;
+    color: #cbd5e1;
+    border-color: #475569;
+
+    &:hover:not(:disabled) {
+      background: #334155;
+      color: #ffffff;
+    }
+  }
+}
+
+@keyframes beaconPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+}
+
+@keyframes bannerSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
