@@ -106,7 +106,25 @@
 .notification-disapprovedBadge { color: #be123c; background: #ffe4e6; }
 .notification-message { margin: .4rem 0 0; color: #475569; font-size: .67rem; font-weight: 450; line-height: 1.55; }
 .notification-itemActions { flex-wrap: wrap; gap: .35rem; min-height: 2rem; margin-top: .5rem; padding-top: .5rem; border-top: 1px solid #f1f5f9; display: flex; align-items: center; }
-.notification-approveButton, .notification-disapproveButton { min-height: 2.25rem; padding: .45rem .9rem; color: #fff; border: 0; border-radius: .45rem; font-size: .72rem; font-weight: 700; cursor: pointer; box-shadow: none; }
+.notification-approveButton, .notification-disapproveButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .3rem;
+  min-height: 2.25rem;
+  padding: .45rem .85rem;
+  color: #fff;
+  border: 0;
+  border-radius: .45rem;
+  font-size: .72rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: none;
+}
+.notification-approveButton ion-icon, .notification-disapproveButton ion-icon {
+  font-size: .88rem;
+  flex-shrink: 0;
+}
 .notification-approveButton { background: #059669; } .notification-approveButton:hover { background: #10b981; }
 .notification-disapproveButton { background: #e11d48; } .notification-disapproveButton:hover { background: #f43f5e; }
 .notification-approveButton:disabled, .notification-disapproveButton:disabled { cursor: wait; opacity: .5; }

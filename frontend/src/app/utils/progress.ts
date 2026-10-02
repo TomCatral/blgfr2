@@ -61,6 +61,15 @@ export function calculateDocumentProgress(doc: DocumentRecord): ProgressInfo {
         barBgClass: 'bg-amber-500'
       };
 
+    case 'NOT_YET_ROUTED':
+      return {
+        percentage: 10,
+        stageName: 'Registered / Not Yet Routed',
+        stageStep: 1,
+        colorClass: 'text-purple-600 dark:text-purple-400',
+        barBgClass: 'bg-purple-500'
+      };
+
     case 'PENDING':
     default:
       return {

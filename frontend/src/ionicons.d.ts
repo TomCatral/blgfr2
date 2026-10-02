@@ -34,6 +34,8 @@ declare module 'ionicons/icons' {
   export const download: string;
   export const eye: string;
   export const eyeOff: string;
+  export const eyeOutline: string;
+  export const eyeOffOutline: string;
   export const fileTray: string;
   export const folder: string;
   export const folderOpen: string;
@@ -64,6 +66,8 @@ declare module 'ionicons/icons' {
   export const receiptOutline: string;
   export const barChart: string;
   export const statsChart: string;
+  export const hourglass: string;
+  export const hourglassOutline: string;
   export const refresh: string;
   export const save: string;
   export const scan: string;
@@ -122,4 +126,21 @@ declare module 'ionicons/icons' {
   export const notificationsOutline: string;
   export const documentOutline: string;
   export const checkmarkCircleOutline: string;
+  export const desktopOutline: string;
+  export const phonePortraitOutline: string;
+  export const logoApple: string;
+  export const downloadOutline: string;
+  export const shareOutline: string;
+  export const sparkles: string;
+  export const calendarOutline: string;
+  export const addCircle: string;
+  export const documentTextOutline: string;
+  export const folderOpenOutline: string;
+  export const fileTrayOutline: string;
+  export const swapHorizontalOutline: string;
+  export const ellipseOutline: string;
+  export const filterOutline: string;
+  export const refreshOutline: string;
+  export const chevronForwardOutline: string;
 }
+

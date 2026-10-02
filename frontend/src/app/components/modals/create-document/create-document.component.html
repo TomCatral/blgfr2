@@ -489,15 +489,41 @@
         </div>
       } @else {
         <!-- Original BLGF Internal Division / Recipient Assignment -->
-        <div class="cd-panel">
+        <div class="cd-panel" id="initial-assignment-panel" [class.cd-panel-warn]="routeAssignmentWarning()">
           <div class="cd-panel-title">
-            <ion-icon name="people"></ion-icon>
-            Initial Division / Recipient Assignment
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <ion-icon name="people"></ion-icon>
+              <span>Initial Division / Recipient Assignment</span>
+            </div>
+            <span class="cd-optional-indicator">Optional for Register Only &bull; Required to Route</span>
           </div>
+
+          @if (routeAssignmentWarning()) {
+            <div class="cd-route-warning-banner">
+              <div class="cd-route-warning-icon">
+                <ion-icon name="alert-circle"></ion-icon>
+              </div>
+              <div class="cd-route-warning-body">
+                <strong class="cd-route-warning-title">Initial Assignment Required to Route</strong>
+                <p class="cd-route-warning-desc">{{ routeAssignmentWarning() }}</p>
+              </div>
+              <button
+                type="button"
+                class="cd-route-warning-dismiss"
+                (click)="routeAssignmentWarning.set('')"
+                title="Dismiss warning"
+              >
+                <ion-icon name="close"></ion-icon>
+              </button>
+            </div>
+          }
 
           <div>
             <div class="cd-panel-header">
-              <label class="cd-field-label">Division Assignment *</label>
+              <label class="cd-field-label">
+                Division Assignment
+                <span class="cd-req-indicator">(Required if routing)</span>
+              </label>
               <button
                 type="button"
                 class="cd-btn-text"
@@ -553,7 +579,10 @@
           </div>
 
           <div>
-            <label class="cd-field-label">Assigned Handler / Individual Recipient *</label>
+            <label class="cd-field-label">
+              Assigned Handler / Individual Recipient
+              <span class="cd-req-indicator">(Required if routing)</span>
+            </label>
             <div class="cd-recipient-input-row">
               <select
                 class="cd-select"
@@ -701,9 +730,11 @@
 
         <div>
           <div class="cd-label-badge-row">
-            <label class="cd-field-label">Target Completion Date *</label>
+            <label class="cd-field-label">Target Completion Date</label>
             @if (isOutsideOffice()) {
               <span class="cd-badge-subtle">Not Applicable (Exempt)</span>
+            } @else {
+              <span class="cd-badge-subtle">Optional</span>
             }
           </div>
           @if (isOutsideOffice()) {
@@ -717,7 +748,6 @@
           } @else {
             <input
               type="date"
-              required
               [value]="targetCompletionDate()"
               (change)="onTargetDateChange($event)"
               class="cd-date-input"

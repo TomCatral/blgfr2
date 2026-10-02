@@ -5,7 +5,6 @@ import { firstValueFrom } from 'rxjs';
 import { AppModalLayerComponent } from '../../ui/modal-layer.component';
 import {
   DocumentRecord,
-  DocumentStatus,
   DivisionCode,
   User,
   EmployeeProfile,

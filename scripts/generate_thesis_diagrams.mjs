@@ -402,16 +402,16 @@ const diagrams = {
         "division_code (logical ref.)",
         "active",
       ], gray) +
-      entityBox(400, 1040, 300, 210, "EMPLOYEE_FOLDERS", [
-        "PK  id",
-        "FK  employee_id",
-        "name",
+      entityBox(400, 1040, 300, 210, "FOLDERS JSON FIELD", [
+        "Stored in employee_profiles",
+        "folder id and name",
         "description",
-        "created_at",
+        "file metadata array",
+        "No separate SQL table",
       ], pale) +
-      entityBox(760, 1040, 300, 210, "EMPLOYEE_FOLDER_FILES", [
-        "PK  id",
-        "FK  folder_id",
+      entityBox(760, 1040, 300, 210, "FILE STORAGE", [
+        "Uploaded file on disk",
+        "Metadata in folders JSON",
         "file_name",
         "file_url",
         "uploaded_at",

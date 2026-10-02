@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { DatePipe, NgClass } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
 import { ClsPipe } from './shared/cls.pipe';
 import { ApiService } from './services/api.service';
@@ -106,11 +107,17 @@ export class AppComponent implements OnInit, OnDestroy {
   session = inject(SessionService);
   state = inject(StateService);
   private ui = inject(UiService);
+  private sanitizer = inject(DomSanitizer);
 
   currentUser = this.session.currentUser;
   isDarkMode = this.session.isDarkMode;
 
   readonly activeView = signal<string>('dashboard');
+  readonly attachmentViewer = signal<{
+    name: string;
+    url: string;
+    safeUrl: SafeResourceUrl;
+  } | null>(null);
   readonly headerSearchQuery = signal<string>('');
   readonly docListSearchQuery = signal<string>('');
   readonly searchQuery = signal<string>('');
@@ -570,7 +577,12 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     if (!document) {
-      this.ui.showError('The document linked to this notification could not be found. It may have been removed or you may no longer have access.');
+      this.state.notifications.set(
+        this.state.notifications().filter((n) => n.id !== notification.id),
+      );
+      this.ui.showError(
+        'The document linked to this notification was removed or is no longer available.',
+      );
       return;
     }
 
@@ -591,7 +603,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   handleLogin = (user: User): void => {
     this.session.login(user);
-    if (user.role !== 'SYSTEM_ADMIN' && this.activeView() === 'users') {
+    if (user.role !== 'SYSTEM_ADMIN' && user.divisionCode !== 'ITMS' && this.activeView() === 'users') {
       this.activeView.set('dashboard');
     }
   };
@@ -1015,8 +1027,11 @@ export class AppComponent implements OnInit, OnDestroy {
       )
     ) {
       try {
-        await firstValueFrom(this.api.deleteDocument(doc.id));
+        await firstValueFrom(
+          this.api.deleteDocument(doc.id, this.currentUser()?.id),
+        );
         this.state.removeDocument(doc.id);
+        await this.state.refreshNotifications().catch(() => undefined);
         await this.loadBackendData();
         alert(`Document [${doc.routeNo}] deleted successfully.`);
       } catch (err: unknown) {
@@ -1058,7 +1073,7 @@ export class AppComponent implements OnInit, OnDestroy {
   };
 
   selfUpdateUser = async (
-    id: string,
+    _id: string,
     userData: Partial<User> & { currentPassword?: string },
   ): Promise<User> => {
     const currentUser = this.currentUser();
@@ -1113,16 +1128,12 @@ export class AppComponent implements OnInit, OnDestroy {
   markNotifRead = (id: string): void => {
     const user = this.currentUser();
     if (user) {
-      const dismissedIds = this.state.getDismissedNotificationIds(user.id);
-      dismissedIds.add(id);
-      localStorage.setItem(
-        `blgf_dismissed_notifications_${user.id}`,
-        JSON.stringify([...dismissedIds]),
+      this.state.dismissNotification(user.id, id);
+    } else {
+      this.state.notifications.set(
+        this.state.notifications().filter((notification) => notification.id !== id),
       );
     }
-    this.state.notifications.set(
-      this.state.notifications().filter((notification) => notification.id !== id),
-    );
   };
 
   // ===== Envelope dispatch =====
@@ -1235,23 +1246,22 @@ export class AppComponent implements OnInit, OnDestroy {
                   n.trackingNumber === document.trackingNumber))),
         );
         if (!hasUrgentReminder && !this.isNewRecipientAssignment(document, route)) return false;
-        const hasSavedDecision = (document.routes || []).some(
+        const userAlreadyActed = (document.routes || []).some(
           (candidate) =>
             (candidate.fromUserId === user.id ||
               (!candidate.fromUserId &&
                 candidate.fromUser?.trim().toLowerCase() ===
                   user.fullName.trim().toLowerCase())) &&
-            new Date(candidate.createdAt).getTime() > assignedAt &&
-            /^(APPROVED|DISAPPROVED)$/i.test(candidate.actionRequested),
-        );
-        const hasAuditedDecision = this.state.auditLogs().some(
+            new Date(candidate.createdAt).getTime() >= assignedAt &&
+            candidate.id !== route.id,
+        ) || this.state.auditLogs().some(
           (log) =>
             log.documentTrackingNumber === document.trackingNumber &&
             log.userId === user.id &&
-            new Date(log.timestamp).getTime() > assignedAt &&
-            /(?:Action:\s*|^)(APPROVED|DISAPPROVED)\b/i.test(log.details),
+            new Date(log.timestamp).getTime() >= assignedAt &&
+            ['ROUTE_DOC', 'TRANSFER_DOC', 'UPDATE_STATUS'].includes(log.action),
         );
-        return !hasSavedDecision && !hasAuditedDecision;
+        return !userAlreadyActed;
       })
       .sort(
         (a, b) =>
@@ -1395,6 +1405,8 @@ export class AppComponent implements OnInit, OnDestroy {
   };
 
   getPendingPopupAction = (doc: DocumentRecord): PopupAction | null => {
+    const user = this.currentUser();
+    if (!user) return null;
     if (this.reviewingRoutingPopup()?.documentId === doc.id) {
       return this.reviewingRoutingPopup();
     }
@@ -1404,6 +1416,7 @@ export class AppComponent implements OnInit, OnDestroy {
     const notif = this.state.notifications().find(
       (n) =>
         n.requiresDecision &&
+        n.userId === user.id &&
         (n.documentId === doc.id ||
           (n.trackingNumber &&
             (n.trackingNumber === doc.routeNo ||
@@ -1412,7 +1425,7 @@ export class AppComponent implements OnInit, OnDestroy {
     if (notif) {
       return {
         id: notif.id,
-        userId: this.currentUser()?.id || '',
+        userId: user.id,
         title: notif.title,
         message: notif.message,
         documentId: doc.id,
@@ -1427,7 +1440,24 @@ export class AppComponent implements OnInit, OnDestroy {
 
   openPopupAttachment(attachment: DocumentAttachment): void {
     if (!attachment.url) return;
-    window.open(attachment.url, '_blank', 'noopener,noreferrer');
+    this.attachmentViewer.set({
+      name: attachment.fileName,
+      url: attachment.url,
+      safeUrl: this.sanitizer.bypassSecurityTrustResourceUrl(attachment.url),
+    });
+  }
+
+  closeAttachmentViewer = (): void => this.attachmentViewer.set(null);
+
+  downloadViewedAttachment(): void {
+    const file = this.attachmentViewer();
+    if (!file) return;
+    const link = window.document.createElement('a');
+    link.href = file.url;
+    link.download = file.name;
+    window.document.body.appendChild(link);
+    link.click();
+    link.remove();
   }
 
   downloadPopupAttachment(attachment: DocumentAttachment): void {

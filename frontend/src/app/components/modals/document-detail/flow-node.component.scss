@@ -155,6 +155,37 @@
   border-radius: 9999px;
 }
 
+.flow-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: 9999px;
+  border: 1px solid #fecdd3;
+  background: #fff1f2;
+  color: #e11d48;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+
+  ion-icon {
+    font-size: 0.875rem;
+  }
+
+  &:hover {
+    background: #ffe4e6;
+    border-color: #f43f5e;
+    color: #be123c;
+    transform: scale(1.08);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
 .flow-remarks-quote {
   margin-top: 0.625rem;
   padding: 0.625rem 0.85rem;
@@ -178,12 +209,51 @@
 
 .flow-stage-pill {
   padding: 0.35rem 0.45rem;
-  border-radius: 0.45rem;
+  border-radius: 0.5rem;
   text-align: center;
   font-weight: 700;
   font-size: 0.6875rem;
   border: 1px solid transparent;
   transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+
+  &.stage-pending {
+    background: #f8fafc;
+    color: #94a3b8;
+    border-color: #e2e8f0;
+  }
+
+  &.stage-active-blue {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+    font-weight: 800;
+  }
+
+  &.stage-passed-green {
+    background: #f0fdf4;
+    color: #15803d;
+    border-color: #bbf7d0;
+    font-weight: 700;
+  }
+
+  &.stage-completed-green {
+    background: #059669;
+    color: #ffffff;
+    border-color: #047857;
+    font-weight: 800;
+    box-shadow: 0 1px 3px rgba(5, 150, 105, 0.35);
+  }
+
+  &.stage-disapproved-red {
+    background: #fff1f2;
+    color: #e11d48;
+    border-color: #fecdd3;
+    font-weight: 800;
+  }
 }
 
 /* Disapproval box */
@@ -395,6 +465,50 @@
     background: #1e293b;
     border-color: #60a5fa;
     color: #cbd5e1;
+  }
+
+  .flow-stage-pill {
+    &.stage-pending {
+      background: #1e293b;
+      color: #64748b;
+      border-color: #334155;
+    }
+
+    &.stage-active-blue {
+      background: rgba(37, 99, 235, 0.2);
+      color: #93c5fd;
+      border-color: rgba(37, 99, 235, 0.4);
+    }
+
+    &.stage-passed-green {
+      background: rgba(16, 185, 129, 0.15);
+      color: #86efac;
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    &.stage-completed-green {
+      background: #10b981;
+      color: #ffffff;
+      border-color: #059669;
+      box-shadow: 0 1px 4px rgba(16, 185, 129, 0.5);
+    }
+
+    &.stage-disapproved-red {
+      background: rgba(225, 29, 72, 0.2);
+      color: #fda4af;
+      border-color: rgba(225, 29, 72, 0.4);
+    }
+  }
+
+  .flow-remove-btn {
+    background: rgba(225, 29, 72, 0.15);
+    border-color: rgba(225, 29, 72, 0.35);
+    color: #fda4af;
+
+    &:hover {
+      background: rgba(225, 29, 72, 0.3);
+      color: #fff;
+    }
   }
 
   .flow-disapproval-box {

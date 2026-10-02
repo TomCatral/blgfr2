@@ -442,6 +442,7 @@ export class EmployeeProfilesComponent implements OnInit {
   canManage(action: string): boolean {
     if (this.currentUser.role === 'SYSTEM_ADMIN') return true;
     const perm = this.currentUser.permissions || DEFAULT_ROLE_PERMISSIONS[this.currentUser.role];
+    if (action === 'EMPLOYEE_DELETE' && perm?.canDelete) return true;
     return perm.allowedActions?.includes(action) ?? false;
   }
 
@@ -706,7 +707,7 @@ export class EmployeeProfilesComponent implements OnInit {
       return;
     }
     if (this.currentUser.role !== 'SYSTEM_ADMIN' && !this.canManage('EMPLOYEE_DELETE')) {
-      this.ui.showError('System Administrator access required to delete personnel.');
+      this.ui.showError('Delete permission or System Administrator access required to delete personnel.');
       return;
     }
     if (!(await showConfirm(`Delete manual directory entry for "${target.fullName}"?`))) return;
@@ -810,15 +811,11 @@ export class EmployeeProfilesComponent implements OnInit {
 
   viewFile(file: EmployeeFolderRecord['files'][number]): void {
     if (!file.dataUrl) return;
-    if (file.type === 'application/pdf') {
-      this.viewingPdf.set({
-        name: file.name,
-        dataUrl: file.dataUrl,
-        safeUrl: this.sanitizer.bypassSecurityTrustResourceUrl(file.dataUrl),
-      });
-    } else {
-      window.open(file.dataUrl, '_blank', 'noopener,noreferrer');
-    }
+    this.viewingPdf.set({
+      name: file.name,
+      dataUrl: file.dataUrl,
+      safeUrl: this.sanitizer.bypassSecurityTrustResourceUrl(file.dataUrl),
+    });
   }
 
   closePdf(): void {

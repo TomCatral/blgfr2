@@ -1,4 +1,4 @@
-import { Component, Input, signal, inject, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, Input, signal, computed, inject, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -110,22 +110,72 @@ const MENU_ITEMS_LIST: MenuItem[] = [
   { id: 'envelope-logs', label: 'Outgoing Envelope Logs', section: 'Logs', icon: 'mail' },
 ];
 
-const ACTION_PERMISSIONS: { id: string; label: string }[] = [
-  { id: 'USER_ACCOUNT_CREATE', label: 'Create User Accounts' },
-  { id: 'USER_ACCOUNT_EDIT', label: 'Edit User Accounts and Permissions' },
-  { id: 'USER_ACCOUNT_DELETE', label: 'Delete Non-System-Administrator Accounts' },
-  { id: 'USER_SYSTEM_ADMIN_MANAGE', label: 'Manage Protected System Administrator Accounts' },
-  { id: 'DIRECTORY_BLGF_VIEW', label: 'View Confidential BLGF Personnel Directory' },
-  { id: 'DIRECTORY_LGU_VIEW', label: 'View Provincial, Municipal and LGU Directory' },
-  { id: 'DIRECTORY_OTHER_VIEW', label: 'View Partner Agencies and Custom Directory Sections' },
-  { id: 'NOTIFICATION_VIEW_ALL', label: 'View All Document Transaction Notifications' },
-  { id: 'ROUTING_MONITOR_VIEW', label: 'View Routing Follow-up Module' },
-  { id: 'ROUTING_REMINDER_SEND', label: 'Send Action Reminders to Document Handlers' },
-  { id: 'WORKFLOW_OPTION_MANAGE', label: 'Add, Edit, Delete and Color Workflow Options' },
-  { id: 'EMPLOYEE_CREATE', label: 'Add Office Directory Personnel / Staff' },
-  { id: 'EMPLOYEE_EDIT', label: 'Edit Office Directory Personnel / Staff' },
-  { id: 'EMPLOYEE_DELETE', label: 'Delete Office Directory Personnel / Staff' },
-  { id: 'EMPLOYEE_FOLDER_MANAGE', label: 'Manage Employee Folders and Attachments' },
+const ACTION_PERMISSIONS: { id: string; label: string; description: string }[] = [
+  {
+    id: 'USER_ACCOUNT_CREATE',
+    label: 'Create User Accounts',
+    description: 'Register and provision new user accounts and logins in the system',
+  },
+  {
+    id: 'USER_ACCOUNT_EDIT',
+    label: 'Edit User Accounts and Permissions',
+    description: 'Modify user profiles, assigned divisions, passwords, and custom privileges',
+  },
+  {
+    id: 'USER_SYSTEM_ADMIN_MANAGE',
+    label: 'Manage Protected System Administrator Accounts',
+    description: 'Configure and oversee root administrator roles and global system policies',
+  },
+  {
+    id: 'DIRECTORY_BLGF_VIEW',
+    label: 'View Confidential BLGF Personnel Directory',
+    description: 'Access internal regional office staff profiles and contact directory',
+  },
+  {
+    id: 'DIRECTORY_LGU_VIEW',
+    label: 'View Provincial, Municipal and LGU Directory',
+    description: 'Access local government assessment and treasury directory listings',
+  },
+  {
+    id: 'DIRECTORY_OTHER_VIEW',
+    label: 'View Partner Agencies and Custom Directory Sections',
+    description: 'Access external contact records, partner agencies, and custom categories',
+  },
+  {
+    id: 'NOTIFICATION_VIEW_ALL',
+    label: 'View All Document Transaction Notifications',
+    description: 'Receive and monitor all incoming, forwarded, and updated document alerts',
+  },
+  {
+    id: 'ROUTING_MONITOR_VIEW',
+    label: 'View Routing Follow-up Module',
+    description: 'Monitor active document handling durations, processing stages, and bottlenecks',
+  },
+  {
+    id: 'ROUTING_REMINDER_SEND',
+    label: 'Send Action Reminders to Document Handlers',
+    description: 'Dispatch urgent follow-up notifications and prompts to action officers',
+  },
+  {
+    id: 'WORKFLOW_OPTION_MANAGE',
+    label: 'Add, Edit, Delete and Color Workflow Options',
+    description: 'Customize document action tags, statuses, badge colors, and route types',
+  },
+  {
+    id: 'EMPLOYEE_CREATE',
+    label: 'Add Office Directory Personnel / Staff',
+    description: 'Register new employee profiles with position and division assignment',
+  },
+  {
+    id: 'EMPLOYEE_EDIT',
+    label: 'Edit Office Directory Personnel / Staff',
+    description: 'Update employee contact numbers, division assignments, and service records',
+  },
+  {
+    id: 'EMPLOYEE_FOLDER_MANAGE',
+    label: 'Manage Employee Folders and Attachments',
+    description: 'Upload, organize, and archive confidential 201 files and document attachments',
+  },
 ];
 
 const DIVISION_CODES: DivisionCode[] = [
@@ -145,7 +195,6 @@ function sanitizeRolePermissions(
   const adminActions = [
     'USER_ACCOUNT_CREATE',
     'USER_ACCOUNT_EDIT',
-    'USER_ACCOUNT_DELETE',
     'USER_SYSTEM_ADMIN_MANAGE',
   ];
   for (const role of Object.keys(sanitized) as Role[]) {
@@ -222,12 +271,16 @@ export class UserManagementComponent {
   selectedRoleForView = signal<Role>('ORD');
 
   // User Account Permissions State
-  permTargetMode = signal<'roles' | 'user'>('roles');
+  // Permissions are managed per account to avoid conflicting role-level and
+  // user-level settings. Roles remain account classifications/default presets.
+  permTargetMode = signal<'roles' | 'user'>('user');
   selectedPermUser = signal<User | null>(null);
   userPermSearch = signal<string>('');
   userPermRoleFilter = signal<string>('ALL');
+  userPermDivFilter = signal<string>('ALL');
   userPermForm = signal<RolePermission>(structuredClone(DEFAULT_ROLE_PERMISSIONS.STAFF));
   isUserPermDirty = signal<boolean>(false);
+  itmsUsersCount = computed(() => this.visibleUsers.filter((u) => u.divisionCode === 'ITMS' || u.role === 'SYSTEM_ADMIN').length);
 
   fullName = signal('');
   username = signal('');
@@ -250,7 +303,6 @@ export class UserManagementComponent {
     return [
       'USER_ACCOUNT_CREATE',
       'USER_ACCOUNT_EDIT',
-      'USER_ACCOUNT_DELETE',
       'USER_SYSTEM_ADMIN_MANAGE',
     ].includes(actionId);
   }
@@ -259,9 +311,13 @@ export class UserManagementComponent {
     return this.users;
   }
 
+  userDivCount(code: string): number {
+    return this.visibleUsers.filter((u) => u.divisionCode === code).length;
+  }
+
   get permFilteredUsers(): User[] {
     const q = this.userPermSearch().toLowerCase().trim();
-    const roleF = this.userPermRoleFilter();
+    const divF = this.userPermDivFilter();
     return this.visibleUsers.filter((u) => {
       const matchSearch =
         !q ||
@@ -269,8 +325,8 @@ export class UserManagementComponent {
         u.username.toLowerCase().includes(q) ||
         (u.email && u.email.toLowerCase().includes(q)) ||
         (u.designation && u.designation.toLowerCase().includes(q));
-      const matchRole = roleF === 'ALL' || u.role === roleF;
-      return matchSearch && matchRole;
+      const matchDiv = divF === 'ALL' || u.divisionCode === divF;
+      return matchSearch && matchDiv;
     });
   }
 
@@ -382,9 +438,11 @@ export class UserManagementComponent {
     if (!role) return '';
     switch (role.toUpperCase()) {
       case 'SYSTEM_ADMIN':
-        return 'System Administrator';
+        return 'System Administrator (ITMS)';
       case 'ADMIN':
         return 'Administrator';
+      case 'ORD':
+        return 'Regional Director Office';
       case 'RECORDS_OFFICER':
         return 'Records Officer';
       case 'DIVISION_CHIEF':
@@ -598,7 +656,26 @@ export class UserManagementComponent {
   }
 
   onDivisionCodeChange(value: string): void {
-    this.divisionCode.set(value as DivisionCode);
+    const nextDiv = value as DivisionCode;
+    this.divisionCode.set(nextDiv);
+    if (nextDiv === 'ITMS') {
+      this.role.set('SYSTEM_ADMIN');
+      if (!this.designation() || this.designation() === 'Staff Officer') {
+        this.designation.set('IT Officer / System Administrator');
+      }
+      this.formPermissions.set(
+        this.rolePermissions()['SYSTEM_ADMIN'] || DEFAULT_ROLE_PERMISSIONS.SYSTEM_ADMIN,
+      );
+    } else {
+      const nextRole: Role = nextDiv === 'ORD' ? 'ORD' : 'STAFF';
+      this.role.set(nextRole);
+      if (this.designation() === 'IT Officer / System Administrator') {
+        this.designation.set('Staff Officer');
+      }
+      this.formPermissions.set(
+        this.rolePermissions()[nextRole] || DEFAULT_ROLE_PERMISSIONS[nextRole],
+      );
+    }
   }
 
   handleCreateSubmit(): void {
@@ -606,18 +683,22 @@ export class UserManagementComponent {
       this.ui.showError('Please fill out full name, username, and password');
       return;
     }
+    const isITMS = this.divisionCode() === 'ITMS';
+    const computedRole: Role = isITMS ? 'SYSTEM_ADMIN' : (this.divisionCode() === 'ORD' ? 'ORD' : 'STAFF');
+    this.role.set(computedRole);
+
     if (
-      this.role() === 'SYSTEM_ADMIN' &&
-      this.users.filter((user) => user.role === 'SYSTEM_ADMIN').length >= 3
+      isITMS &&
+      this.users.filter((user) => user.divisionCode === 'ITMS' || user.role === 'SYSTEM_ADMIN').length >= 3
     ) {
-      this.ui.showError('Only three System Administrator accounts are allowed.');
+      this.ui.showError('Only three System Administrator (ITMS) accounts are allowed.');
       return;
     }
 
     const name = this.fullName();
     const rawPerms = this.formPermissions();
     const finalPermissions: RolePermission =
-      this.role() === 'SYSTEM_ADMIN'
+      computedRole === 'SYSTEM_ADMIN'
         ? rawPerms
         : {
             ...rawPerms,
@@ -632,9 +713,9 @@ export class UserManagementComponent {
       username: this.username(),
       password: this.password(),
       email: this.email().trim() || 'N/A',
-      role: this.role(),
+      role: computedRole,
       divisionCode: this.divisionCode(),
-      designation: this.designation() || 'Staff Officer',
+      designation: this.designation() || (isITMS ? 'IT Officer / System Administrator' : 'Staff Officer'),
       contactNo: this.contactNo() || '0917-000-0000',
       avatarUrl: this.avatarUrl(),
       active: true,
@@ -673,28 +754,35 @@ export class UserManagementComponent {
     this.currentPassword.set('');
     this.email.set(user.email);
     this.avatarUrl.set(user.avatarUrl || '');
-    this.role.set(user.role);
-    this.divisionCode.set(user.divisionCode);
-    this.designation.set(user.designation);
+    const divCode = (user.divisionCode || (user.role === 'SYSTEM_ADMIN' ? 'ITMS' : 'AD')) as DivisionCode;
+    this.divisionCode.set(divCode);
+    const computedRole: Role = divCode === 'ITMS' ? 'SYSTEM_ADMIN' : (divCode === 'ORD' ? 'ORD' : 'STAFF');
+    this.role.set(computedRole);
+    this.designation.set(user.designation || (divCode === 'ITMS' ? 'IT Officer / System Administrator' : 'Staff Officer'));
     this.contactNo.set(user.contactNo || '');
     this.showEditPassword.set(false);
     this.showCurrentPassword.set(false);
     this.formPermissions.set(
       user.permissions ||
-        this.rolePermissions()[user.role] ||
-        DEFAULT_ROLE_PERMISSIONS[user.role],
+        this.rolePermissions()[computedRole] ||
+        DEFAULT_ROLE_PERMISSIONS[computedRole],
     );
   }
 
   async handleEditSubmit(): Promise<void> {
     const user = this.editingUser();
     if (!user) return;
+    const isITMS = this.divisionCode() === 'ITMS';
+    const computedRole: Role = isITMS ? 'SYSTEM_ADMIN' : (this.divisionCode() === 'ORD' ? 'ORD' : 'STAFF');
+    this.role.set(computedRole);
+
     if (
-      this.role() === 'SYSTEM_ADMIN' &&
+      isITMS &&
+      user.divisionCode !== 'ITMS' &&
       user.role !== 'SYSTEM_ADMIN' &&
-      this.users.filter((u) => u.role === 'SYSTEM_ADMIN').length >= 3
+      this.users.filter((u) => u.divisionCode === 'ITMS' || u.role === 'SYSTEM_ADMIN').length >= 3
     ) {
-      this.ui.showError('Only three System Administrator accounts are allowed.');
+      this.ui.showError('Only three System Administrator (ITMS) accounts are allowed.');
       return;
     }
 
@@ -703,7 +791,7 @@ export class UserManagementComponent {
     const newAvatar = this.avatarUrl();
     const rawPerms = this.formPermissions();
     const finalPermissions: RolePermission =
-      this.role() === 'SYSTEM_ADMIN'
+      computedRole === 'SYSTEM_ADMIN'
         ? rawPerms
         : {
             ...rawPerms,
@@ -721,9 +809,9 @@ export class UserManagementComponent {
         ? { currentPassword: this.currentPassword() }
         : {}),
       email: this.email().trim() || 'N/A',
-      role: this.role(),
+      role: computedRole,
       divisionCode: this.divisionCode(),
-      designation: this.designation(),
+      designation: this.designation() || (isITMS ? 'IT Officer / System Administrator' : 'Staff Officer'),
       contactNo: this.contactNo(),
       avatarUrl: newAvatar,
       permissions: finalPermissions,
@@ -803,6 +891,14 @@ export class UserManagementComponent {
     this.avatarUrl.set('');
   }
 
+  canDeleteUsers(): boolean {
+    return (
+      this.currentUser?.role === 'SYSTEM_ADMIN' ||
+      Boolean(this.currentUser?.permissions?.canDelete) ||
+      Boolean(DEFAULT_ROLE_PERMISSIONS[this.currentUser?.role]?.canDelete)
+    );
+  }
+
   async handleDelete(user: User): Promise<void> {
     if (user.role === 'SYSTEM_ADMIN') {
       this.ui.showError('System Administrator accounts cannot be deleted.');
@@ -810,6 +906,10 @@ export class UserManagementComponent {
     }
     if (user.id === this.currentUser.id) {
       this.ui.showError('You cannot delete your own active administrator account.');
+      return;
+    }
+    if (!this.canDeleteUsers()) {
+      this.ui.showError('Delete permission or System Administrator access required to delete accounts.');
       return;
     }
     if (

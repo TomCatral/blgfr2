@@ -16,17 +16,15 @@ import {
   DEFAULT_ROLE_PERMISSIONS,
   DivisionCode,
 } from '../../../types';
-import {
-  STATUS_CONFIGS,
-  PRIORITY_CONFIGS,
-  formatDate,
-} from '../../../utils/status-utils';
+import { formatDate } from '../../../utils/status-utils';
 import { isDocumentParticipant } from '../../../utils/document-visibility';
 import { isSharedDocumentFile } from '../../../utils/attachment-visibility';
 import { documentFileType } from '../../../utils/document-files';
 import { hasCompletedPart } from '../../../utils/routing-recipients';
 import { ApiService } from '../../../services/api.service';
-import { showPrompt } from '../../../services/dialog.service';
+import { UiService } from '../../../services/ui.service';
+import { StateService } from '../../../services/state.service';
+import { showConfirm, showPrompt } from '../../../services/dialog.service';
 
 const displayRouteRemarks = (remarks?: string) => {
   const value = remarks?.trim();
@@ -58,6 +56,7 @@ const DIVISION_OFFICE_NAMES: Record<string, string> = {
 };
 
 const NEXT_ACTION: Record<DocumentRecord['currentStatus'], string> = {
+  NOT_YET_ROUTED: 'Document has been registered. Dispatch or route this document to an initial division or recipient handler.',
   PENDING: 'The assigned handler reviews the document and starts the requested action.',
   IN_PROGRESS: 'The handler records the work done, then forwards the document when ready.',
   FOR_SIGNATURE: 'The designated approver reviews the document for signature or a decision.',
@@ -69,6 +68,7 @@ const NEXT_ACTION: Record<DocumentRecord['currentStatus'], string> = {
 const TRANSACTION_STAGES = ['Received', 'Processing', 'For approval', 'Completed'];
 
 const TRANSACTION_STAGE: Record<DocumentRecord['currentStatus'], number> = {
+  NOT_YET_ROUTED: 0,
   PENDING: 0,
   IN_PROGRESS: 1,
   FOR_SIGNATURE: 2,
@@ -87,6 +87,8 @@ const TRANSACTION_STAGE: Record<DocumentRecord['currentStatus'], number> = {
 })
 export class DocumentDetailComponent implements OnChanges {
   private api = inject(ApiService);
+  private ui = inject(UiService);
+  private state = inject(StateService);
   private sanitizer = inject(DomSanitizer);
 
   readonly host = this;
@@ -186,6 +188,36 @@ export class DocumentDetailComponent implements OnChanges {
     const trackingSet = new Set([doc.trackingNumber, doc.routeNo].filter(Boolean) as string[]);
     return this.auditLogs.filter((log) => Boolean(log.documentTrackingNumber && trackingSet.has(log.documentTrackingNumber)));
   });
+
+  // Recalled routing steps are gone from the trail, so their audit entries must
+  // not resurface as Recorded Actions.
+  private readonly removedRecipientCutoffs = computed(() => {
+    const removals = new Map<string, number>();
+    for (const log of this.docAuditLogs()) {
+      if (!/removed recipient/i.test(log.details)) continue;
+      const name = log.details.match(/removed recipient\s+(.+?)(?:\s+from transaction|\s*\||$)/i)?.[1]
+        ?.replace(/\s*\([^)]*\)\s*$/, '')
+        .trim()
+        .toLowerCase();
+      if (!name) continue;
+      const at = new Date(log.timestamp).getTime();
+      removals.set(name, Math.max(removals.get(name) ?? 0, at));
+    }
+    return removals;
+  });
+
+  private isSupersededByRemoval(log: AuditLog): boolean {
+    const removals = this.removedRecipientCutoffs();
+    if (removals.size === 0) return false;
+    if (log.action !== 'ROUTE_DOC') return false;
+    const destination = log.details
+      .match(/\bTo:\s*(.*?)(?:\s*\|\s*(?:Action|Remarks|Status|Division):|$)/i)?.[1]
+      ?.trim()
+      .toLowerCase();
+    if (!destination || /^n\/a(\s|$)/.test(destination)) return false;
+    const removedAt = removals.get(destination);
+    return removedAt !== undefined && new Date(log.timestamp).getTime() <= removedAt;
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['document'] && this.document) {
@@ -356,12 +388,27 @@ export class DocumentDetailComponent implements OnChanges {
   }));
 
   rawHistoryRoutes = computed<DocumentRouteStep[]>(() => {
-    const routes = (this.document.routes || []).filter((r) => !getRouteDecision(r));
-    if (routes.length === 0) {
-      return [this.intakeRoute()];
-    }
+    const routes = (this.document.routes || []).filter((r) => {
+      if (getRouteDecision(r)) return false;
+      const hasRecipient = Boolean(r.toUserId || (r.toUser && r.toUser.trim() && r.toUser.trim() !== 'N/A'));
+      if (!hasRecipient) return false;
+      if (r.statusAfter === 'COMPLETED' && (!r.toUserId || !r.toUser?.trim() || r.toUser.trim() === 'N/A' || (r.fromUserId && r.toUserId && r.fromUserId === r.toUserId))) {
+        return false;
+      }
+      return true;
+    });
     return routes;
   });
+
+  isDocumentCreator(): boolean {
+    if (!this.currentUser || !this.document) return false;
+    return this.matchesPerson(
+      this.document.createdByUserId,
+      this.document.createdBy,
+      this.currentUser.id,
+      this.currentUser.fullName,
+    );
+  }
 
   visibleRoutes = computed<DocumentRouteStep[]>(() => {
     const all = this.rawHistoryRoutes();
@@ -380,7 +427,7 @@ export class DocumentDetailComponent implements OnChanges {
 
   flowRoots = computed<DocumentRouteStep[]>(() => {
     const recipients = this.flowRecipients();
-    if (recipients.length === 0) return [this.intakeRoute()];
+    if (recipients.length === 0) return [];
     const roots = recipients.filter((route, index) => {
       if (index === 0) return true;
       const hasParent = recipients
@@ -388,7 +435,7 @@ export class DocumentDetailComponent implements OnChanges {
         .some((p) => this.matchesPerson(p.toUserId, p.toUser, route.fromUserId, route.fromUser));
       return !hasParent;
     });
-    return roots.length > 0 ? roots : [recipients[0]];
+    return roots.length > 0 ? roots : (recipients[0] ? [recipients[0]] : []);
   });
 
   firstDispatchSender = computed<string>(() => {
@@ -419,6 +466,13 @@ export class DocumentDetailComponent implements OnChanges {
   currentCustodian = computed(() => {
     if (this.document.currentStatus === 'COMPLETED') {
       return { name: 'Completed & Finalized', office: this.completedAtOffice(), action: 'Archived / Picked up' };
+    }
+    if (this.document.currentStatus === 'NOT_YET_ROUTED' || (!this.document.routes || this.document.routes.length === 0)) {
+      return {
+        name: 'Not Yet Routed',
+        office: this.document.originatingOffice || 'Dispatch Origin',
+        action: 'Awaiting Initial Routing',
+      };
     }
     const latestRoute = [...(this.document.routes || [])].reverse().find((r) => !getRouteDecision(r));
     if (latestRoute) {
@@ -567,6 +621,8 @@ export class DocumentDetailComponent implements OnChanges {
 
   statusChipClass(): string {
     switch (this.document.currentStatus) {
+      case 'NOT_YET_ROUTED':
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-200';
       case 'COMPLETED':
         return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200';
       case 'RETURNED':
@@ -584,14 +640,50 @@ export class DocumentDetailComponent implements OnChanges {
 
   private pendingDecisionRouteSignal = computed(() => {
     this.docVersion();
-    return [...(this.document.routes || [])]
-      .reverse()
-      .find(
+    const routes = this.document.routes || [];
+    if (routes.length === 0) return undefined;
+
+    const userAssignments = [...routes].filter(
+      (route) =>
+        !getRouteDecision(route) &&
+        this.matchesPerson(
+          route.toUserId,
+          route.toUser,
+          this.currentUser.id,
+          this.currentUser.fullName,
+        ) &&
+        !this.getHandlerDecision(route),
+    );
+    const latestAssignment = userAssignments.at(-1);
+    if (!latestAssignment) return undefined;
+
+    const assignedAt = new Date(latestAssignment.createdAt).getTime();
+
+    const userAlreadyActed =
+      routes.some(
         (route) =>
-          !getRouteDecision(route) &&
-          this.matchesPerson(route.toUserId, route.toUser, this.currentUser.id, this.currentUser.fullName) &&
-          !this.getHandlerDecision(route),
+          this.matchesPerson(
+            route.fromUserId,
+            route.fromUser,
+            this.currentUser.id,
+            this.currentUser.fullName,
+          ) &&
+          new Date(route.createdAt).getTime() >= assignedAt &&
+          route.id !== latestAssignment.id,
+      ) ||
+      this.docAuditLogs().some(
+        (log) =>
+          log.documentTrackingNumber === this.document.trackingNumber &&
+          log.userId === this.currentUser.id &&
+          new Date(log.timestamp).getTime() >= assignedAt &&
+          ['ROUTE_DOC', 'TRANSFER_DOC', 'UPDATE_STATUS'].includes(log.action),
       );
+
+    if (userAlreadyActed) {
+      return undefined;
+    }
+
+    return latestAssignment;
   });
 
   pendingDecisionRoute = this.pendingDecisionRouteSignal;
@@ -599,9 +691,6 @@ export class DocumentDetailComponent implements OnChanges {
   readonly isDecisionRequired = computed(() => {
     if (this.document.currentStatus === 'COMPLETED' || this.document.currentStatus === 'RETURNED') {
       return false;
-    }
-    if (this.pendingPopupAction?.requiresDecision) {
-      return true;
     }
     return Boolean(this.pendingDecisionRoute());
   });
@@ -615,15 +704,6 @@ export class DocumentDetailComponent implements OnChanges {
         actionRequested: route.actionRequested || 'Appropriate Action',
         remarks: displayRouteRemarks(route.remarks) !== 'N/A' ? displayRouteRemarks(route.remarks) : undefined,
         forwardedAt: route.createdAt ? formatDate(route.createdAt) : undefined,
-      };
-    }
-    if (this.pendingPopupAction) {
-      return {
-        fromUser: this.pendingPopupAction.reminderSenderName || 'Forwarding Office',
-        fromDivision: '',
-        actionRequested: this.pendingPopupAction.reminderActionRequested || 'Appropriate Action',
-        remarks: this.pendingPopupAction.message,
-        forwardedAt: this.pendingPopupAction.createdAt ? formatDate(this.pendingPopupAction.createdAt) : undefined,
       };
     }
     return undefined;
@@ -646,13 +726,20 @@ export class DocumentDetailComponent implements OnChanges {
 
   canRouteDocument = computed(() => {
     this.docVersion();
+    const isUnrouted =
+      this.document.currentStatus === 'NOT_YET_ROUTED' ||
+      !this.document.routes ||
+      this.document.routes.length === 0;
+    const isPrivileged = ['ADMIN', 'SYSTEM_ADMIN', 'ORD', 'RECORDS_OFFICER'].includes(
+      this.currentUser?.role || '',
+    );
     return (
       this.document.currentStatus !== 'COMPLETED' &&
       !hasCompletedPart(this.document, this.currentUser) &&
       this.document.currentStatus !== 'RETURNED' &&
       this.latestDocumentDecision() !== 'DISAPPROVED' &&
       !this.isDecisionRequired() &&
-      this.isDocumentParticipant()
+      (this.isDocumentParticipant() || isPrivileged || isUnrouted)
     );
   });
 
@@ -674,8 +761,6 @@ export class DocumentDetailComponent implements OnChanges {
   selectedDetailFields = computed(() => {
     const route = this.selectedRoute();
     if (!route) return [];
-    const snap = this.getRecipientSnapshot(route);
-    const isCompleted = snap.ended || snap.status === 'Completed';
 
     const fields: { label: string; value?: string }[] = [
       { label: 'From', value: this.resolveUserName(route.fromUserId, route.fromUser) },
@@ -692,38 +777,212 @@ export class DocumentDetailComponent implements OnChanges {
     return fields.filter((field) => field.value && !/^(N\/A|None)$/i.test(field.value));
   });
 
-  completedHandoffs = computed(() => {
-    if (this.document.currentStatus !== 'COMPLETED') {
-      return [];
+  selectedCompletionInfo = computed(() => {
+    const route = this.selectedRoute();
+    if (!route) return null;
+    const snap = this.selectedSnapshot();
+    const activities = this.selectedActivities();
+    const completedActivity = activities.find((a) => a.status === 'COMPLETED');
+    const isCompleted = Boolean(snap?.ended || snap?.status === 'Completed' || completedActivity || route.statusAfter === 'COMPLETED');
+    const handoffInst = this.getFlowNodeHandoffInstruction(route.id) || completedActivity?.instruction;
+
+    if (!isCompleted && !handoffInst && this.document.currentStatus !== 'COMPLETED') {
+      return null;
     }
-    const results: {
-      routeId: string;
+
+    const performer =
+      completedActivity?.performerName ||
+      this.resolveUserName(route.fromUserId, route.fromUser) ||
+      this.resolveUserName(route.toUserId, route.toUser) ||
+      route.toDivision ||
+      '';
+
+    const performerDivision = completedActivity?.performerDivision || route.fromDivision || route.toDivision || '';
+
+    const instruction =
+      handoffInst ||
+      completedActivity?.instruction ||
+      (completedActivity?.remarks && !this.isNoneRemark(completedActivity.remarks) ? completedActivity.remarks : '') ||
+      '';
+
+    const timestamp = completedActivity?.timestamp || snap?.lastUpdated || route.processedAt || route.createdAt;
+
+    return {
+      isCompleted,
+      completedBy: performer,
+      division: performerDivision,
+      instruction: instruction && !this.isNoneRemark(instruction) ? instruction : '',
+      timestamp,
+    };
+  });
+
+  resolveUserDivision(userId?: string, fallbackDivision?: string): string {
+    if (userId) {
+      const user = this.users.find((u) => u.id === userId);
+      if (user?.divisionCode) return user.divisionCode;
+    }
+    return fallbackDivision || '';
+  }
+
+  editingPartId = signal<string | null>(null);
+  editingPartDraft = signal<string>('');
+
+  completedPartsList = computed(() => {
+    this.docVersion();
+    const items: {
+      id: string;
+      routeId?: string;
       completedBy: string;
       division: string;
       timestamp: string;
       instruction: string;
+      isFullCompletion: boolean;
       isCurrentUser: boolean;
     }[] = [];
-    const seen = new Set<string>();
 
-    for (const recipient of this.flowRecipients()) {
-      const instruction = this.getFlowNodeHandoffInstruction(recipient.id);
-      if (instruction && !seen.has(instruction)) {
-        seen.add(instruction);
-        const snap = this.getFlowNodeSnapshot(recipient.id);
-        const name = this.resolveUserName(recipient.toUserId, recipient.toUser) || recipient.toDivision;
-        results.push({
-          routeId: recipient.id,
-          completedBy: name,
-          division: recipient.toDivision,
-          timestamp: snap.lastUpdated || recipient.createdAt,
-          instruction,
-          isCurrentUser: this.matchesPerson(recipient.toUserId, recipient.toUser, this.currentUser.id, this.currentUser.fullName),
-        });
+    const seenKeys = new Set<string>();
+    const cleanInstruction = (text?: string) => (text || '').replace(/^Handoff Instructions:\s*/i, '').trim();
+
+    // 1. Scan all routes in document.routes
+    const routes = this.document.routes || [];
+    routes.forEach((route, idx) => {
+      const isRouteCompleted = route.statusAfter === 'COMPLETED';
+      const snap = this.getRecipientSnapshot(route);
+      const activities = this.getHandlerActivitySubsteps(route);
+      const completedActivity = activities.find((a) => a.status === 'COMPLETED');
+      const isSnapCompleted = Boolean(snap?.ended || snap?.status === 'Completed' || completedActivity);
+      const handoffInst = this.getFlowNodeHandoffInstruction(route.id);
+      const rawRemarks = cleanInstruction(route.remarks);
+      const validRemark = rawRemarks !== 'N/A' && !this.isNoneRemark(rawRemarks) ? rawRemarks : '';
+      const instruction = handoffInst || completedActivity?.instruction || validRemark;
+
+      if (isRouteCompleted || isSnapCompleted || (instruction && (route.actionRequested?.toUpperCase() === 'COMPLETED' || isRouteCompleted))) {
+        const completerId =
+          completedActivity?.performerId ||
+          (route.fromUserId && route.fromUserId !== 'origin' && route.fromUserId !== 'assigned' ? route.fromUserId : undefined) ||
+          route.toUserId;
+
+        const performer =
+          completedActivity?.performerName ||
+          this.resolveUserName(completerId, route.fromUser) ||
+          route.fromUser ||
+          this.resolveUserName(route.toUserId, route.toUser) ||
+          route.toUser ||
+          route.toDivision ||
+          'Personnel';
+
+        const division =
+          completedActivity?.performerDivision ||
+          route.fromDivision ||
+          this.resolveUserDivision(route.fromUserId) ||
+          route.toDivision ||
+          this.resolveUserDivision(route.toUserId) ||
+          '';
+
+        const timestamp = completedActivity?.timestamp || snap?.lastUpdated || route.processedAt || route.createdAt;
+        const key = `${performer.toLowerCase()}_${(instruction || '').toLowerCase()}`;
+
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          const isFinal = this.document.currentStatus === 'COMPLETED' && (idx === routes.length - 1 || route.statusAfter === 'COMPLETED');
+          items.push({
+            id: route.id,
+            routeId: route.id,
+            completedBy: performer,
+            division,
+            timestamp,
+            instruction: instruction || 'Part completed without additional remarks.',
+            isFullCompletion: isFinal,
+            isCurrentUser: this.matchesPerson(completerId, performer, this.currentUser?.id, this.currentUser?.fullName),
+          });
+        }
+      }
+    });
+
+    // 2. Scan audit logs for any completion logs that might have been recorded directly
+    const auditLogs = this.docAuditLogs();
+    for (const log of auditLogs) {
+      if ((log.action === 'UPDATE_STATUS' || log.action === 'ROUTE_DOC') && /(?:Action:\s*|^)COMPLETED\b|Status:\s*COMPLETED\b/i.test(log.details)) {
+        const instructionMatch = log.details.match(/Remarks:\s*(.*?)(?:\s*\|\s*Status:|$)/i)?.[1]?.trim() || '';
+        const cleaned = cleanInstruction(instructionMatch);
+        const validInstruction = cleaned !== 'N/A' && !this.isNoneRemark(cleaned) ? cleaned : '';
+        const performer = log.userName || this.resolveUserName(log.userId, log.userName) || 'Personnel';
+        const key = `${performer.toLowerCase()}_${(validInstruction || '').toLowerCase()}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          const user = this.users.find((u) => u.id === log.userId || u.fullName.toLowerCase() === log.userName?.toLowerCase());
+          items.push({
+            id: `audit-comp-${log.id}`,
+            completedBy: performer,
+            division: user?.divisionCode || '',
+            timestamp: log.timestamp,
+            instruction: validInstruction || 'Completed without remarks.',
+            isFullCompletion: this.document.currentStatus === 'COMPLETED',
+            isCurrentUser: this.matchesPerson(log.userId, performer, this.currentUser?.id, this.currentUser?.fullName),
+          });
+        }
       }
     }
 
-    return results;
+    return items;
+  });
+
+  canEditPart(part: { isCurrentUser: boolean }): boolean {
+    return Boolean(part.isCurrentUser);
+  }
+
+  startEditingPartInstruction(part: { id: string; routeId?: string; instruction: string; isCurrentUser?: boolean }): void {
+    if (!this.canEditPart(part as any)) return;
+    this.editingPartId.set(part.id);
+    const text = part.instruction === 'Part completed without additional remarks.' ? '' : part.instruction;
+    this.editingPartDraft.set(text);
+  }
+
+  cancelEditingPartInstruction(): void {
+    this.editingPartId.set(null);
+  }
+
+  async savePartInstruction(part: { id: string; routeId?: string; isCurrentUser?: boolean }): Promise<void> {
+    if (!this.canEditPart(part as any)) return;
+    const text = this.editingPartDraft().trim();
+    if (!text) return;
+    this.isSavingFinalInstructions.set(true);
+    try {
+      await firstValueFrom(
+        this.api.updateFinalInstructions(this.document.id, text, this.currentUser?.id, part.routeId),
+      );
+      this.document.finalInstructions = text;
+      this.overrideFinalInstructions.set(text);
+
+      const routes = [...(this.document.routes || [])];
+      if (part.routeId) {
+        const target = routes.find((r) => r.id === part.routeId);
+        if (target) {
+          target.remarks = `Handoff Instructions: ${text}`;
+        }
+      }
+      this.document.routes = routes;
+      this.editingPartId.set(null);
+      this.saveInstructionSuccess.set(true);
+      setTimeout(() => this.saveInstructionSuccess.set(false), 3000);
+      this.docVersion.update((v) => v + 1);
+    } catch (err) {
+      console.error('Failed to update instruction', err);
+      alert('Unable to save the instruction. Please try again.');
+    } finally {
+      this.isSavingFinalInstructions.set(false);
+    }
+  }
+
+  completedHandoffs = computed(() => {
+    return this.completedPartsList().map((item) => ({
+      routeId: item.routeId || item.id,
+      completedBy: item.completedBy,
+      division: item.division,
+      timestamp: item.timestamp,
+      instruction: item.instruction,
+      isCurrentUser: item.isCurrentUser,
+    }));
   });
 
   recipientResponseFiles = computed(() => {
@@ -739,38 +998,96 @@ export class DocumentDetailComponent implements OnChanges {
     return [...new Map(files.filter((f) => !sharedIds.has(f.id || f.url || f.fileName)).map((f) => [f.id || f.url || f.fileName, f])).values()];
   });
 
+  canAccessSelectedStepFiles = computed(() => {
+    const route = this.selectedRoute();
+    if (!route) return false;
+    if (!this.currentUser) return false;
+
+    // Administrators and Records Officers can view all step attachments
+    if (
+      this.currentUser.role === 'ADMIN' ||
+      this.currentUser.role === 'SYSTEM_ADMIN' ||
+      this.currentUser.role === 'ORD' ||
+      this.currentUser.role === 'RECORDS_OFFICER' ||
+      this.currentUser.divisionCode === 'ORD'
+    ) {
+      return true;
+    }
+
+    // Document creator can view
+    if (this.matchesPerson(this.document.createdByUserId, this.document.createdBy, this.currentUser.id, this.currentUser.fullName)) {
+      return true;
+    }
+
+    // Participants of this handoff / step (Sender or Recipient) can view
+    if (this.isParticipantInStep(route)) {
+      return true;
+    }
+
+    // Members of the recipient or sender division can view if assigned to their office
+    if (
+      this.currentUser.divisionCode &&
+      (this.currentUser.divisionCode === route.toDivision || this.currentUser.divisionCode === route.fromDivision)
+    ) {
+      return true;
+    }
+
+    return false;
+  });
+
   selectedStepFiles = computed<DocumentAttachment[]>(() => {
     const route = this.selectedRoute();
     if (!route) return [];
+
+    // Keys of original document attachments (intake / document registration files that belong at the top "sa taas")
+    const sharedKeys = new Set(
+      this.sharedDocumentFiles().map((f) => String(f.id || f.url || f.fileName))
+    );
+
     const files: DocumentAttachment[] = [];
     const seen = new Set<string>();
 
     const addFile = (f?: DocumentAttachment | null) => {
       if (!f) return;
-      const key = f.id || f.url || f.fileName;
-      if (key && !seen.has(key)) {
+      const key = String(f.id || f.url || f.fileName);
+      if (!key) return;
+
+      // Do NOT include original / shared document files here - they remain at the top
+      if (sharedKeys.has(key)) return;
+      if (isSharedDocumentFile(f, this.document, this.auditLogs)) return;
+
+      if (!seen.has(key)) {
         seen.add(key);
         files.push(f);
       }
     };
 
+    // 1. Files attached specifically when sending / replying to this route
     (route.attachments || []).forEach(addFile);
 
+    // 2. Files uploaded specifically for this route or recipient scope
     (this.document.attachments || []).forEach((f) => {
-      if (f.uploadedForRouteId === route.id) addFile(f);
-      else if (f.uploadedByUserId && (f.uploadedByUserId === route.toUserId || f.uploadedByUserId === route.fromUserId)) addFile(f);
+      if (f.uploadedForRouteId === route.id) {
+        addFile(f);
+      } else if (
+        f.attachmentScope === 'RECIPIENT' &&
+        f.uploadedByUserId &&
+        (f.uploadedByUserId === route.toUserId || f.uploadedByUserId === route.fromUserId)
+      ) {
+        addFile(f);
+      }
     });
 
+    // 3. Attachments from activities/substeps performed on this route
     this.getHandlerActivitySubsteps(route).forEach((act) => {
       (act.attachments || []).forEach(addFile);
     });
 
+    // 4. Attachments from decision taken on this route
     const dec = this.getHandlerDecision(route);
     if (dec && dec.attachments) {
       dec.attachments.forEach(addFile);
     }
-
-    (this.document.attachments || []).forEach(addFile);
 
     return files;
   });
@@ -931,9 +1248,9 @@ export class DocumentDetailComponent implements OnChanges {
     const decision = this.getHandlerDecision(route);
     const response = decision ? getRouteDecision(decision) : undefined;
     const activities = this.getHandlerActivitySubsteps(route);
-    const latestActivity = activities.at(-1);
+    const latestActivity = [...activities].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()).at(-1);
     const decisionIsLatest = decision && (!latestActivity || new Date(decision.createdAt).getTime() >= new Date(latestActivity.timestamp).getTime());
-    const completedActivity = [...activities].reverse().find((a) => a.status === 'COMPLETED');
+    const completedActivity = activities.find((a) => a.status === 'COMPLETED');
     const routeCompleted = route.statusAfter === 'COMPLETED';
     const ended = Boolean(completedActivity || routeCompleted);
     const status = ended ? 'Completed' : decisionIsLatest ? formatReadableStatus(response) : latestActivity?.destination ? 'Forwarded' : latestActivity ? 'Activity recorded' : 'No response recorded';
@@ -1042,17 +1359,20 @@ export class DocumentDetailComponent implements OnChanges {
           this.matchesPerson(route.fromUserId, route.fromUser, handlerId, handlerName),
       )
       .map((route) => {
-        let attachments = (route.attachments || []).filter(Boolean);
-        if (!attachments.length && (this.document.attachments || []).length > 0) {
-          const mentionsAttach = /attach|attached|attachment|file/i.test(route.remarks || '');
-          if (mentionsAttach) {
-            attachments = this.document.attachments || [];
-          }
-        }
+        const attachments = (route.attachments || []).filter(Boolean);
+        const performerName = this.resolveUserName(route.fromUserId, route.fromUser) || handlerRoute.toUser || handlerRoute.toDivision || 'Unknown';
+        const rawRemarks = route.remarks || '';
+        const handoffMatch = rawRemarks.match(/Handoff Instructions:\s*(.*)$/is);
+        const instruction = handoffMatch ? handoffMatch[1].trim() : '';
+        const cleanedRemarks = displayRouteRemarks(route.remarks);
         return {
           id: route.id,
+          performerId: route.fromUserId,
           action: route.actionRequested || route.actionTaken || 'Action completed',
-          remarks: displayRouteRemarks(route.remarks),
+          remarks: cleanedRemarks,
+          instruction,
+          performerName,
+          performerDivision: route.fromDivision || handlerRoute.toDivision || '',
           timestamp: route.createdAt,
           status: route.statusAfter,
           destination: cleanRouteDestination(this.resolveUserName(route.toUserId, route.toUser) || route.toDivision),
@@ -1067,7 +1387,8 @@ export class DocumentDetailComponent implements OnChanges {
           new Date(log.timestamp).getTime() > assignedAt &&
           this.matchesPerson(log.userId, log.userName, handlerId, handlerName) &&
           ['ROUTE_DOC', 'TRANSFER_DOC', 'UPDATE_STATUS', 'UPLOAD_ATTACHMENT'].includes(log.action) &&
-          !/(?:Action:\s*|^)(APPROVED|DISAPPROVED)\b/i.test(log.details),
+          !/(?:Action:\s*|^)(APPROVED|DISAPPROVED)\b/i.test(log.details) &&
+          !this.isSupersededByRemoval(log),
       )
       .map((log) => {
         const action = log.action === 'UPLOAD_ATTACHMENT' ? 'File uploaded' : log.details.match(/Action:\s*(.*?)(?:\s*\|\s*Remarks:|$)/i)?.[1] || (log.action === 'TRANSFER_DOC' ? 'Transferred' : 'Action completed');
@@ -1075,21 +1396,28 @@ export class DocumentDetailComponent implements OnChanges {
         const status = log.details.match(/Status:\s*([^|]+)$/i)?.[1]?.trim() || '';
         const destination = cleanRouteDestination(log.details.match(/To:\s*(.*?)(?:\s*\|\s*(?:Assigned|Action):|$)/i)?.[1]);
         const recipientId = destination ? this.userNameToIdMap().get(destination.trim().toLowerCase()) : undefined;
+        const performerName = this.resolveUserName(log.userId, log.userName) || log.userName || handlerRoute.toUser || handlerRoute.toDivision || 'Unknown';
+        const handoffMatch = remarks.match(/Handoff Instructions:\s*(.*)$/is) || log.details.match(/Handoff Instructions:\s*(.*?)(?:\s*\||$)/is);
+        const instruction = handoffMatch ? handoffMatch[1].trim() : '';
         return {
           id: `audit-activity-${log.id}`,
+          performerId: log.userId,
           action,
           remarks,
+          instruction,
+          performerName,
+          performerDivision: handlerRoute.toDivision || '',
           timestamp: log.timestamp,
           status,
           destination,
           recipientId,
           destinationDivision: '',
           attachments: (() => {
-            let atts = log.action === 'UPLOAD_ATTACHMENT' ? (this.document.attachments || []).filter((f) => f.fileName === log.details.match(/Uploaded file attachment "(.*?)"/)?.[1]) : [];
-            if (!atts.length && /attach|attached|attachment|file/i.test(remarks) && (this.document.attachments || []).length > 0) {
-              atts = this.document.attachments || [];
-            }
-            return atts;
+            return log.action === 'UPLOAD_ATTACHMENT'
+              ? (this.document.attachments || []).filter(
+                  (f) => f.fileName === log.details.match(/Uploaded file attachment "(.*?)"/)?.[1],
+                )
+              : [];
           })(),
         };
       })
@@ -1101,7 +1429,12 @@ export class DocumentDetailComponent implements OnChanges {
               Math.abs(new Date(route.timestamp).getTime() - new Date(audit.timestamp).getTime()) < 5000,
           ),
       );
-    return [...routeActivities, ...auditActivities].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    return [...routeActivities, ...auditActivities].sort((a, b) => {
+      const aComp = a.status === 'COMPLETED' ? 1 : 0;
+      const bComp = b.status === 'COMPLETED' ? 1 : 0;
+      if (aComp !== bComp) return bComp - aComp;
+      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+    });
   }
 
   selectFlowRecipient(id: string): void {
@@ -1139,37 +1472,20 @@ export class DocumentDetailComponent implements OnChanges {
     this.viewingPdf.set(null);
   }
 
-  openPdfInNewTab(): void {
-    const pdf = this.viewingPdf();
-    if (pdf) window.open(pdf.url, '_blank', 'noopener,noreferrer');
-  }
-
   handleBackdropClick(event: MouseEvent): void {
     if (event.target === event.currentTarget) this.handleClose();
   }
 
   handleViewAttachment(file: DocumentAttachment): void {
     if (!file.url) return;
-    const isPreviewable = file.fileType === 'application/pdf' || file.fileType === 'image/jpeg' || file.fileType === 'image/png' || file.fileName.toLowerCase().endsWith('.pdf') || file.fileName.toLowerCase().endsWith('.jpg') || file.fileName.toLowerCase().endsWith('.jpeg') || file.fileName.toLowerCase().endsWith('.png');
     try {
       const preview = this.createAttachmentObjectUrl(file.url);
-      if (isPreviewable) {
-        this.viewingPdf.set({
-          url: preview.url,
-          safeUrl: this.sanitizer.bypassSecurityTrustResourceUrl(preview.url),
-          name: file.fileName,
-          shouldRevoke: preview.shouldRevoke,
-        });
-        return;
-      }
-      const w = window.open(preview.url, '_blank', 'noopener,noreferrer');
-      if (!w) {
-        if (preview.shouldRevoke) URL.revokeObjectURL(preview.url);
-        alert('Please allow pop-ups to view this attachment.');
-        return;
-      }
-      w.location.replace(preview.url);
-      if (preview.shouldRevoke) window.setTimeout(() => URL.revokeObjectURL(preview.url), 60_000);
+      this.viewingPdf.set({
+        url: preview.url,
+        safeUrl: this.sanitizer.bypassSecurityTrustResourceUrl(preview.url),
+        name: file.fileName,
+        shouldRevoke: preview.shouldRevoke,
+      });
     } catch {
       alert('This attachment could not be opened. Please use Download instead.');
     }
@@ -1414,6 +1730,111 @@ export class DocumentDetailComponent implements OnChanges {
     }
   }
 
+  canDeleteTransaction(): boolean {
+    if (!this.currentUser) return false;
+    const perm =
+      this.currentUser.permissions ||
+      DEFAULT_ROLE_PERMISSIONS[this.currentUser.role] ||
+      DEFAULT_ROLE_PERMISSIONS.STAFF;
+    return (
+      this.currentUser.role === 'SYSTEM_ADMIN' ||
+      Boolean(perm.canDelete) ||
+      this.isDocumentCreator()
+    );
+  }
+
+  isRemovingRoute = signal(false);
+
+  canRemoveRoute(route?: DocumentRouteStep | null): boolean {
+    if (!route || !this.currentUser) return false;
+    if (route.id.startsWith('intake-') || route.stepNumber === 0) return false;
+    if (this.document.currentStatus === 'COMPLETED') return false;
+
+    const isRouteSender = this.matchesPerson(
+      route.fromUserId,
+      route.fromUser,
+      this.currentUser.id,
+      this.currentUser.fullName,
+    );
+    const isDocCreator = this.matchesPerson(
+      this.document.createdByUserId,
+      this.document.createdBy,
+      this.currentUser.id,
+      this.currentUser.fullName,
+    );
+    const isAdmin = this.currentUser.role === 'ADMIN' || this.currentUser.role === 'SYSTEM_ADMIN';
+    const perm =
+      this.currentUser.permissions ||
+      DEFAULT_ROLE_PERMISSIONS[this.currentUser.role] ||
+      DEFAULT_ROLE_PERMISSIONS.STAFF;
+    const hasDeletePermission = Boolean(perm.canDelete);
+
+    const isInitialRoute = route.stepNumber === 1 || !route.stepNumber;
+    if (isInitialRoute) {
+      return Boolean(isDocCreator || isAdmin || hasDeletePermission);
+    }
+
+    return Boolean(isRouteSender || isDocCreator || isAdmin || hasDeletePermission);
+  }
+
+  async handleRemoveRoute(event: Event, route: DocumentRouteStep): Promise<void> {
+    event.stopPropagation();
+    if (!this.canRemoveRoute(route)) return;
+
+    const recipientName =
+      this.resolveUserName(route.toUserId, route.toUser) ||
+      route.toUser ||
+      route.toDivision ||
+      'this recipient';
+
+    const isInitialRoute = route.stepNumber === 1 || !route.stepNumber;
+
+    const confirmMessage = isInitialRoute
+      ? `Are you sure you want to remove ${recipientName} from this transaction?\n\nSince this is the initial routing of a new document, the entire transaction will be cancelled and route number [${this.document.routeNo || this.document.trackingNumber}] will be freed up for reuse.`
+      : `Are you sure you want to remove Step ${route.stepNumber} for ${recipientName}?\n\nOnly this routing transaction will be removed. The document, route number, and other routing steps will remain.`;
+
+    const confirmed = await showConfirm(confirmMessage, {
+      title: isInitialRoute ? 'Cancel new document route?' : `Remove routing Step ${route.stepNumber}?`,
+      confirmLabel: isInitialRoute ? 'Cancel route & release number' : 'Remove this step',
+      cancelLabel: 'Keep transaction',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+
+    this.isRemovingRoute.set(true);
+    try {
+      const res = await firstValueFrom(
+        this.api.removeDocumentRoute(this.document.id, route.id, this.currentUser?.id),
+      );
+      if (res?.deletedDocument) {
+        this.ui.showSuccess(res?.message || 'Transaction and route number were completely removed and freed for reuse.');
+        await this.state.refreshNotifications().catch(() => undefined);
+        if (this.onRefreshDocument) {
+          await this.onRefreshDocument();
+        }
+        if (this.onClose) {
+          this.onClose();
+        }
+        return;
+      }
+
+      if (res?.document) {
+        this.document = res.document;
+      }
+      if (this.onRefreshDocument) {
+        await this.onRefreshDocument();
+      }
+      this.selectedFlowRecipient.set(null);
+      this.docVersion.update((v) => v + 1);
+      this.ui.showSuccess(res?.message || `Removed ${recipientName} from transaction.`);
+    } catch (err: any) {
+      console.error('Failed to remove recipient route', err);
+      this.ui.showError(err?.message || err?.error?.error || 'Unable to remove this recipient from the transaction. Please try again.');
+    } finally {
+      this.isRemovingRoute.set(false);
+    }
+  }
+
   getFlowNodeButtonClass(id: string): string {
     const base =
       'block w-full rounded-xl border bg-white p-3 text-left shadow-sm transition-all duration-150 dark:bg-slate-900';
@@ -1449,34 +1870,47 @@ export class DocumentDetailComponent implements OnChanges {
 
   getFlowNodeStatusLabel(id: string): string {
     const snap = this.getFlowNodeSnapshot(id);
-    if (snap.ended) return 'Completed';
     if (snap.response) return formatReadableStatus(snap.response);
     if (snap.status === 'No response recorded') return 'Pending';
+    if (snap.status === 'Forwarded' || snap.status === 'Activity recorded') return snap.status;
+    if (snap.ended) return 'Action recorded';
     return snap.status;
   }
 
   getFlowNodeStatusChipClass(id: string): string {
     const base = 'flex-shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ';
     const snap = this.getFlowNodeSnapshot(id);
-    if (snap.ended || snap.response === 'APPROVED') return base + 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200';
+    if (snap.response === 'APPROVED') return base + 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200';
     if (snap.response === 'DISAPPROVED') return base + 'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200';
     if (snap.status === 'Forwarded' || snap.status === 'Activity recorded') return base + 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+    if (snap.ended) return base + 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200';
     return base + 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
   }
 
   getFlowNodeProgress(id: string): { label: string; className: string }[] {
-    const base = 'border-t-[3px] rounded-md pt-1.5 ';
     const snap = this.getFlowNodeSnapshot(id);
-    const labels = ['Received', snap.response === 'APPROVED' ? 'Approved' : snap.response === 'DISAPPROVED' ? 'Disapproved' : 'Action recorded', 'Completed'];
-    return labels.map((label, index) => ({
-      label,
-      className:
-        index <= snap.progress
-          ? snap.ended
-            ? base + 'border-emerald-500 text-slate-900 dark:text-white'
-            : base + 'border-blue-500 text-slate-900 dark:text-white'
-          : base + 'border-slate-200 text-slate-500 dark:border-slate-700 dark:text-slate-400',
-    }));
+    const labels = [
+      'Received',
+      snap.response === 'APPROVED' ? 'Approved' : snap.response === 'DISAPPROVED' ? 'Disapproved' : 'Action recorded',
+      'Completed',
+    ];
+    return labels.map((label, index) => {
+      let className = 'stage-pending';
+      if (snap.ended) {
+        if (index === 2) {
+          className = 'stage-completed-green';
+        } else {
+          className = 'stage-passed-green';
+        }
+      } else if (index <= snap.progress) {
+        if (index === 1 && snap.response === 'DISAPPROVED') {
+          className = 'stage-disapproved-red';
+        } else {
+          className = 'stage-active-blue';
+        }
+      }
+      return { label, className };
+    });
   }
 
   getFlowNodeDisapproval(id: string): string {
@@ -1507,9 +1941,6 @@ export class DocumentDetailComponent implements OnChanges {
   readonly flowNodeHandoffInstructionsMap = computed(() => {
     this.docVersion();
     const map = new Map<string, string | null>();
-    if (this.document.currentStatus !== 'COMPLETED') {
-      return map;
-    }
     for (const route of this.flowRecipients()) {
       map.set(route.id, this.computeFlowNodeHandoffInstruction(route.id));
     }
@@ -1517,9 +1948,6 @@ export class DocumentDetailComponent implements OnChanges {
   });
 
   getFlowNodeHandoffInstruction(id: string): string | null {
-    if (this.document.currentStatus !== 'COMPLETED') {
-      return null;
-    }
     const cached = this.flowNodeHandoffInstructionsMap().get(id);
     if (cached !== undefined) return cached;
     return this.computeFlowNodeHandoffInstruction(id);

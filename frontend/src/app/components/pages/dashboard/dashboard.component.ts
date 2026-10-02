@@ -199,7 +199,7 @@ export class DashboardComponent implements OnChanges {
       totalIncoming: this.documents.filter(d => d.direction === 'INCOMING').length,
       totalOutgoing: this.documents.filter(d => d.direction === 'OUTGOING').length,
       inProgressCount: this.documents.filter(d => d.currentStatus === 'IN_PROGRESS').length,
-      pendingCount: this.documents.filter(d => d.currentStatus === 'PENDING').length,
+      pendingCount: this.documents.filter(d => d.currentStatus === 'PENDING' || d.currentStatus === 'NOT_YET_ROUTED').length,
       completedCount: this.documents.filter(d => d.currentStatus === 'COMPLETED').length,
       returnedCount: this.myDisapprovedTransactions().length
     };
@@ -299,7 +299,7 @@ export class DashboardComponent implements OnChanges {
       if (card === 'incoming') return doc.direction === 'INCOMING';
       if (card === 'outgoing') return doc.direction === 'OUTGOING';
       if (card === 'inProgress') return doc.currentStatus === 'IN_PROGRESS';
-      if (card === 'pending') return doc.currentStatus === 'PENDING';
+      if (card === 'pending') return doc.currentStatus === 'PENDING' || doc.currentStatus === 'NOT_YET_ROUTED';
       if (card === 'completed') return doc.currentStatus === 'COMPLETED';
       return false;
     });
@@ -308,6 +308,9 @@ export class DashboardComponent implements OnChanges {
     if (!isSystemAdmin || this.cardFlowFilter() === 'MY') {
       docs = docs.filter(doc => {
         if (card === 'pending') {
+          const isCreator =
+            doc.createdByUserId === this.currentUser.id ||
+            doc.createdBy?.trim().toLowerCase() === this.normalizedUserName;
           const isAssigned =
             doc.assignedUserId === this.currentUser.id ||
             doc.assignedUser?.trim().toLowerCase() === this.normalizedUserName;
@@ -317,7 +320,7 @@ export class DashboardComponent implements OnChanges {
             (latestRoute.toUserId === this.currentUser.id ||
               latestRoute.toUser?.trim().toLowerCase() === this.normalizedUserName)
           );
-          return isAssigned || isLatestRecipient;
+          return (doc.currentStatus === 'NOT_YET_ROUTED' && isCreator) || isAssigned || isLatestRecipient;
         }
 
         const isOwnerOrHandler =

@@ -371,6 +371,20 @@ export class RoutingSlipComponent implements OnInit, OnChanges {
     }, []);
   });
 
+  meaningfulRouteRemarks(route: DocumentRouteStep): string {
+    const remarks = (route.remarks || '').trim();
+    const action = (route.actionRequested || '').trim();
+    if (!remarks || /^(n\/?a|none|no remarks(?: provided)?)$/i.test(remarks)) return '';
+    if (action && remarks.localeCompare(action, undefined, { sensitivity: 'accent' }) === 0) return '';
+    return remarks;
+  }
+
+  routeStatusLabel(route: DocumentRouteStep): string {
+    if (route.statusAfter === 'COMPLETED' || route.processedAt) return 'Completed';
+    if (route.receivedAt) return 'Received';
+    return 'Pending';
+  }
+
   resolveCurrentUserName(userId?: string, legacyName?: string): string {
     return this.users.find(u => u.id === userId)?.fullName || legacyName || '';
   }
@@ -401,7 +415,9 @@ export class RoutingSlipComponent implements OnInit, OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['currentUser'] && this.canCustomizeSlip()) {
       this.slipLayout.set('full');
-      this.isCustomizeOpen.set(true);
+      // Keep the normal routing slip visible on entry. The administrative
+      // editor should only appear after an explicit click on Edit Routing Form.
+      this.isCustomizeOpen.set(false);
     }
     if (changes['document'] && changes['document'].currentValue) {
       this.selectedDocOverride.set(null);

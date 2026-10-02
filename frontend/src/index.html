@@ -12,8 +12,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="BLGF DTS" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
     <link rel="icon" href="/blgflogo.jpg" />
-    <link rel="apple-touch-icon" href="/blgflogo.jpg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -30,6 +32,26 @@
           }
         } catch (e) {}
       })();
+
+      window.__blgfInstallPrompt = null;
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__blgfInstallPrompt = e;
+        window.dispatchEvent(new CustomEvent('blgf-pwa-installable'));
+      });
+      window.addEventListener('appinstalled', function () {
+        window.__blgfInstallPrompt = null;
+        window.dispatchEvent(new CustomEvent('blgf-pwa-installed'));
+      });
+      if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker
+            .register('/service-worker.js', { scope: '/' })
+            .catch(function (err) {
+              console.warn('BLGF DTS ServiceWorker registration error:', err);
+            });
+        });
+      }
     </script>
   </head>
   <body class="blgf-ionic-app">

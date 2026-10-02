@@ -58,6 +58,7 @@
 
       <ion-select interface="popover" [ngClass]="'select' | cls" [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
         <ion-select-option value="ALL">All Statuses</ion-select-option>
+        <ion-select-option value="NOT_YET_ROUTED">Not Yet Routed</ion-select-option>
         <ion-select-option value="PENDING">Pending</ion-select-option>
         <ion-select-option value="IN_PROGRESS">In Progress</ion-select-option>
         <ion-select-option value="FOR_SIGNATURE">For Signature</ion-select-option>
@@ -158,7 +159,14 @@
                 </td>
                 <td [ngClass]="'cell' | cls">
                   <div [ngClass]="'division' | cls" [innerHTML]="highlightText(doc.currentDivision, normalizedQuery())"></div>
-                  <div [ngClass]="'assignee' | cls" [innerHTML]="highlightText(doc.assignedUser || 'Unassigned', normalizedQuery())"></div>
+                  @if (doc.currentStatus === 'NOT_YET_ROUTED') {
+                    <span class="unrouted-custodian-pill">
+                      <ion-icon name="time-outline"></ion-icon>
+                      <span>Not Yet Routed</span>
+                    </span>
+                  } @else {
+                    <div [ngClass]="'assignee' | cls" [innerHTML]="highlightText(doc.assignedUser || 'Unassigned', normalizedQuery())"></div>
+                  }
                 </td>
                 <td [ngClass]="'dateCell' | cls">
                   <div [ngClass]="'receivedDate' | cls">
@@ -172,7 +180,14 @@
                     <ion-icon name="eye" [ngClass]="'actionIcon' | cls"></ion-icon>
                   </button>
                   @if (doc.currentStatus !== 'COMPLETED' && doc.currentStatus !== 'RETURNED') {
-                    <button type="button" [disabled]="!canRoute(doc)" [ngClass]="'routeButton' | cls" (click)="$event.stopPropagation(); onOpenRouteDoc(doc)" [attr.aria-label]="routeButtonTitle(doc)" [title]="routeButtonTitle(doc)">
+                    <button
+                      type="button"
+                      [disabled]="!canRoute(doc)"
+                      [ngClass]="'routeButton' | cls"
+                      [class.highlight-route]="doc.currentStatus === 'NOT_YET_ROUTED'"
+                      (click)="$event.stopPropagation(); onOpenRouteDoc(doc)"
+                      [attr.aria-label]="routeButtonTitle(doc)"
+                      [title]="doc.currentStatus === 'NOT_YET_ROUTED' ? 'Route this unrouted document now' : routeButtonTitle(doc)">
                       <ion-icon name="paper-plane" [ngClass]="'actionIcon' | cls"></ion-icon>
                     </button>
                   }

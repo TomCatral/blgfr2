@@ -1,6 +1,6 @@
-import { randomUUID } from 'node:crypto';
 import { AuditLog, NotificationItem } from '../frontend/src/app/types';
 import { saveDatabaseToFile as sdtf } from './server.js';
+import { nextReadableId } from './readableIds.js';
 
 export function addAuditLog(
   auditLogsState: AuditLog[],
@@ -8,7 +8,7 @@ export function addAuditLog(
   queueSync = true,
 ) {
   const newLog: AuditLog = {
-    id: `log-${randomUUID()}`,
+    id: nextReadableId('LOG', auditLogsState),
     timestamp: new Date().toISOString(),
     ...log,
   };
@@ -19,9 +19,10 @@ export function addAuditLog(
 
 export function createNotification(
   notif: Omit<NotificationItem, 'id' | 'createdAt'>,
+  existing: NotificationItem[] = [],
 ) {
   return {
-    id: `notif-${randomUUID()}`,
+    id: nextReadableId('NTF', existing),
     createdAt: new Date().toISOString(),
     ...notif,
   };

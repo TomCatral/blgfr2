@@ -116,7 +116,7 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
   });
   title = signal('');
   subject = signal('');
-  category = signal('');
+  category = signal('Treasury Circular');
   senderName = signal('');
   senderPosition = signal('');
   originatingOffice = signal('');
@@ -127,11 +127,11 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
   recipientPosition = signal('');
   recipientOffice = signal('');
   recipientAddress = signal('');
-  priority = signal<PriorityLevel | ''>('');
+  priority = signal<PriorityLevel | ''>('ROUTINE');
   currentDivision = signal<DivisionCode | 'ALL' | ''>('');
   targetCompletionDate = signal('');
   remarks = signal('');
-  initialAction = signal('');
+  initialAction = signal('Appropriate Action');
   attachments = signal<DocumentAttachment[]>([]);
   allEmployees = signal<User[]>([]);
   excludedRecipientIds = signal<string[]>([]);
@@ -142,6 +142,7 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
   directoryProfiles = signal<EmployeeProfile[]>([]);
   selectedDirectoryProfileId = signal<string>('');
   validationErrors = signal<string[]>([]);
+  routeAssignmentWarning = signal<string>('');
 
   outsideOfficeDepartment = signal<string>('');
   selectedOutsideDepartments = signal<string[]>([]);
@@ -461,16 +462,6 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     this.clearFieldValidation('address');
   }
 
-  private clearOutsideRecipientLookupDetails(): void {
-    this.selectedDirectoryProfileId.set('');
-    this.recipientPosition.set('');
-    this.recipientOffice.set('');
-    this.recipientAddress.set('');
-    this.clearFieldValidation('department');
-    this.clearFieldValidation('office');
-    this.clearFieldValidation('recipient address');
-  }
-
   private clearOutsideRecipientFields(): void {
     this.recipientName.set('');
     this.selectedDirectoryProfileId.set('');
@@ -602,8 +593,10 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     this.additionalDivisions.set([]);
     this.showAddDivision.set(false);
     this.selectedDirectoryProfileId.set('');
-    this.outsideOfficeDepartment.set('PTO');
-    this.selectedOutsideDepartments.set(['PTO']);
+    // A fresh outside-office assignment must start empty. The user explicitly
+    // chooses PTO, MTO, or a partner agency before recipients are populated.
+    this.outsideOfficeDepartment.set('');
+    this.selectedOutsideDepartments.set([]);
     this.selectedOutsideEmployeeId.set('');
     this.showAddOutsideDepartment.set(false);
     this.excludedOutsideRecipientIds.set([]);
@@ -629,7 +622,7 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     this.recipientType.set(dir === 'OUTGOING' ? 'OUTSIDE' : 'INTERNAL');
     this.title.set('');
     this.subject.set('');
-    this.category.set('');
+    this.category.set(this.categoryOptions()[0]?.value || 'Treasury Circular');
     this.senderName.set('');
     this.senderPosition.set('');
     this.originatingOffice.set('');
@@ -641,11 +634,11 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     this.recipientOffice.set('');
     this.recipientAddress.set('');
     this.selectedDirectoryProfileId.set('');
-    this.priority.set('');
+    this.priority.set('ROUTINE');
     this.currentDivision.set('');
     this.targetCompletionDate.set('');
     this.remarks.set('');
-    this.initialAction.set('');
+    this.initialAction.set('Appropriate Action');
     this.attachments.set([]);
     this.excludedRecipientIds.set([]);
     this.additionalDivisions.set([]);
@@ -1059,6 +1052,13 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
       ? outsideList[0].address
       : this.recipientAddress();
 
+    const hasRecipient =
+      Boolean(this.recipientUserId()) ||
+      this.selectedRecipientIds().length > 0 ||
+      holdRecips.length > 0;
+    const hasDivision = Boolean(this.currentDivision());
+    const isNotYetRouted = !isOutside && !hasRecipient && !hasDivision;
+
     return {
       direction: this.direction(),
       routeNo: displayed,
@@ -1070,14 +1070,14 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
       destinationOffice:
         isOutside
           ? combinedRecipOffice
-          : (this.recipientOffice() || 'BLGF Regional Office II'),
+          : (this.recipientOffice() || (isNotYetRouted ? 'Awaiting Initial Routing' : 'BLGF Regional Office II')),
       senderName: this.senderName(),
       senderPosition: this.senderPosition(),
       senderAddress: this.senderAddress(),
-      recipientName: isOutside ? combinedRecipName : this.recipientName(),
-      assignedUser: isOutside ? combinedRecipName : this.recipientName(),
+      recipientName: isOutside ? combinedRecipName : (isNotYetRouted ? 'Not Yet Routed' : this.recipientName()),
+      assignedUser: isOutside ? combinedRecipName : (isNotYetRouted ? 'Not Yet Routed' : this.recipientName()),
       assignedUserId:
-        isOutside
+        isOutside || isNotYetRouted
           ? undefined
           : (selIds.length === 0 ? this.recipientUserId() : undefined),
       recipientPosition: isOutside ? combinedRecipPos : this.recipientPosition(),
@@ -1085,20 +1085,20 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
       recipientAddress: isOutside ? combinedRecipAddress : this.recipientAddress(),
       outsideRecipients: isOutside ? outsideList : [],
       isOutside: isOutside,
-      currentStatus: isOutside ? 'COMPLETED' : 'PENDING',
+      currentStatus: isOutside ? 'COMPLETED' : (isNotYetRouted ? 'NOT_YET_ROUTED' : 'PENDING'),
       priority: isOutside ? 'ROUTINE' : (this.priority() || 'ROUTINE'),
       currentDivision:
         div === 'ALL'
           ? this.currentUser.divisionCode
-          : div,
+          : (div || this.currentUser.divisionCode || 'AD'),
       routeAllDivisions: !isOutside && div === 'ALL',
       routeMultipleDivisions:
         !isOutside && (addl.length > 0 || selIds.length > 1),
       initialTargetDivisions:
-        isOutside || div === 'ALL'
+        isOutside || div === 'ALL' || isNotYetRouted
           ? []
           : [div, ...addl].filter(Boolean),
-      initialRecipientIds: isOutside
+      initialRecipientIds: isOutside || isNotYetRouted
         ? []
         : [
             ...new Set([
@@ -1109,10 +1109,12 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
       targetCompletionDate: (isOutside || !this.targetCompletionDate())
         ? new Date(Date.now() + 3 * 86400000).toISOString()
         : new Date(this.targetCompletionDate()).toISOString(),
-      initialAction: isOutside ? 'Dispatched / Recorded (Outside Office)' : (this.initialAction() || 'Appropriate Action'),
+      initialAction: isOutside
+        ? 'Dispatched / Recorded (Outside Office)'
+        : (isNotYetRouted ? (this.initialAction() || 'Awaiting Initial Routing') : (this.initialAction() || 'Appropriate Action')),
       remarks: isOutside
         ? (this.remarks().trim() || 'Completed - Recorded as Outside Office Outgoing Dispatch')
-        : this.remarks(),
+        : (isNotYetRouted ? (this.remarks().trim() || 'Document registered. Not yet routed.') : this.remarks()),
       attachments: this.attachments(),
       createdBy: this.currentUser.fullName,
       userId: this.currentUser.id,
@@ -1121,6 +1123,7 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
       shouldRouteModal: false,
       shouldOpenEnvelope: false,
       excludedRecipientIds: isOutside ? [] : this.excludedRecipientIds(),
+      isNotYetRouted,
     };
   }
 
@@ -1133,6 +1136,27 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
 
     const isOutside = this.isOutsideOffice();
     const outsideList = isOutside ? this.outsideDepartmentRecipients() : [];
+    const isRouting = actionType === 'route';
+
+    const hasAssignment =
+      Boolean(this.currentDivision()) ||
+      Boolean(this.recipientUserId()) ||
+      this.selectedRecipientIds().length > 0 ||
+      this.holdingDivisionRecipients().length > 0;
+
+    // If user clicked "Register & Route" without any initial recipient or division assignment, show warning!
+    if (!isOutside && isRouting && !hasAssignment) {
+      this.routeAssignmentWarning.set(
+        'Please select an Initial Division or Assigned Recipient before routing. (Or choose "Register Only" to save this document as Not Yet Routed).'
+      );
+      const assignmentPanel = document.getElementById('initial-assignment-panel');
+      if (assignmentPanel) {
+        assignmentPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+
+    this.routeAssignmentWarning.set('');
 
     const missingFields: string[] = [
       !this.title().trim() && 'Document Title',
@@ -1145,20 +1169,10 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
       isOutside && !this.recipientName().trim() && outsideList.length === 0 && 'Recipient Name / Addressee',
       isOutside && !this.recipientOffice().trim() && outsideList.length === 0 && 'Department / Office',
       isOutside && !this.recipientAddress().trim() && outsideList.length === 0 && 'Recipient Address',
-      // If Internal BLGF: require division / user assignment
-      !isOutside &&
-        !this.currentDivision() &&
-        !this.recipientUserId() &&
-        this.selectedRecipientIds().length === 0 &&
-        'Division Assignment or Assigned Personnel',
-      !isOutside &&
-        !this.recipientUserId() &&
-        this.selectedRecipientIds().length === 0 &&
-        this.holdingDivisionRecipients().length === 0 &&
-        'Assigned Handler / Recipient',
+      // If Internal BLGF and ROUTING: require division or user assignment
+      !isOutside && isRouting && !hasAssignment && 'Initial Division or Assigned Personnel',
       !isOutside && !this.initialAction() && 'Action Requested',
       !isOutside && !this.priority() && 'Priority Level',
-      !isOutside && !this.targetCompletionDate() && 'Target Completion Date',
     ].filter(Boolean) as string[];
 
     if (missingFields.length > 0) {

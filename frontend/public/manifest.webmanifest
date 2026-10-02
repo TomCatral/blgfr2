@@ -1,19 +1,69 @@
 {
+  "$schema": "https://json.schemastore.org/web-manifest-combined.json",
   "name": "BLGF Region II Document Tracking System",
   "short_name": "BLGF DTS",
-  "description": "Document tracking, routing, and monitoring for BLGF Region II.",
-  "start_url": "/",
+  "description": "Official Document Tracking, Routing, and Monitoring System for BLGF Regional Office No. II.",
+  "id": "/?source=pwa",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "orientation": "any",
-  "background_color": "#f8fafc",
-  "theme_color": "#1d4ed8",
+  "background_color": "#ffffff",
+  "theme_color": "#0f2d59",
+  "categories": ["government", "productivity", "utilities"],
   "icons": [
     {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
       "src": "/blgflogo.jpg",
-      "sizes": "any",
+      "sizes": "447x447",
       "type": "image/jpeg",
       "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Track Documents",
+      "short_name": "Tracking",
+      "description": "View incoming and outgoing document tracking registry",
+      "url": "/?view=documents",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "New Document",
+      "short_name": "New Doc",
+      "description": "Create and register a new document",
+      "url": "/?action=create",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }

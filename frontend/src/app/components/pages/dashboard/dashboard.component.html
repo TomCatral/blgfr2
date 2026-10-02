@@ -260,7 +260,10 @@
               [title]="getDivisionFullName(item.division) + ': ' + item.count + ' active documents (' + getDivisionPercentage(item.count) + '%)'">
               
               <!-- Value badge above bar -->
-              <div class="bar-value-badge">
+              <div
+                class="bar-value-badge"
+                [class.is-active]="item.count > 0"
+                [class.is-zero]="item.count === 0">
                 <span class="bar-count">
                   {{ item.count }}
                 </span>

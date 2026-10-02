@@ -4,7 +4,6 @@ import {
   OnDestroy,
   OnInit,
   ViewChild,
-  inject,
 } from '@angular/core';
 import { IonicModule } from '@ionic/angular';
 

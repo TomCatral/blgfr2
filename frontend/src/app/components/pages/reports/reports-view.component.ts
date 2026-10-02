@@ -731,12 +731,6 @@ export class ReportsViewComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   printActiveReport(): void {
-    const printWindow = window.open('', '_blank', 'noopener=no');
-    if (!printWindow) {
-      this.statusMessage.set('Please allow pop-ups to print the report.');
-      return;
-    }
-
     const type = this.activeReport();
     const reportName = type === 'ENVELOPE'
       ? 'Outgoing Envelope Register'
@@ -760,18 +754,18 @@ export class ReportsViewComponent implements OnInit, OnChanges, OnDestroy {
       tableHeader = `
         <tr>
           <th class="row-no">#</th>
-          <th class="date-col">Date &amp; Time</th>
           <th class="route-col">Document Route No.</th>
-          <th class="person-col">Released By</th>
           <th>Dispatch Details</th>
+          <th class="date-col">Date &amp; Time</th>
+          <th class="person-col">Released By</th>
         </tr>`;
       rowsHtml = logs.map((log, index) => `
         <tr>
           <td class="row-no">${index + 1}</td>
-          <td>${this.escapePrintHtml(this.formatDate(log.timestamp))}</td>
           <td class="route-value">${this.escapePrintHtml(log.documentTrackingNumber || 'N/A')}</td>
-          <td>${this.escapePrintHtml(log.userName)}</td>
           <td>${this.getDispatchDetailItems(log.details).map((item) => `<div class="detail-line">• ${this.escapePrintHtml(item)}</div>`).join('')}</td>
+          <td>${this.escapePrintHtml(this.formatDate(log.timestamp))}</td>
+          <td>${this.escapePrintHtml(log.userName)}</td>
         </tr>`).join('');
     } else {
       const documents = [...this.filteredDocuments()].sort((first, second) => {
@@ -854,7 +848,7 @@ export class ReportsViewComponent implements OnInit, OnChanges, OnDestroy {
             ${routeStepsHtml}
           </td>
           <td class="col-status">
-            <span class="status-pill status-${simpleStatus.classModifier}">${this.escapePrintHtml(simpleStatus.label)}</span>
+            <span class="status-text">${this.escapePrintHtml(simpleStatus.label)}</span>
           </td>
         </tr>`;
       }).join('');
@@ -876,11 +870,11 @@ export class ReportsViewComponent implements OnInit, OnChanges, OnDestroy {
         </table>`;
     }
 
-    printWindow.document.write(`<!doctype html>
+    const printHtml = `<!doctype html>
       <html lang="en"><head><meta charset="utf-8">
-      <title>${this.escapePrintHtml(reportName)} - BLGF Region II</title>
+      <title></title>
       <style>
-        @page { size: A4 landscape; margin: 8mm 10mm 10mm 10mm; }
+        @page { size: A4 landscape; margin: 0 !important; }
         * { box-sizing: border-box; }
         html, body {
           margin: 0; padding: 0; background: #fff; color: #0f172a;
@@ -901,7 +895,7 @@ export class ReportsViewComponent implements OnInit, OnChanges, OnDestroy {
           body { background: #fff !important; padding: 0 !important; }
           .print-page {
             width: 100% !important; min-height: 0 !important;
-            padding: 0 !important; margin: 0 !important;
+            padding: 8mm 10mm 10mm !important; margin: 0 !important;
             box-shadow: none !important;
           }
         }
@@ -1052,17 +1046,10 @@ export class ReportsViewComponent implements OnInit, OnChanges, OnDestroy {
         }
         .empty-table-cell { text-align: center; padding: 10mm; color: #64748b; font-size: 8pt; }
 
-        .status-pill {
-          display: inline-block; padding: 0.8mm 2.2mm; border-radius: 4px;
-          font-size: 6.2pt; font-weight: 800; text-transform: uppercase;
-          letter-spacing: 0.02em; white-space: nowrap;
+        .status-text {
+          color: #0f172a; font-size: 6.5pt; font-weight: 700;
+          text-transform: capitalize; white-space: nowrap;
         }
-        .status-pill.status-complete { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
-        .status-pill.status-progress { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
-        .status-pill.status-signature { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
-        .status-pill.status-returned { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
-        .status-pill.status-on-hold { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
-        .status-pill.status-pending { background: #fef9c3; color: #a16207; border: 1px solid #fef08a; }
 
         /* Envelope Table (For Envelope Report) */
         .envelope-table {
@@ -1174,9 +1161,45 @@ export class ReportsViewComponent implements OnInit, OnChanges, OnDestroy {
           Bureau of Local Government Finance · Regional Office No. II · Document Tracking System (DTS)<br>
           Official Document Tracking &amp; Routing Registry · Confidential &amp; Official Government Record
         </footer>
-      </main><script>window.onload=function(){setTimeout(function(){window.print();},250)};<\/script></body></html>`);
+      </main><script>window.onload=function(){setTimeout(function(){window.print();},250)};<\/script></body></html>`;
+    this.printHtmlInApp(printHtml);
+  }
+
+  private printHtmlInApp(html: string): void {
+    const frame = document.createElement('iframe');
+    frame.setAttribute('aria-hidden', 'true');
+    Object.assign(frame.style, {
+      position: 'fixed',
+      width: '1px',
+      height: '1px',
+      right: '0',
+      bottom: '0',
+      opacity: '0',
+      pointerEvents: 'none',
+      border: '0',
+    });
+    document.body.appendChild(frame);
+    const printWindow = frame.contentWindow;
+    if (!printWindow) {
+      frame.remove();
+      this.statusMessage.set('Unable to prepare the report print dialog.');
+      return;
+    }
+
+    const previousDocumentTitle = document.title;
+    document.title = '';
+    let cleanedUp = false;
+    const cleanup = (): void => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      document.title = previousDocumentTitle;
+      frame.remove();
+    };
+    printWindow.addEventListener('afterprint', cleanup, { once: true });
+    window.setTimeout(cleanup, 120_000);
+    printWindow.document.open();
+    printWindow.document.write(html);
     printWindow.document.close();
-    printWindow.addEventListener('afterprint', () => printWindow.close(), { once: true });
   }
 
   private escapePrintHtml(value: unknown): string {

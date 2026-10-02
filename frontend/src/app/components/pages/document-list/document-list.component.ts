@@ -127,6 +127,7 @@ export class DocumentListComponent implements OnInit {
           doc.actionRequested || '',
           doc.remarks || '',
           doc.currentStatus || '',
+          doc.currentStatus === 'NOT_YET_ROUTED' ? 'not yet routed unrouted' : '',
           doc.priority || '',
           ...(doc.tags || []),
           ...(doc.routes || []).flatMap((r) => [
@@ -277,15 +278,16 @@ export class DocumentListComponent implements OnInit {
     if (!assignment) return false;
 
     const assignedAt = new Date(assignment.createdAt).getTime();
-    return !routes.some(
+    const userAlreadyActed = routes.some(
       (route) =>
         (route.fromUserId === this.currentUser.id ||
           (!route.fromUserId &&
             route.fromUser?.trim().toLowerCase() ===
               this.currentUser.fullName.trim().toLowerCase())) &&
-        new Date(route.createdAt).getTime() > assignedAt &&
-        /^(APPROVED|DISAPPROVED)$/i.test(route.actionRequested),
+        new Date(route.createdAt).getTime() >= assignedAt &&
+        route.id !== assignment.id,
     );
+    return !userAlreadyActed;
   }
 
   routeButtonTitle(doc: DocumentRecord): string {

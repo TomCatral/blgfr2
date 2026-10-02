@@ -161,20 +161,22 @@ app-header {
   z-index: 30;
 }
 
-body.personnel-directory-open app-header {
-  z-index: 1200;
+body:is(.personnel-directory-open, .pwa-guide-open) app-header,
+app-header:has(.pwa-install-modal-overlay) {
+  z-index: 100060 !important;
+  position: relative;
 }
 
-body.personnel-directory-open {
+body:is(.personnel-directory-open, .pwa-guide-open) {
   overflow: hidden;
 }
 
-body.personnel-directory-open .app-content {
+body:is(.personnel-directory-open, .pwa-guide-open) .app-content {
   overflow: hidden !important;
 }
 
-body.personnel-directory-open :is(.desktop-sidebar-shell, .mobile-sidebar-backdrop) {
-  visibility: hidden;
+body:is(.personnel-directory-open, .pwa-guide-open) :is(.desktop-sidebar-shell, .mobile-sidebar-backdrop, .appMobileSidebarBackdrop) {
+  visibility: hidden !important;
 }
 
 .desktop-sidebar-shell {
@@ -674,6 +676,30 @@ button:disabled {
   border-color: #2563eb !important;
   background: #2563eb !important;
   color: #fff !important;
+}
+
+.bg-purple-600 {
+  border-color: #7c3aed !important;
+  background: #7c3aed !important;
+  color: #fff !important;
+}
+
+.bg-purple-700 {
+  border-color: #6d28d9 !important;
+  background: #6d28d9 !important;
+  color: #fff !important;
+}
+
+.bg-purple-50 {
+  background: rgba(147, 51, 234, 0.08) !important;
+}
+
+.text-purple-600 {
+  color: #7c3aed !important;
+}
+
+.text-purple-400 {
+  color: #c084fc !important;
 }
 
 /* Modern pill status badges */

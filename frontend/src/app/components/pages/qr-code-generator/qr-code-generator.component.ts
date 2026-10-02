@@ -230,16 +230,8 @@ export class QRCodeGeneratorComponent implements OnInit {
     if (codes.length === 0) return;
     const html = this.buildPrintDocument(codes);
 
-    // Prefer a new print window as it provides a fully rendered viewport and reliable image decoding
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.open();
-      printWindow.document.write(html);
-      printWindow.document.close();
-      return;
-    }
-
-    // Fallback to invisible off-screen iframe if pop-up was blocked
+    // Keep printing inside the installed app/current browser tab. The frame
+    // prepares an isolated print document without opening another window.
     const frame = document.createElement('iframe');
     frame.setAttribute('aria-hidden', 'true');
     frame.style.position = 'fixed';

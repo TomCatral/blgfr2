@@ -25,11 +25,22 @@ const matchesParticipant = (
   return false;
 };
 
-const auditNamesRecipient = (details: string, fullName: string) =>
-  new RegExp(
-    `\\bTo:\\s*${fullName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s*\\||$)`,
-    'i',
-  ).test(details);
+// Compiled once per name: this runs for every document on every poll, so
+// rebuilding the pattern each time was a measurable cost.
+const recipientPatterns = new Map<string, RegExp>();
+
+const auditNamesRecipient = (details: string, fullName: string) => {
+  if (!fullName) return false;
+  let pattern = recipientPatterns.get(fullName);
+  if (!pattern) {
+    pattern = new RegExp(
+      `\\bTo:\\s*${fullName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s*\\||$)`,
+      'i',
+    );
+    recipientPatterns.set(fullName, pattern);
+  }
+  return pattern.test(details);
+};
 
 /** A document is private to users who created, received, or routed it. */
 export const isDocumentParticipant = (

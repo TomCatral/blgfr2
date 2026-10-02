@@ -114,12 +114,39 @@
   font-size: 0.8125rem;
 }
 
+.settings-heroPhotoActions {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-top: 0.5rem;
+}
+
+.settings-changeAvatar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.625rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  background: #f8fafc;
+  color: #2563eb;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 150ms ease;
+  --padding-start: 0.5rem;
+  --padding-end: 0.5rem;
+}
+.settings-changeAvatar:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
 .settings-removeAvatar {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  margin-top: 0.35rem;
-  padding: 0.2rem 0;
+  padding: 0.25rem 0.5rem;
   border: 0;
   background: transparent;
   color: #f43f5e;
@@ -470,19 +497,57 @@
 }
 .settings-passwordField {
   position: relative;
+  display: flex;
+  align-items: center;
 }
 .settings-passwordInput {
+  width: 100%;
   padding-right: 2.75rem;
+  --padding-end: 2.75rem;
 }
 .settings-passwordToggle {
   position: absolute;
-  top: 0.625rem;
-  right: 0.875rem;
+  top: 0;
+  bottom: 0;
+  right: 0.5rem;
+  margin-block: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  min-height: 0 !important;
+  min-width: 0;
   padding: 0;
   border: 0;
+  border-radius: 0.375rem;
   background: transparent;
-  color: #94a3b8;
+  color: #64748b;
   cursor: pointer;
+  z-index: 10;
+  transform: none !important;
+  transition: color 0.15s ease, background-color 0.15s ease;
+
+  &:hover {
+    transform: none !important;
+    color: #0f172a;
+    background: rgba(15, 23, 42, 0.06);
+  }
+
+  &:active {
+    transform: none !important;
+    color: #1d4ed8;
+    background: rgba(37, 99, 235, 0.12);
+  }
+
+  ion-icon {
+    display: block;
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 1.25rem;
+    flex: 0 0 auto;
+    pointer-events: none;
+  }
 }
 
 .settings-strength {
@@ -620,6 +685,13 @@
   .settings-passwordInput:focus {
     border-color: #60a5fa;
     box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+  }
+  .settings-passwordToggle {
+    color: #94a3b8;
+    &:hover {
+      color: #f1f5f9;
+      background: rgba(255, 255, 255, 0.08);
+    }
   }
   .settings-strengthTrack {
     background: #1e293b;

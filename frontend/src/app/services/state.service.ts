@@ -98,6 +98,7 @@ private lastCommittedSnapshot = 0;
 private snapshotInFlight: Promise<void> | null = null;
 private snapshotQueued = false;
 private pendingMarkLoaded = false;
+private pendingReferenceRefresh = false;
 private intervals: number[] = [];
 
   readonly accessibleDocuments = computed<DocumentRecord[]>(() => {
@@ -108,7 +109,7 @@ private intervals: number[] = [];
       user.permissions ||
       DEFAULT_ROLE_PERMISSIONS[user.role] ||
       DEFAULT_ROLE_PERMISSIONS.STAFF;
-    if (user.role === 'SYSTEM_ADMIN' || permissions.canViewAllDocuments) {
+    if (user.role === 'SYSTEM_ADMIN' || user.divisionCode === 'ITMS' || permissions.canViewAllDocuments) {
       return all;
     }
     return all.filter((document) =>
@@ -131,22 +132,32 @@ private intervals: number[] = [];
   private async loadSnapshot(
     token: { lifecycle: number; userId: string | null },
     markLoaded: boolean,
+    refreshReferenceData: boolean,
   ): Promise<void> {
     const requestId = ++this.snapshotSequence;
+    // Users, divisions and envelope logs barely change. Polling them every two
+    // seconds is what makes the app feel sluggish, so they are only reloaded on
+    // an explicit full refresh.
     const [
       docs,
       statsData,
+      logs,
       usersData,
       divisionsData,
-      logs,
       envelopeLogsData,
     ] = await Promise.all([
       firstValueFrom(this.api.getDocuments()).catch(() => null),
       firstValueFrom(this.api.getStats()).catch(() => null),
-      firstValueFrom(this.api.getUsers()).catch(() => null),
-      firstValueFrom(this.api.getDivisions()).catch(() => null),
       firstValueFrom(this.api.getAuditLogs()).catch(() => null),
-      firstValueFrom(this.api.getEnvelopeLogs()).catch(() => null),
+      refreshReferenceData
+        ? firstValueFrom(this.api.getUsers()).catch(() => null)
+        : null,
+      refreshReferenceData
+        ? firstValueFrom(this.api.getDivisions()).catch(() => null)
+        : null,
+      refreshReferenceData
+        ? firstValueFrom(this.api.getEnvelopeLogs()).catch(() => null)
+        : null,
     ]);
 
     if (
@@ -166,18 +177,21 @@ private intervals: number[] = [];
     if (markLoaded) this.session.markDataLoaded();
   }
 
-  private enqueueSnapshot(markLoaded: boolean): Promise<void> {
+  private enqueueSnapshot(markLoaded: boolean, refreshReferenceData = false): Promise<void> {
     const token = this.snapshotToken();
     this.snapshotQueued = true;
     this.pendingMarkLoaded = this.pendingMarkLoaded || markLoaded;
+    this.pendingReferenceRefresh = this.pendingReferenceRefresh || refreshReferenceData;
 
     if (!this.snapshotInFlight) {
       const runner = (async () => {
         while (this.snapshotQueued && this.canCommit(token)) {
           this.snapshotQueued = false;
           const shouldMarkLoaded = this.pendingMarkLoaded;
+          const shouldRefreshReference = this.pendingReferenceRefresh;
           this.pendingMarkLoaded = false;
-          await this.loadSnapshot(token, shouldMarkLoaded);
+          this.pendingReferenceRefresh = false;
+          await this.loadSnapshot(token, shouldMarkLoaded, shouldRefreshReference);
         }
         if (this.canCommit(token) && this.pendingMarkLoaded) {
           this.session.markDataLoaded();
@@ -201,7 +215,7 @@ private intervals: number[] = [];
 
   async loadAll(): Promise<void> {
     try {
-      await this.enqueueSnapshot(true);
+      await this.enqueueSnapshot(true, true);
     } catch {
       // Existing in-memory state remains usable when the API is unreachable.
     } finally {
@@ -220,6 +234,9 @@ private intervals: number[] = [];
 
   startPolling(): void {
     this.stopPolling();
+    // A background tab has nobody watching it, so polling there only burns CPU
+    // and keeps the API busy for the users who are actually waiting.
+    const isVisible = () => document.visibilityState !== 'hidden';
     this.intervals.push(
       window.setInterval(() => {
         if (!this.session.isOnline()) {
@@ -228,10 +245,13 @@ private intervals: number[] = [];
         if (!this.session.currentUser()) {
           return;
         }
+        if (!isVisible()) {
+          return;
+        }
         void this.refreshDashboard().catch(() => undefined);
       }, 2000),
       window.setInterval(() => {
-        if (!this.session.isOnline() || !this.session.currentUser()) {
+        if (!this.session.isOnline() || !this.session.currentUser() || !isVisible()) {
           return;
         }
         void this.refreshNotifications().catch(() => undefined);
@@ -260,6 +280,9 @@ private intervals: number[] = [];
   dismissNotification(userId: string, id: string): void {
     const dismissed = this.getDismissedNotificationIds(userId);
     dismissed.add(id);
+    const target = this.notifications().find((item) => item.id === id);
+    if (target?.documentId) dismissed.add(`doc-${target.documentId}`);
+    if (target?.trackingNumber) dismissed.add(`doc-${target.trackingNumber}`);
     localStorage.setItem(dismissedNotificationKey(userId), JSON.stringify([...dismissed]));
     this.notifications.set(this.notifications().filter((item) => item.id !== id));
   }
@@ -277,7 +300,18 @@ private intervals: number[] = [];
   }
 
   removeDocument(id: string): void {
+    const doc = this.documents().find((document) => document.id === id);
+    const trackingNo = doc?.trackingNumber?.trim().toUpperCase();
+    const routeNo = doc?.routeNo?.trim().toUpperCase();
     this.documents.set(this.documents().filter((document) => document.id !== id));
+    this.notifications.set(
+      this.notifications().filter((n) => {
+        if (n.documentId === id) return false;
+        const nTrack = n.trackingNumber?.trim().toUpperCase();
+        if (nTrack && (nTrack === trackingNo || nTrack === routeNo)) return false;
+        return true;
+      }),
+    );
   }
 
   reset(): void {
@@ -304,7 +338,22 @@ private intervals: number[] = [];
     const logs = this.auditLogs();
     const dismissedIds = this.getDismissedNotificationIds(user.id);
 
-    const normalized = latest.map((notification) => {
+    const validDocKeys = new Set(
+      docs.flatMap((d) => [
+        d.id?.trim().toUpperCase(),
+        d.trackingNumber?.trim().toUpperCase(),
+        d.routeNo?.trim().toUpperCase(),
+      ]).filter(Boolean) as string[],
+    );
+
+    const validLatest = latest.filter((notification) => {
+      const docId = notification.documentId?.trim().toUpperCase();
+      const track = notification.trackingNumber?.trim().toUpperCase();
+      if (!docId && !track) return true;
+      return Boolean((docId && validDocKeys.has(docId)) || (track && validDocKeys.has(track)));
+    });
+
+    const normalized = validLatest.map((notification) => {
       const text = `${notification.title} ${notification.message}`.toUpperCase();
       const inferredStatus = text.includes('DISAPPROVED')
         ? ('DISAPPROVED' as const)
@@ -312,7 +361,11 @@ private intervals: number[] = [];
           ? ('APPROVED' as const)
           : undefined;
       const relatedDocument = docs.find(
-        (document) => document.id === notification.documentId,
+        (document) =>
+          document.id === notification.documentId ||
+          (notification.trackingNumber &&
+            (document.trackingNumber === notification.trackingNumber ||
+              document.routeNo === notification.trackingNumber)),
       );
       const pendingAssignment = relatedDocument
         ? [...(relatedDocument.routes || [])]
@@ -334,22 +387,36 @@ private intervals: number[] = [];
               if (!isNewRecipientAssignment(relatedDocument, route)) return false;
               return !(relatedDocument.routes || []).some(
                 (candidate) =>
-                  new Date(candidate.createdAt).getTime() >
+                  new Date(candidate.createdAt).getTime() >=
                     new Date(route.createdAt).getTime() &&
+                  candidate.id !== route.id &&
                   sameRoutingUser(
                     candidate.fromUserId,
                     candidate.fromUser,
                     user.id,
                     user.fullName,
-                  ) &&
-                  /^(APPROVED|DISAPPROVED)$/i.test(candidate.actionRequested),
+                  ),
               );
             })
         : undefined;
+
+      const isActionableNotification =
+        notification.type === 'ACTION_REQUIRED' ||
+        notification.title === 'Document Routed to You' ||
+        notification.title === 'Routing Action Reminder' ||
+        Boolean(notification.requiresDecision);
+
       return {
         ...notification,
+        documentId: notification.documentId || relatedDocument?.id,
+        trackingNumber:
+          notification.trackingNumber ||
+          relatedDocument?.routeNo ||
+          relatedDocument?.trackingNumber,
         decisionStatus: notification.decisionStatus || inferredStatus,
-        requiresDecision: Boolean(pendingAssignment && !inferredStatus),
+        requiresDecision: Boolean(
+          isActionableNotification && pendingAssignment && !inferredStatus,
+        ),
       };
     });
 
@@ -412,23 +479,84 @@ private intervals: number[] = [];
     const uniqueAuditResults = [
       ...new Map(auditResults.map((item) => [item.id, item])).values(),
     ];
-    const resultDocumentIds = new Set(
-      uniqueAuditResults.map((item) => item.documentId),
-    );
-    const mergedNotifications = [
-      ...uniqueAuditResults,
-      ...normalized.filter(
-        (item) =>
-          item.title === 'Routing Action Reminder' ||
-          !resultDocumentIds.has(item.documentId),
-      ),
-    ];
+
+    const allCandidates = [...uniqueAuditResults, ...normalized];
+
+    const getDocKey = (item: NotificationItem): string | undefined => {
+      if (item.documentId) return item.documentId;
+      if (item.trackingNumber) {
+        const found = docs.find(
+          (d) =>
+            d.trackingNumber === item.trackingNumber ||
+            d.routeNo === item.trackingNumber,
+        );
+        return found?.id || item.trackingNumber;
+      }
+      return undefined;
+    };
+
+    const getPriority = (item: NotificationItem): number => {
+      if (item.requiresDecision || item.title === 'Routing Action Reminder') {
+        return 100;
+      }
+      if (
+        item.decisionStatus ||
+        item.title === 'This is Disapproved' ||
+        item.title === 'This is Approved'
+      ) {
+        return 50;
+      }
+      if (item.type === 'URGENT' || item.type === 'ACTION_REQUIRED') {
+        return 30;
+      }
+      return 10;
+    };
+
+    const groupedByDoc = new Map<string, NotificationItem>();
+    const nonDocItems: NotificationItem[] = [];
+
+    for (const item of allCandidates) {
+      const docKey = getDocKey(item);
+      if (!docKey) {
+        nonDocItems.push(item);
+        continue;
+      }
+      if (!validDocKeys.has(docKey.trim().toUpperCase())) {
+        continue;
+      }
+      const existing = groupedByDoc.get(docKey);
+      if (!existing) {
+        groupedByDoc.set(docKey, item);
+        continue;
+      }
+      const itemPriority = getPriority(item);
+      const existingPriority = getPriority(existing);
+
+      if (itemPriority > existingPriority) {
+        groupedByDoc.set(docKey, item);
+      } else if (itemPriority === existingPriority) {
+        const itemTime = new Date(item.createdAt).getTime();
+        const existingTime = new Date(existing.createdAt).getTime();
+        if (itemTime > existingTime) {
+          groupedByDoc.set(docKey, item);
+        }
+      }
+    }
+
+    const dedupedNotifications = [...groupedByDoc.values(), ...nonDocItems];
+
+    const isDismissed = (item: NotificationItem): boolean => {
+      if (dismissedIds.has(item.id)) return true;
+      if (item.documentId && dismissedIds.has(`doc-${item.documentId}`)) return true;
+      if (item.trackingNumber && dismissedIds.has(`doc-${item.trackingNumber}`)) return true;
+      return false;
+    };
 
     this.notifications.set(
-      mergedNotifications
+      dedupedNotifications
         .filter((notification) => {
           if (
-            dismissedIds.has(notification.id) &&
+            isDismissed(notification) &&
             !notification.requiresDecision
           ) {
             return false;

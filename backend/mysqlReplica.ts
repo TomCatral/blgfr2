@@ -128,6 +128,23 @@ async function ensureUserIdForeignKeys(target: PrismaClient) {
     // ignore if column type alteration fails
   }
 
+  try {
+    await target.$executeRawUnsafe(
+      'ALTER TABLE `documents` MODIFY COLUMN `current_status` VARCHAR(50) NOT NULL DEFAULT \'PENDING\'',
+    );
+  } catch {
+    // ignore if column type alteration fails
+  }
+
+  try {
+    await target.$executeRawUnsafe(
+      "UPDATE `documents` SET `current_status` = 'NOT_YET_ROUTED' WHERE `current_status` = '' OR `current_status` IS NULL",
+    );
+  } catch {
+    // ignore if update fails
+  }
+
+
   // Backfill legacy name-only rows once. All runtime access checks below use IDs.
   await target.$executeRawUnsafe(`
     UPDATE documents d
@@ -982,12 +999,22 @@ export async function saveDocumentDirect(document: unknown) {
   }
 }
 
-export async function deleteDocumentDirect(documentId: string) {
+export async function deleteDocumentDirect(
+  documentId: string,
+  trackingNumber?: string,
+  routeNo?: string,
+) {
   if (!client || !status.connected) return;
   await client.$transaction(async (tx) => {
     await tx.documentRoute.deleteMany({ where: { documentId } });
     await tx.documentAttachment.deleteMany({ where: { documentId } });
     await tx.document.deleteMany({ where: { id: documentId } });
+    const keys = [trackingNumber, routeNo].filter(Boolean) as string[];
+    if (keys.length > 0) {
+      await tx.auditLog.deleteMany({
+        where: { documentTrackingNumber: { in: keys } },
+      });
+    }
   });
 }
 
@@ -1043,37 +1070,6 @@ export async function deleteEnvelopeLogsDirect() {
   if (!client || !status.connected) return 0;
   const result = await client.envelopeLog.deleteMany();
   return result.count;
-}
-
-export async function clearDataExceptUsers(includeDivisions = false) {
-  const clear = async (
-    target: PrismaClient,
-    targetStatus: MySQLReplicaStatus,
-  ) => {
-    try {
-      await target.$transaction(async (tx) => {
-        await tx.$executeRawUnsafe('SET FOREIGN_KEY_CHECKS = 0');
-        try {
-          await tx.documentRoute.deleteMany();
-          await tx.documentAttachment.deleteMany();
-          await tx.document.deleteMany();
-          await tx.auditLog.deleteMany();
-          await tx.envelopeLog.deleteMany();
-          if (includeDivisions) await tx.division.deleteMany();
-        } finally {
-          await tx.$executeRawUnsafe('SET FOREIGN_KEY_CHECKS = 1');
-        }
-      });
-    } catch (error) {
-      targetStatus.lastError = errorMessage(error);
-      console.error('Database clear failed:', targetStatus.lastError);
-      throw error;
-    }
-  };
-
-  if (client && status.connected) {
-    await clear(client, status);
-  }
 }
 
 export async function disconnectMySQLReplica() {

@@ -6,6 +6,7 @@
   "scripts": {
     "postinstall": "prisma generate --schema prisma/mysql/schema.prisma",
     "prisma:generate": "prisma generate --schema prisma/mysql/schema.prisma",
+    "db:migrate-readable-ids": "tsx backend/scripts/migrate_readable_ids.mjs",
 
     "dev": "node scripts/dev.cjs",
     "dev:concurrent": "concurrently --kill-others-on-fail --names server,frontend \"npm run dev:backend\" \"npm run dev:frontend\"",

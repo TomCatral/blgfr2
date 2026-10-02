@@ -212,11 +212,19 @@
                       <ion-icon name="download"></ion-icon>
                       <span>Install on Device</span>
                     </button>
+                    <button type="button" class="headInstallGuideTriggerBtn" (click)="openInstallGuide()">
+                      <ion-icon name="information-circle-outline"></ion-icon>
+                      <span>Desktop & Mobile Guide</span>
+                    </button>
                   } @else {
                     <p class="head82">
                       <ion-icon name="checkmark-circle"></ion-icon>
                       DTS App Installed
                     </p>
+                    <button type="button" class="headInstallGuideTriggerBtn is-installed" (click)="openInstallGuide()">
+                      <ion-icon name="phone-portrait-outline"></ion-icon>
+                      <span>Install on Mobile / Other Devices</span>
+                    </button>
                   }
                 </div>
 
@@ -505,6 +513,264 @@
               <p class="head143">{{ scannerError }}</p>
             }
             <button type="button" class="headBtn" (click)="isScannerOpen = false">Cancel</button>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (showInstallGuide) {
+      <div class="pwa-install-modal-overlay" (mousedown)="closeInstallGuide()">
+        <div class="pwa-install-modal" (mousedown)="stop($event)">
+          <!-- Modal Header -->
+          <div class="pwa-install-modal-header">
+            <div class="pwa-install-header-left">
+              <div class="pwa-install-app-icon">
+                <img src="/blgflogo.jpg" alt="BLGF Logo" />
+              </div>
+              <div class="pwa-install-header-text">
+                <div class="pwa-install-header-tag">
+                  <ion-icon name="sparkles"></ion-icon>
+                  <span>OFFICIAL PWA APP</span>
+                </div>
+                <h3 class="pwa-install-title">Install BLGF DTS</h3>
+                <p class="pwa-install-desc">Use as a standalone application on Desktop PC and Mobile Devices</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="pwa-install-close-btn"
+              aria-label="Close guide"
+              (click)="closeInstallGuide()"
+            >
+              <ion-icon name="close"></ion-icon>
+            </button>
+          </div>
+
+          <!-- Platform Selector Tabs -->
+          <div class="pwa-install-tabs">
+            <button
+              type="button"
+              class="pwa-install-tab-btn"
+              [class.active]="activeInstallTab === 'desktop'"
+              (click)="setInstallTab('desktop')"
+            >
+              <ion-icon name="desktop-outline"></ion-icon>
+              <span class="tab-label">Desktop / PC</span>
+              <span class="tab-badge">Chrome / Edge</span>
+            </button>
+            <button
+              type="button"
+              class="pwa-install-tab-btn"
+              [class.active]="activeInstallTab === 'android'"
+              (click)="setInstallTab('android')"
+            >
+              <ion-icon name="phone-portrait-outline"></ion-icon>
+              <span class="tab-label">Android Mobile</span>
+              <span class="tab-badge">Chrome / Mobile</span>
+            </button>
+            <button
+              type="button"
+              class="pwa-install-tab-btn"
+              [class.active]="activeInstallTab === 'ios'"
+              (click)="setInstallTab('ios')"
+            >
+              <ion-icon name="logo-apple"></ion-icon>
+              <span class="tab-label">iPhone / iPad</span>
+              <span class="tab-badge">Safari</span>
+            </button>
+          </div>
+
+          <!-- Body Content Based on Active Tab -->
+          <div class="pwa-install-content">
+            @if (activeInstallTab === 'desktop') {
+              <div class="pwa-tab-pane">
+                <div class="pwa-platform-banner">
+                  <div class="pwa-banner-icon desktop">
+                    <ion-icon name="desktop-outline"></ion-icon>
+                  </div>
+                  <div class="pwa-banner-text">
+                    <h4>How to Install on Desktop / Laptop (Windows, Mac, Linux)</h4>
+                    <p>Compatible with Google Chrome, Microsoft Edge, Brave, or Opera browsers.</p>
+                  </div>
+                </div>
+
+                <div class="pwa-steps-list">
+                  <div class="pwa-step-card">
+                    <div class="pwa-step-number">1</div>
+                    <div class="pwa-step-info">
+                      <h5>Check the Address Bar (Top URL Bar)</h5>
+                      <p>
+                        At the end of the address bar at the top (right side before bookmarks), look for the
+                        <strong>Install icon</strong> (<ion-icon name="download-outline"></ion-icon> or desktop monitor with a down arrow).
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="pwa-step-card">
+                    <div class="pwa-step-number">2</div>
+                    <div class="pwa-step-info">
+                      <h5>Or use the Browser Menu (3 dots)</h5>
+                      <p>
+                        Click the <strong>three dots (⋮)</strong> in the top-right corner of your browser &rarr; select
+                        <strong>"Install BLGF Region II Document Tracking System..."</strong> or <strong>"Save and share" &rarr; "Install page as app"</strong>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="pwa-step-card">
+                    <div class="pwa-step-number">3</div>
+                    <div class="pwa-step-info">
+                      <h5>Click the "Install" button in the prompt</h5>
+                      <p>
+                        BLGF DTS will open in its own standalone window and create a shortcut on your
+                        <strong>Desktop</strong> and <strong>Taskbar</strong> for quick 1-click access!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                @if (installPrompt) {
+                  <div class="pwa-action-banner">
+                    <button type="button" class="pwa-direct-install-btn" (click)="handleInstallApp()">
+                      <ion-icon name="download"></ion-icon>
+                      <span>Install on PC Now</span>
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+
+            @if (activeInstallTab === 'android') {
+              <div class="pwa-tab-pane">
+                <div class="pwa-platform-banner">
+                  <div class="pwa-banner-icon android">
+                    <ion-icon name="phone-portrait-outline"></ion-icon>
+                  </div>
+                  <div class="pwa-banner-text">
+                    <h4>How to Install on Android (Phone / Tablet)</h4>
+                    <p>Use Google Chrome or Samsung Internet browser on your device.</p>
+                  </div>
+                </div>
+
+                <div class="pwa-steps-list">
+                  <div class="pwa-step-card">
+                    <div class="pwa-step-number">1</div>
+                    <div class="pwa-step-info">
+                      <h5>Open in Google Chrome on your device</h5>
+                      <p>
+                        Ensure this URL is opened directly in the <strong>Google Chrome</strong> app (if opened via Messenger or Viber, tap the 3 dots and choose <em>"Open in Chrome"</em>).
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="pwa-step-card">
+                    <div class="pwa-step-number">2</div>
+                    <div class="pwa-step-info">
+                      <h5>Tap the 3 Dots (⋮ Menu)</h5>
+                      <p>
+                        In the top-right corner of Google Chrome, tap the <strong>three vertical dots (⋮)</strong> to open the browser menu.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="pwa-step-card">
+                    <div class="pwa-step-number">3</div>
+                    <div class="pwa-step-info">
+                      <h5>Select "Install app" or "Add to Home screen"</h5>
+                      <p>
+                        Find and tap <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong> from the menu options.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="pwa-step-card">
+                    <div class="pwa-step-number">4</div>
+                    <div class="pwa-step-info">
+                      <h5>Confirm and tap "Install"</h5>
+                      <p>
+                        The official <strong>BLGF DTS</strong> application icon will appear on your Home Screen and App Drawer!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                @if (installPrompt) {
+                  <div class="pwa-action-banner">
+                    <button type="button" class="pwa-direct-install-btn" (click)="handleInstallApp()">
+                      <ion-icon name="download"></ion-icon>
+                      <span>Install on Mobile Now</span>
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+
+            @if (activeInstallTab === 'ios') {
+              <div class="pwa-tab-pane">
+                <div class="pwa-platform-banner">
+                  <div class="pwa-banner-icon apple">
+                    <ion-icon name="logo-apple"></ion-icon>
+                  </div>
+                  <div class="pwa-banner-text">
+                    <h4>How to Install on iPhone / iPad (iOS)</h4>
+                    <p>Must be opened in <strong>Apple Safari</strong> browser to install to your Home Screen.</p>
+                  </div>
+                </div>
+
+                <div class="pwa-steps-list">
+                  <div class="pwa-step-card">
+                    <div class="pwa-step-number">1</div>
+                    <div class="pwa-step-info">
+                      <h5>Open this page in Safari</h5>
+                      <p>
+                        If opened from Messenger, Facebook, or Chrome on iPhone, copy the URL and open it in the official <strong>Safari</strong> browser.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="pwa-step-card">
+                    <div class="pwa-step-number">2</div>
+                    <div class="pwa-step-info">
+                      <h5>Tap the Share Button</h5>
+                      <p>
+                        In Safari's bottom toolbar, tap the <strong>Share button</strong> (<ion-icon name="share-outline"></ion-icon> square icon with an upward arrow).
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="pwa-step-card">
+                    <div class="pwa-step-number">3</div>
+                    <div class="pwa-step-info">
+                      <h5>Select "Add to Home Screen"</h5>
+                      <p>
+                        Scroll down the share sheet menu options and tap <strong>"Add to Home Screen"</strong>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="pwa-step-card">
+                    <div class="pwa-step-number">4</div>
+                    <div class="pwa-step-info">
+                      <h5>Tap "Add" in the top-right corner</h5>
+                      <p>
+                        Tap <strong>"Add"</strong>. The app icon will be added to your iPhone home screen, launching full-screen without any browser address bars!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Modal Footer / Quick Actions -->
+          <div class="pwa-install-modal-footer">
+            <button type="button" class="pwa-copy-link-btn" (click)="copyAppLink()">
+              <ion-icon [name]="copiedLink ? 'checkmark-circle' : 'copy-outline'"></ion-icon>
+              <span>{{ copiedLink ? 'Link Copied to Clipboard!' : 'Copy Link to Open on Mobile' }}</span>
+            </button>
+            <button type="button" class="pwa-modal-done-btn" (click)="closeInstallGuide()">
+              Got it / Close
+            </button>
           </div>
         </div>
       </div>

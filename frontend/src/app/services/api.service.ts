@@ -41,8 +41,8 @@ export class ApiService {
     return this.http.patch<T>(`${API_BASE}${url}`, body);
   }
 
-  private delete<T>(url: string): Observable<T> {
-    return this.http.delete<T>(`${API_BASE}${url}`);
+  private delete<T>(url: string, headers?: Record<string, string>): Observable<T> {
+    return this.http.delete<T>(`${API_BASE}${url}`, headers ? { headers } : undefined);
   }
 
   readonly apiBase = API_BASE;
@@ -220,8 +220,33 @@ export class ApiService {
     );
   }
 
-  deleteDocument(id: string): Observable<{ success: boolean }> {
-    return this.delete<{ success: boolean }>(`/documents/${id}`);
+  deleteDocument(id: string, actingUserId?: string): Observable<{ success: boolean }> {
+    const headers = actingUserId ? { 'X-User-Id': actingUserId } : undefined;
+    return this.delete<{ success: boolean }>(`/documents/${id}`, headers);
+  }
+
+  removeDocumentRoute(
+    documentId: string,
+    routeId: string,
+    actingUserId?: string,
+  ): Observable<{
+    success: boolean;
+    message: string;
+    deletedDocument?: boolean;
+    freedRouteNumber?: string;
+    document?: DocumentRecord;
+  }> {
+    const headers = actingUserId ? { 'X-User-Id': actingUserId } : undefined;
+    return this.delete<{
+      success: boolean;
+      message: string;
+      deletedDocument?: boolean;
+      freedRouteNumber?: string;
+      document?: DocumentRecord;
+    }>(
+      `/documents/${documentId}/routes/${routeId}${actingUserId ? `?actingUserId=${actingUserId}` : ''}`,
+      headers,
+    );
   }
 
   // ---------------------------------------------------------------

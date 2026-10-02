@@ -82,7 +82,7 @@ export class SidebarComponent {
   }
 
   private canViewItem(item: NavigationItem): boolean {
-    if (this.currentUser.role === 'SYSTEM_ADMIN') return true;
+    if (this.currentUser.role === 'SYSTEM_ADMIN' || this.currentUser.divisionCode === 'ITMS') return true;
     if (item.id === 'users' || item.adminOnly) return false;
 
     const permissions = this.permissions();

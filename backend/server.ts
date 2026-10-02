@@ -1,5 +1,4 @@
 import express from 'express';
-import { randomUUID } from 'node:crypto';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -9,15 +8,14 @@ import crypto from 'crypto';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import multer from 'multer';
-import nodemailer from 'nodemailer';
 import { sendTemporaryPasswordEmail, getSmtpConfig } from './emailService.js';
 import {
   connectMySQLReplica,
   disconnectMySQLReplica,
   getLiveDisplayNotifications,
+  loadLiveDocuments,
   loadMySQLState,
   syncMySQLReplica,
-  saveAuditLogDirect,
   saveEnvelopeLogDirect,
   deleteAuditLogsDirect,
   deleteEnvelopeLogsDirect,
@@ -35,11 +33,11 @@ import {
   DocumentRouteStep,
   EmployeeProfile,
   EmployeeFolderRecord,
-  EmployeeFolderFile,
   DEFAULT_ROLE_PERMISSIONS,
 } from '../frontend/src/app/types';
 import { addAuditLog, createNotification } from './serverUtils.js';
 import { generateOfficialPdfBuffer } from './pdfGenerator.js';
+import { nextReadableId } from './readableIds.js';
 
 dotenv.config({ quiet: true });
 
@@ -47,8 +45,6 @@ const DEFAULT_PORT = 3001;
 const PORT = Number(process.env.PORT || DEFAULT_PORT);
 const HOST = process.env.HOST || '0.0.0.0';
 const IS_VERCEL = Boolean(process.env.VERCEL);
-const ADMIN_PASSWORD_RESET_COOLDOWN_MS = 15 * 60 * 1000;
-const TEMPORARY_PASSWORD_VALIDITY_MS = 5 * 60 * 1000;
 // Server start
 const adminPasswordResetRequests = new Map<string, number>();
 // JSON files under backend/data are recovery snapshots only. MySQL is the
@@ -127,12 +123,6 @@ const storageFileUrl = (kind: StorageKind, fileName: string) =>
 let mysqlSyncQueue: Promise<void> = Promise.resolve();
 let mysqlSyncRequested = false;
 let mysqlSyncWorkerActive = false;
-let mysqlRefreshPromise: Promise<void> | null = null;
-let lastMySQLRefreshAt = 0;
-const MYSQL_LIVE_REFRESH_MS = Math.max(
-  500,
-  Number(process.env.MYSQL_LIVE_REFRESH_MS || 1500),
-);
 
 // Memory Data State
 export let divisionsState: Division[] = [];
@@ -169,12 +159,12 @@ const DEFAULT_DIRECTORY_SECTIONS: DirectorySectionRecord[] = [
 let directorySectionsState: DirectorySectionRecord[] = DEFAULT_DIRECTORY_SECTIONS;
 
 const RESERVED_SYSTEM_ADMIN: User = {
-  id: 'usr-1785138104157',
+  id: 'USR-0008',
   username: 'tom',
   fullName: 'Tom Catral',
   email: 'catraltom@gmail.com',
   role: 'SYSTEM_ADMIN',
-  divisionCode: 'ORD',
+  divisionCode: 'ITMS',
   designation: 'System Administrator',
   contactNo: '',
   active: true,
@@ -375,7 +365,17 @@ function initDatabaseStorage() {
       divisionsState = data.divisions || [];
       usersState = (data.users || []).map(sanitizeUserPermissionsOnLoad);
       documentsState = data.documents || [];
-      auditLogsState = data.auditLogs || [];
+      const validDocKeys = new Set(
+        documentsState.flatMap((d) => [
+          d.id?.trim().toUpperCase(),
+          d.trackingNumber?.trim().toUpperCase(),
+          d.routeNo?.trim().toUpperCase(),
+        ]).filter(Boolean) as string[],
+      );
+      auditLogsState = (data.auditLogs || []).filter((log: AuditLog) => {
+        if (!log.documentTrackingNumber) return true;
+        return validDocKeys.has(log.documentTrackingNumber.trim().toUpperCase());
+      });
       if (fs.existsSync(ENVELOPE_LOG_DB_FILE)) {
         const envelopeData = JSON.parse(
           fs.readFileSync(ENVELOPE_LOG_DB_FILE, 'utf-8'),
@@ -390,7 +390,11 @@ function initDatabaseStorage() {
         );
         saveEnvelopeLogsToFile();
       }
-      notificationsState = data.notifications || [];
+      notificationsState = (data.notifications || []).filter((n: NotificationItem) => {
+        if (n.documentId && !validDocKeys.has(n.documentId.trim().toUpperCase())) return false;
+        if (n.trackingNumber && !validDocKeys.has(n.trackingNumber.trim().toUpperCase())) return false;
+        return true;
+      });
       repairInitialRouteRecipients();
       employeesState = data.employees || [];
       directorySectionsState = data.directorySections || DEFAULT_DIRECTORY_SECTIONS;
@@ -466,32 +470,8 @@ function queueDatabaseSync(force = false) {
 }
 
 export async function flushDatabaseSync() {
+  flushDatabaseFileWrite();
   await mysqlSyncQueue;
-}
-
-async function refreshDatabaseStateFromMySQL(force = false) {
-  if (!getMySQLReplicaStatus().connected) return;
-  if (mysqlSyncWorkerActive || mysqlSyncRequested) {
-    await flushDatabaseSync();
-  }
-  if (!force && Date.now() - lastMySQLRefreshAt < MYSQL_LIVE_REFRESH_MS) return;
-  if (mysqlRefreshPromise) return mysqlRefreshPromise;
-
-  mysqlRefreshPromise = (async () => {
-    const entries = await loadMySQLState();
-    if (entries.length > 0) {
-      applyDatabaseState(entries);
-      lastMySQLRefreshAt = Date.now();
-    }
-  })()
-    .catch((error) => {
-      console.error('Live MySQL refresh failed:', error);
-    })
-    .finally(() => {
-      mysqlRefreshPromise = null;
-    });
-
-  return mysqlRefreshPromise;
 }
 
 function syncEmployeeProfileFromUser(user: User, persist = true) {
@@ -510,7 +490,7 @@ function syncEmployeeProfileFromUser(user: User, persist = true) {
 
   const matchingProfiles = matchingIndices.map((i) => employeesState[i]);
   const primaryExisting = matchingProfiles[0];
-  const empId = primaryExisting?.id || `emp-${user.id}`;
+  const empId = primaryExisting?.id || nextReadableId('EMP', employeesState);
 
   const allExistingFolders: EmployeeFolderRecord[] = [];
   const seenFolderNames = new Set<string>();
@@ -662,11 +642,12 @@ function writeJsonFileAtomic(target: string, contents: string) {
   fs.renameSync(tempFile, target);
 }
 
-export function saveDatabaseToFile(queueSync = true) {
-  if (IS_VERCEL) {
-    if (queueSync) queueDatabaseSync();
-    return;
-  }
+const DATABASE_FILE_WRITE_DEBOUNCE_MS = 150;
+let databaseFileDirty = false;
+let databaseFileWriteTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingDatabaseSyncRequest = false;
+
+function writeDatabaseFileNow(queueSync: boolean) {
   try {
     const payload = {
       updatedAt: new Date().toISOString(),
@@ -682,10 +663,43 @@ export function saveDatabaseToFile(queueSync = true) {
       .replace(/\u0410/g, 'A')
       .replace(/\u2014/g, '-');
     writeJsonFileAtomic(DB_FILE, serialized);
+    databaseFileDirty = false;
     if (queueSync) queueDatabaseSync();
   } catch (err) {
     console.error('[ERROR] Error saving database file:', err);
   }
+}
+
+// One user action can touch the document, its audit trail and several
+// notifications at once. Rewriting the whole database file for each of them
+// blocks the event loop and is what makes the app feel slow, so writes are
+// coalesced and flushed on the next tick, on demand, and on shutdown.
+function scheduleDatabaseFileWrite(queueSync: boolean) {
+  databaseFileDirty = true;
+  pendingDatabaseSyncRequest = pendingDatabaseSyncRequest || queueSync;
+  if (databaseFileWriteTimer) return;
+  databaseFileWriteTimer = setTimeout(() => {
+    databaseFileWriteTimer = null;
+    flushDatabaseFileWrite();
+  }, DATABASE_FILE_WRITE_DEBOUNCE_MS);
+}
+
+export function flushDatabaseFileWrite() {
+  if (databaseFileWriteTimer) {
+    clearTimeout(databaseFileWriteTimer);
+    databaseFileWriteTimer = null;
+  }
+  if (!databaseFileDirty) return;
+  writeDatabaseFileNow(pendingDatabaseSyncRequest);
+  pendingDatabaseSyncRequest = false;
+}
+
+export function saveDatabaseToFile(queueSync = true) {
+  if (IS_VERCEL) {
+    if (queueSync) queueDatabaseSync();
+    return;
+  }
+  scheduleDatabaseFileWrite(queueSync);
 }
 
 function saveEnvelopeLogsToFile() {
@@ -1493,7 +1507,13 @@ export async function createApp() {
   });
 
   // GET Stats
-  app.get('/api/stats', (_req, res) => {
+  app.get('/api/stats', async (_req, res) => {
+    try {
+      const liveDocuments = await loadLiveDocuments();
+      if (liveDocuments) documentsState = liveDocuments as DocumentRecord[];
+    } catch {
+      // ignore
+    }
     const totalIncoming = documentsState.filter(
       (d) => d.direction === 'INCOMING',
     ).length;
@@ -1501,7 +1521,7 @@ export async function createApp() {
       (d) => d.direction === 'OUTGOING',
     ).length;
     const pendingCount = documentsState.filter(
-      (d) => d.currentStatus === 'PENDING',
+      (d) => d.currentStatus === 'PENDING' || d.currentStatus === 'NOT_YET_ROUTED',
     ).length;
     const inProgressCount = documentsState.filter(
       (d) => d.currentStatus === 'IN_PROGRESS',
@@ -1532,6 +1552,7 @@ export async function createApp() {
 
     // Status breakdown
     const statusMap: Record<DocumentStatus, number> = {
+      NOT_YET_ROUTED: 0,
       PENDING: 0,
       IN_PROGRESS: 0,
       FOR_SIGNATURE: 0,
@@ -1544,6 +1565,12 @@ export async function createApp() {
     });
 
     const statusBreakdown = [
+      {
+        status: 'NOT_YET_ROUTED' as DocumentStatus,
+        label: 'Not Yet Routed',
+        count: statusMap.NOT_YET_ROUTED,
+        color: '#8b5cf6',
+      },
       {
         status: 'COMPLETED' as DocumentStatus,
         label: 'Completed',
@@ -1617,7 +1644,7 @@ export async function createApp() {
       return res.status(409).json({ error: 'Division code already exists.' });
     }
     const division: Division = {
-      id: `div-${randomUUID()}`,
+      id: nextReadableId('DIV', divisionsState),
       code: code as Division['code'],
       name,
       chiefName,
@@ -1722,7 +1749,7 @@ export async function createApp() {
       return res.status(401).json({ error: 'Active database user required.' });
     }
     const log: AuditLog = {
-      id: `envelope-log-${randomUUID()}`,
+      id: nextReadableId('ENV', envelopeLogsState),
       timestamp: new Date().toISOString(),
       userId: actingUser.id,
       userName: actingUser.fullName,
@@ -1762,6 +1789,24 @@ export async function createApp() {
         : (
             DEFAULT_ROLE_PERMISSIONS[requestingUser.role]?.allowedActions || []
           ).includes('NOTIFICATION_VIEW_ALL');
+    const activeDocTrackings = new Map<string, DocumentRecord>();
+    for (const d of documentsState) {
+      if (d.id) activeDocTrackings.set(d.id.trim().toUpperCase(), d);
+      if (d.trackingNumber) activeDocTrackings.set(d.trackingNumber.trim().toUpperCase(), d);
+      if (d.routeNo) activeDocTrackings.set(d.routeNo.trim().toUpperCase(), d);
+    }
+
+    // Clean up any stale/orphaned notifications in memory
+    notificationsState = notificationsState.filter((n) => {
+      if (n.documentId && !activeDocTrackings.has(n.documentId.trim().toUpperCase())) {
+        return false;
+      }
+      if (n.trackingNumber && !activeDocTrackings.has(n.trackingNumber.trim().toUpperCase())) {
+        return false;
+      }
+      return true;
+    });
+
     const storedNotifications = notificationsState.filter(
       (notification) => notification.userId === userId,
     );
@@ -1771,11 +1816,16 @@ export async function createApp() {
             .filter(
               (log) =>
                 Boolean(log.documentTrackingNumber) &&
+                activeDocTrackings.has(log.documentTrackingNumber.trim().toUpperCase()) &&
                 ['CREATE_DOC', 'ROUTE_DOC', 'TRANSFER_DOC', 'UPDATE_STATUS'].includes(
                   log.action,
                 ),
             )
-            .map((log) => {
+            .map<NotificationItem | null>((log) => {
+              const matchedDoc = log.documentTrackingNumber
+                ? activeDocTrackings.get(log.documentTrackingNumber.trim().toUpperCase())
+                : undefined;
+              if (!matchedDoc) return null;
               const decision = log.details.match(
                 /(?:Action:\s*|^)(APPROVED|DISAPPROVED)\b/i,
               )?.[1]?.toUpperCase();
@@ -1804,11 +1854,7 @@ export async function createApp() {
                 title,
                 message,
                 trackingNumber: log.documentTrackingNumber,
-                documentId: documentsState.find(
-                  (document) =>
-                    document.trackingNumber === log.documentTrackingNumber ||
-                    document.routeNo === log.documentTrackingNumber,
-                )?.id,
+                documentId: matchedDoc.id,
                 type: decision === 'DISAPPROVED' ? 'URGENT' : 'INFO',
                 requiresDecision: false,
                 decisionStatus:
@@ -1818,12 +1864,48 @@ export async function createApp() {
                 createdAt: log.timestamp,
               } satisfies NotificationItem;
             })
+            .filter((n): n is NotificationItem => n !== null)
         : [];
+    const dedupedGlobalNotifications = [
+      ...globalTransactionNotifications
+        .reduce((map, item) => {
+          const key = item.trackingNumber || item.documentId || item.id;
+          const existing = map.get(key);
+          if (
+            !existing ||
+            new Date(item.createdAt).getTime() >
+              new Date(existing.createdAt).getTime()
+          ) {
+            map.set(key, item);
+          }
+          return map;
+        }, new Map<string, NotificationItem>())
+        .values(),
+    ];
     try {
-      const liveNotifications = await getLiveDisplayNotifications(userId);
+      const rawLiveNotifications = await getLiveDisplayNotifications(userId);
+      const liveNotifications = rawLiveNotifications
+        ? rawLiveNotifications.filter((n) => {
+            if (n.documentId && !activeDocTrackings.has(n.documentId.trim().toUpperCase())) return false;
+            if (n.trackingNumber && !activeDocTrackings.has(n.trackingNumber.trim().toUpperCase())) return false;
+            return true;
+          })
+        : null;
       if (liveNotifications) {
+        const liveDocKeys = new Set(
+          [...liveNotifications, ...storedNotifications].flatMap((n) =>
+            [n.documentId, n.trackingNumber].filter(Boolean),
+          ),
+        );
+        const filteredGlobal = dedupedGlobalNotifications.filter(
+          (notification) =>
+            (!notification.documentId ||
+              !liveDocKeys.has(notification.documentId)) &&
+            (!notification.trackingNumber ||
+              !liveDocKeys.has(notification.trackingNumber)),
+        );
         return res.json([
-          ...globalTransactionNotifications,
+          ...filteredGlobal,
           ...storedNotifications,
           ...liveNotifications.filter(
             (notification) =>
@@ -1907,8 +1989,20 @@ export async function createApp() {
         ];
       },
     );
+    const activeDocKeys = new Set(
+      [...activeNotifications, ...storedNotifications].flatMap((n) =>
+        [n.documentId, n.trackingNumber].filter(Boolean),
+      ),
+    );
+    const filteredGlobal = dedupedGlobalNotifications.filter(
+      (notification) =>
+        (!notification.documentId ||
+          !activeDocKeys.has(notification.documentId)) &&
+        (!notification.trackingNumber ||
+          !activeDocKeys.has(notification.trackingNumber)),
+    );
     res.json([
-      ...globalTransactionNotifications,
+      ...filteredGlobal,
       ...storedNotifications,
       ...activeNotifications,
     ]);
@@ -1958,7 +2052,7 @@ export async function createApp() {
       reminderHandlerName: recipient.fullName,
       reminderActionRequested:
         String(req.body.actionRequested || '').trim() || 'Appropriate Action',
-    });
+    }, notificationsState);
     notificationsState.unshift(reminder);
     addAuditLog(auditLogsState, {
       userId: actingUser.id,
@@ -2062,11 +2156,12 @@ export async function createApp() {
   const canManageEmployees = (req: express.Request) => {
     const user = getRequestUser(req);
     if (!user) return false;
-    const actions = (
-      user.permissions || DEFAULT_ROLE_PERMISSIONS[user.role]
-    ).allowedActions || [];
+    const perm =
+      user.permissions || DEFAULT_ROLE_PERMISSIONS[user.role] || DEFAULT_ROLE_PERMISSIONS.STAFF;
+    const actions = perm.allowedActions || [];
     return (
       user.role === 'SYSTEM_ADMIN' ||
+      Boolean(perm.canDelete) ||
       actions.some((action) =>
         ['EMPLOYEE_CREATE', 'EMPLOYEE_EDIT', 'EMPLOYEE_DELETE'].includes(action),
       )
@@ -2085,7 +2180,7 @@ export async function createApp() {
       return res.status(403).json({ error: 'Directory category access permission required.' });
     }
     const newEmp: EmployeeProfile = {
-      id: `emp-${randomUUID()}`,
+      id: nextReadableId('EMP', employeesState),
       userId: body.userId || undefined,
       fullName: body.fullName,
       position: body.position,
@@ -2151,8 +2246,20 @@ export async function createApp() {
 
   // DELETE employee
   app.delete('/api/employees/:id', (req, res) => {
-    if (getRequestUser(req)?.role !== 'SYSTEM_ADMIN') {
-      return res.status(403).json({ error: 'System Administrator access required.' });
+    const actingUser = getRequestUser(req);
+    if (!actingUser) {
+      return res.status(401).json({ error: 'Active user required.' });
+    }
+    const perm =
+      actingUser.permissions ||
+      DEFAULT_ROLE_PERMISSIONS[actingUser.role] ||
+      DEFAULT_ROLE_PERMISSIONS.STAFF;
+    const canDeleteEmployee =
+      actingUser.role === 'SYSTEM_ADMIN' ||
+      Boolean(perm.canDelete) ||
+      Boolean(perm.allowedActions?.includes('EMPLOYEE_DELETE'));
+    if (!canDeleteEmployee) {
+      return res.status(403).json({ error: 'Delete permission or System Administrator access required.' });
     }
     const idx = employeesState.findIndex((e) => e.id === req.params.id);
     if (idx === -1)
@@ -2240,10 +2347,17 @@ export async function createApp() {
   app.use(express.static(distPath, {
     etag: false,
     maxAge: 0,
-    setHeaders: (res) => {
+    setHeaders: (res, filePath) => {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
+      if (filePath.endsWith('manifest.webmanifest')) {
+        res.setHeader('Content-Type', 'application/manifest+json');
+      }
+      if (filePath.endsWith('service-worker.js')) {
+        res.setHeader('Service-Worker-Allowed', '/');
+        res.setHeader('Content-Type', 'application/javascript');
+      }
     },
   }));
   app.get('*', (_req, res) => {
@@ -2277,6 +2391,17 @@ export async function createApp() {
 }
 
 if (!IS_VERCEL) {
+  const shutdown = () => {
+    flushDatabaseFileWrite();
+  };
+  process.on('exit', shutdown);
+  for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
+    process.on(signal, () => {
+      shutdown();
+      process.exit(0);
+    });
+  }
+
   createApp().catch((error) => {
     console.error('Server failed to start:', error);
     process.exitCode = 1;

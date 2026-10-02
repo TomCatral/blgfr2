@@ -35,8 +35,8 @@
             <strong>{{ activeUsersCount }}</strong> Active
           </span>
           <span class="ua-metric-pill">
-            <ion-icon name="shield-outline"></ion-icon>
-            <strong>{{ allRoles.length }}</strong> Roles
+            <ion-icon name="shield-checkmark-outline"></ion-icon>
+            <strong>{{ itmsUsersCount() }}</strong> ITMS (System Admin)
           </span>
           <span class="ua-metric-pill">
             <ion-icon name="business-outline"></ion-icon>
@@ -80,10 +80,10 @@
       class="ua-tab-btn"
       [class.active]="activeTab() === 'roles'"
     >
-      <ion-icon name="shield-checkmark-outline"></ion-icon>
-      <span>Roles &amp; Permissions</span>
+      <ion-icon name="key-outline"></ion-icon>
+      <span>Account Permissions</span>
       <span class="ua-tab-count" [class.active]="activeTab() === 'roles'">
-        {{ allRoles.length }}
+        {{ users.length }}
       </span>
     </ion-button>
 
@@ -129,23 +129,6 @@
         </div>
 
         <div class="ua-filter-group">
-          <!-- Role Filter -->
-          <div class="ua-select-wrap">
-            <ion-icon name="shield-outline" class="ua-select-icon"></ion-icon>
-            <ion-select
-              interface="popover"
-              [ngModel]="roleFilter()"
-              (ngModelChange)="roleFilter.set($event)"
-              class="ua-filter-select"
-              aria-label="Filter by role"
-            >
-              <ion-select-option value="ALL">All Roles</ion-select-option>
-              @for (r of allRoles; track r.role) {
-                <ion-select-option [value]="r.role">{{ r.label }}</ion-select-option>
-              }
-            </ion-select>
-          </div>
-
           <!-- Division Filter -->
           <div class="ua-select-wrap">
             <ion-icon name="business-outline" class="ua-select-icon"></ion-icon>
@@ -157,13 +140,13 @@
               aria-label="Filter by division"
             >
               <ion-select-option value="ALL">All Divisions</ion-select-option>
-              <ion-select-option value="ITMS">ITMS</ion-select-option>
-              <ion-select-option value="ORD">ORD</ion-select-option>
-              <ion-select-option value="AD">AD</ion-select-option>
-              <ion-select-option value="LAOD">LAOD</ion-select-option>
-              <ion-select-option value="LTOD">LTOD</ion-select-option>
-              <ion-select-option value="FD">FD</ion-select-option>
-              <ion-select-option value="LU">LU</ion-select-option>
+              <ion-select-option value="ITMS">ITMS &bull; System Administration</ion-select-option>
+              <ion-select-option value="ORD">ORD &bull; Regional Director</ion-select-option>
+              <ion-select-option value="AD">AD &bull; Administrative</ion-select-option>
+              <ion-select-option value="LAOD">LAOD &bull; Local Assessment</ion-select-option>
+              <ion-select-option value="LTOD">LTOD &bull; Local Treasury</ion-select-option>
+              <ion-select-option value="FD">FD &bull; Financial</ion-select-option>
+              <ion-select-option value="LU">LU &bull; Legal</ion-select-option>
             </ion-select>
           </div>
 
@@ -301,11 +284,11 @@
                         </div>
                       </td>
 
-                      <!-- Role -->
+                      <!-- Role / Administration -->
                       <td class="ua-td-role">
                         <span class="ua-role-pill" [ngClass]="roleBadgeClass(usr.role)">
                           <span class="ua-role-dot"></span>
-                          <span>{{ usr.role }}</span>
+                          <span>{{ usr.divisionCode === 'ITMS' || usr.role === 'SYSTEM_ADMIN' ? 'System Administration' : (usr.role === 'ORD' ? 'Regional Director Office' : 'Division Personnel') }}</span>
                         </span>
                       </td>
 
@@ -382,7 +365,7 @@
                             <span>Permissions</span>
                           </ion-button>
 
-                          @if (usr.role !== 'SYSTEM_ADMIN' && usr.id !== currentUser.id) {
+                          @if (canDeleteUsers() && usr.role !== 'SYSTEM_ADMIN' && usr.id !== currentUser.id) {
                             <ion-button
                               type="button"
                               (click)="handleDelete(usr)"
@@ -546,7 +529,7 @@
                     <span>Perms</span>
                   </button>
 
-                  @if (usr.role !== 'SYSTEM_ADMIN' && usr.id !== currentUser.id) {
+                  @if (canDeleteUsers() && usr.role !== 'SYSTEM_ADMIN' && usr.id !== currentUser.id) {
                     <button
                       type="button"
                       (click)="handleDelete(usr)"
@@ -590,74 +573,48 @@
   }
 
   <!-- =========================================================================
-       TAB 2: ROLE PERMISSION MATRIX
+       TAB 2: USER ACCOUNT PERMISSIONS
        ========================================================================= -->
   @if (activeTab() === 'roles') {
-    <section class="ua-tab-section" aria-label="Roles and Permissions Management">
+    <section class="ua-tab-section" aria-label="User Account Permissions Management">
       <!-- Matrix Header Controls -->
       <div class="ua-matrix-header-bar">
         <div class="ua-matrix-header-text">
           <h2 class="ua-matrix-title">
-            <ion-icon name="shield-checkmark-outline"></ion-icon>
-            <span>Roles &amp; User Permissions Management</span>
+            <ion-icon name="person-circle-outline"></ion-icon>
+            <span>User Account Permissions</span>
           </h2>
           <p class="ua-matrix-subtitle">
-            Configure global access rights across organizational roles or grant custom tailored permissions to individual personnel accounts.
+            Select a personnel account and configure its access directly. The assigned role serves as its classification and default permission preset.
           </p>
         </div>
-
-        <!-- Mode Switcher: By Role Matrix vs By User Account -->
-        <div class="ua-perm-mode-switcher">
-          <button
-            type="button"
-            (click)="permTargetMode.set('roles')"
-            class="ua-perm-mode-btn"
-            [class.active]="permTargetMode() === 'roles'"
-          >
-            <ion-icon name="shield-outline"></ion-icon>
-            <span>Role Matrix</span>
-            <span class="ua-mode-badge">{{ allRoles.length }}</span>
-          </button>
-
-          <button
-            type="button"
-            (click)="switchToUserPermMode()"
-            class="ua-perm-mode-btn"
-            [class.active]="permTargetMode() === 'user'"
-          >
-            <ion-icon name="person-circle-outline"></ion-icon>
-            <span>User Accounts</span>
-            <span class="ua-mode-badge">{{ users.length }}</span>
-          </button>
-        </div>
-
-        @if (permTargetMode() === 'roles') {
-          <div class="ua-matrix-actions">
-            <ion-button
-              type="button"
-              (click)="resetRolePermissions()"
-              class="ua-btn-secondary"
-              title="Revert all role permissions to BLGF system defaults"
-            >
-              <ion-icon name="refresh-outline"></ion-icon>
-              <span>Reset Defaults</span>
-            </ion-button>
-
-            <ion-button
-              type="button"
-              (click)="saveAllRolePermissions()"
-              class="ua-btn-primary ua-btn-emerald"
-              title="Save changes and apply immediately to all users"
-            >
-              <ion-icon name="save-outline"></ion-icon>
-              <span>Save All Roles</span>
-            </ion-button>
-          </div>
-        }
       </div>
 
       <!-- Matrix Table Card (Shown in 'roles' mode) -->
-      @if (permTargetMode() === 'roles') {
+      @if (false) {
+        <div class="ua-role-guide" aria-label="System role descriptions">
+          <div class="ua-role-guide-heading">
+            <span class="ua-role-guide-icon">
+              <ion-icon name="information-circle-outline"></ion-icon>
+            </span>
+            <div>
+              <h3>System Roles — Quick Guide</h3>
+              <p>Simple description of the usual responsibility of each role. Actual access still follows the permissions selected below.</p>
+            </div>
+          </div>
+          <div class="ua-role-guide-grid">
+            @for (item of allRoles; track item.role) {
+              <article class="ua-role-guide-item">
+                <div class="ua-role-guide-title-row">
+                  <span class="ua-role-guide-code">{{ item.role }}</span>
+                  <span class="ua-role-guide-name">{{ item.label }}</span>
+                </div>
+                <p>{{ item.description }}</p>
+              </article>
+            }
+          </div>
+        </div>
+
         <div class="ua-matrix-card">
           <div class="ua-table-responsive">
             <table class="ua-matrix-table">
@@ -716,12 +673,12 @@
                 }
               </tr>
 
-              <!-- Delete Document Permission -->
+              <!-- Delete Permission (Unified) -->
               <tr class="ua-matrix-data-row">
                 <td class="ua-matrix-feature-cell">
                   <div class="ua-feature-text">
-                    <span class="ua-feature-title usersUaFeatureTitle">Delete Document Permission</span>
-                    <span class="ua-feature-desc">Permanent document record purging privilege</span>
+                    <span class="ua-feature-title usersUaFeatureTitle">Delete Permission (Transactions, Accounts, Staff)</span>
+                    <span class="ua-feature-desc">Allows deleting/cancelling transactions, removing user accounts, and deleting directory personnel</span>
                   </div>
                 </td>
                 @for (r of allRoles; track r.role) {
@@ -754,6 +711,7 @@
                   <td class="ua-matrix-feature-cell">
                     <div class="ua-feature-text">
                       <span class="ua-feature-title">{{ action.label }}</span>
+                      <span class="ua-feature-desc">{{ action.description }}</span>
                     </div>
                   </td>
                   @for (r of allRoles; track r.role) {
@@ -961,7 +919,7 @@
     <!-- =======================================================================
          B. INDIVIDUAL USER ACCOUNT PERMISSIONS INTERFACE
          ======================================================================= -->
-    @if (permTargetMode() === 'user') {
+    @if (true) {
       <div class="ua-user-perm-container">
         <!-- LEFT: Personnel Account Selector -->
         <aside class="ua-user-perm-sidebar">
@@ -992,25 +950,25 @@
               }
             </div>
 
-            <!-- Role filter pills -->
+            <!-- Division filter pills -->
             <div class="ua-perm-role-chips">
               <button
                 type="button"
-                (click)="userPermRoleFilter.set('ALL')"
+                (click)="userPermDivFilter.set('ALL')"
                 class="ua-perm-chip"
-                [class.active]="userPermRoleFilter() === 'ALL'"
+                [class.active]="userPermDivFilter() === 'ALL'"
               >
                 All ({{ visibleUsers.length }})
               </button>
-              @for (r of allRoles; track r.role) {
-                @if (userCount(r.role) > 0) {
+              @for (d of DIVISION_CODES; track d) {
+                @if (userDivCount(d) > 0) {
                   <button
                     type="button"
-                    (click)="userPermRoleFilter.set(r.role)"
+                    (click)="userPermDivFilter.set(d)"
                     class="ua-perm-chip"
-                    [class.active]="userPermRoleFilter() === r.role"
+                    [class.active]="userPermDivFilter() === d"
                   >
-                    {{ r.label }} ({{ userCount(r.role) }})
+                    {{ d === 'ITMS' ? 'ITMS · Admin' : d }} ({{ userDivCount(d) }})
                   </button>
                 }
               }
@@ -1217,10 +1175,10 @@
                     />
                     <div class="ua-perm-toggle-text">
                       <span class="ua-perm-toggle-label text-rose-600">
-                        Delete Document Permission
+                        Delete Permission (Transactions, Accounts, Staff)
                       </span>
                       <span class="ua-perm-toggle-desc">
-                        Permanent document record purging privilege (Critical security action)
+                        Allows deleting/cancelling transactions, removing user accounts, and deleting directory personnel
                       </span>
                     </div>
                   </label>
@@ -1262,8 +1220,8 @@
                             <span class="ua-restricted-tag font-sans ml-1 text-xs text-rose-500 font-semibold">(Admin Only)</span>
                           }
                         </span>
-                        <span class="ua-perm-toggle-desc font-mono">
-                          {{ action.id }}
+                        <span class="ua-perm-toggle-desc">
+                          {{ action.description }}
                         </span>
                       </div>
                     </label>
@@ -1724,8 +1682,10 @@
                 <button
                   type="button"
                   (click)="showCreatePassword.set(!showCreatePassword())"
+                  (mousedown)="$event.preventDefault()"
                   class="ua-pwd-toggle-btn"
-                  aria-label="Toggle password visibility"
+                  [title]="showCreatePassword() ? 'Hide password' : 'Show password'"
+                  [attr.aria-label]="showCreatePassword() ? 'Hide password' : 'Show password'"
                 >
                   <ion-icon [name]="showCreatePassword() ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
                 </button>
@@ -1762,23 +1722,6 @@
               </div>
             </div>
 
-            <!-- Account Role -->
-            <div class="ua-form-group">
-              <label class="ua-label">Account Role <span class="ua-req">*</span></label>
-              <ion-select
-                interface="popover"
-                [ngModel]="role()"
-                (ngModelChange)="onRoleChange($event)"
-                name="create-role"
-                class="ua-modal-select"
-              >
-                @for (item of allRoles; track item.role) {
-                  <ion-select-option [value]="item.role">{{ item.label }} ({{ item.role }})</ion-select-option>
-                }
-              </ion-select>
-              <p class="ua-field-hint">{{ roleDescription }}</p>
-            </div>
-
             <!-- Division Assignment -->
             <div class="ua-form-group">
               <label class="ua-label">Division Assignment <span class="ua-req">*</span></label>
@@ -1789,7 +1732,7 @@
                 name="create-division"
                 class="ua-modal-select"
               >
-                <ion-select-option value="ITMS">ITMS &bull; Information Technology Management</ion-select-option>
+                <ion-select-option value="ITMS">ITMS &bull; Information Technology Management (System Admin)</ion-select-option>
                 <ion-select-option value="ORD">ORD &bull; Office of the Regional Director</ion-select-option>
                 <ion-select-option value="AD">AD &bull; Administrative Division</ion-select-option>
                 <ion-select-option value="LAOD">LAOD &bull; Local Assessment Operations</ion-select-option>
@@ -1801,7 +1744,7 @@
             </div>
 
             <!-- Designation -->
-            <div class="ua-col-span-2 ua-form-group">
+            <div class="ua-form-group">
               <label class="ua-label">Designation Title</label>
               <div class="ua-input-wrap">
                 <ion-icon name="briefcase-outline" class="ua-input-icon"></ion-icon>
@@ -1813,7 +1756,19 @@
                   class="ua-modal-input ua-input-with-icon"
                 />
               </div>
+              <p class="ua-field-hint">Official job designation or plantilla title</p>
             </div>
+
+            <!-- ITMS System Administration Notice -->
+            @if (divisionCode() === 'ITMS') {
+              <div class="ua-col-span-2 ua-admin-badge-notice">
+                <ion-icon name="shield-checkmark" class="ua-admin-notice-icon"></ion-icon>
+                <div class="ua-admin-notice-content">
+                  <div class="ua-admin-notice-title">ITMS &bull; System Administration</div>
+                  <div class="ua-admin-notice-desc">Personnel assigned to ITMS automatically serve as System Administrators with full rights to manage users, system settings, and administrative access.</div>
+                </div>
+              </div>
+            }
 
             <!-- Menu Section Access Modules -->
             <div class="ua-col-span-2 ua-perm-module-card">
@@ -1903,7 +1858,7 @@
           <div class="ua-modal-header-text">
             <div class="ua-modal-title-row">
               <h3 class="ua-modal-title">Edit Account: {{ user.fullName }}</h3>
-              <span class="ua-modal-role-pill" [ngClass]="roleBadgeClass(user.role)">{{ user.role }}</span>
+              <span class="ua-modal-role-pill" [ngClass]="roleBadgeClass(user.role)">{{ user.divisionCode === 'ITMS' || user.role === 'SYSTEM_ADMIN' ? 'System Administration (ITMS)' : (user.role === 'ORD' ? 'Regional Director Office' : 'Division Personnel') }}</span>
             </div>
             <p class="ua-modal-subtitle">&#64;{{ user.username }} &bull; Modify privileges, division assignment, or configure permissions.</p>
           </div>
@@ -2018,6 +1973,7 @@
                     <button
                       type="button"
                       (click)="showCurrentPassword.set(!showCurrentPassword())"
+                      (mousedown)="$event.preventDefault()"
                       class="ua-pwd-toggle-btn"
                       [title]="showCurrentPassword() ? 'Hide current password' : 'Show current password'"
                       [attr.aria-label]="showCurrentPassword() ? 'Hide current password' : 'Show current password'"
@@ -2069,6 +2025,7 @@
                   <button
                     type="button"
                     (click)="showEditPassword.set(!showEditPassword())"
+                    (mousedown)="$event.preventDefault()"
                     class="ua-pwd-toggle-btn"
                     [title]="showEditPassword() ? 'Hide new password' : 'Show new password'"
                     [attr.aria-label]="showEditPassword() ? 'Hide new password' : 'Show new password'"
@@ -2116,23 +2073,6 @@
                 </div>
               </div>
 
-              <!-- Account Role -->
-              <div class="ua-form-group">
-                <label class="ua-label">Account Role <span class="ua-req">*</span></label>
-                <ion-select
-                  interface="popover"
-                  [ngModel]="role()"
-                  (ngModelChange)="onRoleChange($event)"
-                  name="edit-role"
-                  class="ua-modal-select"
-                >
-                  @for (item of allRoles; track item.role) {
-                    <ion-select-option [value]="item.role">{{ item.label }} ({{ item.role }})</ion-select-option>
-                  }
-                </ion-select>
-                <p class="ua-field-hint">{{ roleDescription }}</p>
-              </div>
-
               <!-- Division Assignment -->
               <div class="ua-form-group">
                 <label class="ua-label">Division Assignment <span class="ua-req">*</span></label>
@@ -2143,7 +2083,7 @@
                   name="edit-division"
                   class="ua-modal-select"
                 >
-                  <ion-select-option value="ITMS">ITMS &bull; Information Technology Management</ion-select-option>
+                  <ion-select-option value="ITMS">ITMS &bull; Information Technology Management (System Admin)</ion-select-option>
                   <ion-select-option value="ORD">ORD &bull; Office of Regional Director</ion-select-option>
                   <ion-select-option value="AD">AD &bull; Administrative Division</ion-select-option>
                   <ion-select-option value="LAOD">LAOD &bull; Local Assessment Operations</ion-select-option>
@@ -2155,7 +2095,7 @@
               </div>
 
               <!-- Designation -->
-              <div class="ua-col-span-2 ua-form-group">
+              <div class="ua-form-group">
                 <label class="ua-label">Designation Title</label>
                 <div class="ua-input-wrap">
                   <ion-icon name="briefcase-outline" class="ua-input-icon"></ion-icon>
@@ -2167,7 +2107,19 @@
                     class="ua-modal-input ua-input-with-icon"
                   />
                 </div>
+                <p class="ua-field-hint">Official job designation or plantilla title</p>
               </div>
+
+              <!-- ITMS System Administration Notice -->
+              @if (divisionCode() === 'ITMS') {
+                <div class="ua-col-span-2 ua-admin-badge-notice">
+                  <ion-icon name="shield-checkmark" class="ua-admin-notice-icon"></ion-icon>
+                  <div class="ua-admin-notice-content">
+                    <div class="ua-admin-notice-title">ITMS &bull; System Administration</div>
+                    <div class="ua-admin-notice-desc">Personnel assigned to ITMS automatically serve as System Administrators with full rights to manage users, system settings, and administrative access.</div>
+                  </div>
+                </div>
+              }
 
               <!-- Menu Section Access & Granular Permissions Card -->
               <div class="ua-col-span-2 ua-perm-module-card">
@@ -2224,7 +2176,7 @@
                           {{ formPermissions().management ? 'Enabled' : 'Restricted' }}
                         </span>
                       </div>
-                      <p class="ua-perm-toggle-info">Access to User Accounts, Roles Matrix, and System Configurations.</p>
+                      <p class="ua-perm-toggle-info">Access to User Accounts, individual permissions, and system configurations.</p>
                     </div>
                   </label>
                 </div>

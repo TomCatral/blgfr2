@@ -152,7 +152,7 @@
                 @if (activeView() === 'settings') {
                   <app-user-settings [currentUser]="currentUser()!" [onUpdateUser]="selfUpdateUser" />
                 }
-                @if (activeView() === 'users' && currentUser()?.role === 'SYSTEM_ADMIN') {
+                @if (activeView() === 'users' && (currentUser()?.role === 'SYSTEM_ADMIN' || currentUser()?.divisionCode === 'ITMS')) {
                   <app-user-management
                     [users]="state.users()"
                     [divisions]="state.divisions()"
@@ -519,7 +519,7 @@
                               [disabled]="!attachment.url"
                               (click)="openPopupAttachment(attachment)"
                               [attr.aria-label]="'View ' + attachment.fileName"
-                              title="View attachment in new tab"
+                              title="View attachment inside the application"
                             >
                               <ion-icon name="eye-outline"></ion-icon>
                               <span>View</span>
@@ -596,6 +596,31 @@
             </div>
           </app-modal-layer>
           }
+        }
+
+        @if (attachmentViewer(); as file) {
+          <div class="app-file-viewer" role="dialog" aria-modal="true" [attr.aria-label]="'File viewer: ' + file.name">
+            <div class="app-file-viewer-card">
+              <header class="app-file-viewer-header">
+                <div class="app-file-viewer-title">
+                  <ion-icon name="document-text-outline"></ion-icon>
+                  <span>{{ file.name }}</span>
+                </div>
+                <div class="app-file-viewer-actions">
+                  <button type="button" class="app-file-viewer-download" (click)="downloadViewedAttachment()">
+                    <ion-icon name="download-outline"></ion-icon>
+                    <span>Download</span>
+                  </button>
+                  <button type="button" class="app-file-viewer-close" (click)="closeAttachmentViewer()" aria-label="Close file viewer">
+                    <ion-icon name="close-outline"></ion-icon>
+                  </button>
+                </div>
+              </header>
+              <div class="app-file-viewer-body">
+                <iframe [src]="file.safeUrl" [title]="'File viewer: ' + file.name"></iframe>
+              </div>
+            </div>
+          </div>
         }
 
         <app-notification-drawer

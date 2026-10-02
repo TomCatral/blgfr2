@@ -572,6 +572,70 @@
     background: linear-gradient(135deg, #eff6ff 0%, #ffffff 70%);
   }
 
+  .slip-editor-banner {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.85rem;
+    margin-bottom: 1rem;
+    padding: 1rem 1.1rem;
+    border-radius: 0.9rem;
+    color: #ffffff;
+    background: linear-gradient(125deg, #1d4ed8 0%, #2563eb 52%, #0f766e 100%);
+    box-shadow: 0 10px 24px -14px rgba(29, 78, 216, 0.75);
+
+    span {
+      font-size: 0.64rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      opacity: 0.82;
+    }
+
+    h2,
+    p {
+      margin: 0;
+    }
+
+    h2 {
+      margin-top: 0.08rem;
+      font-size: 1rem;
+      font-weight: 800;
+    }
+
+    p {
+      margin-top: 0.2rem;
+      font-size: 0.74rem;
+      line-height: 1.45;
+      opacity: 0.86;
+    }
+  }
+
+  .slip-editor-banner-icon {
+    display: grid;
+    width: 2.5rem;
+    height: 2.5rem;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.14);
+
+    ion-icon { font-size: 1.3rem; }
+  }
+
+  .slip-editor-close {
+    display: grid;
+    width: 2.25rem;
+    height: 2.25rem;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 0.65rem;
+    color: #ffffff;
+    background: rgba(15, 23, 42, 0.16);
+    cursor: pointer;
+
+    &:hover { background: rgba(15, 23, 42, 0.28); }
+  }
+
   .slip-admin-heading {
     display: flex;
     align-items: center;
@@ -609,6 +673,12 @@
     gap: 0.75rem;
   }
 
+  .slipSetBtn.is-active {
+    --background: #eef2ff;
+    --color: #4338ca;
+    --border-color: #c7d2fe;
+  }
+
   .slip-admin-control,
   .slip-admin-textarea {
     --background: #ffffff;
@@ -639,6 +709,13 @@
     .slip-admin-preset-grid {
       grid-template-columns: 1fr;
     }
+
+    .slip-editor-banner {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      padding: 0.85rem;
+
+      p { display: none; }
+    }
   }
 
   :host-context(.dark) .document-slip-page > div:first-child,
@@ -661,6 +738,94 @@
     h3 { color: #f8fafc; }
   }
 }
+
+.routing-activity-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0 6px;
+  border: 0;
+  border-bottom: 1px solid #cbd5e1;
+  border-radius: 0;
+  background: transparent;
+  color: #0f172a;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.routing-activity-count {
+  color: #64748b;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.routing-activity-list {
+  padding: 8px 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.routing-activity-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 7px;
+  padding: 0 0 8px;
+  break-inside: avoid;
+}
+
+.routing-activity-item:not(:last-child)::before {
+  position: absolute;
+  top: 18px;
+  bottom: 0;
+  left: 9px;
+  width: 1px;
+  background: #cbd5e1;
+  content: '';
+}
+
+.routing-activity-marker {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 999px;
+  background: #1d4ed8;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.routing-activity-content { min-width: 0; }
+.routing-activity-meta { display: flex; justify-content: space-between; gap: 8px; color: #475569; font-size: 8px; }
+.routing-activity-meta strong { color: #1e3a8a; }
+.routing-activity-meta time { font-family: ui-monospace, monospace; white-space: nowrap; }
+.routing-activity-path { display: flex; align-items: center; gap: 5px; margin-top: 2px; color: #334155; font-size: 9px; }
+.routing-activity-path ion-icon { flex: 0 0 auto; color: #94a3b8; font-size: 10px; }
+.routing-activity-path strong { overflow: hidden; color: #0f172a; text-overflow: ellipsis; white-space: nowrap; }
+.routing-activity-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.routing-action-tag,
+.routing-status-tag { padding: 2px 6px; border-radius: 999px; font-size: 7.5px; font-weight: 700; }
+.routing-action-tag { background: #eff6ff; color: #1d4ed8; }
+.routing-status-tag { background: #ecfdf5; color: #047857; }
+.routing-activity-remark { margin: 3px 0 0; padding: 1px 0 1px 7px; border-left: 2px solid #cbd5e1; background: transparent; color: #64748b; font-size: 8px; font-style: italic; }
+.routing-activity-manual-note,
+.routing-activity-empty { min-height: 45px; padding: 7px; color: #64748b; font-size: 9px; line-height: 1.45; white-space: pre-wrap; }
+.routing-special-remark { margin-top: 6px; padding: 6px 8px; border: 1px solid #fcd34d; border-radius: 6px; background: #fffbeb; }
+.routing-special-remark span { color: #92400e; font-size: 7.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.routing-special-remark p { margin: 2px 0 0; color: #78350f; font-size: 8.5px; }
+
+:host-context(.dark) .routing-activity-heading { border-color: #475569; background: transparent; color: #f8fafc; }
+:host-context(.dark) .routing-activity-list { background: transparent; }
+:host-context(.dark) .routing-activity-path strong { color: #f8fafc; }
 @media print {
   @page {
     size: A4 landscape;

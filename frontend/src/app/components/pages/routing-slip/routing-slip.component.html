@@ -28,9 +28,9 @@
           <ion-select-option value="full">Complete Slip</ion-select-option>
         </ion-select>
         @if (canCustomizeSlip()) {
-          <ion-button type="button" (click)="isCustomizeOpen.set(!isCustomizeOpen())" [ngClass]="'slipSetBtn' | cls">
-            <ion-icon name="create" [ngClass]="'slipCreateIcon' | cls"></ion-icon>
-            <span>{{ isCustomizeOpen() ? 'Close Form Edit' : 'Edit Routing Form' }}</span>
+          <ion-button type="button" (click)="isCustomizeOpen.set(!isCustomizeOpen())" [ngClass]="'slipSetBtn' | cls" [class.is-active]="isCustomizeOpen()">
+            <ion-icon [name]="isCustomizeOpen() ? 'close' : 'options'" [ngClass]="'slipCreateIcon' | cls"></ion-icon>
+            <span>{{ isCustomizeOpen() ? 'Close Editor' : 'Customize Slip' }}</span>
           </ion-button>
         }
         <ion-button type="button" (click)="handlePrint()" [ngClass]="'slipHandlePrintBtn' | cls">
@@ -42,11 +42,22 @@
 
     @if (isCustomizeOpen() && canCustomizeSlip()) {
       <div class="document-slip-customize-wrap animate-fadeIn slipSlipCustomize">
+        <div class="slip-editor-banner">
+          <div class="slip-editor-banner-icon"><ion-icon name="options-outline"></ion-icon></div>
+          <div>
+            <span>ADMINISTRATOR TOOLS</span>
+            <h2>Routing Slip Customization</h2>
+            <p>Manage reusable print formats, signatory information, and the fields shown on the official slip.</p>
+          </div>
+          <button type="button" class="slip-editor-close" (click)="isCustomizeOpen.set(false)" aria-label="Close routing slip editor">
+            <ion-icon name="close"></ion-icon>
+          </button>
+        </div>
         <section class="slip-admin-section">
           <div class="slip-admin-heading">
             <div>
               <span class="slip-admin-kicker">System Administrator</span>
-              <h3>Routing Slip Format &amp; Presets</h3>
+              <h3>Print Format Presets</h3>
             </div>
             <ion-button type="button" fill="outline" color="medium" (click)="handleResetToDefault()">
               <ion-icon name="refresh" slot="start"></ion-icon>
@@ -445,44 +456,51 @@
                 </div>
 
                 <div [ngClass]="'slip55' | cls">
-                  <div [ngClass]="'slip56' | cls">
-                    <span>Routing History &amp; Action Notes</span>
+                  <div class="routing-activity-heading">
+                    <span>Routing Activity</span>
+                    <span class="routing-activity-count">
+                      {{ groupedVisibleRoutes().length }} {{ groupedVisibleRoutes().length === 1 ? 'transaction' : 'transactions' }}
+                    </span>
                   </div>
-                  <div [ngClass]="'slip57' | cls">
+                  <div class="routing-activity-list">
                     @if (slipLayout() === 'simplified') {
-                      <div [ngClass]="'slip58' | cls">{{ routingHistoryText() || nbsp() }}</div>
+                      <div class="routing-activity-manual-note">
+                        {{ routingHistoryText() || 'No additional routing note.' }}
+                      </div>
                     } @else if (groupedVisibleRoutes().length > 0) {
                       @for (rt of groupedVisibleRoutes(); track rt.id; let routeIndex = $index) {
-                        <div [ngClass]="'slip59' | cls">
-                          <span [ngClass]="'slip102' | cls">{{ routeIndex + 1 }}</span>
-                          <div [ngClass]="'slip60' | cls">
-                            <span [ngClass]="'slip112' | cls" [title]="rt.recipientNames.join(', ')">Forwarded to: {{ rt.recipientNames.join(', ') }}</span>
+                        <div class="routing-activity-item">
+                          <div class="routing-activity-marker">{{ routeIndex + 1 }}</div>
+                          <div class="routing-activity-content">
+                            <div class="routing-activity-meta">
+                              <strong>Step {{ rt.stepNumber || routeIndex + 1 }}</strong>
+                              <time>{{ formatDate(rt.createdAt) }}</time>
+                            </div>
+                            <div class="routing-activity-path">
+                              <span>{{ rt.fromUser || 'Dispatch Origin' }}</span>
+                              <ion-icon name="arrow-forward-outline"></ion-icon>
+                              <strong [title]="rt.recipientNames.join(', ')">{{ rt.recipientNames.join(', ') }}</strong>
+                            </div>
+                            <div class="routing-activity-tags">
+                              <span class="routing-action-tag">{{ rt.actionRequested || 'Appropriate Action' }}</span>
+                              <span class="routing-status-tag">{{ routeStatusLabel(rt) }}</span>
+                            </div>
+                            @if (meaningfulRouteRemarks(rt)) {
+                              <p class="routing-activity-remark">{{ meaningfulRouteRemarks(rt) }}</p>
+                            }
                           </div>
-                          <div [ngClass]="'slip61' | cls">{{ formatDate(rt.createdAt) }}</div>
-                          <div [ngClass]="'slip622' | cls">Action: {{ rt.actionRequested || 'Appropriate Action' }}</div>
-                          @if (rt.remarks) {
-                            <div [ngClass]="'slip63' | cls">Notes: {{ rt.remarks }}</div>
-                          }
                         </div>
                       }
                     } @else {
-                      <div [ngClass]="'slip64' | cls">Initial Document Logging &amp; Routing setup in progress.</div>
+                      <div class="routing-activity-empty">No routing transaction recorded yet.</div>
                     }
                     @if (specialInstructionsText()) {
-                      <div [ngClass]="'slip65' | cls">
-                        <span [ngClass]="'slip122' | cls">Special Remarks:</span>
-                        <span [ngClass]="'slip132' | cls">{{ specialInstructionsText() }}</span>
+                      <div class="routing-special-remark">
+                        <span>Special instruction</span>
+                        <p>{{ specialInstructionsText() }}</p>
                       </div>
                     }
                   </div>
-                  @if (groupedVisibleRoutes().length <= 2) {
-                    <div [ngClass]="'slip66' | cls">
-                      <div [ngClass]="'slip67' | cls"></div>
-                      <div [ngClass]="'slip67' | cls"></div>
-                      <div [ngClass]="'slip67' | cls"></div>
-                      <div [ngClass]="'slip67' | cls"></div>
-                    </div>
-                  }
                 </div>
               </div>
             </div>

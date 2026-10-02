@@ -467,7 +467,6 @@ export class OutgoingEnvelopeComponent implements OnInit {
       this.ui.showError('You must have at least one addressee.');
       return;
     }
-    const idx = this.addressees.findIndex((a) => a.id === id);
     this.addressees = this.addressees.filter((a: EnvelopeAddressee) => a.id !== id);
     if (this.previewIndex >= this.addressees.length) {
       this.previewIndex = Math.max(0, this.addressees.length - 1);
@@ -793,21 +792,17 @@ export class OutgoingEnvelopeComponent implements OnInit {
   printFromToCutOut(): void {
     if (!this.validateEnvelopeFields()) return;
     if (!this.validateSenderFields()) return;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      this.ui.showError('Please allow pop-ups to print the FROM/TO cut-out labels.');
-      return;
-    }
 
     const safeSenderName = this.escapePrintText(this.sender.name.trim());
     const safeSenderDesignation = this.escapePrintText(this.sender.position.trim());
     const safeSenderOffice = this.escapePrintText(this.sender.office.trim());
     const safeSenderAddress = this.escapePrintText(this.sender.address.trim());
-    const pageRule = 'size: A4 portrait; margin: 0 !important;';
-    const pageWidth = '150mm';
-    const pageHeight = '88mm';
-    const pageRows = '44mm 44mm';
-    const labelPadding = '4mm 9mm';
+    // Half of an 8.5 x 13-inch bond sheet, cut across the long edge.
+    const pageRule = 'size: 8.5in 6.5in; margin: 0 !important;';
+    const pageWidth = '7.8in';
+    const pageHeight = '5.8in';
+    const pageRows = '1fr 1fr';
+    const labelPadding = '0.22in 0.38in';
     const labelFontSize = '9pt';
     const pages = this.addressees
       .map(
@@ -831,6 +826,31 @@ export class OutgoingEnvelopeComponent implements OnInit {
       )
       .join('');
 
+    const printFrame = document.createElement('iframe');
+    printFrame.setAttribute('aria-hidden', 'true');
+    Object.assign(printFrame.style, {
+      position: 'fixed',
+      width: '1px',
+      height: '1px',
+      right: '0',
+      bottom: '0',
+      opacity: '0',
+      pointerEvents: 'none',
+      border: '0',
+    });
+    document.body.appendChild(printFrame);
+    const printWindow = printFrame.contentWindow;
+    if (!printWindow) {
+      printFrame.remove();
+      this.ui.showError('Unable to prepare the FROM/TO print dialog.');
+      return;
+    }
+
+    // Chromium uses the host document title in its optional print header.
+    // Keep it blank while the native dialog is open, then restore it.
+    const previousDocumentTitle = document.title;
+    document.title = '';
+
     printWindow.document.write(`
       <!doctype html>
       <html lang="en">
@@ -840,15 +860,14 @@ export class OutgoingEnvelopeComponent implements OnInit {
           <style>
             @page { ${pageRule} }
             * { box-sizing: border-box; }
-            html, body { margin: 0; padding: 12mm; font-family: Arial, sans-serif; color: #111; background: #fff; }
-            body { width: auto; }
-            .half-bond-page { width: ${pageWidth}; height: ${pageHeight}; display: grid; grid-template-rows: ${pageRows}; margin: 16mm auto 0; break-after: page; page-break-after: always; overflow: hidden; }
+            html, body { width: 8.5in; margin: 0; padding: 0; font-family: Arial, sans-serif; color: #111; background: #fff; }
+            .half-bond-page { width: ${pageWidth}; height: ${pageHeight}; display: grid; grid-template-rows: ${pageRows}; margin: 0.35in auto; break-after: page; page-break-after: always; overflow: hidden; }
             .half-bond-page:last-child { break-after: auto; page-break-after: auto; }
             .cut-label { position: relative; display: flex; flex-direction: column; justify-content: center; border: 1.5px dashed #444; padding: ${labelPadding}; font-size: ${labelFontSize}; line-height: 1.2; }
             .to-label { padding-left: 23mm; }
             .label-heading { position: absolute; left: 4mm; top: 3mm; font-size: 8pt; font-weight: 800; letter-spacing: .08em; }
             .name { font-size: 10pt; font-weight: 800; text-transform: uppercase; }
-            @media screen { body { min-height: 297mm; padding: 12px; background: #e5e7eb; } .half-bond-page { background: white; box-shadow: 0 2px 12px #a1a1aa; } }
+            @media screen { body { background: #fff; } }
           </style>
         </head>
         <body>${pages}
@@ -859,7 +878,13 @@ export class OutgoingEnvelopeComponent implements OnInit {
       </html>
     `);
     printWindow.document.close();
-    this.recordDispatchAfterPrint(printWindow, () => printWindow.close());
+    this.recordDispatchAfterPrint(printWindow, () => {
+      document.title = previousDocumentTitle;
+      printFrame.remove();
+    });
+    window.setTimeout(() => {
+      if (document.title === '') document.title = previousDocumentTitle;
+    }, 120_000);
   }
 
   private recordDispatchAfterPrint(printWindow: Window, onComplete?: () => void): void {

@@ -1,19 +1,31 @@
 // backend/server.ts
 import express3 from "express";
-import { randomUUID as randomUUID4 } from "node:crypto";
 import path from "path";
 import fs from "fs";
 import os from "os";
 
 // backend/users.ts
 import express from "express";
-import crypto, { randomUUID as randomUUID2 } from "node:crypto";
+import crypto from "node:crypto";
+
+// backend/readableIds.ts
+var reservedSequences = /* @__PURE__ */ new Map();
+function nextReadableId(prefix, records, width = 4) {
+  const pattern = new RegExp(`^${prefix}-(\\d+)$`, "i");
+  let highest = reservedSequences.get(prefix.toUpperCase()) || 0;
+  for (const record of records) {
+    const match = String(record.id || "").match(pattern);
+    if (match) highest = Math.max(highest, Number(match[1]));
+  }
+  const next = highest + 1;
+  reservedSequences.set(prefix.toUpperCase(), next);
+  return `${prefix}-${String(next).padStart(width, "0")}`;
+}
 
 // backend/serverUtils.ts
-import { randomUUID } from "node:crypto";
 function addAuditLog(auditLogsState2, log, queueSync = true) {
   const newLog = {
-    id: `log-${randomUUID()}`,
+    id: nextReadableId("LOG", auditLogsState2),
     timestamp: (/* @__PURE__ */ new Date()).toISOString(),
     ...log
   };
@@ -21,9 +33,9 @@ function addAuditLog(auditLogsState2, log, queueSync = true) {
   saveDatabaseToFile(queueSync);
   return newLog;
 }
-function createNotification(notif) {
+function createNotification(notif, existing = []) {
   return {
-    id: `notif-${randomUUID()}`,
+    id: nextReadableId("NTF", existing),
     createdAt: (/* @__PURE__ */ new Date()).toISOString(),
     ...notif
   };
@@ -894,12 +906,18 @@ async function saveDocumentDirect(document) {
     }
   }
 }
-async function deleteDocumentDirect(documentId) {
+async function deleteDocumentDirect(documentId, trackingNumber, routeNo) {
   if (!client || !status.connected) return;
   await client.$transaction(async (tx) => {
     await tx.documentRoute.deleteMany({ where: { documentId } });
     await tx.documentAttachment.deleteMany({ where: { documentId } });
     await tx.document.deleteMany({ where: { id: documentId } });
+    const keys = [trackingNumber, routeNo].filter(Boolean);
+    if (keys.length > 0) {
+      await tx.auditLog.deleteMany({
+        where: { documentTrackingNumber: { in: keys } }
+      });
+    }
   });
 }
 async function saveAuditLogDirect(log) {
@@ -1419,10 +1437,6 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
   const getActingUser = (req) => getUsersState().find(
     (user) => user.id === String(req.get("X-User-Id") || "") && user.active !== false
   );
-  const canManageUsers = (user) => {
-    if (!user) return false;
-    return user.role === "SYSTEM_ADMIN";
-  };
   const hasUserAction = (user, action) => {
     if (!user) return false;
     if (user.role === "SYSTEM_ADMIN") return true;
@@ -1502,7 +1516,7 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
       return res.status(409).json({ error: "Username already exists" });
     }
     const newUser = sanitizeUserAccountPermissions({
-      id: `usr-${randomUUID2()}`,
+      id: nextReadableId("USR", usersState2),
       username,
       password: body.password,
       fullName: body.fullName,
@@ -1759,8 +1773,10 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
     if (!actingUser) {
       return res.status(401).json({ error: "Active database user required." });
     }
-    if (actingUser.role !== "SYSTEM_ADMIN") {
-      return res.status(403).json({ error: "System Administrator access required to delete user accounts." });
+    const permissions = actingUser.permissions || DEFAULT_ROLE_PERMISSIONS[actingUser.role] || DEFAULT_ROLE_PERMISSIONS.STAFF;
+    const canDeleteUser = actingUser.role === "SYSTEM_ADMIN" || Boolean(permissions.canDelete) || Boolean(permissions.allowedActions?.includes("USER_ACCOUNT_DELETE"));
+    if (!canDeleteUser) {
+      return res.status(403).json({ error: "Delete permission or System Administrator access required to delete user accounts." });
     }
     const accountToDelete = usersState2.find(
       (user) => user.id === req.params.id
@@ -1824,6 +1840,60 @@ function findPreviousDelivery(document, recipient) {
   });
 }
 
+// frontend/src/app/utils/document-status.ts
+function getRouteDecision(route) {
+  if (!route) return void 0;
+  const text2 = `${route.actionRequested || ""} ${route.remarks || ""}`.toUpperCase();
+  if (text2.includes("DISAPPROVED")) return "DISAPPROVED";
+  if (text2.includes("APPROVED")) return "APPROVED";
+  return void 0;
+}
+function isDecisionStep(route) {
+  const action = (route.actionRequested || "").trim().toUpperCase();
+  if (action === "APPROVED" || action === "DISAPPROVED") return true;
+  return getRouteDecision(route) === "DISAPPROVED";
+}
+function hasOpenDisapproval(document) {
+  const decisions = (document?.routes || []).filter(isDecisionStep);
+  return getRouteDecision(decisions[decisions.length - 1]) === "DISAPPROVED";
+}
+function recalculateDocumentStatus(document) {
+  const pendingRecipients = getPendingRecipients(document);
+  const hasCompletedRoute = document.routes.some((route) => route.statusAfter === "COMPLETED");
+  let status2;
+  if (hasOpenDisapproval(document)) {
+    status2 = "RETURNED";
+  } else if (pendingRecipients.length === 0 && hasCompletedRoute) {
+    status2 = "COMPLETED";
+  } else if (document.routes.some((route) => route.statusAfter === "IN_PROGRESS" || route.receivedAt)) {
+    status2 = "IN_PROGRESS";
+  } else {
+    status2 = "PENDING";
+  }
+  const record = document;
+  record.currentStatus = status2;
+  if (pendingRecipients.length > 0) {
+    record.assignedUser = pendingRecipients[0].toUser;
+    record.assignedUserId = pendingRecipients[0].toUserId;
+    record.currentDivision = pendingRecipients[0].toDivision || record.currentDivision;
+  } else {
+    const latestNormalRoute = [...document.routes].reverse().find((route) => !getRouteDecision(route) && (route.toUser || route.toUserId));
+    if (latestNormalRoute) {
+      record.assignedUser = latestNormalRoute.toUser;
+      record.assignedUserId = latestNormalRoute.toUserId;
+      record.currentDivision = latestNormalRoute.toDivision || record.currentDivision;
+    } else {
+      record.assignedUser = record.createdBy || "Originating Office";
+      record.assignedUserId = record.createdByUserId;
+      record.currentDivision = record.originatingOffice || record.currentDivision || "AD";
+      if (record.currentStatus !== "COMPLETED") {
+        record.currentStatus = "PENDING";
+      }
+    }
+  }
+  return pendingRecipients;
+}
+
 // frontend/src/app/utils/document-visibility.ts
 var normalizeName = (value) => value?.trim().toLowerCase() || "";
 var matchesParticipant = (user, participantId, participantName) => {
@@ -1833,18 +1903,27 @@ var matchesParticipant = (user, participantId, participantName) => {
   const userId = normalizeName(user.id);
   const userName = normalizeName(user.username);
   const userFullName = normalizeName(user.fullName);
-  if (targetId && (targetId === userId || targetId === userName)) {
-    return true;
+  if (targetId) {
+    return targetId === userId || targetId === userName;
   }
   if (targetName && (targetName === userFullName || targetName === userName)) {
     return true;
   }
   return false;
 };
-var auditNamesRecipient = (details, fullName) => new RegExp(
-  `\\bTo:\\s*${fullName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s*\\||$)`,
-  "i"
-).test(details);
+var recipientPatterns = /* @__PURE__ */ new Map();
+var auditNamesRecipient = (details, fullName) => {
+  if (!fullName) return false;
+  let pattern = recipientPatterns.get(fullName);
+  if (!pattern) {
+    pattern = new RegExp(
+      `\\bTo:\\s*${fullName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s*\\||$)`,
+      "i"
+    );
+    recipientPatterns.set(fullName, pattern);
+  }
+  return pattern.test(details);
+};
 var isDocumentParticipant = (document, user, auditLogs = []) => matchesParticipant(user, document.assignedUserId, document.assignedUser) || matchesParticipant(user, document.createdByUserId, document.createdBy) || matchesParticipant(user, void 0, document.recipientName) || matchesParticipant(user, void 0, document.senderName) || (document.routes || []).some(
   (route) => matchesParticipant(user, route.fromUserId, route.fromUser) || matchesParticipant(user, route.toUserId, route.toUser)
 ) || auditLogs.some(
@@ -1852,9 +1931,14 @@ var isDocumentParticipant = (document, user, auditLogs = []) => matchesParticipa
 );
 
 // backend/documents.ts
-import { randomUUID as randomUUID3 } from "node:crypto";
 function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsState, getNotificationsState, getAuditLogsState, setNotificationsState) {
   const router = express2.Router();
+  const nextDocumentId = () => nextReadableId("DOC", getDocumentsState());
+  const nextRouteId = () => nextReadableId("RTE", getDocumentsState().flatMap((document) => document.routes || []));
+  const nextAttachmentId = () => nextReadableId("ATT", getDocumentsState().flatMap((document) => [
+    ...document.attachments || [],
+    ...(document.routes || []).flatMap((route) => route.attachments || [])
+  ]));
   const findActiveDatabaseUser = (id) => getUsersState().find(
     (user) => user.active && Boolean(id) && user.id === id
   );
@@ -1863,15 +1947,57 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     const now = /* @__PURE__ */ new Date();
     const directionCode = direction === "OUTGOING" ? "OUT" : "IN";
     const prefix = `BLGFR2-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${directionCode}-`;
-    const highest = getDocumentsState().reduce((currentHighest, document) => {
-      const numbers = [document.trackingNumber, document.routeNo];
-      return numbers.reduce((value, number) => {
-        if (!number?.startsWith(prefix)) return value;
-        const sequence = Number(number.slice(prefix.length));
-        return Number.isInteger(sequence) ? Math.max(value, sequence) : value;
-      }, currentHighest);
-    }, 0);
-    return `${prefix}${String(highest + 1).padStart(2, "0")}`;
+    const usedSequences = /* @__PURE__ */ new Set();
+    for (const document of getDocumentsState()) {
+      for (const number of [document.trackingNumber, document.routeNo]) {
+        if (number?.startsWith(prefix)) {
+          const seq = Number(number.slice(prefix.length));
+          if (Number.isInteger(seq) && seq > 0) {
+            usedSequences.add(seq);
+          }
+        }
+      }
+    }
+    let nextSeq = 1;
+    while (usedSequences.has(nextSeq)) {
+      nextSeq++;
+    }
+    return `${prefix}${String(nextSeq).padStart(2, "0")}`;
+  };
+  const recalculateDocumentStatus2 = (document) => recalculateDocumentStatus(document);
+  const purgeDocumentAuditTrail = (trackingNumber, routeNo) => {
+    const keys = [trackingNumber, routeNo].filter(Boolean).map((k) => k.trim().toUpperCase());
+    if (keys.length === 0) return;
+    const logs = getAuditLogsState();
+    const kept = logs.filter(
+      (log) => !log.documentTrackingNumber || !keys.includes(log.documentTrackingNumber.trim().toUpperCase())
+    );
+    if (kept.length === logs.length) return;
+    logs.splice(0, logs.length, ...kept);
+  };
+  const healStaleReturnedStatus = async (req, document, documentsState2, docIndex, actingUser) => {
+    const previousStatus = document.currentStatus;
+    recalculateDocumentStatus2(document);
+    if (document.currentStatus === previousStatus) return;
+    document.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+    documentsState2[docIndex] = document;
+    setDocumentsState(documentsState2);
+    const healLog = addAuditLog(getAuditLogsState(), {
+      userId: actingUser.id,
+      userName: actingUser.fullName,
+      userRole: actingUser.role,
+      action: "UPDATE_STATUS",
+      documentTrackingNumber: document.trackingNumber,
+      details: `Cleared stale Returned status on ${document.trackingNumber} (${previousStatus} to ${document.currentStatus}) by ${actingUser.fullName}. Remarks: Document was already re-approved after the last disapproval.`,
+      ipAddress: req.ip || "127.0.0.1"
+    }, false);
+    saveDatabaseToFile2(false);
+    await Promise.all([
+      saveDocumentDirect(document),
+      saveAuditLogDirect(healLog)
+    ]).catch((error) => {
+      console.error("[healStaleReturnedStatus] MySQL write failed:", error);
+    });
   };
   const canViewDocument = (user, document) => {
     const permissions = user.permissions || DEFAULT_ROLE_PERMISSIONS[user.role] || DEFAULT_ROLE_PERMISSIONS.STAFF;
@@ -1908,10 +2034,14 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
         ) < 5e3
       );
       if (duplicate) return [];
+      const isRemoved = getAuditLogsState().some(
+        (l) => l.documentTrackingNumber === document.trackingNumber && l.details.toLowerCase().includes(`removed recipient ${recipientName.toLowerCase()}`) && new Date(l.timestamp).getTime() >= new Date(log.timestamp).getTime()
+      );
+      if (isRemoved) return [];
       const sender = findActiveDatabaseUser(log.userId);
       const statusAfter = log.details.match(/Status:\s*([^|]+)$/i)?.[1]?.trim() || document.currentStatus;
       return [{
-        id: `route-recovered-${log.id}`,
+        id: nextRouteId(),
         documentId: document.id,
         stepNumber: storedRoutes.length + index + 1,
         routeNo: document.routeNo || document.trackingNumber,
@@ -2029,7 +2159,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
         nextRouteNo: nextRouteNumber
       });
     }
-    const newDocumentId = `doc-${randomUUID3()}`;
+    const newDocumentId = nextDocumentId();
     const isMultiDivisionInitialRoute = body.routeAllDivisions || body.routeMultipleDivisions;
     const initialRecipients = usersState2.filter(
       (user) => user.active && user.role !== "SYSTEM_ADMIN" && user.divisionCode !== "ITMS" && Array.isArray(body.initialRecipientIds) && body.initialRecipientIds.includes(user.id)
@@ -2067,11 +2197,16 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       dateReceived: body.dateReceived || now,
       targetCompletionDate: body.targetCompletionDate || new Date(Date.now() + 3 * 864e5).toISOString(),
       tags: body.tags || [],
-      attachments: (body.attachments || []).map((file) => ({ ...file, attachmentScope: "DOCUMENT", uploadedByUserId: actingUser.id })),
+      attachments: (body.attachments || []).map((file) => ({
+        ...file,
+        id: nextAttachmentId(),
+        attachmentScope: "DOCUMENT",
+        uploadedByUserId: actingUser.id
+      })),
       actionRequested: isOutside ? "Dispatched / Recorded (Outside Office)" : body.initialAction || "Appropriate Action",
       routes: isOutside ? [
         {
-          id: `route-${randomUUID3()}`,
+          id: nextRouteId(),
           documentId: newDocumentId,
           stepNumber: 1,
           routeNo: trackingNumber,
@@ -2089,7 +2224,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
           createdAt: now
         }
       ] : initialRecipients.length > 0 ? initialRecipients.map((recipient, index) => ({
-        id: `route-${randomUUID3()}`,
+        id: nextRouteId(),
         documentId: newDocumentId,
         stepNumber: index + 1,
         routeNo: trackingNumber,
@@ -2108,7 +2243,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
         createdAt: now
       })) : [
         {
-          id: `route-${randomUUID3()}`,
+          id: nextRouteId(),
           documentId: newDocumentId,
           stepNumber: 1,
           routeNo: trackingNumber,
@@ -2175,7 +2310,8 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
               documentId: newDoc.id,
               trackingNumber,
               type: "ACTION_REQUIRED"
-            }
+            },
+            getNotificationsState()
           )
         );
       }
@@ -2193,10 +2329,17 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
               documentId: newDoc.id,
               trackingNumber,
               type: "ACTION_REQUIRED"
-            }
+            },
+            getNotificationsState()
           )
         );
       });
+    }
+    if (createdNotifications.length > 0) {
+      setNotificationsState([
+        ...createdNotifications,
+        ...getNotificationsState()
+      ]);
     }
     await Promise.all([
       saveDocumentDirect(newDoc),
@@ -2229,6 +2372,11 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
         route.actionRequested.toUpperCase()
       ) && (route.toUserId === actingUser.id || !route.toUserId && route.toUser?.trim().toLowerCase() === actingUser.fullName.trim().toLowerCase())
     );
+    if (!assignedRoute && decision === "APPROVED") {
+      assignedRoute = [...doc.routes || []].reverse().find(
+        (route) => route.toUserId === actingUser.id || !route.toUserId && route.toUser?.trim().toLowerCase() === actingUser.fullName.trim().toLowerCase() || route.fromUserId === actingUser.id || !route.fromUserId && route.fromUser?.trim().toLowerCase() === actingUser.fullName.trim().toLowerCase() || doc.assignedUserId === actingUser.id || doc.createdByUserId === actingUser.id || ["ADMIN", "SUPER_ADMIN"].includes(actingUser.role)
+      );
+    }
     if (!assignedRoute) {
       const recoveredAudit = [...getAuditLogsState()].filter(
         (log) => log.documentTrackingNumber === doc.trackingNumber && new RegExp(
@@ -2241,7 +2389,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       if (recoveredAudit) {
         const recoveredSender = findActiveDatabaseUser(recoveredAudit.userId);
         assignedRoute = {
-          id: `route-recovered-${recoveredAudit.id}`,
+          id: nextRouteId(),
           documentId: doc.id,
           stepNumber: (doc.routes || []).length + 1,
           routeNo: doc.routeNo || doc.trackingNumber,
@@ -2266,7 +2414,10 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     const latestDecision = [...doc.routes || []].reverse().find(
       (route) => (route.fromUserId === actingUser.id || !route.fromUserId && route.fromUser?.trim().toLowerCase() === actingUser.fullName.trim().toLowerCase()) && route.createdAt > assignedRoute.createdAt && ["APPROVED", "DISAPPROVED"].includes(route.actionRequested)
     );
-    const isReapproval = decision === "APPROVED" && latestDecision?.actionRequested === "DISAPPROVED";
+    const hasDisapprovalInTrail = doc.currentStatus === "RETURNED" || (doc.routes || []).some(
+      (r) => r.actionRequested?.toUpperCase() === "DISAPPROVED"
+    );
+    const isReapproval = decision === "APPROVED" && (latestDecision?.actionRequested === "DISAPPROVED" || hasDisapprovalInTrail);
     if (latestDecision && !isReapproval) {
       return res.status(409).json({ error: "You have already acted on this document route." });
     }
@@ -2280,7 +2431,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       (user) => user.active && (user.fullName.trim().toLowerCase() === assignedRoute.fromUser?.trim().toLowerCase() || user.fullName.trim().toLowerCase() === doc.createdBy?.trim().toLowerCase())
     );
     const decisionRoute = {
-      id: `route-decision-${randomUUID3()}`,
+      id: nextRouteId(),
       documentId: doc.id,
       stepNumber: (doc.routes || []).length + 1,
       routeNo: doc.routeNo || doc.trackingNumber,
@@ -2304,6 +2455,10 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       doc.currentDivision = sender.divisionCode;
       doc.assignedUser = sender.fullName;
       doc.assignedUserId = sender.id;
+    } else if (decision === "APPROVED") {
+      doc.currentDivision = actingUser.divisionCode;
+      doc.assignedUser = actingUser.fullName;
+      doc.assignedUserId = actingUser.id;
     }
     documentsState2[docIndex] = doc;
     setDocumentsState(documentsState2);
@@ -2336,8 +2491,6 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       remarks,
       replyAttachments,
       newStatus,
-      actingUserId,
-      actingUserName,
       routeNo
     } = req.body;
     const actingUser = getActingUser(req);
@@ -2350,10 +2503,13 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     if (doc.currentStatus === "COMPLETED" || hasCompletedPart(doc, actingUser)) {
       return res.status(409).json({ error: "This transaction has ended. Completed documents cannot be routed or changed." });
     }
-    if (doc.currentStatus === "RETURNED") {
+    if (hasOpenDisapproval(doc)) {
       return res.status(409).json({
         error: "This document is disapproved. Re-approve it before routing."
       });
+    }
+    if (doc.currentStatus === "RETURNED") {
+      await healStaleReturnedStatus(req, doc, documentsState2, docIndex, actingUser);
     }
     if (getPendingDecisionRoute(actingUser, doc)) {
       return res.status(409).json({
@@ -2395,7 +2551,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       Array.isArray(replyAttachments) ? replyAttachments : void 0
     );
     const newRoute = {
-      id: `route-${randomUUID3()}`,
+      id: nextRouteId(),
       documentId: doc.id,
       stepNumber,
       routeNo: routeNo || doc.routeNo || "",
@@ -2410,7 +2566,12 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       statusBefore: oldStatus,
       statusAfter: nextStatus,
       receivedAt: now,
-      attachments: Array.isArray(replyAttachments) ? replyAttachments.map((file) => ({ ...file, attachmentScope: "RECIPIENT", uploadedByUserId: actingUser.id })) : void 0,
+      attachments: Array.isArray(replyAttachments) ? replyAttachments.map((file) => ({
+        ...file,
+        id: nextAttachmentId(),
+        attachmentScope: "RECIPIENT",
+        uploadedByUserId: actingUser.id
+      })) : void 0,
       createdAt: now
     };
     doc.routes.push(newRoute);
@@ -2459,16 +2620,145 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     }, false);
     await Promise.all([saveDocumentDirect(doc), saveAuditLogDirect(auditLog)]);
     if (recipient) {
-      createNotification({
+      const notification = createNotification({
         userId: recipient.id,
         title: "Document Routed to You",
         message: `Document ${doc.trackingNumber} (${doc.title}) forwarded for: ${actionRequested}`,
         documentId: doc.id,
         trackingNumber: doc.trackingNumber,
         type: nextStatus === "FOR_SIGNATURE" ? "ACTION_REQUIRED" : "INFO"
-      });
+      }, getNotificationsState());
+      setNotificationsState([notification, ...getNotificationsState()]);
     }
     res.json(doc);
+  });
+  router.delete("/:id/routes/:routeId", async (req, res) => {
+    const documentsState2 = getDocumentsState();
+    const docIndex = documentsState2.findIndex((d) => d.id === req.params.id);
+    if (docIndex === -1) {
+      return res.status(404).json({ error: "Document not found" });
+    }
+    const doc = documentsState2[docIndex];
+    const { routeId } = req.params;
+    const actingUserId = String(
+      req.get("X-User-Id") || req.query.actingUserId || req.body && req.body.actingUserId || ""
+    );
+    const actingUser = findActiveDatabaseUser(actingUserId) || getActingUser(req);
+    if (!actingUser) {
+      return res.status(401).json({ error: "Active database user required." });
+    }
+    const targetRouteIndex = (doc.routes || []).findIndex((r) => r.id === routeId);
+    if (targetRouteIndex === -1) {
+      return res.status(404).json({ error: "Route not found" });
+    }
+    const targetRoute = doc.routes[targetRouteIndex];
+    const isRouteCreator = targetRoute.fromUserId === actingUser.id || targetRoute.fromUser?.trim().toLowerCase() === actingUser.fullName?.trim().toLowerCase();
+    const isDocCreator = doc.createdByUserId === actingUser.id || doc.createdBy?.trim().toLowerCase() === actingUser.fullName?.trim().toLowerCase();
+    const isAdmin = actingUser.role === "ADMIN" || actingUser.role === "SYSTEM_ADMIN";
+    const permissions = actingUser.permissions || DEFAULT_ROLE_PERMISSIONS[actingUser.role] || DEFAULT_ROLE_PERMISSIONS.STAFF;
+    const hasDeletePermission = actingUser.role === "SYSTEM_ADMIN" || Boolean(permissions.canDelete);
+    if (!isRouteCreator && !isDocCreator && !isAdmin && !hasDeletePermission) {
+      return res.status(403).json({ error: "You are not authorized to remove this routing step." });
+    }
+    if (targetRoute.id.startsWith("intake-")) {
+      return res.status(400).json({ error: "Cannot remove the initial document registration route." });
+    }
+    const isInitialRoute = targetRoute.stepNumber === 1 || !targetRoute.stepNumber;
+    if (isInitialRoute && !hasDeletePermission && !isDocCreator) {
+      return res.status(403).json({
+        error: "Delete permission or System Administrator access is required to cancel or delete this transaction."
+      });
+    }
+    if (isInitialRoute) {
+      setDocumentsState(documentsState2.filter((d) => d.id !== doc.id));
+      purgeDocumentAuditTrail(doc.trackingNumber, doc.routeNo);
+      const docKeys = [doc.id, doc.trackingNumber, doc.routeNo].filter(Boolean).map((k) => k.trim().toUpperCase());
+      setNotificationsState(
+        getNotificationsState().filter((n) => {
+          if (n.documentId && docKeys.includes(n.documentId.trim().toUpperCase())) return false;
+          if (n.trackingNumber && docKeys.includes(n.trackingNumber.trim().toUpperCase())) return false;
+          return true;
+        })
+      );
+      saveDatabaseToFile2(false);
+      const deletionAuditLog = addAuditLog(
+        getAuditLogsState(),
+        {
+          userId: actingUser.id,
+          userName: actingUser.fullName,
+          userRole: actingUser.role,
+          action: "DELETE_DOC",
+          documentTrackingNumber: doc.trackingNumber,
+          details: `Cancelled initial transaction [${doc.trackingNumber}] (${doc.title}) by ${actingUser.fullName}. Route number freed up for reuse. Reason: Misrouted at initial entry / cancelled`,
+          ipAddress: req.ip || "127.0.0.1"
+        },
+        false
+      );
+      await Promise.all([
+        deleteDocumentDirect(doc.id, doc.trackingNumber, doc.routeNo),
+        saveAuditLogDirect(deletionAuditLog)
+      ]);
+      return res.json({
+        success: true,
+        deletedDocument: true,
+        freedRouteNumber: doc.routeNo || doc.trackingNumber,
+        message: `Transaction [${doc.trackingNumber}] and route number were completely removed and freed for reuse.`
+      });
+    }
+    const removedRecipientName = targetRoute.toUser || "Recipient";
+    const removedRecipientId = targetRoute.toUserId;
+    const routeIdsToRemove = /* @__PURE__ */ new Set([targetRoute.id]);
+    doc.routes = doc.routes.filter((r) => !routeIdsToRemove.has(r.id));
+    doc.routes.forEach((r, idx) => {
+      if (r.stepNumber !== 0) {
+        r.stepNumber = idx + 1;
+      }
+    });
+    const removedRecipientUserId = removedRecipientId || getUsersState().find(
+      (u) => Boolean(removedRecipientName) && u.fullName.trim().toLowerCase() === removedRecipientName.trim().toLowerCase()
+    )?.id;
+    const stillInTrail = (userId) => {
+      if (!userId) return true;
+      const fullName = getUsersState().find((u) => u.id === userId)?.fullName?.trim().toLowerCase();
+      return doc.routes.some(
+        (route) => route.toUserId === userId || route.fromUserId === userId || Boolean(
+          fullName && (route.toUser?.trim().toLowerCase() === fullName || route.fromUser?.trim().toLowerCase() === fullName)
+        )
+      );
+    };
+    setNotificationsState(
+      getNotificationsState().filter((n) => {
+        if (n.documentId !== doc.id) return true;
+        if (removedRecipientUserId && n.userId === removedRecipientUserId) return false;
+        if (doc.routes.length === 0) return n.userId === doc.createdByUserId;
+        return stillInTrail(n.userId);
+      })
+    );
+    recalculateDocumentStatus2(doc);
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    doc.updatedAt = now;
+    documentsState2[docIndex] = doc;
+    setDocumentsState(documentsState2);
+    saveDatabaseToFile2(false);
+    const auditLog = addAuditLog(
+      getAuditLogsState(),
+      {
+        userId: actingUser.id,
+        userName: actingUser.fullName,
+        userRole: actingUser.role,
+        action: "ROUTE_DOC",
+        documentTrackingNumber: doc.trackingNumber,
+        details: `Removed recipient ${removedRecipientName} (${targetRoute.toDivision || ""}) from transaction by ${actingUser.fullName}. Reason: Routing mistake / recalled`,
+        ipAddress: req.ip || "127.0.0.1"
+      },
+      false
+    );
+    await Promise.all([saveDocumentDirect(doc), saveAuditLogDirect(auditLog)]);
+    res.json({
+      success: true,
+      message: `Removed only Step ${targetRoute.stepNumber || targetRouteIndex + 1} for ${removedRecipientName}. The document and route number were retained.`,
+      document: doc
+    });
   });
   router.post("/:id/transfer", (req, res) => {
     const documentsState2 = getDocumentsState();
@@ -2480,11 +2770,8 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     const {
       fromDivision,
       toDivision,
-      toUser,
       toUserId,
       transferReason,
-      actingUserId,
-      actingUserName,
       routeNo
     } = req.body;
     const actingUser = getActingUser(req);
@@ -2529,7 +2816,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       now
     );
     const transferRoute = {
-      id: `route-${randomUUID3()}`,
+      id: nextRouteId(),
       documentId: doc.id,
       stepNumber,
       fromDivision: fromDivision || doc.currentDivision,
@@ -2563,14 +2850,15 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       details: `Transferred document [${doc.trackingNumber}] from ${fromDivision} to ${toDivision}. Reason: ${transferReason}`,
       ipAddress: req.ip || "127.0.0.1"
     });
-    createNotification({
+    const notification = createNotification({
       userId: recipient.id,
       title: `Document Transferred to ${toDivision}`,
       message: `Document ${doc.trackingNumber} transferred by ${actingUser.fullName}: ${transferReason}`,
       documentId: doc.id,
       trackingNumber: doc.trackingNumber,
       type: "INFO"
-    });
+    }, getNotificationsState());
+    setNotificationsState([notification, ...getNotificationsState()]);
     res.json(doc);
   });
   router.post("/:id/multi-route", async (req, res) => {
@@ -2580,11 +2868,6 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       return res.status(404).json({ error: "Document not found" });
     }
     const doc = documentsState2[docIndex];
-    if (doc.currentStatus === "RETURNED") {
-      return res.status(409).json({
-        error: "This document is disapproved. Re-approve it before routing."
-      });
-    }
     const {
       fromDivision,
       targetDivisions,
@@ -2594,8 +2877,6 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       remarks,
       replyAttachments,
       newStatus,
-      actingUserId,
-      actingUserName,
       routeNo
     } = req.body;
     const actingUser = getActingUser(req);
@@ -2607,6 +2888,14 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     }
     if (doc.currentStatus === "COMPLETED" || hasCompletedPart(doc, actingUser)) {
       return res.status(409).json({ error: "This transaction has ended. Completed documents cannot be routed or changed." });
+    }
+    if (hasOpenDisapproval(doc)) {
+      return res.status(409).json({
+        error: "This document is disapproved. Re-approve it before routing."
+      });
+    }
+    if (doc.currentStatus === "RETURNED") {
+      await healStaleReturnedStatus(req, doc, documentsState2, docIndex, actingUser);
     }
     if (getPendingDecisionRoute(actingUser, doc)) {
       return res.status(409).json({
@@ -2663,7 +2952,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       const targetDiv = target.toDivision;
       const stepNumber = (doc.routes || []).length + 1;
       const multiRouteStep = {
-        id: `route-${randomUUID3()}`,
+        id: nextRouteId(),
         documentId: doc.id,
         stepNumber,
         routeNo: routeNo || doc.routeNo || "",
@@ -2679,20 +2968,26 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
         statusAfter: nextStatus,
         isMultiRoute: true,
         receivedAt: now,
-        attachments: Array.isArray(replyAttachments) ? replyAttachments.map((file) => ({ ...file, attachmentScope: "RECIPIENT", uploadedByUserId: actingUser.id })) : void 0,
+        attachments: Array.isArray(replyAttachments) ? replyAttachments.map((file) => ({
+          ...file,
+          id: nextAttachmentId(),
+          attachmentScope: "RECIPIENT",
+          uploadedByUserId: actingUser.id
+        })) : void 0,
         createdAt: now
       };
       doc.routes.push(multiRouteStep);
       const targetUser = findActiveDatabaseUser(target.toUserId);
       if (targetUser) {
-        createNotification({
+        const notification = createNotification({
           userId: targetUser.id,
           title: `Multi-Route Received at ${targetDiv}`,
           message: `Document ${doc.trackingNumber} dispatched to multiple divisions including ${targetDiv}`,
           documentId: doc.id,
           trackingNumber: doc.trackingNumber,
           type: "INFO"
-        });
+        }, getNotificationsState());
+        setNotificationsState([notification, ...getNotificationsState()]);
       }
     });
     if (routeNo) doc.routeNo = routeNo;
@@ -2732,9 +3027,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       fileSize,
       fileType,
       url,
-      fileData,
-      actingUserId,
-      actingUserName
+      fileData
     } = req.body;
     const actingUser = getActingUser(req);
     if (!actingUser) {
@@ -2744,7 +3037,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       return res.status(404).json({ error: "Document not found" });
     }
     const newAttachment = {
-      id: `att-${randomUUID3()}`,
+      id: nextAttachmentId(),
       attachmentScope: "RECIPIENT",
       uploadedByUserId: actingUser.id,
       uploadedForRouteId: [...doc.routes || []].reverse().find((route) => route.toUserId === actingUser.id && !["APPROVED", "DISAPPROVED"].includes(route.actionRequested?.toUpperCase()))?.id,
@@ -2820,7 +3113,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
         doc.routes = routes;
       } else {
         routes.push({
-          id: `route-${randomUUID3()}`,
+          id: nextRouteId(),
           documentId: doc.id,
           stepNumber: 1,
           routeNo: doc.routeNo || doc.trackingNumber,
@@ -2897,15 +3190,33 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     if (!doc) {
       return res.status(404).json({ error: "Document not found" });
     }
-    const actingUser = getActingUser(req);
+    const actingUserId = String(
+      req.get("X-User-Id") || req.query.actingUserId || req.body && req.body.actingUserId || ""
+    );
+    const actingUser = findActiveDatabaseUser(actingUserId) || getActingUser(req);
     if (!actingUser) {
       return res.status(401).json({ error: "Active database user required." });
     }
-    const permissions = actingUser.permissions || DEFAULT_ROLE_PERMISSIONS[actingUser.role];
-    if (actingUser.role !== "SYSTEM_ADMIN" && !permissions.canDelete) {
-      return res.status(403).json({ error: "Delete permission is required." });
+    const permissions = actingUser.permissions || DEFAULT_ROLE_PERMISSIONS[actingUser.role] || DEFAULT_ROLE_PERMISSIONS.STAFF;
+    const isDocCreator = doc.createdByUserId === actingUser.id || Boolean(
+      doc.createdBy && actingUser.fullName && doc.createdBy.trim().toLowerCase() === actingUser.fullName.trim().toLowerCase()
+    );
+    const canDelete = actingUser.role === "SYSTEM_ADMIN" || Boolean(permissions.canDelete) || Boolean(isDocCreator);
+    if (!canDelete) {
+      return res.status(403).json({
+        error: "Delete permission or System Administrator access required to delete a transaction."
+      });
     }
     setDocumentsState(documentsState2.filter((d) => d.id !== req.params.id));
+    purgeDocumentAuditTrail(doc.trackingNumber, doc.routeNo);
+    const docKeys = [doc.id, doc.trackingNumber, doc.routeNo].filter(Boolean).map((k) => k.trim().toUpperCase());
+    setNotificationsState(
+      getNotificationsState().filter((n) => {
+        if (n.documentId && docKeys.includes(n.documentId.trim().toUpperCase())) return false;
+        if (n.trackingNumber && docKeys.includes(n.trackingNumber.trim().toUpperCase())) return false;
+        return true;
+      })
+    );
     saveDatabaseToFile2(false);
     const deletionAuditLog = addAuditLog(
       getAuditLogsState(),
@@ -2922,7 +3233,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     );
     try {
       await Promise.all([
-        deleteDocumentDirect(doc.id),
+        deleteDocumentDirect(doc.id, doc.trackingNumber, doc.routeNo),
         saveAuditLogDirect(deletionAuditLog)
       ]);
     } catch (error) {
@@ -3167,9 +3478,8 @@ ${preStreamLen}
 dotenv2.config({ quiet: true });
 var DEFAULT_PORT = 3001;
 var PORT = Number(process.env.PORT || DEFAULT_PORT);
+var HOST = process.env.HOST || "0.0.0.0";
 var IS_VERCEL = Boolean(process.env.VERCEL);
-var ADMIN_PASSWORD_RESET_COOLDOWN_MS = 15 * 60 * 1e3;
-var TEMPORARY_PASSWORD_VALIDITY_MS = 5 * 60 * 1e3;
 var adminPasswordResetRequests = /* @__PURE__ */ new Map();
 var BUNDLED_DATA_DIR = path.join(process.cwd(), "backend", "data");
 var DATA_DIR = IS_VERCEL ? path.join(os.tmpdir(), "blgf-data") : path.join(process.cwd(), "backend", "data");
@@ -3222,12 +3532,6 @@ var storageFileUrl = (kind, fileName) => `/api/storage/files/${kind}/${encodeURI
 var mysqlSyncQueue = Promise.resolve();
 var mysqlSyncRequested = false;
 var mysqlSyncWorkerActive = false;
-var mysqlRefreshPromise = null;
-var lastMySQLRefreshAt = 0;
-var MYSQL_LIVE_REFRESH_MS = Math.max(
-  500,
-  Number(process.env.MYSQL_LIVE_REFRESH_MS || 1500)
-);
 var divisionsState = [];
 var usersState = [];
 var documentsState = [];
@@ -3252,7 +3556,7 @@ var DEFAULT_DIRECTORY_SECTIONS = [
 ];
 var directorySectionsState = DEFAULT_DIRECTORY_SECTIONS;
 var RESERVED_SYSTEM_ADMIN = {
-  id: "usr-1785138104157",
+  id: "USR-0008",
   username: "tom",
   fullName: "Tom Catral",
   email: "catraltom@gmail.com",
@@ -3420,7 +3724,17 @@ function initDatabaseStorage() {
       divisionsState = data.divisions || [];
       usersState = (data.users || []).map(sanitizeUserPermissionsOnLoad);
       documentsState = data.documents || [];
-      auditLogsState = data.auditLogs || [];
+      const validDocKeys = new Set(
+        documentsState.flatMap((d) => [
+          d.id?.trim().toUpperCase(),
+          d.trackingNumber?.trim().toUpperCase(),
+          d.routeNo?.trim().toUpperCase()
+        ]).filter(Boolean)
+      );
+      auditLogsState = (data.auditLogs || []).filter((log) => {
+        if (!log.documentTrackingNumber) return true;
+        return validDocKeys.has(log.documentTrackingNumber.trim().toUpperCase());
+      });
       if (fs.existsSync(ENVELOPE_LOG_DB_FILE)) {
         const envelopeData = JSON.parse(
           fs.readFileSync(ENVELOPE_LOG_DB_FILE, "utf-8")
@@ -3435,7 +3749,11 @@ function initDatabaseStorage() {
         );
         saveEnvelopeLogsToFile();
       }
-      notificationsState = data.notifications || [];
+      notificationsState = (data.notifications || []).filter((n) => {
+        if (n.documentId && !validDocKeys.has(n.documentId.trim().toUpperCase())) return false;
+        if (n.trackingNumber && !validDocKeys.has(n.trackingNumber.trim().toUpperCase())) return false;
+        return true;
+      });
       repairInitialRouteRecipients();
       employeesState = data.employees || [];
       directorySectionsState = data.directorySections || DEFAULT_DIRECTORY_SECTIONS;
@@ -3478,8 +3796,9 @@ function getDatabaseStateEntries() {
     ["directory_sections", directorySectionsState]
   ];
 }
-function queueDatabaseSync() {
+function queueDatabaseSync(force = false) {
   if (!getMySQLReplicaStatus().connected) return;
+  if (!force && process.env.BLGF_MYSQL_SYNC_ON_SAVE !== "1") return;
   mysqlSyncRequested = true;
   if (mysqlSyncWorkerActive) return;
   mysqlSyncWorkerActive = true;
@@ -3491,31 +3810,12 @@ function queueDatabaseSync() {
     } while (mysqlSyncRequested);
   }).catch((error) => console.error("MySQL synchronization failed:", error)).finally(() => {
     mysqlSyncWorkerActive = false;
-    if (mysqlSyncRequested) queueDatabaseSync();
+    if (mysqlSyncRequested) queueDatabaseSync(true);
   });
 }
 async function flushDatabaseSync() {
+  flushDatabaseFileWrite();
   await mysqlSyncQueue;
-}
-async function refreshDatabaseStateFromMySQL(force = false) {
-  if (!getMySQLReplicaStatus().connected) return;
-  if (mysqlSyncWorkerActive || mysqlSyncRequested) {
-    await flushDatabaseSync();
-  }
-  if (!force && Date.now() - lastMySQLRefreshAt < MYSQL_LIVE_REFRESH_MS) return;
-  if (mysqlRefreshPromise) return mysqlRefreshPromise;
-  mysqlRefreshPromise = (async () => {
-    const entries = await loadMySQLState();
-    if (entries.length > 0) {
-      applyDatabaseState(entries);
-      lastMySQLRefreshAt = Date.now();
-    }
-  })().catch((error) => {
-    console.error("Live MySQL refresh failed:", error);
-  }).finally(() => {
-    mysqlRefreshPromise = null;
-  });
-  return mysqlRefreshPromise;
 }
 function syncEmployeeProfileFromUser(user, persist = true) {
   const matchingIndices = [];
@@ -3528,7 +3828,7 @@ function syncEmployeeProfileFromUser(user, persist = true) {
   });
   const matchingProfiles = matchingIndices.map((i) => employeesState[i]);
   const primaryExisting = matchingProfiles[0];
-  const empId = primaryExisting?.id || `emp-${user.id}`;
+  const empId = primaryExisting?.id || nextReadableId("EMP", employeesState);
   const allExistingFolders = [];
   const seenFolderNames = /* @__PURE__ */ new Set();
   for (const p of matchingProfiles) {
@@ -3652,11 +3952,16 @@ function resetDatabaseToDefault() {
   directorySectionsState = [...DEFAULT_DIRECTORY_SECTIONS];
   saveDatabaseToFile();
 }
-function saveDatabaseToFile(queueSync = true) {
-  if (IS_VERCEL) {
-    if (queueSync) queueDatabaseSync();
-    return;
-  }
+function writeJsonFileAtomic(target, contents) {
+  const tempFile = `${target}.${process.pid}.tmp`;
+  fs.writeFileSync(tempFile, contents, "utf-8");
+  fs.renameSync(tempFile, target);
+}
+var DATABASE_FILE_WRITE_DEBOUNCE_MS = 150;
+var databaseFileDirty = false;
+var databaseFileWriteTimer = null;
+var pendingDatabaseSyncRequest = false;
+function writeDatabaseFileNow(queueSync) {
   try {
     const payload = {
       updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
@@ -3669,18 +3974,44 @@ function saveDatabaseToFile(queueSync = true) {
       directorySections: directorySectionsState
     };
     const serialized = JSON.stringify(payload, null, 2).replace(/\u0410/g, "A").replace(/\u2014/g, "-");
-    fs.writeFileSync(DB_FILE, serialized, "utf-8");
+    writeJsonFileAtomic(DB_FILE, serialized);
+    databaseFileDirty = false;
     if (queueSync) queueDatabaseSync();
   } catch (err) {
     console.error("[ERROR] Error saving database file:", err);
   }
+}
+function scheduleDatabaseFileWrite(queueSync) {
+  databaseFileDirty = true;
+  pendingDatabaseSyncRequest = pendingDatabaseSyncRequest || queueSync;
+  if (databaseFileWriteTimer) return;
+  databaseFileWriteTimer = setTimeout(() => {
+    databaseFileWriteTimer = null;
+    flushDatabaseFileWrite();
+  }, DATABASE_FILE_WRITE_DEBOUNCE_MS);
+}
+function flushDatabaseFileWrite() {
+  if (databaseFileWriteTimer) {
+    clearTimeout(databaseFileWriteTimer);
+    databaseFileWriteTimer = null;
+  }
+  if (!databaseFileDirty) return;
+  writeDatabaseFileNow(pendingDatabaseSyncRequest);
+  pendingDatabaseSyncRequest = false;
+}
+function saveDatabaseToFile(queueSync = true) {
+  if (IS_VERCEL) {
+    if (queueSync) queueDatabaseSync();
+    return;
+  }
+  scheduleDatabaseFileWrite(queueSync);
 }
 function saveEnvelopeLogsToFile() {
   if (IS_VERCEL) {
     queueDatabaseSync();
     return;
   }
-  fs.writeFileSync(
+  writeJsonFileAtomic(
     ENVELOPE_LOG_DB_FILE,
     JSON.stringify(
       {
@@ -3690,8 +4021,7 @@ function saveEnvelopeLogsToFile() {
       },
       null,
       2
-    ),
-    "utf-8"
+    )
   );
 }
 async function createApp() {
@@ -3749,12 +4079,6 @@ async function createApp() {
   app.use((req, _res, next) => {
     if (req.path.startsWith("/api")) {
       console.log(`[API ${req.method}] ${req.path}`);
-    }
-    next();
-  });
-  app.use(async (req, _res, next) => {
-    if (req.method === "GET" && req.path.startsWith("/api")) {
-      await refreshDatabaseStateFromMySQL();
     }
     next();
   });
@@ -3899,6 +4223,18 @@ async function createApp() {
         auditLogs: auditLogsState.length
       }
     });
+  });
+  app.post("/api/admin/sync", (req, res) => {
+    const actingUser = usersState.find(
+      (user) => user.id === req.header("X-User-Id")
+    );
+    if (!actingUser || actingUser.role !== "SYSTEM_ADMIN") {
+      return res.status(403).json({ error: "System administrator access required." });
+    }
+    queueDatabaseSync(true);
+    void flushDatabaseSync().then(
+      () => res.json({ synced: true, recordsCount: getDatabaseStateEntries().length })
+    );
   });
   app.post("/api/auth/login", (req, res) => {
     const username = String(req.body?.username ?? "").trim().toLowerCase();
@@ -4372,7 +4708,7 @@ async function createApp() {
       return res.status(409).json({ error: "Division code already exists." });
     }
     const division = {
-      id: `div-${randomUUID4()}`,
+      id: nextReadableId("DIV", divisionsState),
       code,
       name,
       chiefName,
@@ -4464,7 +4800,7 @@ async function createApp() {
       return res.status(401).json({ error: "Active database user required." });
     }
     const log = {
-      id: `envelope-log-${randomUUID4()}`,
+      id: nextReadableId("ENV", envelopeLogsState),
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
       userId: actingUser.id,
       userName: actingUser.fullName,
@@ -4493,14 +4829,31 @@ async function createApp() {
     }
     const notificationPermissions = requestingUser.permissions?.allowedActions || DEFAULT_ROLE_PERMISSIONS[requestingUser.role]?.allowedActions || [];
     const canViewAllTransactionNotifications = requestingUser.permissions?.notificationViewAllConfigured === true ? notificationPermissions.includes("NOTIFICATION_VIEW_ALL") : (DEFAULT_ROLE_PERMISSIONS[requestingUser.role]?.allowedActions || []).includes("NOTIFICATION_VIEW_ALL");
+    const activeDocTrackings = /* @__PURE__ */ new Map();
+    for (const d of documentsState) {
+      if (d.id) activeDocTrackings.set(d.id.trim().toUpperCase(), d);
+      if (d.trackingNumber) activeDocTrackings.set(d.trackingNumber.trim().toUpperCase(), d);
+      if (d.routeNo) activeDocTrackings.set(d.routeNo.trim().toUpperCase(), d);
+    }
+    notificationsState = notificationsState.filter((n) => {
+      if (n.documentId && !activeDocTrackings.has(n.documentId.trim().toUpperCase())) {
+        return false;
+      }
+      if (n.trackingNumber && !activeDocTrackings.has(n.trackingNumber.trim().toUpperCase())) {
+        return false;
+      }
+      return true;
+    });
     const storedNotifications = notificationsState.filter(
       (notification) => notification.userId === userId
     );
     const globalTransactionNotifications = canViewAllTransactionNotifications ? auditLogsState.filter(
-      (log) => Boolean(log.documentTrackingNumber) && ["CREATE_DOC", "ROUTE_DOC", "TRANSFER_DOC", "UPDATE_STATUS"].includes(
+      (log) => Boolean(log.documentTrackingNumber) && activeDocTrackings.has(log.documentTrackingNumber.trim().toUpperCase()) && ["CREATE_DOC", "ROUTE_DOC", "TRANSFER_DOC", "UPDATE_STATUS"].includes(
         log.action
       )
     ).map((log) => {
+      const matchedDoc = log.documentTrackingNumber ? activeDocTrackings.get(log.documentTrackingNumber.trim().toUpperCase()) : void 0;
+      if (!matchedDoc) return null;
       const decision = log.details.match(
         /(?:Action:\s*|^)(APPROVED|DISAPPROVED)\b/i
       )?.[1]?.toUpperCase();
@@ -4514,20 +4867,41 @@ async function createApp() {
         title,
         message,
         trackingNumber: log.documentTrackingNumber,
-        documentId: documentsState.find(
-          (document) => document.trackingNumber === log.documentTrackingNumber || document.routeNo === log.documentTrackingNumber
-        )?.id,
+        documentId: matchedDoc.id,
         type: decision === "DISAPPROVED" ? "URGENT" : "INFO",
         requiresDecision: false,
         decisionStatus: decision === "APPROVED" || decision === "DISAPPROVED" ? decision : void 0,
         createdAt: log.timestamp
       };
-    }) : [];
+    }).filter((n) => n !== null) : [];
+    const dedupedGlobalNotifications = [
+      ...globalTransactionNotifications.reduce((map, item) => {
+        const key = item.trackingNumber || item.documentId || item.id;
+        const existing = map.get(key);
+        if (!existing || new Date(item.createdAt).getTime() > new Date(existing.createdAt).getTime()) {
+          map.set(key, item);
+        }
+        return map;
+      }, /* @__PURE__ */ new Map()).values()
+    ];
     try {
-      const liveNotifications = await getLiveDisplayNotifications(userId);
+      const rawLiveNotifications = await getLiveDisplayNotifications(userId);
+      const liveNotifications = rawLiveNotifications ? rawLiveNotifications.filter((n) => {
+        if (n.documentId && !activeDocTrackings.has(n.documentId.trim().toUpperCase())) return false;
+        if (n.trackingNumber && !activeDocTrackings.has(n.trackingNumber.trim().toUpperCase())) return false;
+        return true;
+      }) : null;
       if (liveNotifications) {
+        const liveDocKeys = new Set(
+          [...liveNotifications, ...storedNotifications].flatMap(
+            (n) => [n.documentId, n.trackingNumber].filter(Boolean)
+          )
+        );
+        const filteredGlobal2 = dedupedGlobalNotifications.filter(
+          (notification) => (!notification.documentId || !liveDocKeys.has(notification.documentId)) && (!notification.trackingNumber || !liveDocKeys.has(notification.trackingNumber))
+        );
         return res.json([
-          ...globalTransactionNotifications,
+          ...filteredGlobal2,
           ...storedNotifications,
           ...liveNotifications.filter(
             (notification) => !storedNotifications.some(
@@ -4584,8 +4958,16 @@ async function createApp() {
         ];
       }
     );
+    const activeDocKeys = new Set(
+      [...activeNotifications, ...storedNotifications].flatMap(
+        (n) => [n.documentId, n.trackingNumber].filter(Boolean)
+      )
+    );
+    const filteredGlobal = dedupedGlobalNotifications.filter(
+      (notification) => (!notification.documentId || !activeDocKeys.has(notification.documentId)) && (!notification.trackingNumber || !activeDocKeys.has(notification.trackingNumber))
+    );
     res.json([
-      ...globalTransactionNotifications,
+      ...filteredGlobal,
       ...storedNotifications,
       ...activeNotifications
     ]);
@@ -4623,7 +5005,7 @@ async function createApp() {
       reminderSenderName: actingUser.fullName,
       reminderHandlerName: recipient.fullName,
       reminderActionRequested: String(req.body.actionRequested || "").trim() || "Appropriate Action"
-    });
+    }, notificationsState);
     notificationsState.unshift(reminder);
     addAuditLog(auditLogsState, {
       userId: actingUser.id,
@@ -4698,8 +5080,9 @@ async function createApp() {
   const canManageEmployees = (req) => {
     const user = getRequestUser(req);
     if (!user) return false;
-    const actions = (user.permissions || DEFAULT_ROLE_PERMISSIONS[user.role]).allowedActions || [];
-    return user.role === "SYSTEM_ADMIN" || actions.some(
+    const perm = user.permissions || DEFAULT_ROLE_PERMISSIONS[user.role] || DEFAULT_ROLE_PERMISSIONS.STAFF;
+    const actions = perm.allowedActions || [];
+    return user.role === "SYSTEM_ADMIN" || Boolean(perm.canDelete) || actions.some(
       (action) => ["EMPLOYEE_CREATE", "EMPLOYEE_EDIT", "EMPLOYEE_DELETE"].includes(action)
     );
   };
@@ -4714,7 +5097,7 @@ async function createApp() {
       return res.status(403).json({ error: "Directory category access permission required." });
     }
     const newEmp = {
-      id: `emp-${randomUUID4()}`,
+      id: nextReadableId("EMP", employeesState),
       userId: body.userId || void 0,
       fullName: body.fullName,
       position: body.position,
@@ -4768,8 +5151,14 @@ async function createApp() {
     res.json(employeesState[idx]);
   });
   app.delete("/api/employees/:id", (req, res) => {
-    if (getRequestUser(req)?.role !== "SYSTEM_ADMIN") {
-      return res.status(403).json({ error: "System Administrator access required." });
+    const actingUser = getRequestUser(req);
+    if (!actingUser) {
+      return res.status(401).json({ error: "Active user required." });
+    }
+    const perm = actingUser.permissions || DEFAULT_ROLE_PERMISSIONS[actingUser.role] || DEFAULT_ROLE_PERMISSIONS.STAFF;
+    const canDeleteEmployee = actingUser.role === "SYSTEM_ADMIN" || Boolean(perm.canDelete) || Boolean(perm.allowedActions?.includes("EMPLOYEE_DELETE"));
+    if (!canDeleteEmployee) {
+      return res.status(403).json({ error: "Delete permission or System Administrator access required." });
     }
     const idx = employeesState.findIndex((e) => e.id === req.params.id);
     if (idx === -1)
@@ -4843,10 +5232,17 @@ async function createApp() {
   app.use(express3.static(distPath, {
     etag: false,
     maxAge: 0,
-    setHeaders: (res) => {
+    setHeaders: (res, filePath) => {
       res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
       res.setHeader("Pragma", "no-cache");
       res.setHeader("Expires", "0");
+      if (filePath.endsWith("manifest.webmanifest")) {
+        res.setHeader("Content-Type", "application/manifest+json");
+      }
+      if (filePath.endsWith("service-worker.js")) {
+        res.setHeader("Service-Worker-Allowed", "/");
+        res.setHeader("Content-Type", "application/javascript");
+      }
     }
   }));
   app.get("*", (_req, res) => {
@@ -4856,9 +5252,19 @@ async function createApp() {
     res.sendFile(path.join(distPath, "index.html"));
   });
   await new Promise((resolve, reject) => {
-    const server = app.listen(PORT, "0.0.0.0");
+    const server = app.listen(PORT, HOST);
     server.once("listening", resolve);
-    server.once("error", reject);
+    server.once("error", (error) => {
+      if (error.code === "EADDRINUSE") {
+        reject(
+          new Error(
+            `Port ${PORT} is already in use. Stop the process using that port or run "npm run dev" so the launcher can select a free port.`
+          )
+        );
+        return;
+      }
+      reject(error);
+    });
   });
   console.log(`=======================================================`);
   console.log(`BLGF REGION II DOCUMENT TRACKING SYSTEM SERVER RUNNING`);
@@ -4867,6 +5273,16 @@ async function createApp() {
   return app;
 }
 if (!IS_VERCEL) {
+  const shutdown = () => {
+    flushDatabaseFileWrite();
+  };
+  process.on("exit", shutdown);
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+    process.on(signal, () => {
+      shutdown();
+      process.exit(0);
+    });
+  }
   createApp().catch((error) => {
     console.error("Server failed to start:", error);
     process.exitCode = 1;

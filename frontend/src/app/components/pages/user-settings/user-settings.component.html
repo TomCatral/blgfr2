@@ -24,12 +24,18 @@
               Manage your personal profile, credentials, security password,
               and notification preferences
             </p>
-            @if (avatarUrl) {
-              <ion-button type="button" (click)="onRemoveAvatar()" class="settings-removeAvatar">
-                <ion-icon name="trash" class="settings-tinyIcon"></ion-icon>
-                <span>Remove photo</span>
+            <div class="settings-heroPhotoActions">
+              <ion-button type="button" (click)="openAvatarPicker()" class="settings-changeAvatar">
+                <ion-icon name="camera" class="settings-tinyIcon"></ion-icon>
+                <span>{{ avatarUrl ? 'Change photo' : 'Upload photo' }}</span>
               </ion-button>
-            }
+              @if (avatarUrl) {
+                <ion-button type="button" (click)="onRemoveAvatar()" class="settings-removeAvatar">
+                  <ion-icon name="trash" class="settings-tinyIcon"></ion-icon>
+                  <span>Remove photo</span>
+                </ion-button>
+              }
+            </div>
           </div>
         </div>
 
@@ -84,36 +90,7 @@
             </div>
           </div>
 
-          <div class="settings-photoPanel">
-            <div class="settings-photoContent">
-              <div class="settings-largeAvatar">
-                @if (avatarUrl) {
-                  <img [src]="avatarUrl" [alt]="(fullName || 'User') + ' profile preview'" class="settings-avatarImage" />
-                } @else {
-                  <span>{{ fullName.charAt(0).toUpperCase() || 'U' }}</span>
-                }
-              </div>
-              <div class="settings-photoText">
-                <p class="settings-photoTitle">Profile Picture</p>
-                <p class="settings-photoHelp">
-                  Upload a JPG, PNG, or WebP image up to 5 MB. It will also
-                  appear in your account and logout menu after saving.
-                </p>
-                <div class="settings-photoActions">
-                  <ion-button type="button" (click)="openAvatarPicker()" class="settings-uploadButton">
-                    <ion-icon name="camera" class="settings-compactIcon"></ion-icon>
-                    {{ avatarUrl ? 'Change Photo' : 'Upload Photo' }}
-                  </ion-button>
-                  @if (avatarUrl) {
-                    <ion-button type="button" (click)="onRemoveAvatar()" class="settings-removePhotoButton">
-                      <ion-icon name="trash" class="settings-compactIcon"></ion-icon>
-                      Remove
-                    </ion-button>
-                  }
-                </div>
-              </div>
-            </div>
-          </div>
+
 
           <div class="settings-formGrid">
             <div>
@@ -256,14 +233,12 @@
                 <button
                   type="button"
                   (click)="showCurrentPass = !showCurrentPass"
+                  (mousedown)="$event.preventDefault()"
                   class="settings-passwordToggle"
-                  aria-label="Toggle password visibility"
+                  [title]="showCurrentPass ? 'Hide password' : 'Show password'"
+                  [attr.aria-label]="showCurrentPass ? 'Hide password' : 'Show password'"
                 >
-                  @if (showCurrentPass) {
-                    <ion-icon name="eye-off" class="settings-smallIcon"></ion-icon>
-                  } @else {
-                    <ion-icon name="eye" class="settings-smallIcon"></ion-icon>
-                  }
+                  <ion-icon [name]="showCurrentPass ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
                 </button>
               </div>
             </div>
@@ -281,14 +256,12 @@
                 <button
                   type="button"
                   (click)="showNewPass = !showNewPass"
+                  (mousedown)="$event.preventDefault()"
                   class="settings-passwordToggle"
-                  aria-label="Toggle password visibility"
+                  [title]="showNewPass ? 'Hide password' : 'Show password'"
+                  [attr.aria-label]="showNewPass ? 'Hide password' : 'Show password'"
                 >
-                  @if (showNewPass) {
-                    <ion-icon name="eye-off" class="settings-smallIcon"></ion-icon>
-                  } @else {
-                    <ion-icon name="eye" class="settings-smallIcon"></ion-icon>
-                  }
+                  <ion-icon [name]="showNewPass ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
                 </button>
               </div>
 
@@ -325,14 +298,12 @@
                 <button
                   type="button"
                   (click)="showConfirmPass = !showConfirmPass"
+                  (mousedown)="$event.preventDefault()"
                   class="settings-passwordToggle"
-                  aria-label="Toggle password visibility"
+                  [title]="showConfirmPass ? 'Hide password' : 'Show password'"
+                  [attr.aria-label]="showConfirmPass ? 'Hide password' : 'Show password'"
                 >
-                  @if (showConfirmPass) {
-                    <ion-icon name="eye-off" class="settings-smallIcon"></ion-icon>
-                  } @else {
-                    <ion-icon name="eye" class="settings-smallIcon"></ion-icon>
-                  }
+                  <ion-icon [name]="showConfirmPass ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
                 </button>
               </div>
             </div>

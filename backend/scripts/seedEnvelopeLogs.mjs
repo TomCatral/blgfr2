@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
-import { randomUUID } from 'node:crypto';
+import { nextReadableId } from '../readableIds.ts';
 
 const buildUrl = () => {
   const explicit = process.env.MYSQL_DATABASE_URL?.trim();
@@ -61,7 +61,7 @@ try {
   for (const [code, name, chiefName] of DIVISION_SEEDS) {
     if (existingDivisions.some((division) => division.code === code)) continue;
     await prisma.division.create({
-      data: { id: `div-${randomUUID()}`, code, name, chiefName },
+      data: { id: nextReadableId('DIV', existingDivisions), code, name, chiefName },
     });
     results.divisionsAdded += 1;
   }
@@ -183,7 +183,7 @@ try {
         ].join(' | ');
         await prisma.envelopeLog.create({
           data: {
-            id: `envelope-log-${randomUUID()}`,
+            id: nextReadableId('ENV', await prisma.envelopeLog.findMany({ select: { id: true } })),
             timestamp: new Date(sample.at),
             userId,
             userName: sample.userName,

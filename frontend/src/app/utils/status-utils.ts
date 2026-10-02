@@ -1,6 +1,13 @@
 import { DocumentStatus, PriorityLevel, StatusConfig } from '../types';
 
 export const STATUS_CONFIGS: Record<DocumentStatus, StatusConfig> = {
+  NOT_YET_ROUTED: {
+    label: 'Not Yet Routed',
+    badgeClass: 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950/70 dark:text-purple-200 dark:border-purple-700',
+    bgHex: '#f3e8ff',
+    textHex: '#6b21a8',
+    dotClass: 'bg-purple-500'
+  },
   PENDING: {
     label: 'Pending / Received',
     badgeClass: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-700',

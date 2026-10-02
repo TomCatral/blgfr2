@@ -51,9 +51,22 @@
           </span>
         </div>
       </div>
-      <span [ngClass]="parent.getFlowNodeStatusChipClass(recipient.id) | cls" class="flow-status-chip">
-        {{ parent.getFlowNodeStatusLabel(recipient.id) }}
-      </span>
+      <div class="flow-node-header-actions flex items-center gap-1.5 shrink-0">
+        <span [ngClass]="parent.getFlowNodeStatusChipClass(recipient.id) | cls" class="flow-status-chip">
+          {{ parent.getFlowNodeStatusLabel(recipient.id) }}
+        </span>
+        @if (parent.canRemoveRoute(recipient)) {
+          <button
+            type="button"
+            (click)="parent.handleRemoveRoute($event, recipient)"
+            [disabled]="parent.isRemovingRoute()"
+            class="flow-remove-btn"
+            title="Remove this recipient from routing (routed by mistake)"
+          >
+            <ion-icon name="trash-outline"></ion-icon>
+          </button>
+        }
+      </div>
     </div>
 
     @if (parent.getFlowNodeRegularRemarks(recipient.id); as regRemarks) {
@@ -65,7 +78,14 @@
     <!-- 3-stage Progress indicator -->
     <div class="flow-stages-grid" [attr.aria-label]="'Progress for ' + parent.resolveUserName(recipient.toUserId, recipient.toUser) + ': ' + parent.getFlowNodeSnapshot(recipient.id).status">
       @for (pl of parent.getFlowNodeProgress(recipient.id); track pl.label) {
-        <span class="flow-stage-pill" [ngClass]="pl.className | cls">{{ pl.label }}</span>
+        <span class="flow-stage-pill" [ngClass]="pl.className | cls">
+          @if (pl.className.includes('stage-completed-green')) {
+            <ion-icon name="checkmark-circle" class="text-xs"></ion-icon>
+          } @else if (pl.className.includes('stage-passed-green')) {
+            <ion-icon name="checkmark" class="text-[10px]"></ion-icon>
+          }
+          <span>{{ pl.label }}</span>
+        </span>
       }
     </div>
 

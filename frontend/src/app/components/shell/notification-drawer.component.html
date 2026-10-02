@@ -67,7 +67,8 @@
                         [disabled]="decisionSubmittingId === notification.id"
                         (click)="onDecision.emit({ notification, decision: 'APPROVED' })"
                       >
-                        Approve
+                        <ion-icon name="checkmark-circle"></ion-icon>
+                        <span>{{ decisionSubmittingId === notification.id ? 'Approving...' : 'Approve' }}</span>
                       </ion-button>
                       <ion-button
                         type="button"
@@ -75,7 +76,8 @@
                         [disabled]="decisionSubmittingId === notification.id"
                         (click)="onDecision.emit({ notification, decision: 'DISAPPROVED' })"
                       >
-                        Disapprove
+                        <ion-icon name="close-circle"></ion-icon>
+                        <span>Disapprove</span>
                       </ion-button>
                     }
 

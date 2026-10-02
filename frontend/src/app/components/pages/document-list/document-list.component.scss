@@ -495,6 +495,8 @@
 
 .progress_PENDING, .progress_ON_HOLD { color: #d97706; }
 
+.progress_NOT_YET_ROUTED { color: #7c3aed; }
+
 .progress_IN_PROGRESS, .progress_FOR_SIGNATURE { color: #2563eb; }
 
 .progress_COMPLETED { color: #059669; }
@@ -502,6 +504,8 @@
 .progress_RETURNED { color: #dc2626; }
 
 .progressBar.progress_PENDING, .progressBar.progress_ON_HOLD { background: #f59e0b; }
+
+.progressBar.progress_NOT_YET_ROUTED { background: #8b5cf6; }
 
 .progressBar.progress_IN_PROGRESS, .progressBar.progress_FOR_SIGNATURE { background: #2563eb; }
 
@@ -519,6 +523,8 @@
 
 .statusDot { width: .5rem; height: .5rem; border-radius: 50%; background: currentColor; }
 
+.status_NOT_YET_ROUTED { background: #f3e8ff; color: #6b21a8; border: 1px solid rgba(147, 51, 234, 0.25); font-weight: 700; }
+
 .status_PENDING { background: #f1f5f9; color: #475569; }
 
 .status_IN_PROGRESS { background: #eff6ff; color: #1d4ed8; }
@@ -530,6 +536,34 @@
 .status_RETURNED { background: #fee2e2; color: #b91c1c; }
 
 .status_ON_HOLD { background: #fef3c7; color: #b45309; }
+
+.unrouted-custodian-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  background: #f5f3ff;
+  color: #7c3aed;
+  font-size: 0.65rem;
+  font-weight: 650;
+  border: 1px solid #ddd6fe;
+
+  ion-icon {
+    font-size: 0.75rem;
+  }
+}
+
+.routeButton.highlight-route {
+  background: #7c3aed !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.35);
+
+  &:hover {
+    background: #6d28d9 !important;
+    transform: translateY(-1px);
+  }
+}
 
 .division { color: #334155; font-weight: 700; }
 

@@ -7,13 +7,17 @@
               class="dialog-symbol"
               [class.dialog-symbol-confirm]="request.kind === 'confirm'"
               [class.dialog-symbol-prompt]="request.kind !== 'confirm'"
+              [class.dialog-symbol-danger]="request.tone === 'danger'"
             >
               <ion-icon
-                [name]="request.kind === 'confirm' ? 'alert-circle' : 'create'"
+                [name]="request.tone === 'danger' ? 'trash-outline' : (request.kind === 'confirm' ? 'alert-circle' : 'create')"
                 class="dialogIcon"
               ></ion-icon>
             </div>
           </div>
+          @if (request.title) {
+            <h2 class="dialog-title">{{ request.title }}</h2>
+          }
           <div class="dialog2">{{ request.message }}</div>
           @if (request.kind === 'prompt') {
             <ion-input
@@ -26,10 +30,10 @@
           }
           <div class="dialog3">
             <ion-button class="_cancelButton_ dialogDismissBtn" (click)="dismiss()">
-              {{ request.kind === 'confirm' ? 'Cancel' : 'Dismiss' }}
+              {{ request.cancelLabel || (request.kind === 'confirm' ? 'Cancel' : 'Dismiss') }}
             </ion-button>
-            <ion-button class="_primaryButton_ dialogAcceptBtn" (click)="accept()">
-              {{ request.kind === 'confirm' ? 'Confirm' : 'OK' }}
+            <ion-button class="_primaryButton_ dialogAcceptBtn" [class.dialog-accept-danger]="request.tone === 'danger'" (click)="accept()">
+              {{ request.confirmLabel || (request.kind === 'confirm' ? 'Confirm' : 'OK') }}
             </ion-button>
           </div>
         </div>

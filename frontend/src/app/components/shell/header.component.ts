@@ -2,7 +2,6 @@ import {
   Component,
   ElementRef,
   EventEmitter,
-  HostListener,
   Input,
   OnDestroy,
   OnInit,
@@ -15,7 +14,6 @@ import { FormsModule } from '@angular/forms';
 import { ClsPipe } from '../../shared/cls.pipe';
 import { HighlightPipe } from '../../shared/highlight.pipe';
 import { AuditLog, DocumentRecord, NotificationItem, User } from '../../types';
-import { isDocumentParticipant } from '../../utils/document-visibility';
 import { Html5Qrcode } from 'html5-qrcode';
 interface SearchResult {
   doc: DocumentRecord;
@@ -133,8 +131,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
   isAppInstalled =
     window.matchMedia('(display-mode: standalone)').matches ||
     (window.navigator as unknown as { standalone?: boolean }).standalone === true;
-
-
+  showInstallGuide = false;
+  activeInstallTab: 'desktop' | 'android' | 'ios' = 'desktop';
 
   window = window;
 
@@ -151,6 +149,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     if (event.key === 'Escape') {
       this.showUserMenu = false;
       this.closeUserStatusModal();
+      this.closeInstallGuide();
     }
   };
   private readonly onMouseDown = (event: MouseEvent): void => {
@@ -167,9 +166,20 @@ export class HeaderComponent implements OnInit, OnDestroy {
     event.preventDefault();
     this.installPrompt = event as BeforeInstallPromptEvent;
   };
+  private readonly onPwaInstallable = (): void => {
+    if ((window as any).__blgfInstallPrompt) {
+      this.installPrompt = (window as any).__blgfInstallPrompt;
+    }
+  };
   private readonly onAppInstalled = (): void => {
     this.isAppInstalled = true;
     this.installPrompt = null;
+    (window as any).__blgfInstallPrompt = null;
+  };
+  private readonly onPwaInstalled = (): void => {
+    this.isAppInstalled = true;
+    this.installPrompt = null;
+    (window as any).__blgfInstallPrompt = null;
   };
 
   get searchResults(): SearchResult[] {
@@ -301,6 +311,16 @@ export class HeaderComponent implements OnInit, OnDestroy {
     document.addEventListener('mousedown', this.onMouseDown);
     window.addEventListener('beforeinstallprompt', this.onBeforeInstallPrompt);
     window.addEventListener('appinstalled', this.onAppInstalled);
+    window.addEventListener('blgf-pwa-installable', this.onPwaInstallable);
+    window.addEventListener('blgf-pwa-installed', this.onPwaInstalled);
+
+    if ((window as any).__blgfInstallPrompt) {
+      this.installPrompt = (window as any).__blgfInstallPrompt;
+    }
+    this.isAppInstalled =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+    this.detectInstallPlatform();
   }
 
   ngOnDestroy(): void {
@@ -309,7 +329,10 @@ export class HeaderComponent implements OnInit, OnDestroy {
     document.removeEventListener('mousedown', this.onMouseDown);
     window.removeEventListener('beforeinstallprompt', this.onBeforeInstallPrompt);
     window.removeEventListener('appinstalled', this.onAppInstalled);
+    window.removeEventListener('blgf-pwa-installable', this.onPwaInstallable);
+    window.removeEventListener('blgf-pwa-installed', this.onPwaInstalled);
     document.body.classList.remove('personnel-directory-open');
+    document.body.classList.remove('pwa-guide-open');
     this.closeScanner();
   }
 
@@ -491,21 +514,62 @@ export class HeaderComponent implements OnInit, OnDestroy {
     event.stopPropagation();
   }
 
+  copiedLink = false;
+
+  copyAppLink(): void {
+    const url = window.location.origin;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      void navigator.clipboard.writeText(url).then(() => {
+        this.copiedLink = true;
+        window.setTimeout(() => (this.copiedLink = false), 2500);
+      });
+    }
+  }
+
+  detectInstallPlatform(): void {
+    const ua = (navigator.userAgent || '').toLowerCase();
+    if (/iphone|ipad|ipod/.test(ua)) {
+      this.activeInstallTab = 'ios';
+    } else if (/android/.test(ua)) {
+      this.activeInstallTab = 'android';
+    } else {
+      this.activeInstallTab = 'desktop';
+    }
+  }
+
+  setInstallTab(tab: 'desktop' | 'android' | 'ios'): void {
+    this.activeInstallTab = tab;
+  }
+
+  openInstallGuide(): void {
+    this.showUserMenu = false;
+    this.detectInstallPlatform();
+    this.showInstallGuide = true;
+    document.body.classList.add('pwa-guide-open');
+  }
+
+  closeInstallGuide(): void {
+    this.showInstallGuide = false;
+    document.body.classList.remove('pwa-guide-open');
+  }
+
   handleInstallApp(): void {
-    if (this.installPrompt) {
-      this.installPrompt.prompt();
-      void this.installPrompt.userChoice.then((choice) => {
-        if (choice?.outcome === 'accepted') this.isAppInstalled = true;
+    const prompt = this.installPrompt || (window as any).__blgfInstallPrompt;
+    if (prompt) {
+      prompt.prompt();
+      void prompt.userChoice.then((choice: { outcome: 'accepted' | 'dismissed'; platform: string }) => {
+        if (choice?.outcome === 'accepted') {
+          this.isAppInstalled = true;
+          this.showUserMenu = false;
+          this.closeInstallGuide();
+        }
       });
       this.installPrompt = null;
+      (window as any).__blgfInstallPrompt = null;
       return;
     }
-    const isAppleMobile = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    alert(
-      isAppleMobile
-        ? 'To install DTS on iPhone or iPad: open this page in Safari, tap the Share button, then select "Add to Home Screen."'
-        : 'To install DTS: open this site in Chrome or Edge, open the browser menu, then select "Install app" or "Add to Home screen."',
-    );
+
+    this.openInstallGuide();
   }
 
   async openScanner(): Promise<void> {

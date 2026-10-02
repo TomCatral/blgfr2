@@ -1,24 +1,34 @@
-const CACHE_NAME = 'blgf-dts-v2';
-const APP_SHELL = ['/', '/manifest.webmanifest', '/blgflogo.jpg'];
+const CACHE_NAME = 'blgf-dts-v3';
+const APP_SHELL = [
+  '/',
+  '/manifest.webmanifest',
+  '/blgflogo.jpg',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-maskable-512.png',
+  '/apple-touch-icon.png',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)),
+    caches.open(CACHE_NAME).then((cache) =>
+      cache.addAll(APP_SHELL).catch((err) => {
+        console.warn('[SW] Cache addAll warning:', err);
+      }),
+    ),
   );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(
-          keys
-            .filter((key) => key !== CACHE_NAME)
-            .map((key) => caches.delete(key)),
-        ),
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => key !== CACHE_NAME)
+          .map((key) => caches.delete(key)),
       ),
+    ),
   );
   self.clients.claim();
 });
@@ -33,8 +43,10 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        if (response && response.status === 200 && response.type === 'basic') {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
         return response;
       })
       .catch(() =>

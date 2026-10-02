@@ -1,7 +1,11 @@
 import express from 'express';
 import { findPreviousDelivery, hasCompletedPart, getPendingRecipients } from '../frontend/src/app/utils/routing-recipients.js';
+import {
+  hasOpenDisapproval,
+  recalculateDocumentStatus as recalculateSharedDocumentStatus,
+} from '../frontend/src/app/utils/document-status.js';
 import { isDocumentParticipant } from '../frontend/src/app/utils/document-visibility.js';
-import { randomUUID } from 'node:crypto';
+import { nextReadableId } from './readableIds.js';
 import {
   addAuditLog,
   createNotification,
@@ -35,6 +39,12 @@ export function createDocumentsRouter(
   setNotificationsState: (notifications: NotificationItem[]) => void,
 ) {
   const router = express.Router();
+  const nextDocumentId = () => nextReadableId('DOC', getDocumentsState());
+  const nextRouteId = () => nextReadableId('RTE', getDocumentsState().flatMap((document) => document.routes || []));
+  const nextAttachmentId = () => nextReadableId('ATT', getDocumentsState().flatMap((document) => [
+    ...(document.attachments || []),
+    ...(document.routes || []).flatMap((route) => route.attachments || []),
+  ]));
   const findActiveDatabaseUser = (id?: string) =>
     getUsersState().find(
       (user) => user.active && Boolean(id) && user.id === id,
@@ -45,15 +55,73 @@ export function createDocumentsRouter(
     const now = new Date();
     const directionCode = direction === 'OUTGOING' ? 'OUT' : 'IN';
     const prefix = `BLGFR2-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${directionCode}-`;
-    const highest = getDocumentsState().reduce((currentHighest, document) => {
-      const numbers = [document.trackingNumber, document.routeNo];
-      return numbers.reduce((value, number) => {
-        if (!number?.startsWith(prefix)) return value;
-        const sequence = Number(number.slice(prefix.length));
-        return Number.isInteger(sequence) ? Math.max(value, sequence) : value;
-      }, currentHighest);
-    }, 0);
-    return `${prefix}${String(highest + 1).padStart(2, '0')}`;
+    const usedSequences = new Set<number>();
+    for (const document of getDocumentsState()) {
+      for (const number of [document.trackingNumber, document.routeNo]) {
+        if (number?.startsWith(prefix)) {
+          const seq = Number(number.slice(prefix.length));
+          if (Number.isInteger(seq) && seq > 0) {
+            usedSequences.add(seq);
+          }
+        }
+      }
+    }
+    let nextSeq = 1;
+    while (usedSequences.has(nextSeq)) {
+      nextSeq++;
+    }
+    return `${prefix}${String(nextSeq).padStart(2, '0')}`;
+  };
+  const recalculateDocumentStatus = (document: DocumentRecord) =>
+    recalculateSharedDocumentStatus(document);
+  // A deleted transaction must leave no routing or decision history behind,
+  // otherwise it keeps reappearing in Recorded Actions, notifications and
+  // reports. Only the deletion tombstone written afterwards remains.
+  const purgeDocumentAuditTrail = (trackingNumber?: string, routeNo?: string) => {
+    const keys = [trackingNumber, routeNo]
+      .filter(Boolean)
+      .map((k) => k!.trim().toUpperCase());
+    if (keys.length === 0) return;
+    const logs = getAuditLogsState();
+    const kept = logs.filter(
+      (log) =>
+        !log.documentTrackingNumber ||
+        !keys.includes(log.documentTrackingNumber.trim().toUpperCase()),
+    );
+    if (kept.length === logs.length) return;
+    logs.splice(0, logs.length, ...kept);
+  };
+  const healStaleReturnedStatus = async (
+    req: express.Request,
+    document: DocumentRecord,
+    documentsState: DocumentRecord[],
+    docIndex: number,
+    actingUser: User,
+  ) => {
+    const previousStatus = document.currentStatus;
+    recalculateDocumentStatus(document);
+    if (document.currentStatus === previousStatus) return;
+    document.updatedAt = new Date().toISOString();
+    documentsState[docIndex] = document;
+    setDocumentsState(documentsState);
+    const healLog = addAuditLog(getAuditLogsState(), {
+      userId: actingUser.id,
+      userName: actingUser.fullName,
+      userRole: actingUser.role,
+      action: 'UPDATE_STATUS',
+      documentTrackingNumber: document.trackingNumber,
+      details: `Cleared stale Returned status on ${document.trackingNumber} (${previousStatus} to ${document.currentStatus}) by ${actingUser.fullName}. Remarks: Document was already re-approved after the last disapproval.`,
+      ipAddress: req.ip || '127.0.0.1',
+    }, false);
+    saveDatabaseToFile(false);
+    // The next read reloads documents from MySQL, so the healed status has to
+    // be written back there too or it would be reverted to the stale value.
+    await Promise.all([
+      saveDocumentDirect(document),
+      saveAuditLogDirect(healLog),
+    ]).catch((error) => {
+      console.error('[healStaleReturnedStatus] MySQL write failed:', error);
+    });
   };
   const canViewDocument = (user: User, document: DocumentRecord) => {
     const permissions =
@@ -124,12 +192,19 @@ export function createDocumentsRouter(
             ) < 5000,
         );
         if (duplicate) return [];
+        const isRemoved = getAuditLogsState().some(
+          (l) =>
+            l.documentTrackingNumber === document.trackingNumber &&
+            l.details.toLowerCase().includes(`removed recipient ${recipientName.toLowerCase()}`) &&
+            new Date(l.timestamp).getTime() >= new Date(log.timestamp).getTime(),
+        );
+        if (isRemoved) return [];
         const sender = findActiveDatabaseUser(log.userId);
         const statusAfter =
           log.details.match(/Status:\s*([^|]+)$/i)?.[1]?.trim() ||
           document.currentStatus;
         return [{
-          id: `route-recovered-${log.id}`,
+          id: nextRouteId(),
           documentId: document.id,
           stepNumber: storedRoutes.length + index + 1,
           routeNo: document.routeNo || document.trackingNumber,
@@ -277,7 +352,7 @@ export function createDocumentsRouter(
       });
     }
 
-    const newDocumentId = `doc-${randomUUID()}`;
+    const newDocumentId = nextDocumentId();
     const isMultiDivisionInitialRoute =
       body.routeAllDivisions || body.routeMultipleDivisions;
     const initialRecipients = usersState.filter(
@@ -300,6 +375,14 @@ export function createDocumentsRouter(
       });
     }
     const isOutside = Boolean(body.isOutside);
+    const isNotYetRouted =
+      !isOutside &&
+      (body.currentStatus === 'NOT_YET_ROUTED' ||
+        body.isNotYetRouted ||
+        (!body.currentDivision &&
+          !body.assignedUserId &&
+          (!body.initialRecipientIds || body.initialRecipientIds.length === 0)));
+
     const completedRemarks =
       body.remarks && String(body.remarks).trim() !== '' && String(body.remarks).trim() !== 'N/A'
         ? String(body.remarks).trim()
@@ -318,26 +401,39 @@ export function createDocumentsRouter(
       senderName: body.senderName || '',
       senderPosition: body.senderPosition || '',
       senderAddress: body.senderAddress || '',
-      recipientName: body.recipientName || '',
+      recipientName: isOutside ? (body.recipientName || '') : (isNotYetRouted ? 'Not Yet Routed' : (body.recipientName || '')),
       recipientPosition: body.recipientPosition || '',
       recipientOffice: body.recipientOffice || '',
       recipientAddress: body.recipientAddress || '',
       priority: isOutside ? 'ROUTINE' : (body.priority || 'ROUTINE'),
-      currentStatus: isOutside ? 'COMPLETED' : (body.currentStatus || 'PENDING'),
-      currentDivision: body.currentDivision || 'AD',
-      assignedUser: isOutside ? (body.recipientName || 'External Recipient') : (directlyAssignedUser?.fullName || ''),
-      assignedUserId: isOutside ? undefined : directlyAssignedUser?.id,
+      currentStatus: isOutside
+        ? 'COMPLETED'
+        : (isNotYetRouted ? 'NOT_YET_ROUTED' : (body.currentStatus || 'PENDING')),
+      currentDivision: isNotYetRouted
+        ? (actingUser.divisionCode || 'AD')
+        : (body.currentDivision || 'AD'),
+      assignedUser: isOutside
+        ? (body.recipientName || 'External Recipient')
+        : (isNotYetRouted ? 'Not Yet Routed' : (directlyAssignedUser?.fullName || '')),
+      assignedUserId: isOutside || isNotYetRouted ? undefined : directlyAssignedUser?.id,
       dateReceived: body.dateReceived || now,
       targetCompletionDate:
         body.targetCompletionDate ||
         new Date(Date.now() + 3 * 86400000).toISOString(),
       tags: body.tags || [],
-      attachments: (body.attachments || []).map((file: any) => ({ ...file, attachmentScope: 'DOCUMENT', uploadedByUserId: actingUser.id })),
-      actionRequested: isOutside ? 'Dispatched / Recorded (Outside Office)' : (body.initialAction || 'Appropriate Action'),
+      attachments: (body.attachments || []).map((file: any) => ({
+        ...file,
+        id: nextAttachmentId(),
+        attachmentScope: 'DOCUMENT',
+        uploadedByUserId: actingUser.id,
+      })),
+      actionRequested: isOutside
+        ? 'Dispatched / Recorded (Outside Office)'
+        : (isNotYetRouted ? (body.initialAction || 'Awaiting Initial Routing') : (body.initialAction || 'Appropriate Action')),
       routes: isOutside
         ? [
             {
-              id: `route-${randomUUID()}`,
+              id: nextRouteId(),
               documentId: newDocumentId,
               stepNumber: 1,
               routeNo: trackingNumber,
@@ -355,47 +451,49 @@ export function createDocumentsRouter(
               createdAt: now,
             },
           ]
-        : (initialRecipients.length > 0
-          ? initialRecipients.map((recipient, index) => ({
-              id: `route-${randomUUID()}`,
-              documentId: newDocumentId,
-              stepNumber: index + 1,
-              routeNo: trackingNumber,
-              fromDivision: body.currentDivision || 'AD',
-              fromUserId: actingUser.id,
-              fromUser: actingUser.fullName,
-              toDivision: recipient.divisionCode,
-              toUser: recipient.fullName,
-              toUserId: recipient.id,
-              actionRequested: body.initialAction || 'Initial Entry & Routing',
-              remarks: body.remarks || 'N/A',
-              statusBefore: 'PENDING' as DocumentStatus,
-              statusAfter: (body.currentStatus || 'PENDING') as DocumentStatus,
-              isMultiRoute: initialRecipients.length > 1,
-              receivedAt: now,
-              createdAt: now,
-            }))
-          : [
-              {
-                id: `route-${randomUUID()}`,
+        : (isNotYetRouted
+          ? []
+          : (initialRecipients.length > 0
+            ? initialRecipients.map((recipient, index) => ({
+                id: nextRouteId(),
                 documentId: newDocumentId,
-                stepNumber: 1,
+                stepNumber: index + 1,
                 routeNo: trackingNumber,
                 fromDivision: body.currentDivision || 'AD',
                 fromUserId: actingUser.id,
                 fromUser: actingUser.fullName,
-                toDivision: body.currentDivision || 'AD',
-                toUser: directlyAssignedUser?.fullName,
-                toUserId: directlyAssignedUser?.id,
-                actionRequested:
-                  body.initialAction || 'Initial Entry & Routing',
+                toDivision: recipient.divisionCode,
+                toUser: recipient.fullName,
+                toUserId: recipient.id,
+                actionRequested: body.initialAction || 'Initial Entry & Routing',
                 remarks: body.remarks || 'N/A',
-                statusBefore: 'PENDING',
-                statusAfter: body.currentStatus || 'PENDING',
+                statusBefore: 'PENDING' as DocumentStatus,
+                statusAfter: (body.currentStatus || 'PENDING') as DocumentStatus,
+                isMultiRoute: initialRecipients.length > 1,
                 receivedAt: now,
                 createdAt: now,
-              },
-            ]),
+              }))
+            : [
+                {
+                  id: nextRouteId(),
+                  documentId: newDocumentId,
+                  stepNumber: 1,
+                  routeNo: trackingNumber,
+                  fromDivision: body.currentDivision || 'AD',
+                  fromUserId: actingUser.id,
+                  fromUser: actingUser.fullName,
+                  toDivision: body.currentDivision || 'AD',
+                  toUser: directlyAssignedUser?.fullName,
+                  toUserId: directlyAssignedUser?.id,
+                  actionRequested:
+                    body.initialAction || 'Initial Entry & Routing',
+                  remarks: body.remarks || 'N/A',
+                  statusBefore: 'PENDING',
+                  statusAfter: body.currentStatus || 'PENDING',
+                  receivedAt: now,
+                  createdAt: now,
+                },
+              ])),
       createdBy: actingUser.fullName,
       createdByUserId: actingUser.id,
       createdAt: now,
@@ -434,7 +532,7 @@ export function createDocumentsRouter(
     );
 
     const createdNotifications: NotificationItem[] = [];
-    if (!isOutside && body.assignedUserId) {
+    if (!isOutside && !isNotYetRouted && body.assignedUserId) {
       const assignedRecipient = usersState.find(
         (user) =>
           user.id === body.assignedUserId &&
@@ -453,10 +551,11 @@ export function createDocumentsRouter(
               trackingNumber,
               type: 'ACTION_REQUIRED',
             },
+            getNotificationsState(),
           ),
         );
       }
-    } else if (!isOutside && body.currentDivision) {
+    } else if (!isOutside && !isNotYetRouted && body.currentDivision) {
       const excludedRecipientIds = Array.isArray(body.excludedRecipientIds)
         ? body.excludedRecipientIds
         : [];
@@ -481,9 +580,16 @@ export function createDocumentsRouter(
                 trackingNumber,
                 type: 'ACTION_REQUIRED',
               },
+              getNotificationsState(),
             ),
           );
         });
+    }
+    if (createdNotifications.length > 0) {
+      setNotificationsState([
+        ...createdNotifications,
+        ...getNotificationsState(),
+      ]);
     }
 
     await Promise.all([
@@ -529,6 +635,24 @@ export function createDocumentsRouter(
               route.toUser?.trim().toLowerCase() ===
                 actingUser.fullName.trim().toLowerCase())),
       );
+    if (!assignedRoute && decision === 'APPROVED') {
+      assignedRoute = [...(doc.routes || [])]
+        .reverse()
+        .find(
+          (route) =>
+            route.toUserId === actingUser.id ||
+            (!route.toUserId &&
+              route.toUser?.trim().toLowerCase() ===
+                actingUser.fullName.trim().toLowerCase()) ||
+            route.fromUserId === actingUser.id ||
+            (!route.fromUserId &&
+              route.fromUser?.trim().toLowerCase() ===
+                actingUser.fullName.trim().toLowerCase()) ||
+            doc.assignedUserId === actingUser.id ||
+            doc.createdByUserId === actingUser.id ||
+            ['ADMIN', 'SUPER_ADMIN'].includes(actingUser.role),
+        );
+    }
     if (!assignedRoute) {
       const recoveredAudit = [...getAuditLogsState()]
         .filter(
@@ -546,7 +670,7 @@ export function createDocumentsRouter(
       if (recoveredAudit) {
         const recoveredSender = findActiveDatabaseUser(recoveredAudit.userId);
         assignedRoute = {
-          id: `route-recovered-${recoveredAudit.id}`,
+          id: nextRouteId(),
           documentId: doc.id,
           stepNumber: (doc.routes || []).length + 1,
           routeNo: doc.routeNo || doc.trackingNumber,
@@ -583,8 +707,14 @@ export function createDocumentsRouter(
           route.createdAt > assignedRoute.createdAt &&
           ['APPROVED', 'DISAPPROVED'].includes(route.actionRequested),
       );
+    const hasDisapprovalInTrail =
+      doc.currentStatus === 'RETURNED' ||
+      (doc.routes || []).some(
+        (r) => r.actionRequested?.toUpperCase() === 'DISAPPROVED',
+      );
     const isReapproval =
-      decision === 'APPROVED' && latestDecision?.actionRequested === 'DISAPPROVED';
+      decision === 'APPROVED' &&
+      (latestDecision?.actionRequested === 'DISAPPROVED' || hasDisapprovalInTrail);
     if (latestDecision && !isReapproval) {
       return res.status(409).json({ error: 'You have already acted on this document route.' });
     }
@@ -617,7 +747,7 @@ export function createDocumentsRouter(
               doc.createdBy?.trim().toLowerCase()),
       );
     const decisionRoute: DocumentRouteStep = {
-      id: `route-decision-${randomUUID()}`,
+      id: nextRouteId(),
       documentId: doc.id,
       stepNumber: (doc.routes || []).length + 1,
       routeNo: doc.routeNo || doc.trackingNumber,
@@ -643,6 +773,10 @@ export function createDocumentsRouter(
       doc.currentDivision = sender.divisionCode;
       doc.assignedUser = sender.fullName;
       doc.assignedUserId = sender.id;
+    } else if (decision === 'APPROVED') {
+      doc.currentDivision = actingUser.divisionCode;
+      doc.assignedUser = actingUser.fullName;
+      doc.assignedUserId = actingUser.id;
     }
     documentsState[docIndex] = doc;
     setDocumentsState(documentsState);
@@ -679,8 +813,6 @@ export function createDocumentsRouter(
       remarks,
       replyAttachments,
       newStatus,
-      actingUserId,
-      actingUserName,
       routeNo,
     } = req.body;
     const actingUser = getActingUser(req);
@@ -694,10 +826,13 @@ export function createDocumentsRouter(
     if (doc.currentStatus === 'COMPLETED' || hasCompletedPart(doc, actingUser)) {
       return res.status(409).json({ error: 'This transaction has ended. Completed documents cannot be routed or changed.' });
     }
-    if (doc.currentStatus === 'RETURNED') {
+    if (hasOpenDisapproval(doc)) {
       return res.status(409).json({
         error: 'This document is disapproved. Re-approve it before routing.',
       });
+    }
+    if (doc.currentStatus === 'RETURNED') {
+      await healStaleReturnedStatus(req, doc, documentsState, docIndex, actingUser);
     }
     if (getPendingDecisionRoute(actingUser, doc)) {
       return res.status(409).json({
@@ -747,7 +882,8 @@ export function createDocumentsRouter(
     if (newStatus === 'COMPLETED' && (toUserId || toUser)) {
       return res.status(400).json({ error: 'Complete your part without sending to new recipients.' });
     }
-    const nextStatus: DocumentStatus = newStatus || doc.currentStatus;
+    const nextStatus: DocumentStatus =
+      newStatus || (doc.currentStatus === 'NOT_YET_ROUTED' ? 'PENDING' : doc.currentStatus);
 
     const stepNumber = (doc.routes || []).length + 1;
     markLatestRouteAsProcessed(
@@ -759,7 +895,7 @@ export function createDocumentsRouter(
       Array.isArray(replyAttachments) ? replyAttachments : undefined,
     );
     const newRoute: DocumentRouteStep = {
-      id: `route-${randomUUID()}`,
+      id: nextRouteId(),
       documentId: doc.id,
       stepNumber,
       routeNo: routeNo || doc.routeNo || '',
@@ -775,7 +911,12 @@ export function createDocumentsRouter(
       statusAfter: nextStatus,
       receivedAt: now,
       attachments: Array.isArray(replyAttachments)
-        ? replyAttachments.map((file: any) => ({ ...file, attachmentScope: 'RECIPIENT', uploadedByUserId: actingUser.id }))
+        ? replyAttachments.map((file: any) => ({
+            ...file,
+            id: nextAttachmentId(),
+            attachmentScope: 'RECIPIENT',
+            uploadedByUserId: actingUser.id,
+          }))
         : undefined,
       createdAt: now,
     };
@@ -838,17 +979,217 @@ export function createDocumentsRouter(
 
     // Notify assigned recipient user
     if (recipient) {
-      createNotification({
+      const notification = createNotification({
         userId: recipient.id,
         title: 'Document Routed to You',
         message: `Document ${doc.trackingNumber} (${doc.title}) forwarded for: ${actionRequested}`,
         documentId: doc.id,
         trackingNumber: doc.trackingNumber,
         type: nextStatus === 'FOR_SIGNATURE' ? 'ACTION_REQUIRED' : 'INFO',
-      });
+      }, getNotificationsState());
+      setNotificationsState([notification, ...getNotificationsState()]);
     }
 
     res.json(doc);
+  });
+
+  // DELETE Recipient Route from Flow (Remove mistakenly routed recipient)
+  router.delete('/:id/routes/:routeId', async (req, res) => {
+    const documentsState = getDocumentsState();
+    const docIndex = documentsState.findIndex((d) => d.id === req.params.id);
+    if (docIndex === -1) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const doc = documentsState[docIndex];
+    const { routeId } = req.params;
+    const actingUserId = String(
+      req.get('X-User-Id') ||
+      req.query.actingUserId ||
+      (req.body && req.body.actingUserId) ||
+      '',
+    );
+    const actingUser = findActiveDatabaseUser(actingUserId) || getActingUser(req);
+    if (!actingUser) {
+      return res.status(401).json({ error: 'Active database user required.' });
+    }
+
+    const targetRouteIndex = (doc.routes || []).findIndex((r) => r.id === routeId);
+    if (targetRouteIndex === -1) {
+      return res.status(404).json({ error: 'Route not found' });
+    }
+
+    const targetRoute = doc.routes[targetRouteIndex];
+
+    // Authorization:
+    // User who created the route, document creator, admins, or roles with delete permission
+    const isRouteCreator =
+      targetRoute.fromUserId === actingUser.id ||
+      targetRoute.fromUser?.trim().toLowerCase() === actingUser.fullName?.trim().toLowerCase();
+    const isDocCreator =
+      doc.createdByUserId === actingUser.id ||
+      doc.createdBy?.trim().toLowerCase() === actingUser.fullName?.trim().toLowerCase();
+    const isAdmin = actingUser.role === 'ADMIN' || actingUser.role === 'SYSTEM_ADMIN';
+    const permissions =
+      actingUser.permissions ||
+      DEFAULT_ROLE_PERMISSIONS[actingUser.role] ||
+      DEFAULT_ROLE_PERMISSIONS.STAFF;
+    const hasDeletePermission =
+      actingUser.role === 'SYSTEM_ADMIN' || Boolean(permissions.canDelete);
+
+    if (!isRouteCreator && !isDocCreator && !isAdmin && !hasDeletePermission) {
+      return res.status(403).json({ error: 'You are not authorized to remove this routing step.' });
+    }
+
+    // Synthetic intake routes cannot be deleted
+    if (targetRoute.id.startsWith('intake-')) {
+      return res.status(400).json({ error: 'Cannot remove the initial document registration route.' });
+    }
+
+    // Step 1 is the document's original/new routing transaction. Removing it
+    // cancels the document registration itself and releases its route number,
+    // even when a later recipient has already produced Step 2 or beyond.
+    const isInitialRoute =
+      targetRoute.stepNumber === 1 || !targetRoute.stepNumber;
+
+    // Cancelling or deleting a whole transaction can be done by System Administrators,
+    // roles/users with the Delete permission (canDelete), or the document creator.
+    if (isInitialRoute && !hasDeletePermission && !isDocCreator) {
+      return res.status(403).json({
+        error: 'Delete permission or System Administrator access is required to cancel or delete this transaction.',
+      });
+    }
+
+    if (isInitialRoute) {
+      // For initial / new route: cancel and remove the entire transaction so the route number is freed for reuse
+      setDocumentsState(documentsState.filter((d) => d.id !== doc.id));
+      purgeDocumentAuditTrail(doc.trackingNumber, doc.routeNo);
+
+      // Remove notifications for this document
+      const docKeys = [doc.id, doc.trackingNumber, doc.routeNo]
+        .filter(Boolean)
+        .map((k) => k!.trim().toUpperCase());
+      setNotificationsState(
+        getNotificationsState().filter((n) => {
+          if (n.documentId && docKeys.includes(n.documentId.trim().toUpperCase())) return false;
+          if (n.trackingNumber && docKeys.includes(n.trackingNumber.trim().toUpperCase())) return false;
+          return true;
+        }),
+      );
+      saveDatabaseToFile(false);
+
+      const deletionAuditLog = addAuditLog(
+        getAuditLogsState(),
+        {
+          userId: actingUser.id,
+          userName: actingUser.fullName,
+          userRole: actingUser.role,
+          action: 'DELETE_DOC',
+          documentTrackingNumber: doc.trackingNumber,
+          details: `Cancelled initial transaction [${doc.trackingNumber}] (${doc.title}) by ${actingUser.fullName}. Route number freed up for reuse. Reason: Misrouted at initial entry / cancelled`,
+          ipAddress: req.ip || '127.0.0.1',
+        },
+        false,
+      );
+
+      await Promise.all([
+        deleteDocumentDirect(doc.id, doc.trackingNumber, doc.routeNo),
+        saveAuditLogDirect(deletionAuditLog),
+      ]);
+
+      return res.json({
+        success: true,
+        deletedDocument: true,
+        freedRouteNumber: doc.routeNo || doc.trackingNumber,
+        message: `Transaction [${doc.trackingNumber}] and route number were completely removed and freed for reuse.`,
+      });
+    }
+
+    // For Step 2 or downstream routes: only remove this recipient step without deleting the whole document
+    const removedRecipientName = targetRoute.toUser || 'Recipient';
+    const removedRecipientId = targetRoute.toUserId;
+
+    // Step 2 and later are individual routing transactions. Remove only the
+    // selected transaction; the document, route number, and other steps stay.
+    const routeIdsToRemove = new Set<string>([targetRoute.id]);
+
+    // Filter routes
+    doc.routes = doc.routes.filter((r) => !routeIdsToRemove.has(r.id));
+
+    // Re-index remaining routes stepNumber
+    doc.routes.forEach((r, idx) => {
+      if (r.stepNumber !== 0) {
+        r.stepNumber = idx + 1;
+      }
+    });
+
+    // Drop notifications tied to the removed step. Once a user has no delivery
+    // left in this document's trail, every notice about it is stale.
+    const removedRecipientUserId =
+      removedRecipientId ||
+      getUsersState()
+        .find(
+          (u) =>
+            Boolean(removedRecipientName) &&
+            u.fullName.trim().toLowerCase() === removedRecipientName.trim().toLowerCase(),
+        )?.id;
+    const stillInTrail = (userId?: string) => {
+      if (!userId) return true;
+      const fullName = getUsersState()
+        .find((u) => u.id === userId)
+        ?.fullName?.trim()
+        .toLowerCase();
+      return doc.routes.some(
+        (route) =>
+          route.toUserId === userId ||
+          route.fromUserId === userId ||
+          Boolean(
+            fullName &&
+              (route.toUser?.trim().toLowerCase() === fullName ||
+                route.fromUser?.trim().toLowerCase() === fullName),
+          ),
+      );
+    };
+    setNotificationsState(
+      getNotificationsState().filter((n) => {
+        if (n.documentId !== doc.id) return true;
+        if (removedRecipientUserId && n.userId === removedRecipientUserId) return false;
+        if (doc.routes.length === 0) return n.userId === doc.createdByUserId;
+        return stillInTrail(n.userId);
+      }),
+    );
+
+    // Recalculate document status and assigned handler
+    recalculateDocumentStatus(doc);
+
+    const now = new Date().toISOString();
+    doc.updatedAt = now;
+    documentsState[docIndex] = doc;
+    setDocumentsState(documentsState);
+    saveDatabaseToFile(false);
+
+    // Audit log
+    const auditLog = addAuditLog(
+      getAuditLogsState(),
+      {
+        userId: actingUser.id,
+        userName: actingUser.fullName,
+        userRole: actingUser.role,
+        action: 'ROUTE_DOC',
+        documentTrackingNumber: doc.trackingNumber,
+        details: `Removed recipient ${removedRecipientName} (${targetRoute.toDivision || ''}) from transaction by ${actingUser.fullName}. Reason: Routing mistake / recalled`,
+        ipAddress: req.ip || '127.0.0.1',
+      },
+      false,
+    );
+
+    await Promise.all([saveDocumentDirect(doc), saveAuditLogDirect(auditLog)]);
+
+    res.json({
+      success: true,
+      message: `Removed only Step ${targetRoute.stepNumber || targetRouteIndex + 1} for ${removedRecipientName}. The document and route number were retained.`,
+      document: doc,
+    });
   });
 
   // POST Transfer / Reassign Document (When document was misrouted or not theirs)
@@ -863,11 +1204,8 @@ export function createDocumentsRouter(
     const {
       fromDivision,
       toDivision,
-      toUser,
       toUserId,
       transferReason,
-      actingUserId,
-      actingUserName,
       routeNo,
     } = req.body;
     const actingUser = getActingUser(req);
@@ -929,7 +1267,7 @@ export function createDocumentsRouter(
     );
 
     const transferRoute: DocumentRouteStep = {
-      id: `route-${randomUUID()}`,
+      id: nextRouteId(),
       documentId: doc.id,
       stepNumber,
       fromDivision: fromDivision || doc.currentDivision,
@@ -969,14 +1307,15 @@ export function createDocumentsRouter(
       ipAddress: req.ip || '127.0.0.1',
     });
 
-    createNotification({
+    const notification = createNotification({
       userId: recipient.id,
       title: `Document Transferred to ${toDivision}`,
       message: `Document ${doc.trackingNumber} transferred by ${actingUser.fullName}: ${transferReason}`,
       documentId: doc.id,
       trackingNumber: doc.trackingNumber,
       type: 'INFO',
-    });
+    }, getNotificationsState());
+    setNotificationsState([notification, ...getNotificationsState()]);
 
     res.json(doc);
   });
@@ -990,11 +1329,6 @@ export function createDocumentsRouter(
     }
 
     const doc = documentsState[docIndex];
-    if (doc.currentStatus === 'RETURNED') {
-      return res.status(409).json({
-        error: 'This document is disapproved. Re-approve it before routing.',
-      });
-    }
     const {
       fromDivision,
       targetDivisions, // Array of DivisionCodes, e.g. ['LTOD', 'LAOD', 'AD']
@@ -1003,8 +1337,6 @@ export function createDocumentsRouter(
       remarks,
       replyAttachments,
       newStatus,
-      actingUserId,
-      actingUserName,
       routeNo,
     } = req.body;
     const actingUser = getActingUser(req);
@@ -1017,6 +1349,14 @@ export function createDocumentsRouter(
     // Completed documents are final: no further routing or decisions.
     if (doc.currentStatus === 'COMPLETED' || hasCompletedPart(doc, actingUser)) {
       return res.status(409).json({ error: 'This transaction has ended. Completed documents cannot be routed or changed.' });
+    }
+    if (hasOpenDisapproval(doc)) {
+      return res.status(409).json({
+        error: 'This document is disapproved. Re-approve it before routing.',
+      });
+    }
+    if (doc.currentStatus === 'RETURNED') {
+      await healStaleReturnedStatus(req, doc, documentsState, docIndex, actingUser);
     }
     if (getPendingDecisionRoute(actingUser, doc)) {
       return res.status(409).json({
@@ -1100,7 +1440,7 @@ export function createDocumentsRouter(
       const targetDiv = target.toDivision;
       const stepNumber = (doc.routes || []).length + 1;
       const multiRouteStep: DocumentRouteStep = {
-        id: `route-${randomUUID()}`,
+        id: nextRouteId(),
         documentId: doc.id,
         stepNumber,
         routeNo: routeNo || doc.routeNo || '',
@@ -1120,7 +1460,12 @@ export function createDocumentsRouter(
         isMultiRoute: true,
         receivedAt: now,
         attachments: Array.isArray(replyAttachments)
-          ? replyAttachments.map((file: any) => ({ ...file, attachmentScope: 'RECIPIENT', uploadedByUserId: actingUser.id }))
+          ? replyAttachments.map((file: any) => ({
+              ...file,
+              id: nextAttachmentId(),
+              attachmentScope: 'RECIPIENT',
+              uploadedByUserId: actingUser.id,
+            }))
           : undefined,
         createdAt: now,
       };
@@ -1128,14 +1473,15 @@ export function createDocumentsRouter(
 
       const targetUser = findActiveDatabaseUser(target.toUserId);
       if (targetUser) {
-        createNotification({
+        const notification = createNotification({
           userId: targetUser.id,
           title: `Multi-Route Received at ${targetDiv}`,
           message: `Document ${doc.trackingNumber} dispatched to multiple divisions including ${targetDiv}`,
           documentId: doc.id,
           trackingNumber: doc.trackingNumber,
           type: 'INFO',
-        });
+        }, getNotificationsState());
+        setNotificationsState([notification, ...getNotificationsState()]);
       }
     });
 
@@ -1192,8 +1538,6 @@ export function createDocumentsRouter(
       fileType,
       url,
       fileData,
-      actingUserId,
-      actingUserName,
     } = req.body;
     const actingUser = getActingUser(req);
     if (!actingUser) {
@@ -1204,7 +1548,7 @@ export function createDocumentsRouter(
     }
 
     const newAttachment = {
-      id: `att-${randomUUID()}`,
+      id: nextAttachmentId(),
       attachmentScope: 'RECIPIENT' as const,
       uploadedByUserId: actingUser.id,
       uploadedForRouteId: [...(doc.routes || [])].reverse().find(route => route.toUserId === actingUser.id && !['APPROVED', 'DISAPPROVED'].includes(route.actionRequested?.toUpperCase()))?.id,
@@ -1296,7 +1640,7 @@ export function createDocumentsRouter(
         doc.routes = routes;
       } else {
         routes.push({
-          id: `route-${randomUUID()}`,
+          id: nextRouteId(),
           documentId: doc.id,
           stepNumber: 1,
           routeNo: doc.routeNo || doc.trackingNumber,
@@ -1386,17 +1730,53 @@ export function createDocumentsRouter(
     if (!doc) {
       return res.status(404).json({ error: 'Document not found' });
     }
-    const actingUser = getActingUser(req);
+    const actingUserId = String(
+      req.get('X-User-Id') ||
+      req.query.actingUserId ||
+      (req.body && req.body.actingUserId) ||
+      '',
+    );
+    const actingUser = findActiveDatabaseUser(actingUserId) || getActingUser(req);
     if (!actingUser) {
       return res.status(401).json({ error: 'Active database user required.' });
     }
     const permissions =
-      actingUser.permissions || DEFAULT_ROLE_PERMISSIONS[actingUser.role];
-    if (actingUser.role !== 'SYSTEM_ADMIN' && !permissions.canDelete) {
-      return res.status(403).json({ error: 'Delete permission is required.' });
+      actingUser.permissions ||
+      DEFAULT_ROLE_PERMISSIONS[actingUser.role] ||
+      DEFAULT_ROLE_PERMISSIONS.STAFF;
+    const isDocCreator =
+      doc.createdByUserId === actingUser.id ||
+      Boolean(
+        doc.createdBy &&
+          actingUser.fullName &&
+          doc.createdBy.trim().toLowerCase() ===
+            actingUser.fullName.trim().toLowerCase(),
+      );
+    const canDelete =
+      actingUser.role === 'SYSTEM_ADMIN' ||
+      Boolean(permissions.canDelete) ||
+      Boolean(isDocCreator);
+
+    if (!canDelete) {
+      return res.status(403).json({
+        error: 'Delete permission or System Administrator access required to delete a transaction.',
+      });
     }
 
     setDocumentsState(documentsState.filter((d) => d.id !== req.params.id));
+    purgeDocumentAuditTrail(doc.trackingNumber, doc.routeNo);
+
+    // Remove notifications for this document
+    const docKeys = [doc.id, doc.trackingNumber, doc.routeNo]
+      .filter(Boolean)
+      .map((k) => k!.trim().toUpperCase());
+    setNotificationsState(
+      getNotificationsState().filter((n) => {
+        if (n.documentId && docKeys.includes(n.documentId.trim().toUpperCase())) return false;
+        if (n.trackingNumber && docKeys.includes(n.trackingNumber.trim().toUpperCase())) return false;
+        return true;
+      }),
+    );
     saveDatabaseToFile(false);
 
     const deletionAuditLog = addAuditLog(
@@ -1415,7 +1795,7 @@ export function createDocumentsRouter(
 
     try {
       await Promise.all([
-        deleteDocumentDirect(doc.id),
+        deleteDocumentDirect(doc.id, doc.trackingNumber, doc.routeNo),
         saveAuditLogDirect(deletionAuditLog),
       ]);
     } catch (error) {

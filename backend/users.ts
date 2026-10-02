@@ -1,5 +1,6 @@
 import express from 'express';
-import crypto, { randomUUID } from 'node:crypto';
+import crypto from 'node:crypto';
+import { nextReadableId } from './readableIds.js';
 import { addAuditLog } from './serverUtils.js';
 import {
   loadLiveUsers,
@@ -14,6 +15,8 @@ import {
 } from './emailService.js';
 import {
   User,
+  Role,
+  DivisionCode,
   AuditLog,
   DEFAULT_ROLE_PERMISSIONS,
 } from '../frontend/src/app/types.js';
@@ -37,14 +40,9 @@ export function createUsersRouter(
       (user) => user.id === String(req.get('X-User-Id') || '') && user.active !== false,
     );
 
-  const canManageUsers = (user?: User): boolean => {
-    if (!user) return false;
-    return user.role === 'SYSTEM_ADMIN';
-  };
-
   const hasUserAction = (user: User | undefined, action: string): boolean => {
     if (!user) return false;
-    if (user.role === 'SYSTEM_ADMIN') return true;
+    if (user.role === 'SYSTEM_ADMIN' || user.divisionCode === 'ITMS') return true;
     if (action.startsWith('USER_')) return false;
     const permissions =
       user.permissions ||
@@ -54,7 +52,7 @@ export function createUsersRouter(
   };
 
   const sanitizeUserAccountPermissions = (user: User): User => {
-    if (user.role === 'SYSTEM_ADMIN') return user;
+    if (user.role === 'SYSTEM_ADMIN' || user.divisionCode === 'ITMS') return user;
     const adminActions = [
       'USER_ACCOUNT_CREATE',
       'USER_ACCOUNT_EDIT',
@@ -122,10 +120,11 @@ export function createUsersRouter(
     if (!actingUser) {
       return res.status(401).json({ error: 'Active database user required.' });
     }
-    if (actingUser.role !== 'SYSTEM_ADMIN') {
+    if (actingUser.role !== 'SYSTEM_ADMIN' && actingUser.divisionCode !== 'ITMS') {
       return res.status(403).json({ error: 'System Administrator access required to create user accounts.' });
     }
-    if (body.role === 'SYSTEM_ADMIN' && !hasUserAction(actingUser, 'USER_SYSTEM_ADMIN_MANAGE')) {
+    const isTargetITMS = body.divisionCode === 'ITMS' || body.role === 'SYSTEM_ADMIN';
+    if (isTargetITMS && !hasUserAction(actingUser, 'USER_SYSTEM_ADMIN_MANAGE')) {
       return res.status(403).json({
         error: 'Protected System Administrator account permission required.',
       });
@@ -140,12 +139,12 @@ export function createUsersRouter(
     }
 
     if (
-      body.role === 'SYSTEM_ADMIN' &&
-      usersState.filter((user) => user.role === 'SYSTEM_ADMIN').length >=
+      isTargetITMS &&
+      usersState.filter((user) => user.role === 'SYSTEM_ADMIN' || user.divisionCode === 'ITMS').length >=
         MAX_SYSTEM_ADMINISTRATORS
     ) {
       return res.status(403).json({
-        error: 'A maximum of three System Administrator accounts is allowed.',
+        error: 'A maximum of three System Administrator (ITMS) accounts is allowed.',
       });
     }
     const username = String(body.username || '').trim();
@@ -159,26 +158,27 @@ export function createUsersRouter(
     ) {
       return res.status(409).json({ error: 'Username already exists' });
     }
+    const divisionCode = (body.divisionCode || (body.role === 'SYSTEM_ADMIN' ? 'ITMS' : 'AD')) as DivisionCode;
+    const isITMS = divisionCode === 'ITMS' || body.role === 'SYSTEM_ADMIN';
+    const computedRole: Role = isITMS
+      ? 'SYSTEM_ADMIN'
+      : (divisionCode === 'ORD' ? 'ORD' : (body.role || 'STAFF'));
+
     const newUser: User = sanitizeUserAccountPermissions({
-      id: `usr-${randomUUID()}`,
+      id: nextReadableId('USR', usersState),
       username,
       password: body.password,
       fullName: body.fullName,
       email: body.email,
-      role: body.role || 'STAFF',
-      divisionCode:
-        body.role === 'ADMIN'
-          ? 'AD'
-          : body.role === 'SYSTEM_ADMIN'
-            ? 'ITMS'
-            : body.divisionCode || 'AD',
-      designation: body.designation || 'Staff Member',
+      role: computedRole,
+      divisionCode: divisionCode,
+      designation: body.designation || (isITMS ? 'IT Officer / System Administrator' : 'Staff Member'),
       contactNo: body.contactNo || '',
       avatarUrl: body.avatarUrl,
       permissions:
         body.permissions ||
         structuredClone(
-          DEFAULT_ROLE_PERMISSIONS[body.role || 'STAFF'] ||
+          DEFAULT_ROLE_PERMISSIONS[computedRole] ||
             DEFAULT_ROLE_PERMISSIONS.STAFF,
         ),
       active: true,
@@ -228,10 +228,11 @@ export function createUsersRouter(
       return res.status(404).json({ error: 'User not found' });
     }
     const isSelfUpdate = actingUser.id === req.params.id;
-    if (!isSelfUpdate && actingUser.role !== 'SYSTEM_ADMIN') {
+    const isActingAdmin = actingUser.role === 'SYSTEM_ADMIN' || actingUser.divisionCode === 'ITMS';
+    if (!isSelfUpdate && !isActingAdmin) {
       return res.status(403).json({ error: 'System Administrator access required to modify user accounts.' });
     }
-    const isSystemAdministrator = usersState[uIdx].role === 'SYSTEM_ADMIN';
+    const isSystemAdministrator = usersState[uIdx].role === 'SYSTEM_ADMIN' || usersState[uIdx].divisionCode === 'ITMS';
     if (
       !isSelfUpdate &&
       isSystemAdministrator &&
@@ -241,8 +242,9 @@ export function createUsersRouter(
         error: 'Protected System Administrator account permission required.',
       });
     }
+    const willBeAdmin = req.body.divisionCode === 'ITMS' || req.body.role === 'SYSTEM_ADMIN';
     if (
-      req.body.role === 'SYSTEM_ADMIN' &&
+      willBeAdmin &&
       !hasUserAction(actingUser, 'USER_SYSTEM_ADMIN_MANAGE')
     ) {
       return res.status(403).json({
@@ -252,6 +254,19 @@ export function createUsersRouter(
     const requestedCurrentPassword = String(req.body.currentPassword || '');
     const updates = { ...req.body };
     delete updates.currentPassword;
+    if (updates.divisionCode) {
+      if (updates.divisionCode === 'ITMS') {
+        updates.role = 'SYSTEM_ADMIN';
+        if (!updates.permissions) {
+          updates.permissions = structuredClone(DEFAULT_ROLE_PERMISSIONS.SYSTEM_ADMIN);
+        }
+      } else if (usersState[uIdx].role === 'SYSTEM_ADMIN' || updates.role === 'SYSTEM_ADMIN') {
+        updates.role = updates.divisionCode === 'ORD' ? 'ORD' : 'STAFF';
+        if (!updates.permissions) {
+          updates.permissions = structuredClone(DEFAULT_ROLE_PERMISSIONS.STAFF);
+        }
+      }
+    }
     if (updates.permissions) {
       const currentlyCanManageSystemAdministrators = Boolean(
         usersState[uIdx].permissions?.allowedActions?.includes(
@@ -507,13 +522,23 @@ export function createUsersRouter(
     if (!actingUser) {
       return res.status(401).json({ error: 'Active database user required.' });
     }
-    if (actingUser.role !== 'SYSTEM_ADMIN') {
-      return res.status(403).json({ error: 'System Administrator access required to delete user accounts.' });
+    const permissions =
+      actingUser.permissions ||
+      DEFAULT_ROLE_PERMISSIONS[actingUser.role] ||
+      DEFAULT_ROLE_PERMISSIONS.STAFF;
+    const canDeleteUser =
+      actingUser.role === 'SYSTEM_ADMIN' ||
+      actingUser.divisionCode === 'ITMS' ||
+      Boolean(permissions.canDelete) ||
+      Boolean(permissions.allowedActions?.includes('USER_ACCOUNT_DELETE'));
+
+    if (!canDeleteUser) {
+      return res.status(403).json({ error: 'Delete permission or System Administrator access required to delete user accounts.' });
     }
     const accountToDelete = usersState.find(
       (user) => user.id === req.params.id,
     );
-    if (accountToDelete?.role === 'SYSTEM_ADMIN') {
+    if (accountToDelete?.role === 'SYSTEM_ADMIN' || accountToDelete?.divisionCode === 'ITMS') {
       return res.status(403).json({
         error: 'System Administrator accounts cannot be deleted.',
       });

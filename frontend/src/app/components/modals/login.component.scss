@@ -230,29 +230,57 @@
   }
 
   &.has-toggle {
-    padding-right: 2.5rem;
+    padding-right: 2.75rem;
+    --padding-end: 2.75rem;
   }
 }
 
+/* Vertically centred with top/bottom + auto margins so no transform is needed.
+   Global button:hover/active transforms in shared-app.scss / ui-enhancements.scss
+   would otherwise wipe out a translateY(-50%) centring transform and drop the
+   button ~half its height on hover/press. */
 .login-toggle-pw {
   position: absolute;
-  right: 0.625rem;
-  display: grid;
-  place-items: center;
-  padding: 0.35rem;
+  right: 0.5rem;
+  top: 0;
+  bottom: 0;
+  margin-block: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  min-height: 0 !important;
+  min-width: 0;
+  padding: 0;
   border: none;
   border-radius: 0.5rem;
   background: transparent;
-  color: #94a3b8;
+  color: #64748b;
   cursor: pointer;
-  transition: color 0.15s ease;
+  z-index: 10;
+  transform: none !important;
+  transition: color 0.15s ease, background-color 0.15s ease;
 
   &:hover {
-    color: #334155;
+    transform: none !important;
+    color: #0f172a;
+    background: rgba(15, 23, 42, 0.06);
+  }
+
+  &:active {
+    transform: none !important;
+    color: #1d4ed8;
+    background: rgba(37, 99, 235, 0.12);
   }
 
   ion-icon {
-    font-size: 1rem;
+    display: block;
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 1.25rem;
+    flex: 0 0 auto;
+    pointer-events: none;
   }
 }
 
@@ -514,8 +542,12 @@
     }
   }
 
-  .login-toggle-pw:hover {
-    color: #f1f5f9;
+  .login-toggle-pw {
+    color: #94a3b8;
+    &:hover {
+      color: #f1f5f9;
+      background: rgba(255, 255, 255, 0.08);
+    }
   }
 
   .login-alert-error {

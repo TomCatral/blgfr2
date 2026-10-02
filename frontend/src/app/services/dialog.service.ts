@@ -1,31 +1,37 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
 
 export interface DialogRequest {
   kind: 'confirm' | 'prompt';
   message: string;
   defaultValue: string;
+  title?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  tone?: 'default' | 'danger';
   resolve: (value: boolean | string | null) => void;
 }
+
+export type ConfirmDialogOptions = Pick<
+  DialogRequest,
+  'title' | 'confirmLabel' | 'cancelLabel' | 'tone'
+>;
 
 function createRequest(
   kind: 'confirm' | 'prompt',
   message: string,
   defaultValue = '',
+  options: ConfirmDialogOptions = {},
 ): Promise<boolean | string | null> {
   return new Promise((resolve) => {
-    requests.next({ kind, message, defaultValue, resolve });
+    requests.next({ kind, message, defaultValue, ...options, resolve });
   });
 }
 
 const requests = new BehaviorSubject<DialogRequest | null>(null);
 
-export function subscribeToDialogs(): Observable<DialogRequest | null> {
-  return requests.asObservable();
-}
-
-export function showConfirm(message: string): Promise<boolean> {
-  return createRequest('confirm', message) as Promise<boolean>;
+export function showConfirm(message: string, options: ConfirmDialogOptions = {}): Promise<boolean> {
+  return createRequest('confirm', message, '', options) as Promise<boolean>;
 }
 
 export function showPrompt(message: string, defaultValue = ''): Promise<string | null> {

@@ -164,14 +164,17 @@
               placeholder="Enter your account password"
               class="login-input has-toggle"
             />
-            <ion-button
+            <button
               type="button"
               class="login-toggle-pw"
+              [title]="showPassword ? 'Hide password' : 'Show password'"
               [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+              [attr.aria-pressed]="showPassword"
+              (mousedown)="$event.preventDefault()"
               (click)="showPassword = !showPassword"
             >
-              <ion-icon [name]="showPassword ? 'eye-off' : 'eye'"></ion-icon>
-            </ion-button>
+              <ion-icon [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+            </button>
           </div>
         </label>
 

@@ -4,6 +4,8 @@ import {
   Input,
   Output,
   OnInit,
+  OnChanges,
+  SimpleChanges,
   CUSTOM_ELEMENTS_SCHEMA,
 } from '@angular/core';
 import { NgFor } from '@angular/common';
@@ -65,7 +67,7 @@ function makeValue(label: string, existing: ManagedOption[]): string {
   styleUrl: './managed-options-select.component.scss',
   templateUrl: './managed-options-select.component.html',
 })
-export class ManagedOptionsSelectComponent implements OnInit {
+export class ManagedOptionsSelectComponent implements OnInit, OnChanges {
   @Input() storageKey = '';
   @Input() options: ManagedOption[] = [];
   @Input() value = '';
@@ -84,6 +86,23 @@ export class ManagedOptionsSelectComponent implements OnInit {
 
   ngOnInit(): void {
     if (this.storageKey) this.loadFromStorage();
+    this.ensureSelectedValue();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['options'] || changes['value']) {
+      this.ensureSelectedValue();
+    }
+  }
+
+  private ensureSelectedValue(): void {
+    const opts = this.managedOptions;
+    if (!opts.length) return;
+    const match = opts.find((o) => o.value === this.value);
+    if (!match) {
+      this.value = opts[0].value;
+      this.valueChange.emit(this.value);
+    }
   }
 
   get managedOptions(): ManagedOption[] {

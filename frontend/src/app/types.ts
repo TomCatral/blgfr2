@@ -16,6 +16,7 @@ export type PriorityLevel =
   | 'CONFIDENTIAL';
 
 export type DocumentStatus =
+  | 'NOT_YET_ROUTED' // Purple / Violet - Registered in system but not yet routed
   | 'PENDING' // Yellow / Orange - Newly received or awaiting processing
   | 'IN_PROGRESS' // Blue - Currently being acted upon
   | 'FOR_SIGNATURE' // Purple / Yellow - Awaiting approval/signature
@@ -45,7 +46,7 @@ export interface RolePermission {
   mainMenu: boolean;
   management: boolean;
   allowedViews: string[];
-  canDelete: boolean; // Whether role can delete documents
+  canDelete: boolean; // Unified delete permission: delete/cancel transactions, accounts, and directory staff
   canViewAllDocuments: boolean; // Global visibility; otherwise users only see documents routed or assigned to them
   canViewAllRoutes: boolean; // Whether the role can see the complete routing trail across divisions
   allowedActions?: string[]; // granular feature actions controlled in User & Role Access Manager
