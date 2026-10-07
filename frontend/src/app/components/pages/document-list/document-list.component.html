@@ -179,7 +179,7 @@
                   <button type="button" [ngClass]="'viewButton' | cls" (click)="$event.stopPropagation(); onSelectDoc(doc)" [attr.aria-label]="'View ' + doc.routeNo" title="View document details">
                     <ion-icon name="eye" [ngClass]="'actionIcon' | cls"></ion-icon>
                   </button>
-                  @if (doc.currentStatus !== 'COMPLETED' && doc.currentStatus !== 'RETURNED') {
+                  @if (currentUser.role !== 'SYSTEM_ADMIN' && doc.currentStatus !== 'COMPLETED' && doc.currentStatus !== 'RETURNED') {
                     <button
                       type="button"
                       [disabled]="!canRoute(doc)"

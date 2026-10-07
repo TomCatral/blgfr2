@@ -342,7 +342,48 @@
   }
 }
 
-/* Handoff instruction belongs above the flow card of its actual author. */
+/* Sender-owned routing note appears before the recipient card. */
+.flow-dispatch-note-card {
+  width: 100%;
+  max-width: 28rem;
+  margin: 0 auto 0.65rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid #bfdbfe;
+  border-left: 3.5px solid #2563eb;
+  border-radius: 0.875rem;
+  background: linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%);
+  color: #1e3a8a;
+  text-align: left;
+  box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.1);
+
+  p {
+    margin: 0.35rem 0 0;
+    color: #334155;
+    font-size: 0.8125rem;
+    font-style: italic;
+    line-height: 1.5;
+  }
+}
+
+.flow-dispatch-note-header {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.045em;
+}
+
+.flow-dispatch-note-target {
+  margin-top: 0.35rem;
+  color: #64748b;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+/* Final instruction appears after the user who recorded it. */
 .flow-handoff-instruction-card {
   width: 100%;
   max-width: 28rem;
@@ -362,8 +403,8 @@
   }
 }
 
-.flow-handoff-instruction-card--above {
-  margin: 0 auto 0.65rem;
+.flow-handoff-instruction-card--below {
+  margin: 0.65rem auto 0;
 }
 
 .flow-handoff-header {

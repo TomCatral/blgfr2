@@ -144,7 +144,7 @@ export async function sendTemporaryPasswordEmail(
             </div>
 
             <p style="margin: 0 0 12px; font-size: 13px; line-height: 1.55; color: #334155;">
-              <strong>Next Steps:</strong> Sign in with your username (<code>${user.username}</code>) and this temporary password, then immediately update your password under User Settings.
+              <strong>Next Steps:</strong> Sign in with your username (<code>${user.username}</code>) and this temporary password. The system will then ask you to create your own new password before you can continue.
             </p>
             
             <div style="margin: 20px 0 0; padding: 12px 14px; background: #fef2f2; border-left: 3px solid #ef4444; border-radius: 0 6px 6px 0; font-size: 12px; color: #991b1b; line-height: 1.5;">
@@ -179,7 +179,7 @@ export async function sendTemporaryPasswordEmail(
         `Temporary Password: ${temporaryPassword}`,
         `Validity: ${expiresInMinutes} minutes only`,
         '',
-        'Please sign in immediately using this temporary password and update your password under User Settings.',
+        'Please sign in immediately using this temporary password. The system will ask you to create your own new password before you can continue.',
         'If you did not request this recovery, please check your account immediately.',
       ].join('\n'),
       html: htmlContent,
@@ -301,3 +301,157 @@ export async function sendPasswordUpdatedEmail(
     return { success: false, error: err?.message };
   }
 }
+
+export async function sendRoutingReminderEmail(
+  recipient: UserEmailTarget,
+  sender: { fullName: string; role?: string },
+  doc: {
+    routeNo?: string | null;
+    trackingNumber: string;
+    title: string;
+    subject?: string | null;
+    currentDivision?: string | null;
+  },
+  reminderMessage: string,
+  actionRequested = 'Appropriate Action',
+): Promise<{ success: boolean; error?: string }> {
+  const email = recipient.email?.trim();
+  if (!email || email === 'N/A' || !email.includes('@')) {
+    return { success: false, error: `Recipient "${recipient.fullName}" has no valid email address.` };
+  }
+
+  const config = getSmtpConfig();
+  if (!config.isConfigured) {
+    return {
+      success: false,
+      error: 'SMTP email delivery is not configured. Please verify SMTP_USER and SMTP_PASSWORD in .env.',
+    };
+  }
+
+  const transporter = createTransporter();
+  if (!transporter) {
+    return { success: false, error: 'Could not initialize email transporter.' };
+  }
+
+  const trackingDisplay = doc.routeNo || doc.trackingNumber;
+  const subject = `[ACTION REQUIRED] DTS Routing Reminder: ${trackingDisplay} - ${doc.title}`;
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${subject}</title>
+    </head>
+    <body style="margin: 0; padding: 24px; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+        <tr>
+          <td style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 26px 24px; text-align: center;">
+            <h1 style="margin: 0; color: #ffffff; font-size: 16px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;">
+              Bureau of Local Government Finance
+            </h1>
+            <p style="margin: 6px 0 0; color: #bfdbfe; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;">
+              Regional Office No. II &bull; Document Tracking System
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 28px 24px; color: #1e293b;">
+            <div style="display: inline-block; padding: 4px 12px; background: #fef3c7; border: 1px solid #fde68a; border-radius: 9999px; font-size: 11px; font-weight: 800; color: #b45309; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px;">
+              Routing Action Reminder
+            </div>
+            
+            <p style="margin: 0 0 14px; font-size: 15px; font-weight: 700; color: #0f172a;">
+              Dear ${recipient.fullName},
+            </p>
+            <p style="margin: 0 0 18px; font-size: 13.5px; line-height: 1.55; color: #334155;">
+              You have a pending routed document in the BLGF Region II Document Tracking System requiring your action:
+            </p>
+
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; margin-bottom: 20px; overflow: hidden;">
+              <tr>
+                <td style="padding: 14px 16px; border-bottom: 1px solid #e2e8f0; background: #f1f5f9;">
+                  <span style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Route / Tracking No:</span><br>
+                  <strong style="font-size: 15px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #1d4ed8;">${trackingDisplay}</strong>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 14px 16px; border-bottom: 1px solid #e2e8f0;">
+                  <span style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Document Title:</span><br>
+                  <strong style="font-size: 14px; color: #0f172a;">${doc.title}</strong>
+                </td>
+              </tr>
+              ${doc.subject ? `
+              <tr>
+                <td style="padding: 14px 16px; border-bottom: 1px solid #e2e8f0;">
+                  <span style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Content / Subject:</span><br>
+                  <span style="font-size: 13px; color: #475569; line-height: 1.45;">${doc.subject}</span>
+                </td>
+              </tr>` : ''}
+              <tr>
+                <td style="padding: 14px 16px;">
+                  <span style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Action Requested:</span><br>
+                  <span style="display: inline-block; margin-top: 4px; padding: 4px 10px; background: #e0f2fe; color: #0369a1; border-radius: 6px; font-size: 12px; font-weight: 700;">
+                    ${actionRequested}
+                  </span>
+                </td>
+              </tr>
+            </table>
+
+            <div style="background: #eff6ff; border-left: 4px solid #2563eb; border-radius: 0 8px 8px 0; padding: 14px 16px; margin: 20px 0;">
+              <span style="display: block; font-size: 11px; font-weight: 800; color: #1e40af; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
+                Message from ${sender.fullName}:
+              </span>
+              <p style="margin: 0; font-size: 13.5px; color: #1e3a8a; line-height: 1.5; font-style: italic;">
+                "${reminderMessage}"
+              </p>
+            </div>
+
+            <p style="margin: 18px 0 0; font-size: 13px; line-height: 1.55; color: #475569;">
+              Please sign in to the BLGF Region II Document Tracking System to review, act on, or forward this document accordingly.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 24px; text-align: center; font-size: 11px; color: #94a3b8; line-height: 1.4;">
+            This is an automated routing reminder dispatched directly to official handler: <strong>${email}</strong>.<br>
+            Bureau of Local Government Finance &bull; Regional Office No. II
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: config.from,
+      to: email,
+      subject,
+      text: [
+        'BUREAU OF LOCAL GOVERNMENT FINANCE - REGIONAL OFFICE NO. II',
+        'Document Tracking System (DTS) - Routing Action Reminder',
+        '',
+        `Dear ${recipient.fullName},`,
+        '',
+        `You have a pending routed document requiring your action:`,
+        `Route / Tracking No: ${trackingDisplay}`,
+        `Document Title: ${doc.title}`,
+        doc.subject ? `Subject: ${doc.subject}` : '',
+        `Action Requested: ${actionRequested}`,
+        '',
+        `Message from ${sender.fullName}:`,
+        `"${reminderMessage}"`,
+        '',
+        'Please sign in to the BLGF DTS portal to review and take action.',
+      ].filter(Boolean).join('\n'),
+      html: htmlContent,
+    });
+    return { success: true };
+  } catch (err: any) {
+    console.error(`[EMAIL] Failed to send routing reminder email to ${email}:`, err);
+    return { success: false, error: err?.message || 'Failed to dispatch email' };
+  }
+}
+

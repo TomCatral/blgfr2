@@ -12,7 +12,10 @@ import {
   User,
 } from '../types';
 
-export type StorageKind = 'documentAttachments' | 'profilePictures';
+export type StorageKind =
+  | 'documentAttachments'
+  | 'profilePictures'
+  | 'loginBackground';
 
 const configuredApiBase = String(
   (window as unknown as { __BLGF_API_BASE__?: string }).__BLGF_API_BASE__ ?? '',
@@ -59,11 +62,38 @@ export class ApiService {
     );
   }
 
+  getLoginBackground(): Observable<{ url: string | null }> {
+    return this.get<{ url: string | null }>('/settings/login-background');
+  }
+
+  saveLoginBackground(url: string | null): Observable<{ url: string | null }> {
+    return this.put<{ url: string | null }>('/settings/login-background', { url });
+  }
+
   // ---------------------------------------------------------------
   // Auth
   // ---------------------------------------------------------------
-  login(username: string, password: string): Observable<{ user: User }> {
-    return this.post<{ user: User }>('/auth/login', { username, password });
+  login(username: string, password: string): Observable<{
+    user: User;
+    mustChangePassword?: boolean;
+  }> {
+    return this.post<{ user: User; mustChangePassword?: boolean }>('/auth/login', {
+      username,
+      password,
+    });
+  }
+
+  // Finishes a temporary-password login by storing the user's own password.
+  completePasswordSetup(
+    username: string,
+    temporaryPassword: string,
+    newPassword: string,
+  ): Observable<{ user: User }> {
+    return this.post<{ user: User }>('/auth/complete-password-setup', {
+      username,
+      temporaryPassword,
+      newPassword,
+    });
   }
 
   forgotPassword(identifier: string): Observable<{
@@ -233,7 +263,7 @@ export class ApiService {
     success: boolean;
     message: string;
     deletedDocument?: boolean;
-    freedRouteNumber?: string;
+    retiredRouteNumber?: string;
     document?: DocumentRecord;
   }> {
     const headers = actingUserId ? { 'X-User-Id': actingUserId } : undefined;
@@ -241,7 +271,7 @@ export class ApiService {
       success: boolean;
       message: string;
       deletedDocument?: boolean;
-      freedRouteNumber?: string;
+      retiredRouteNumber?: string;
       document?: DocumentRecord;
     }>(
       `/documents/${documentId}/routes/${routeId}${actingUserId ? `?actingUserId=${actingUserId}` : ''}`,
@@ -347,8 +377,16 @@ export class ApiService {
     recipientUserId: string;
     message: string;
     actionRequested?: string;
-  }): Observable<NotificationItem> {
-    return this.post<NotificationItem>('/notifications/reminder', data);
+  }): Observable<
+    NotificationItem & {
+      recipientName?: string;
+    }
+  > {
+    return this.post<
+      NotificationItem & {
+        recipientName?: string;
+      }
+    >('/notifications/reminder', data);
   }
 
   // ---------------------------------------------------------------

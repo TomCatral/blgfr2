@@ -10,7 +10,6 @@ import {
   DocumentRouteStep,
   NotificationItem,
   User,
-  DEFAULT_ROLE_PERMISSIONS,
 } from '../types';
 import { isDocumentParticipant } from '../utils/document-visibility';
 
@@ -101,18 +100,13 @@ private pendingMarkLoaded = false;
 private pendingReferenceRefresh = false;
 private intervals: number[] = [];
 
+  // Personnel only see transactions they participated in. SYSTEM_ADMIN is the
+  // monitoring exception and can inspect every transaction, without becoming a
+  // routing participant.
   readonly accessibleDocuments = computed<DocumentRecord[]>(() => {
     const user = this.session.currentUser();
     if (!user) return [];
-    const all = this.documents();
-    const permissions =
-      user.permissions ||
-      DEFAULT_ROLE_PERMISSIONS[user.role] ||
-      DEFAULT_ROLE_PERMISSIONS.STAFF;
-    if (user.role === 'SYSTEM_ADMIN' || user.divisionCode === 'ITMS' || permissions.canViewAllDocuments) {
-      return all;
-    }
-    return all.filter((document) =>
+    return this.documents().filter((document) =>
       isDocumentParticipant(document, user, this.auditLogs()),
     );
   });
@@ -296,7 +290,14 @@ private intervals: number[] = [];
   }
 
   prependDocument(created: DocumentRecord): void {
-    this.documents.set([created, ...this.documents()]);
+    this.documents.set([
+      created,
+      ...this.documents().filter(
+        (document) =>
+          document.id !== created.id &&
+          (!created.routeNo || document.routeNo !== created.routeNo),
+      ),
+    ]);
   }
 
   removeDocument(id: string): void {
@@ -403,8 +404,9 @@ private intervals: number[] = [];
       const isActionableNotification =
         notification.type === 'ACTION_REQUIRED' ||
         notification.title === 'Document Routed to You' ||
-        notification.title === 'Routing Action Reminder' ||
         Boolean(notification.requiresDecision);
+
+      const isReminderOnly = notification.title === 'Routing Action Reminder';
 
       return {
         ...notification,
@@ -413,10 +415,10 @@ private intervals: number[] = [];
           notification.trackingNumber ||
           relatedDocument?.routeNo ||
           relatedDocument?.trackingNumber,
-        decisionStatus: notification.decisionStatus || inferredStatus,
-        requiresDecision: Boolean(
-          isActionableNotification && pendingAssignment && !inferredStatus,
-        ),
+        decisionStatus: isReminderOnly ? undefined : (notification.decisionStatus || inferredStatus),
+        requiresDecision: isReminderOnly
+          ? false
+          : Boolean(isActionableNotification && pendingAssignment && !inferredStatus),
       };
     });
 

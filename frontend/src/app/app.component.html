@@ -354,7 +354,11 @@
                   </div>
                   <h2 id="routing-popup-title" class="routing-alert-title">{{ popup.title }}</h2>
                   <p class="routing-alert-subtitle">
-                    {{ popup.decisionStatus ? 'Official routing decision update' : 'Review the document details, attached files, and requested action.' }}
+                    {{ popup.decisionStatus
+                      ? 'Official routing decision update'
+                      : popup.requiresDecision
+                        ? 'Review the document details, attached files, and requested action.'
+                        : 'This is a follow-up reminder only. No approval or disapproval is required here.' }}
                   </p>
                 </div>
 
@@ -370,6 +374,20 @@
 
               <!-- Modal Body Content -->
               <div class="routing-alert-body">
+                @if (!popup.requiresDecision && popup.title.includes('Reminder')) {
+                  <div class="routing-reminder-simple">
+                    <div class="routing-reminder-simple-icon">
+                      <ion-icon name="notifications-outline"></ion-icon>
+                    </div>
+                    <div class="routing-reminder-simple-content">
+                      <span class="routing-reminder-simple-label">Reminder message</span>
+                      <p>{{ popup.message }}</p>
+                      <span class="routing-reminder-simple-route">
+                        {{ routingPopupDocument()?.routeNo || popup.trackingNumber || 'Route number not recorded' }}
+                      </span>
+                    </div>
+                  </div>
+                } @else {
                 <!-- Document Hero Summary Card -->
                 <div class="routing-hero-card">
                   <div class="routing-hero-header">
@@ -543,6 +561,7 @@
                     <p class="routing-att-empty">No attachments included.</p>
                   }
                 </div>
+                }
               </div>
 
               <!-- Modal Footer Actions -->
@@ -555,7 +574,7 @@
                     title="View full document trail and details"
                   >
                     <ion-icon name="open-outline"></ion-icon>
-                    <span>Review Document</span>
+                    <span>{{ popup.requiresDecision ? 'Review Document' : 'View Document' }}</span>
                   </ion-button>
                 </div>
 
@@ -586,10 +605,10 @@
                     type="button"
                     class="routing-btn-snooze"
                     (click)="closeRoutingActionPopup()"
-                    title="Dismiss reminder for 24 hours"
+                    [title]="popup.requiresDecision ? 'Close approval request for 24 hours' : 'Dismiss reminder for 24 hours'"
                   >
                     <ion-icon name="time-outline"></ion-icon>
-                    <span>Close for 24 hours</span>
+                    <span>{{ popup.requiresDecision ? 'Close for 24 hours' : 'Dismiss Reminder' }}</span>
                   </ion-button>
                 </div>
               </footer>

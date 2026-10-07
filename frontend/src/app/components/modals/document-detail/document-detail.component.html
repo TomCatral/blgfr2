@@ -333,6 +333,7 @@
                             &ldquo;{{ part.instruction }}&rdquo;
                           </div>
                         }
+
                       </li>
                     }
                   </ul>
@@ -402,25 +403,37 @@
                         <p class="truncate text-xs font-bold text-slate-800 dark:text-slate-200" [title]="firstDispatchSender()">{{ firstDispatchSender() }}</p>
                       </div>
 
-                      @if (flowRoots().length > 1) {
-                        <div class="relative hidden h-[44px] sm:block" aria-hidden="true">
-                          <div class="absolute left-1/2 top-0 h-[14px] border-l-2 border-slate-300 dark:border-slate-600"></div>
-                          <div class="absolute top-[14px] border-t-2 border-slate-300 dark:border-slate-600" [style.left]="(50 / flowRoots().length) + '%'" [style.right]="(50 / flowRoots().length) + '%'"></div>
-                          @for (root of flowRoots(); track root.id; let ri = $index) {
-                            <div class="flow-root-node absolute left-auto top-[14px] flex flex-col items-center" [style.left]="(((ri + 0.5) / flowRoots().length) * 100) + '%'">
-                              <span class="h-[14px] w-[2px] bg-slate-300 dark:bg-slate-600"></span>
-                              <span class="h-0 w-0 border-l-[4px] border-r-[4px] border-t-[6px] border-l-transparent border-r-transparent border-t-slate-400 dark:border-t-slate-500"></span>
-                            </div>
-                          }
+                      @for (group of flowGroupedDispatchNotes(); track group.key) {
+                        <div class="flow-grouped-note" role="note" aria-label="Shared dispatch note">
+                          <div class="flow-grouped-note-title">
+                            <ion-icon name="send-outline"></ion-icon>
+                            <span>Dispatch note from {{ group.sender }}</span>
+                          </div>
+                          <p>&ldquo;{{ group.note }}&rdquo;</p>
+                          <div class="flow-grouped-note-targets">
+                            Sent to {{ group.recipients.join(', ') }}
+                          </div>
                         </div>
                       }
 
                       @if (flowRoots().length > 0) {
-                        <ul class="flow-roots-grid" [style.--roots-count]="flowRoots().length">
-                          @for (root of flowRoots(); track root.id) {
-                            <app-flow-node [recipient]="root" [flowNumber]="'1'" [parent]="host" />
-                          }
-                        </ul>
+                        <div class="flow-tree-scroll">
+                          <div class="flow-tree-canvas" [style.--roots-count]="flowRoots().length" [style.min-width.px]="flowRoots().length * 320">
+                            <div class="flow-root-connectors" aria-hidden="true">
+                              @for (root of flowRoots(); track root.id; let first = $first; let last = $last) {
+                                <div class="flow-root-connector" [class.is-first]="first" [class.is-last]="last">
+                                  <span class="flow-root-connector-stem"></span>
+                                  <span class="flow-root-connector-arrow"></span>
+                                </div>
+                              }
+                            </div>
+                            <ul class="flow-roots-grid">
+                              @for (root of flowRoots(); track root.id) {
+                                <app-flow-node [recipient]="root" [flowNumber]="'1'" [parent]="host" />
+                              }
+                            </ul>
+                          </div>
+                        </div>
                       } @else {
                         <div class="unrouted-flow-empty text-center">
                           <div class="unrouted-empty-icon">
@@ -506,12 +519,12 @@
                         }
 
                         <!-- Attached Files for this Step / Handoff (Reply / Step Files) -->
-                        @if (selectedStepFiles().length > 0) {
+                        @if (selectedStepAttachmentMessages().length > 0) {
                           <div class="mt-4 rounded-xl border border-blue-200/80 bg-blue-50/40 p-3 dark:border-blue-900/60 dark:bg-blue-950/20">
                             <div class="flex items-center justify-between">
                               <div class="flex items-center gap-1.5">
                                 <ion-icon name="attach" class="text-blue-600 dark:text-blue-400 text-sm"></ion-icon>
-                                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">Reply &amp; Step Attachments ({{ selectedStepFiles().length }})</h4>
+                                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">Step Conversation &amp; Attachments ({{ selectedStepFiles().length }})</h4>
                               </div>
                               <span class="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-black text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                                 <ion-icon name="lock-closed" class="text-[9px]"></ion-icon>
@@ -520,27 +533,60 @@
                             </div>
 
                             @if (canAccessSelectedStepFiles()) {
-                              <div class="mt-2 space-y-2">
-                                @for (file of selectedStepFiles(); track file.id || file.url || file.fileName) {
-                                  <div class="rounded-lg border border-slate-200/80 bg-white p-2 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
-                                    <div class="flex items-center gap-2">
-                                      <ion-icon name="document-text" class="text-blue-600 dark:text-blue-400 shrink-0 text-base"></ion-icon>
-                                      <div class="min-w-0 flex-1">
-                                        <p class="truncate text-xs font-bold text-slate-800 dark:text-slate-200" [title]="file.fileName">{{ file.fileName }}</p>
-                                        <p class="text-[10px] text-slate-400">{{ file.fileSize || 'Size not recorded' }}{{ file.uploadDate ? ' &bull; ' + formatDate(file.uploadDate) : '' }}</p>
+                              <div class="mt-3 space-y-3">
+                                @for (message of selectedStepAttachmentMessages(); track message.id) {
+                                  <div class="flex" [class.justify-end]="message.isReply">
+                                    <div class="w-[92%] rounded-xl border p-2.5 shadow-2xs"
+                                      [ngClass]="message.isReply ? 'border-emerald-200 bg-emerald-50/80 dark:border-emerald-800 dark:bg-emerald-950/30' : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900'">
+                                      <div class="mb-2 flex items-start justify-between gap-2">
+                                        <div class="flex min-w-0 items-center gap-1.5">
+                                          <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+                                            [ngClass]="message.isReply ? 'bg-emerald-600 text-white' : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200'">
+                                            <ion-icon name="person" class="text-xs"></ion-icon>
+                                          </span>
+                                          <div class="min-w-0">
+                                            <p class="truncate text-xs font-extrabold text-slate-900 dark:text-slate-100">{{ message.sender }}</p>
+                                            <p class="text-[10px] font-semibold text-slate-400">{{ message.division || 'Office not recorded' }} &bull; {{ message.title }}</p>
+                                          </div>
+                                        </div>
+                                        <time class="shrink-0 text-[9.5px] font-medium text-slate-400">{{ formatDate(message.timestamp) }}</time>
                                       </div>
-                                    </div>
-                                    <div class="mt-1.5 flex items-center gap-1 border-t border-slate-100 pt-1.5 dark:border-slate-800">
-                                      <button type="button" (click)="handleViewAttachment(file)" [disabled]="!file.url" class="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300 cursor-pointer">
-                                        <ion-icon name="eye" class="h-3 w-3"></ion-icon> View
-                                      </button>
-                                      <button type="button" (click)="handleDownloadAttachment(file)" [disabled]="!file.url" class="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300 cursor-pointer">
-                                        <ion-icon name="download" class="h-3 w-3"></ion-icon> Download
-                                      </button>
-                                      @if (isPdfFile(file)) {
-                                        <button type="button" (click)="handlePrintAttachment(file.url)" [disabled]="!file.url" class="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300 cursor-pointer">
-                                          <ion-icon name="print" class="h-3 w-3"></ion-icon> Print
-                                        </button>
+
+                                      @if (message.instruction) {
+                                        <div class="mb-2 rounded-lg border-l-3 border-emerald-500 bg-white/80 px-2.5 py-2 text-xs dark:bg-slate-900/70">
+                                          <p class="text-[9.5px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Instruction</p>
+                                          <p class="mt-0.5 whitespace-pre-wrap font-medium text-slate-700 dark:text-slate-200">&ldquo;{{ message.instruction }}&rdquo;</p>
+                                        </div>
+                                      } @else if (message.note) {
+                                        <div class="mb-2 rounded-lg bg-slate-50 px-2.5 py-2 text-xs dark:bg-slate-800/70">
+                                          <p class="text-[9.5px] font-black uppercase tracking-wider text-slate-400">Note</p>
+                                          <p class="mt-0.5 whitespace-pre-wrap font-medium italic text-slate-700 dark:text-slate-200">&ldquo;{{ message.note }}&rdquo;</p>
+                                        </div>
+                                      }
+
+                                      @for (file of message.files; track file.id || file.url || file.fileName) {
+                                        <div class="border-t border-slate-200/70 py-2 first:border-t-0 first:pt-0 dark:border-slate-700">
+                                          <div class="flex items-center gap-2">
+                                            <ion-icon name="document-text" class="shrink-0 text-base text-blue-600 dark:text-blue-400"></ion-icon>
+                                            <div class="min-w-0 flex-1">
+                                              <p class="truncate text-xs font-bold text-slate-800 dark:text-slate-200" [title]="file.fileName">{{ file.fileName }}</p>
+                                              <p class="text-[10px] text-slate-400">{{ file.fileSize || 'Size not recorded' }}</p>
+                                            </div>
+                                          </div>
+                                          <div class="mt-1.5 flex items-center gap-1">
+                                            <button type="button" (click)="handleViewAttachment(file)" [disabled]="!file.url" class="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300 cursor-pointer">
+                                              <ion-icon name="eye" class="h-3 w-3"></ion-icon> View
+                                            </button>
+                                            <button type="button" (click)="handleDownloadAttachment(file)" [disabled]="!file.url" class="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300 cursor-pointer">
+                                              <ion-icon name="download" class="h-3 w-3"></ion-icon> Download
+                                            </button>
+                                            @if (isPdfFile(file)) {
+                                              <button type="button" (click)="handlePrintAttachment(file.url)" [disabled]="!file.url" class="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300 cursor-pointer">
+                                                <ion-icon name="print" class="h-3 w-3"></ion-icon> Print
+                                              </button>
+                                            }
+                                          </div>
+                                        </div>
                                       }
                                     </div>
                                   </div>
@@ -560,78 +606,6 @@
                           </div>
                         }
 
-                        <!-- Activities Substeps -->
-                        <div class="mt-4">
-                          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Recorded Actions</h4>
-                          @if (!selectedActivities().length) {
-                            <p class="mt-1 text-xs text-slate-500 italic">No additional actions recorded for this recipient yet.</p>
-                          }
-                          <ol class="mt-2 space-y-2 pl-0 list-none">
-                            @for (activity of selectedActivities(); track activity.id) {
-                              <li [class]="activity.status === 'COMPLETED' ? 'rounded-xl border border-emerald-300/90 bg-emerald-50/80 p-3 shadow-2xs dark:border-emerald-800 dark:bg-emerald-950/40' : 'rounded-lg border border-slate-200/80 bg-slate-50/60 p-2 dark:border-slate-800 dark:bg-slate-800/40'">
-                                <div class="flex items-center justify-between text-xs">
-                                  <div class="flex items-center gap-1.5 font-bold">
-                                    @if (activity.status === 'COMPLETED') {
-                                      <ion-icon name="checkmark-circle" class="text-base text-emerald-600 dark:text-emerald-400"></ion-icon>
-                                      <span class="text-emerald-950 dark:text-emerald-200 font-extrabold">Part completed</span>
-                                    } @else {
-                                      <span class="text-slate-800 dark:text-slate-200">{{ activity.destination ? 'Forwarded to ' + activity.destination : activity.action }}</span>
-                                    }
-                                  </div>
-                                  <span class="text-[10px] text-slate-400">{{ formatDate(activity.timestamp) }}</span>
-                                </div>
-
-                                @if (activity.performerName) {
-                                  <div class="mt-1 flex items-center gap-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                                    <ion-icon name="person-circle-outline" class="text-xs text-slate-400"></ion-icon>
-                                    <span>
-                                      {{ activity.status === 'COMPLETED' ? 'Completed by:' : 'Action by:' }}
-                                      <strong class="text-slate-800 dark:text-slate-100">{{ activity.performerName }}</strong>
-                                      @if (activity.performerDivision) {
-                                        <span class="text-slate-400 font-normal"> ({{ activity.performerDivision }})</span>
-                                      }
-                                    </span>
-                                  </div>
-                                }
-
-                                @if (activity.instruction) {
-                                  <div class="mt-2 rounded-lg border border-emerald-200/90 bg-white/95 p-2 text-xs text-slate-800 dark:border-emerald-900/60 dark:bg-slate-900/80 dark:text-slate-200">
-                                    <div class="flex items-center gap-1 text-[10.5px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                                      <ion-icon name="chatbox-ellipses-outline"></ion-icon>
-                                      <span>Instruction:</span>
-                                    </div>
-                                    <p class="mt-0.5 whitespace-pre-wrap font-medium text-slate-700 dark:text-slate-200">&ldquo;{{ activity.instruction }}&rdquo;</p>
-                                  </div>
-                                } @else if (activity.remarks && !isNoneRemark(activity.remarks)) {
-                                  <p class="mt-1 text-xs text-slate-600 dark:text-slate-300 italic">&ldquo;{{ activity.remarks }}&rdquo;</p>
-                                }
-
-                                @if (activity.attachments && activity.attachments.length > 0) {
-                                  <div class="mt-2 space-y-1.5 border-t border-slate-200/60 pt-2 dark:border-slate-700/60">
-                                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Attached File:</span>
-                                    @for (att of activity.attachments; track att.id || att.fileName) {
-                                      <div class="flex items-center justify-between gap-1.5 rounded-md border border-slate-200 bg-white p-1.5 text-xs dark:border-slate-700 dark:bg-slate-900">
-                                        <div class="flex items-center gap-1.5 min-w-0">
-                                          <ion-icon name="document-text" class="text-blue-600 text-sm shrink-0"></ion-icon>
-                                          <span class="truncate font-semibold text-slate-800 dark:text-slate-200" [title]="att.fileName">{{ att.fileName }}</span>
-                                        </div>
-                                        <div class="flex items-center gap-1 shrink-0">
-                                          <button type="button" (click)="handleViewAttachment(att)" class="inline-flex items-center gap-0.5 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300">
-                                            <ion-icon name="eye" class="text-xs"></ion-icon> View
-                                          </button>
-                                          <button type="button" (click)="handleDownloadAttachment(att)" class="inline-flex items-center gap-0.5 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300">
-                                            <ion-icon name="download" class="text-xs"></ion-icon> Download
-                                          </button>
-                                        </div>
-                                      </div>
-                                    }
-                                  </div>
-                                }
-                              </li>
-                            }
-                          </ol>
-                        </div>
-
                         <!-- Remove Recipient Action (If routed by mistake) -->
                         @if (canRemoveRoute(selectedRoute()!)) {
                           <div class="mt-4 pt-3 border-t border-rose-100 dark:border-rose-950/60">
@@ -650,6 +624,7 @@
                             </p>
                           </div>
                         }
+
                       } @else {
                         <div class="py-8 text-center text-slate-400">
                           <ion-icon name="git-commit-outline" class="h-8 w-8 mx-auto mb-2 opacity-60"></ion-icon>
@@ -714,7 +689,7 @@
                   </div>
                 }
 
-                @if (document.currentStatus !== 'COMPLETED') {
+                @if (canRouteDocument()) {
                   <button
                     type="button"
                     [disabled]="isDecisionRequired() || isSubmittingDecision()"
@@ -727,8 +702,8 @@
                       <ion-icon name="lock-closed" class="h-4 w-4"></ion-icon>
                       <span>Route / Forward (Action Required First)</span>
                     } @else {
-                      <ion-icon name="paper-plane" class="h-4 w-4"></ion-icon>
-                      <span>Route / Forward</span>
+                      <ion-icon [name]="completedRouteCanContinue() ? 'add-circle' : 'paper-plane'" class="h-4 w-4"></ion-icon>
+                      <span>{{ completedRouteCanContinue() ? 'Add Route / Continue Routing' : 'Route / Forward' }}</span>
                     }
                   </button>
                 }

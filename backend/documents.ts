@@ -51,25 +51,33 @@ export function createDocumentsRouter(
     );
   const getActingUser = (req: express.Request) =>
     findActiveDatabaseUser(String(req.get('X-User-Id') || ''));
+  // Route numbers are a permanent ledger, so deleting a transaction retires its
+  // number for good instead of releasing it back into circulation. The sequence
+  // only ever moves forward: the next number is the highest number ever taken for
+  // the current month and direction, plus one. A cancelled transaction leaves
+  // behind an audit-log tombstone, so its retired number still counts as taken
+  // even after the document itself is gone.
   const getNextRouteNumber = (direction: string) => {
     const now = new Date();
     const directionCode = direction === 'OUTGOING' ? 'OUT' : 'IN';
     const prefix = `BLGFR2-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${directionCode}-`;
-    const usedSequences = new Set<number>();
+    const sequenceOf = (number?: string | null) => {
+      if (!number?.startsWith(prefix)) return 0;
+      const seq = Number(number.slice(prefix.length));
+      return Number.isInteger(seq) && seq > 0 ? seq : 0;
+    };
+    let highest = 0;
     for (const document of getDocumentsState()) {
-      for (const number of [document.trackingNumber, document.routeNo]) {
-        if (number?.startsWith(prefix)) {
-          const seq = Number(number.slice(prefix.length));
-          if (Number.isInteger(seq) && seq > 0) {
-            usedSequences.add(seq);
-          }
-        }
-      }
+      highest = Math.max(
+        highest,
+        sequenceOf(document.trackingNumber),
+        sequenceOf(document.routeNo),
+      );
     }
-    let nextSeq = 1;
-    while (usedSequences.has(nextSeq)) {
-      nextSeq++;
+    for (const log of getAuditLogsState()) {
+      highest = Math.max(highest, sequenceOf(log.documentTrackingNumber));
     }
+    const nextSeq = highest + 1;
     return `${prefix}${String(nextSeq).padStart(2, '0')}`;
   };
   const recalculateDocumentStatus = (document: DocumentRecord) =>
@@ -123,16 +131,11 @@ export function createDocumentsRouter(
       console.error('[healStaleReturnedStatus] MySQL write failed:', error);
     });
   };
-  const canViewDocument = (user: User, document: DocumentRecord) => {
-    const permissions =
-      user.permissions ||
-      DEFAULT_ROLE_PERMISSIONS[user.role] ||
-      DEFAULT_ROLE_PERMISSIONS.STAFF;
-    if (user.role === 'SYSTEM_ADMIN' || permissions.canViewAllDocuments) {
-      return true;
-    }
-    return isDocumentParticipant(document, user, getAuditLogsState());
-  };
+  // Personnel only see transactions they participated in. SYSTEM_ADMIN has a
+  // global monitoring view, while mutation endpoints below explicitly prevent
+  // it from participating in routing.
+  const canViewDocument = (user: User, document: DocumentRecord) =>
+    isDocumentParticipant(document, user, getAuditLogsState());
   const getPendingDecisionRoute = (user: User, document: DocumentRecord) =>
     [...(document.routes || [])].reverse().find((assignedRoute) => {
       if (['APPROVED', 'DISAPPROVED'].includes(assignedRoute.actionRequested.toUpperCase())) return false;
@@ -378,6 +381,7 @@ export function createDocumentsRouter(
     const isNotYetRouted =
       !isOutside &&
       (body.currentStatus === 'NOT_YET_ROUTED' ||
+        body.registerOnly === true ||
         body.isNotYetRouted ||
         (!body.currentDivision &&
           !body.assignedUserId &&
@@ -607,12 +611,14 @@ export function createDocumentsRouter(
     if (!actingUser) {
       return res.status(401).json({ error: 'Active database user required.' });
     }
+    if (actingUser.role === 'SYSTEM_ADMIN') {
+      return res.status(403).json({ error: 'System Administrators cannot approve or disapprove routing transactions.' });
+    }
     if (docIndex === -1) return res.status(404).json({ error: 'Document not found.' });
 
     const doc = documentsState[docIndex];
-    // Completed documents are final: no further routing or decisions.
     if (doc.currentStatus === 'COMPLETED' || hasCompletedPart(doc, actingUser)) {
-      return res.status(409).json({ error: 'This transaction has ended. Completed documents cannot be routed or changed.' });
+      return res.status(409).json({ error: 'This transaction has ended. Completed documents cannot be approved or disapproved.' });
     }
     const decision = String(req.body.decision || '').toUpperCase();
     const remarks = String(req.body.remarks || '').trim();
@@ -819,12 +825,19 @@ export function createDocumentsRouter(
     if (!actingUser) {
       return res.status(401).json({ error: 'Active database user required.' });
     }
+    if (actingUser.role === 'SYSTEM_ADMIN') {
+      return res.status(403).json({ error: 'System Administrators cannot route documents.' });
+    }
     if (!canViewDocument(actingUser, doc)) {
       return res.status(404).json({ error: 'Document not found' });
     }
-    // Completed documents are final: no further routing or decisions.
-    if (doc.currentStatus === 'COMPLETED' || hasCompletedPart(doc, actingUser)) {
-      return res.status(409).json({ error: 'This transaction has ended. Completed documents cannot be routed or changed.' });
+    const wasCompleted = doc.currentStatus === 'COMPLETED';
+    if (
+      wasCompleted &&
+      !hasCompletedPart(doc, actingUser) &&
+      !['ADMIN', 'ORD', 'RECORDS_OFFICER'].includes(actingUser.role)
+    ) {
+      return res.status(403).json({ error: 'Only the completing user or an authorized records officer can continue this completed transaction.' });
     }
     if (hasOpenDisapproval(doc)) {
       return res.status(409).json({
@@ -883,7 +896,11 @@ export function createDocumentsRouter(
       return res.status(400).json({ error: 'Complete your part without sending to new recipients.' });
     }
     const nextStatus: DocumentStatus =
-      newStatus || (doc.currentStatus === 'NOT_YET_ROUTED' ? 'PENDING' : doc.currentStatus);
+      newStatus || (wasCompleted
+        ? 'IN_PROGRESS'
+        : doc.currentStatus === 'NOT_YET_ROUTED'
+          ? 'PENDING'
+          : doc.currentStatus);
 
     const stepNumber = (doc.routes || []).length + 1;
     markLatestRouteAsProcessed(
@@ -935,6 +952,10 @@ export function createDocumentsRouter(
       doc.assignedUserId = pendingRecipients[0]?.toUserId;
     }
     doc.updatedAt = now;
+    if (wasCompleted) {
+      doc.completedDate = undefined;
+      doc.destinationOffice = undefined;
+    }
     setNotificationsState(
       getNotificationsState().filter(
         (notification) =>
@@ -1013,6 +1034,9 @@ export function createDocumentsRouter(
     if (!actingUser) {
       return res.status(401).json({ error: 'Active database user required.' });
     }
+    if (actingUser.role === 'SYSTEM_ADMIN') {
+      return res.status(403).json({ error: 'System Administrators cannot remove routing steps.' });
+    }
 
     const targetRouteIndex = (doc.routes || []).findIndex((r) => r.id === routeId);
     if (targetRouteIndex === -1) {
@@ -1029,13 +1053,12 @@ export function createDocumentsRouter(
     const isDocCreator =
       doc.createdByUserId === actingUser.id ||
       doc.createdBy?.trim().toLowerCase() === actingUser.fullName?.trim().toLowerCase();
-    const isAdmin = actingUser.role === 'ADMIN' || actingUser.role === 'SYSTEM_ADMIN';
+    const isAdmin = actingUser.role === 'ADMIN';
     const permissions =
       actingUser.permissions ||
       DEFAULT_ROLE_PERMISSIONS[actingUser.role] ||
       DEFAULT_ROLE_PERMISSIONS.STAFF;
-    const hasDeletePermission =
-      actingUser.role === 'SYSTEM_ADMIN' || Boolean(permissions.canDelete);
+    const hasDeletePermission = Boolean(permissions.canDelete);
 
     if (!isRouteCreator && !isDocCreator && !isAdmin && !hasDeletePermission) {
       return res.status(403).json({ error: 'You are not authorized to remove this routing step.' });
@@ -1061,7 +1084,7 @@ export function createDocumentsRouter(
     }
 
     if (isInitialRoute) {
-      // For initial / new route: cancel and remove the entire transaction so the route number is freed for reuse
+      // For initial / new route: cancel and remove the entire transaction and retire its route number permanently
       setDocumentsState(documentsState.filter((d) => d.id !== doc.id));
       purgeDocumentAuditTrail(doc.trackingNumber, doc.routeNo);
 
@@ -1086,22 +1109,24 @@ export function createDocumentsRouter(
           userRole: actingUser.role,
           action: 'DELETE_DOC',
           documentTrackingNumber: doc.trackingNumber,
-          details: `Cancelled initial transaction [${doc.trackingNumber}] (${doc.title}) by ${actingUser.fullName}. Route number freed up for reuse. Reason: Misrouted at initial entry / cancelled`,
+          details: `Cancelled initial transaction [${doc.trackingNumber}] (${doc.title}) by ${actingUser.fullName}. Route number retired and will not be reused. Reason: Misrouted at initial entry / cancelled`,
           ipAddress: req.ip || '127.0.0.1',
         },
         false,
       );
 
-      await Promise.all([
-        deleteDocumentDirect(doc.id, doc.trackingNumber, doc.routeNo),
-        saveAuditLogDirect(deletionAuditLog),
-      ]);
+      // The purge above also strips the audit rows of this tracking number from
+      // MySQL, so the tombstone is written afterwards on purpose: it is what
+      // keeps the retired route number from being handed out again.
+      await deleteDocumentDirect(doc.id, doc.trackingNumber, doc.routeNo);
+      await saveAuditLogDirect(deletionAuditLog);
+      saveDatabaseToFile(false);
 
       return res.json({
         success: true,
         deletedDocument: true,
-        freedRouteNumber: doc.routeNo || doc.trackingNumber,
-        message: `Transaction [${doc.trackingNumber}] and route number were completely removed and freed for reuse.`,
+        retiredRouteNumber: doc.routeNo || doc.trackingNumber,
+        message: `Transaction [${doc.trackingNumber}] and route number were completely removed. The route number is retired and will not be reused.`,
       });
     }
 
@@ -1212,12 +1237,14 @@ export function createDocumentsRouter(
     if (!actingUser) {
       return res.status(401).json({ error: 'Active database user required.' });
     }
+    if (actingUser.role === 'SYSTEM_ADMIN') {
+      return res.status(403).json({ error: 'System Administrators cannot transfer or reassign documents.' });
+    }
     if (!canViewDocument(actingUser, doc)) {
       return res.status(404).json({ error: 'Document not found' });
     }
-    // Completed documents are final: no further routing or decisions.
     if (doc.currentStatus === 'COMPLETED' || hasCompletedPart(doc, actingUser)) {
-      return res.status(409).json({ error: 'This transaction has ended. Completed documents cannot be routed or changed.' });
+      return res.status(409).json({ error: 'This transaction has ended. Completed documents cannot be transferred or reassigned.' });
     }
     const recipient = findActiveDatabaseUser(toUserId);
     if (
@@ -1343,12 +1370,19 @@ export function createDocumentsRouter(
     if (!actingUser) {
       return res.status(401).json({ error: 'Active database user required.' });
     }
+    if (actingUser.role === 'SYSTEM_ADMIN') {
+      return res.status(403).json({ error: 'System Administrators cannot route documents.' });
+    }
     if (!canViewDocument(actingUser, doc)) {
       return res.status(404).json({ error: 'Document not found' });
     }
-    // Completed documents are final: no further routing or decisions.
-    if (doc.currentStatus === 'COMPLETED' || hasCompletedPart(doc, actingUser)) {
-      return res.status(409).json({ error: 'This transaction has ended. Completed documents cannot be routed or changed.' });
+    const wasCompleted = doc.currentStatus === 'COMPLETED';
+    if (
+      wasCompleted &&
+      !hasCompletedPart(doc, actingUser) &&
+      !['ADMIN', 'ORD', 'RECORDS_OFFICER'].includes(actingUser.role)
+    ) {
+      return res.status(403).json({ error: 'Only the completing user or an authorized records officer can continue this completed transaction.' });
     }
     if (hasOpenDisapproval(doc)) {
       return res.status(409).json({
@@ -1426,7 +1460,7 @@ export function createDocumentsRouter(
     if (newStatus === 'COMPLETED') {
       return res.status(400).json({ error: 'Complete your part without sending to new recipients.' });
     }
-    const nextStatus: DocumentStatus = newStatus || doc.currentStatus;
+    const nextStatus: DocumentStatus = newStatus || (wasCompleted ? 'IN_PROGRESS' : doc.currentStatus);
 
     markLatestRouteAsProcessed(
       doc,
@@ -1492,6 +1526,10 @@ export function createDocumentsRouter(
     doc.currentStatus = nextStatus;
     doc.actionRequested = actionRequested || doc.actionRequested;
     doc.updatedAt = now;
+    if (wasCompleted) {
+      doc.completedDate = undefined;
+      doc.destinationOffice = undefined;
+    }
     setNotificationsState(
       getNotificationsState().filter(
         (notification) =>
@@ -1794,10 +1832,9 @@ export function createDocumentsRouter(
     );
 
     try {
-      await Promise.all([
-        deleteDocumentDirect(doc.id, doc.trackingNumber, doc.routeNo),
-        saveAuditLogDirect(deletionAuditLog),
-      ]);
+      await deleteDocumentDirect(doc.id, doc.trackingNumber, doc.routeNo);
+      await saveAuditLogDirect(deletionAuditLog);
+      saveDatabaseToFile(false);
     } catch (error) {
       // Rollback deletion from memory if DB operation fails
       setDocumentsState(documentsState);

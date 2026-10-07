@@ -4,11 +4,16 @@ import fs from 'fs';
 import os from 'os';
 import { createUsersRouter } from './users.js';
 import { createDocumentsRouter } from './documents.js';
+import { isDocumentParticipant } from '../frontend/src/app/utils/document-visibility.js';
+import { getPendingRecipients } from '../frontend/src/app/utils/routing-recipients.js';
 import crypto from 'crypto';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import multer from 'multer';
-import { sendTemporaryPasswordEmail, getSmtpConfig } from './emailService.js';
+import {
+  sendTemporaryPasswordEmail,
+  getSmtpConfig,
+} from './emailService.js';
 import {
   connectMySQLReplica,
   disconnectMySQLReplica,
@@ -21,6 +26,8 @@ import {
   deleteEnvelopeLogsDirect,
   updateUserPassword,
   saveUserDirect,
+  readSystemSetting,
+  saveSystemSetting,
   getMySQLReplicaStatus,
 } from './mysqlReplica.js';
 import {
@@ -55,12 +62,16 @@ const DATA_DIR = IS_VERCEL
   : path.join(process.cwd(), 'backend', 'data');
 const DB_FILE = path.join(DATA_DIR, 'blgf_doctrack_db.json');
 const ENVELOPE_LOG_DB_FILE = path.join(DATA_DIR, 'blgf_envelope_logs_db.json');
-type StorageKind = 'documentAttachments' | 'profilePictures';
+type StorageKind =
+  | 'documentAttachments'
+  | 'profilePictures'
+  | 'loginBackground';
 type StorageConfig = Record<StorageKind, string>;
 const STORAGE_ROOT_DIR = path.join(DATA_DIR, 'storage');
 const STORAGE_DIRECTORIES: StorageConfig = {
   documentAttachments: path.join(STORAGE_ROOT_DIR, 'attachments'),
   profilePictures: path.join(STORAGE_ROOT_DIR, 'profile-pictures'),
+  loginBackground: path.join(STORAGE_ROOT_DIR, 'login-background'),
 };
 const RECORDS_ROOT_DIR = path.join(
   IS_VERCEL ? os.tmpdir() : process.cwd(),
@@ -374,6 +385,10 @@ function initDatabaseStorage() {
       );
       auditLogsState = (data.auditLogs || []).filter((log: AuditLog) => {
         if (!log.documentTrackingNumber) return true;
+        // A DELETE_DOC tombstone outlives its document on purpose: it is the
+        // record that retired a route number for good, so dropping it would let
+        // the same number be handed out again.
+        if (log.action === 'DELETE_DOC') return true;
         return validDocKeys.has(log.documentTrackingNumber.trim().toUpperCase());
       });
       if (fs.existsSync(ENVELOPE_LOG_DB_FILE)) {
@@ -768,6 +783,16 @@ export async function createApp() {
       (user) => user.id === String(req.get('X-User-Id') || '') && user.active !== false,
     );
 
+  // Login background is a single global setting managed from User Accounts.
+  // It is cached in memory and mirrored to the system_settings table.
+  const LOGIN_BACKGROUND_KEY = 'login_background_url';
+  let loginBackgroundUrl: string | null = null;
+  try {
+    loginBackgroundUrl = await readSystemSetting(LOGIN_BACKGROUND_KEY);
+  } catch (error) {
+    console.warn('[SETTINGS] Login background load warning:', error);
+  }
+
   // Request logger
   app.use((_req, res, next) => {
     res.locals.getUsersState = () => usersState;
@@ -834,6 +859,13 @@ export async function createApp() {
       ) {
         return res.status(400).json({ error: 'Invalid storage type or file.' });
       }
+      // The login background renders before sign-in, so only real raster images
+      // are accepted for that slot.
+      if (kind === 'loginBackground' && !/^image\/(jpe?g|png|webp|gif)$/.test(req.file.mimetype)) {
+        return res
+          .status(400)
+          .json({ error: 'Login background must be a JPG, PNG, WEBP, or GIF image.' });
+      }
       const fileName = safeStorageFileName(req.file.originalname);
       fs.mkdirSync(STORAGE_DIRECTORIES[kind], { recursive: true });
       fs.writeFileSync(
@@ -849,6 +881,31 @@ export async function createApp() {
       });
     },
   );
+
+  // Unauthenticated: the login page renders before anyone signs in.
+  app.get('/api/settings/login-background', (_req, res) => {
+    res.json({ url: loginBackgroundUrl });
+  });
+
+  app.put('/api/settings/login-background', async (req, res) => {
+    const actingUser = getRequestUser(req);
+    if (!actingUser || actingUser.role !== 'SYSTEM_ADMIN') {
+      return res.status(403).json({ error: 'SYSTEM_ADMIN access required.' });
+    }
+    const rawUrl = typeof req.body?.url === 'string' ? req.body.url.trim() : '';
+    const nextUrl = rawUrl ? rawUrl : null;
+    if (nextUrl && !nextUrl.startsWith('/api/storage/files/loginBackground/')) {
+      return res.status(400).json({ error: 'Invalid background image URL.' });
+    }
+    try {
+      await saveSystemSetting(LOGIN_BACKGROUND_KEY, nextUrl);
+      loginBackgroundUrl = nextUrl;
+      res.json({ url: loginBackgroundUrl });
+    } catch (error: any) {
+      console.error('Failed to save login background:', error);
+      res.status(500).json({ error: 'Failed to save login background.' });
+    }
+  });
 
   app.get('/api/storage/files/:kind/:fileName', async (req, res) => {
     const kind = req.params.kind as StorageKind;
@@ -1064,6 +1121,81 @@ export async function createApp() {
     const {
       password: _password,
       temporaryPasswordExpiresAt: _temporaryPasswordExpiresAt,
+      ...safeUser
+    } = user;
+    // Signing in with a temporary password does not finish the login: the
+    // client has to collect a new password first. The expiry check above
+    // already rejected stale temporary passwords, so any remaining value means
+    // this credential is a live temporary one.
+    const mustChangePassword = Boolean(user.temporaryPasswordExpiresAt);
+    return res.json({ user: safeUser, mustChangePassword });
+  });
+
+  // Finishes a temporary-password login. The temporary credential is verified
+  // again here because no session exists yet, so the new password can only be
+  // stored after proving ownership of the account.
+  app.post('/api/auth/complete-password-setup', async (req, res) => {
+    const username = String(req.body?.username || '').trim().toLowerCase();
+    const temporaryPassword = String(req.body?.temporaryPassword || '');
+    const newPassword = String(req.body?.newPassword || '');
+
+    if (!username || !temporaryPassword || !newPassword) {
+      return res
+        .status(400)
+        .json({ error: 'Username, temporary password, and new password are required.' });
+    }
+    if (newPassword.length < 6) {
+      return res
+        .status(400)
+        .json({ error: 'Password must be at least 6 characters long.' });
+    }
+    if (newPassword === temporaryPassword) {
+      return res
+        .status(400)
+        .json({ error: 'Your new password must be different from the temporary password.' });
+    }
+
+    const user = usersState.find(
+      (candidate) =>
+        candidate.active &&
+        candidate.username.trim().toLowerCase() === username,
+    );
+    if (
+      !user ||
+      typeof user.password !== 'string' ||
+      user.password !== temporaryPassword ||
+      !user.temporaryPasswordExpiresAt
+    ) {
+      return res
+        .status(401)
+        .json({ error: 'Temporary password is no longer valid. Sign in again.' });
+    }
+    if (new Date(user.temporaryPasswordExpiresAt).getTime() <= Date.now()) {
+      return res
+        .status(401)
+        .json({ error: 'Temporary password expired. Request a new temporary password.' });
+    }
+
+    user.password = newPassword;
+    user.temporaryPasswordExpiresAt = null;
+    try {
+      await saveUserDirect(user);
+    } catch (databaseError) {
+      console.warn('[AUTH] New password persistence warning:', databaseError);
+    }
+
+    addAuditLog(auditLogsState, {
+      userId: user.id,
+      userName: user.fullName,
+      userRole: user.role,
+      action: 'UPDATE_USER',
+      details: `${user.fullName} replaced a temporary password with a new account password.`,
+      ipAddress: req.ip || '127.0.0.1',
+    });
+
+    const {
+      password: _newPassword,
+      temporaryPasswordExpiresAt: _clearedExpiry,
       ...safeUser
     } = user;
     return res.json({ user: safeUser });
@@ -1536,13 +1668,24 @@ export async function createApp() {
       (d) => d.currentStatus === 'RETURNED',
     ).length;
 
-    // Division breakdown
+    // Division breakdown: active workload per division. Each active document
+    // counts once for every division still holding it (pending recipient), so a
+    // document awaiting action in LU and AD counts for both. Completed documents
+    // are not workload.
     const divMap: Record<string, number> = {};
     divisionsState.forEach((d) => {
       divMap[d.code] = 0;
     });
     documentsState.forEach((doc) => {
-      divMap[doc.currentDivision] = (divMap[doc.currentDivision] || 0) + 1;
+      if (doc.currentStatus === 'COMPLETED') return;
+      const heldBy = new Set<string>();
+      getPendingRecipients(doc).forEach((route) => {
+        if (route.toDivision) heldBy.add(route.toDivision);
+      });
+      if (!heldBy.size && doc.currentDivision) heldBy.add(doc.currentDivision);
+      heldBy.forEach((code) => {
+        divMap[code] = (divMap[code] || 0) + 1;
+      });
     });
 
     const divisionBreakdown = Object.entries(divMap).map(([code, count]) => ({
@@ -1795,6 +1938,11 @@ export async function createApp() {
       if (d.trackingNumber) activeDocTrackings.set(d.trackingNumber.trim().toUpperCase(), d);
       if (d.routeNo) activeDocTrackings.set(d.routeNo.trim().toUpperCase(), d);
     }
+    // The transaction-activity feed may only ever describe this account's own
+    // documents. Without this an activity log on somebody else's routing would
+    // surface in the requester's notification list.
+    const isOwnDocument = (document: DocumentRecord) =>
+      isDocumentParticipant(document, requestingUser, auditLogsState);
 
     // Clean up any stale/orphaned notifications in memory
     notificationsState = notificationsState.filter((n) => {
@@ -1807,9 +1955,13 @@ export async function createApp() {
       return true;
     });
 
-    const storedNotifications = notificationsState.filter(
-      (notification) => notification.userId === userId,
-    );
+    const storedNotifications = notificationsState
+      .filter((notification) => notification.userId === userId)
+      .map((notification) =>
+        notification.title === 'Routing Action Reminder'
+          ? { ...notification, type: 'URGENT' as const, requiresDecision: false, decisionStatus: undefined }
+          : notification,
+      );
     const globalTransactionNotifications: NotificationItem[] =
       canViewAllTransactionNotifications
         ? auditLogsState
@@ -1819,13 +1971,14 @@ export async function createApp() {
                 activeDocTrackings.has(log.documentTrackingNumber.trim().toUpperCase()) &&
                 ['CREATE_DOC', 'ROUTE_DOC', 'TRANSFER_DOC', 'UPDATE_STATUS'].includes(
                   log.action,
-                ),
+                ) &&
+                !log.details?.startsWith('Routing reminder sent to'),
             )
             .map<NotificationItem | null>((log) => {
               const matchedDoc = log.documentTrackingNumber
                 ? activeDocTrackings.get(log.documentTrackingNumber.trim().toUpperCase())
                 : undefined;
-              if (!matchedDoc) return null;
+              if (!matchedDoc || !isOwnDocument(matchedDoc)) return null;
               const decision = log.details.match(
                 /(?:Action:\s*|^)(APPROVED|DISAPPROVED)\b/i,
               )?.[1]?.toUpperCase();
@@ -2008,7 +2161,7 @@ export async function createApp() {
     ]);
   });
 
-  app.post('/api/notifications/reminder', (req, res) => {
+  app.post('/api/notifications/reminder', async (req, res) => {
     const actingUser = getRequestUser(req);
     if (!actingUser) {
       return res.status(401).json({ error: 'Active database user required.' });
@@ -2029,17 +2182,23 @@ export async function createApp() {
     const recipient = usersState.find(
       (candidate) =>
         candidate.id === String(req.body.recipientUserId || '') &&
-        candidate.active &&
-        candidate.role !== 'SYSTEM_ADMIN' &&
-        candidate.divisionCode !== 'ITMS',
+        candidate.active,
     );
     const message = String(req.body.message || '').trim();
     if (!document || !recipient) {
       return res.status(400).json({ error: 'Select a valid document handler.' });
     }
+    if (document.currentStatus === 'COMPLETED') {
+      return res.status(409).json({ error: 'This transaction is already completed and no longer needs a reminder.' });
+    }
     if (!message) {
       return res.status(400).json({ error: 'Enter a reminder message.' });
     }
+
+    const actionRequested =
+      String(req.body.actionRequested || '').trim() || 'Appropriate Action';
+
+    // In-app notification for the specific recipient ONLY
     const reminder = createNotification({
       userId: recipient.id,
       title: 'Routing Action Reminder',
@@ -2047,13 +2206,13 @@ export async function createApp() {
       documentId: document.id,
       trackingNumber: document.routeNo || document.trackingNumber,
       type: 'URGENT',
-      requiresDecision: true,
+      requiresDecision: false,
       reminderSenderName: actingUser.fullName,
       reminderHandlerName: recipient.fullName,
-      reminderActionRequested:
-        String(req.body.actionRequested || '').trim() || 'Appropriate Action',
+      reminderActionRequested: actionRequested,
     }, notificationsState);
     notificationsState.unshift(reminder);
+
     addAuditLog(auditLogsState, {
       userId: actingUser.id,
       userName: actingUser.fullName,
@@ -2064,7 +2223,10 @@ export async function createApp() {
       ipAddress: req.ip || '127.0.0.1',
     });
     saveDatabaseToFile();
-    res.status(201).json(reminder);
+    res.status(201).json({
+      ...reminder,
+      recipientName: recipient.fullName,
+    });
   });
 
   // Notifications are display-only. Dismissed IDs are retained by the browser.

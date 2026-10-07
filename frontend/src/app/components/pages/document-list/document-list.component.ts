@@ -150,11 +150,10 @@ export class DocumentListComponent implements OnInit {
       return true;
     });
 
-    if (tokens.length === 0) {
-      return matches;
-    }
-
     return [...matches].sort((a, b) => {
+      const newestFirst = this.documentActivityTime(b) - this.documentActivityTime(a);
+      if (tokens.length === 0) return newestFirst;
+
       const aRoute = (a.routeNo || a.trackingNumber || '').toLowerCase();
       const bRoute = (b.routeNo || b.trackingNumber || '').toLowerCase();
       const aTitle = (a.title || '').toLowerCase();
@@ -177,9 +176,20 @@ export class DocumentListComponent implements OnInit {
         if (bTitle.includes(t)) bScore += 15;
       }
 
-      return bScore - aScore;
+      return bScore - aScore || newestFirst;
     });
   });
+
+  private documentActivityTime(document: DocumentRecord): number {
+    const routeTime = (document.routes || []).reduce(
+      (latest, route) => Math.max(latest, new Date(route.processedAt || route.createdAt).getTime() || 0),
+      0,
+    );
+    return Math.max(
+      routeTime,
+      new Date(document.updatedAt || document.createdAt || document.dateReceived).getTime() || 0,
+    );
+  }
 
   onLocalSearchChange(value: string): void {
     this.searchQuerySig.set(value);
@@ -256,6 +266,7 @@ export class DocumentListComponent implements OnInit {
   }
 
   canRoute(doc: DocumentRecord): boolean {
+    if (this.currentUser.role === 'SYSTEM_ADMIN') return false;
     return (
       doc.currentStatus !== 'COMPLETED' &&
       doc.currentStatus !== 'RETURNED' &&

@@ -307,7 +307,6 @@ export class RouteDocumentComponent implements OnChanges {
 
   isSubmitDisabled(): boolean {
     if (!this.document || !this.currentUser) return true;
-    if (this.isEnded) return true;
     if (this.isSubmitting || this.isUploadingReply) return true;
     if (this.newStatus === 'COMPLETED') return !this.handoffInstructions.trim();
     if (this.newStatus !== 'COMPLETED' && this.selectedUserIds.length === 0) return true;
@@ -317,11 +316,6 @@ export class RouteDocumentComponent implements OnChanges {
   async handleSubmit(): Promise<void> {
     if (!this.document || this.submitting) return;
     this.formError = '';
-
-    if (this.document.currentStatus === 'COMPLETED' || hasCompletedPart(this.document, this.currentUser)) {
-      this.formError = 'Your part or this transaction has ended. Further routing is not allowed.';
-      return;
-    }
 
     const duplicateRecipients = this.allEmployees.filter(
       (emp) => this.selectedUserIds.includes(emp.id) && this.alreadyRouted(emp),

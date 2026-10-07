@@ -47,7 +47,7 @@ export interface RolePermission {
   management: boolean;
   allowedViews: string[];
   canDelete: boolean; // Unified delete permission: delete/cancel transactions, accounts, and directory staff
-  canViewAllDocuments: boolean; // Global visibility; otherwise users only see documents routed or assigned to them
+  canViewAllDocuments: boolean; // Legacy flag kept for record compatibility. Document visibility is always strictly personal (creator, recipient, or router), so this no longer grants any visibility.
   canViewAllRoutes: boolean; // Whether the role can see the complete routing trail across divisions
   allowedActions?: string[]; // granular feature actions controlled in User & Role Access Manager
   notificationViewAllConfigured?: boolean; // distinguishes legacy defaults from an explicit role-manager choice
@@ -448,7 +448,7 @@ export interface PopupAction {
   message: string;
   documentId: string;
   trackingNumber: string;
-  type: 'ACTION_REQUIRED';
+  type: 'ACTION_REQUIRED' | 'URGENT';
   requiresDecision: boolean;
   createdAt: string;
   reminderSenderName?: string;

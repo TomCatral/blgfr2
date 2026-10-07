@@ -13,6 +13,15 @@
   overflow: hidden;
   background: #020617;
   font-family: var(--font-sans, system-ui, sans-serif);
+  background-repeat: no-repeat;
+}
+
+/* When an image is uploaded from User Accounts the ambient glows are muted
+   so they do not tint the uploaded artwork. */
+.login-page.has-background-image .login-glow-1,
+.login-page.has-background-image .login-glow-2,
+.login-page.has-background-image .login-glow-3 {
+  opacity: 0.25;
 }
 
 /* Ambient glow spheres */
@@ -284,6 +293,42 @@
   }
 }
 
+/* Temporary-password verification notice shown before the new password form */
+.login-setup-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  margin-bottom: 0.25rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: 0.75rem;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  color: #1e3a8a;
+
+  ion-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+    color: #2563eb;
+  }
+
+  strong {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 800;
+    line-height: 1.3;
+  }
+
+  span {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1.4;
+    color: #475569;
+  }
+}
+
 .login-field-hint {
   font-size: 0.6875rem;
   color: #94a3b8;
@@ -547,6 +592,20 @@
     &:hover {
       color: #f1f5f9;
       background: rgba(255, 255, 255, 0.08);
+    }
+  }
+
+  .login-setup-banner {
+    background: rgba(37, 99, 235, 0.18);
+    border-color: rgba(96, 165, 250, 0.35);
+    color: #bfdbfe;
+
+    ion-icon {
+      color: #60a5fa;
+    }
+
+    span {
+      color: #cbd5e1;
     }
   }
 

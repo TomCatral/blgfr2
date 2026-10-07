@@ -65,11 +65,33 @@
                       }
                       <span>{{ elapsedText(item.statusSince) }}</span>
                     </span>
-                    <span [ngClass]="'routing-followup-remindedBadge' + (reminderHistory(item.document, recordHandler(item.route)).length > 0 ? ' routing-followup-remindedActive' : '')">
+                    <span [ngClass]="'routing-followup-remindedBadge' + (reminderHistory(item.document, recordHandler(item.route, item.document)).length > 0 ? ' routing-followup-remindedActive' : '')">
                       <ion-icon name="notifications" size="small"></ion-icon>
-                      Reminded {{ reminderHistory(item.document, recordHandler(item.route)).length }}x
+                      Reminded {{ reminderHistory(item.document, recordHandler(item.route, item.document)).length }}x
                     </span>
                   </div>
+
+                  <div [ngClass]="'routing-followup-handlerInfo' | cls">
+                    <div [ngClass]="'routing-followup-handlerBadge' | cls">
+                      <ion-icon name="person-circle" class="handler-icon"></ion-icon>
+                      <div class="handler-text-wrap">
+                        <span class="handler-label">Handler / Recipient:</span>
+                        <strong class="handler-name">{{ recordHandler(item.route, item.document) }}</strong>
+                        <span class="handler-division">&bull; {{ recordHandlerDivision(item.route, item.document) }}</span>
+                      </div>
+                    </div>
+                    <span [ngClass]="'routing-followup-noEmailBadge' | cls" title="Reminder appears as an in-app pop-up for this handler">
+                      <ion-icon name="notifications-outline" size="small"></ion-icon>
+                      <span>In-app pop-up reminder</span>
+                    </span>
+                    @if (item.route.actionRequested) {
+                      <span [ngClass]="'routing-followup-actionReqBadge' | cls">
+                        <ion-icon name="arrow-forward-circle-outline" size="small"></ion-icon>
+                        <span>Action: {{ item.route.actionRequested }}</span>
+                      </span>
+                    }
+                  </div>
+
                   <h3 [ngClass]="'routing-followup-recordTitle' | cls">{{ item.document.title }}</h3>
                   @if (item.document.subject && item.document.subject.trim()) {
                     <div [ngClass]="'routing-followup-content' | cls">
@@ -77,14 +99,14 @@
                       <p>{{ item.document.subject }}</p>
                     </div>
                   }
-                  @if (reminderHistory(item.document, recordHandler(item.route)).length > 0) {
+                  @if (reminderHistory(item.document, recordHandler(item.route, item.document)).length > 0) {
                     <div [ngClass]="'routing-followup-reminders' | cls">
                       <div [ngClass]="'routing-followup-reminderTitle' | cls">
                         <ion-icon name="notifications-outline" class="followNoticesOutlineIcon"></ion-icon>
-                        Reminders Audit Trail ({{ reminderHistory(item.document, recordHandler(item.route)).length }})
+                        Reminders Audit Trail ({{ reminderHistory(item.document, recordHandler(item.route, item.document)).length }})
                       </div>
                       <ul [ngClass]="'routing-followup-reminderList' | cls">
-                        @for (reminder of reminderHistory(item.document, recordHandler(item.route)); track reminder.id; let index = $index) {
+                        @for (reminder of reminderHistory(item.document, recordHandler(item.route, item.document)); track reminder.id; let index = $index) {
                           <li class="reminder-item">
                             <span class="reminder-step-badge">#{{ index + 1 }}</span>
                             <div class="reminder-details">
@@ -106,7 +128,12 @@
                     View
                   </ion-button>
                   @if (canSendReminder) {
-                    <ion-button type="button" (click)="onSendReminder(item.document, item.route)" [ngClass]="'routing-followup-reminderButton' | cls">
+                    <ion-button
+                      type="button"
+                      (click)="onSendReminder(item.document, item.route)"
+                      [ngClass]="'routing-followup-reminderButton' | cls"
+                      [title]="'Send reminder to ' + recordHandler(item.route, item.document)"
+                    >
                       <ion-icon name="notifications" size="small"></ion-icon>
                       Send Reminder
                     </ion-button>

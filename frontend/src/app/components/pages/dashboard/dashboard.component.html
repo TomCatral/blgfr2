@@ -227,77 +227,75 @@
   </div>
 
   <!-- 4. Division Workload Distribution Section (Simple Vertical Bar Chart) -->
-  @if (canViewDivisionWorkload) {
-    <div class="workload-section">
-      <div class="workload-header">
-        <div class="workload-title-group">
-          <span class="workload-icon-badge">
-            <ion-icon name="bar-chart"></ion-icon>
-          </span>
-          <div>
-            <h3 class="workload-title">
-              Division Workload Distribution
-            </h3>
-            <p class="workload-subtitle">
-              Active document handling across Regional Office II functional divisions
-            </p>
-          </div>
-        </div>
-
-        <div class="workload-total-pill">
-          <span class="pill-label">Total Active:</span>
-          <strong class="pill-count">{{ totalDivisionWorkload() }}</strong>
-          <span class="pill-unit">docs</span>
+  <div class="workload-section">
+    <div class="workload-header">
+      <div class="workload-title-group">
+        <span class="workload-icon-badge">
+          <ion-icon name="bar-chart"></ion-icon>
+        </span>
+        <div>
+          <h3 class="workload-title">
+            Division Workload Distribution
+          </h3>
+          <p class="workload-subtitle">
+            Active document handling across Regional Office II functional divisions
+          </p>
         </div>
       </div>
 
-      <!-- Simple Vertical Bar Chart Container -->
-      <div class="workload-chart-scroll">
-        <div class="workload-chart">
-          @for (item of stats.divisionBreakdown; track item.division) {
-            <div
-              class="bar-track-col group"
-              [title]="getDivisionFullName(item.division) + ': ' + item.count + ' active documents (' + getDivisionPercentage(item.count) + '%)'">
-              
-              <!-- Value badge above bar -->
-              <div
-                class="bar-value-badge"
-                [class.is-active]="item.count > 0"
-                [class.is-zero]="item.count === 0">
-                <span class="bar-count">
-                  {{ item.count }}
-                </span>
-                <span class="bar-pct">
-                  {{ getDivisionPercentage(item.count) }}%
-                </span>
-              </div>
-
-              <!-- Bar Track Container -->
-              <div class="bar-track">
-                <!-- Bar Fill -->
-                <div
-                  class="bar-fill"
-                  [style.height.%]="barPercentage(item.count)">
-                </div>
-              </div>
-
-              <!-- Division Code & Name label below bar -->
-              <div class="bar-labels">
-                <span
-                  class="division-chip"
-                  [title]="getDivisionFullName(item.division)">
-                  {{ item.division }}
-                </span>
-                <span class="division-fullname">
-                  {{ getDivisionFullName(item.division) }}
-                </span>
-              </div>
-            </div>
-          }
-        </div>
+      <div class="workload-total-pill">
+        <span class="pill-label">Total Active:</span>
+        <strong class="pill-count">{{ totalDivisionWorkload() }}</strong>
+        <span class="pill-unit">docs</span>
       </div>
     </div>
-  }
+
+    <!-- Simple Vertical Bar Chart Container -->
+    <div class="workload-chart-scroll">
+      <div class="workload-chart">
+        @for (item of stats.divisionBreakdown; track item.division) {
+          <div
+            class="bar-track-col group"
+            [title]="getDivisionFullName(item.division) + ': ' + item.count + ' active documents (' + getDivisionPercentage(item.count) + '%)'">
+
+            <!-- Value badge above bar -->
+            <div
+              class="bar-value-badge"
+              [class.is-active]="item.count > 0"
+              [class.is-zero]="item.count === 0">
+              <span class="bar-count">
+                {{ item.count }}
+              </span>
+              <span class="bar-pct">
+                {{ getDivisionPercentage(item.count) }}%
+              </span>
+            </div>
+
+            <!-- Bar Track Container -->
+            <div class="bar-track">
+              <!-- Bar Fill -->
+              <div
+                class="bar-fill"
+                [style.height.%]="barPercentage(item.count)">
+              </div>
+            </div>
+
+            <!-- Division Code & Name label below bar -->
+            <div class="bar-labels">
+              <span
+                class="division-chip"
+                [title]="getDivisionFullName(item.division)">
+                {{ item.division }}
+              </span>
+              <span class="division-fullname">
+                {{ getDivisionFullName(item.division) }}
+              </span>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
 
   <!-- 5. Recent Document Activity Modernized Table Card -->
   <div class="dash-activity-section">
@@ -571,25 +569,6 @@
               {{ cardDocuments().length }} document{{ cardDocuments().length === 1 ? '' : 's' }} in this category
             </p>
           </div>
-
-          @if (currentUser.role === 'SYSTEM_ADMIN') {
-            <div class="dash-card-flow-toggle">
-              <button
-                type="button"
-                (click)="cardFlowFilter.set('MY')"
-                [class.active]="cardFlowFilter() === 'MY'"
-                class="dash-flow-btn">
-                <span>My Assigned / Flow</span>
-              </button>
-              <button
-                type="button"
-                (click)="cardFlowFilter.set('ALL')"
-                [class.active]="cardFlowFilter() === 'ALL'"
-                class="dash-flow-btn">
-                <span>All Personnel</span>
-              </button>
-            </div>
-          }
 
           <div class="dash-card-modal-actions">
             @if (selectedCard() === 'incoming' || selectedCard() === 'outgoing') {

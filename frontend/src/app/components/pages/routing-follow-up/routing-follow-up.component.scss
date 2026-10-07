@@ -234,6 +234,111 @@
   }
 }
 
+.routing-followup-handlerInfo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+  padding: 0.5rem 0.75rem;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+}
+
+.routing-followup-handlerBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #0f172a;
+  font-size: 0.78rem;
+
+  .handler-icon {
+    font-size: 1.25rem;
+    color: #2563eb;
+    flex-shrink: 0;
+  }
+
+  .handler-text-wrap {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .handler-label {
+    color: #64748b;
+    font-size: 0.6875rem;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-right: 0.15rem;
+  }
+
+  .handler-name {
+    font-weight: 800;
+    color: #0f172a;
+  }
+
+  .handler-division {
+    color: #475569;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+}
+
+.routing-followup-emailBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 9999px;
+  color: #1d4ed8;
+  font-size: 0.72rem;
+  font-weight: 650;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  ion-icon {
+    font-size: 0.85rem;
+  }
+}
+
+.routing-followup-noEmailBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 9999px;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 600;
+
+  ion-icon {
+    font-size: 0.85rem;
+  }
+}
+
+.routing-followup-actionReqBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  background: #fefce8;
+  border: 1px solid #fef08a;
+  border-radius: 9999px;
+  color: #854d0e;
+  font-size: 0.7rem;
+  font-weight: 700;
+
+  ion-icon {
+    font-size: 0.85rem;
+  }
+}
+
 .routing-followup-recordTitle {
   margin: 0.5rem 0 0;
   color: #0f172a;

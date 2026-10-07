@@ -4,19 +4,22 @@
     <span class="flow-branch-arrow" aria-hidden="true"></span>
   }
 
-  @if (parent.getFlowNodeHandoffInstruction(recipient.id); as instruction) {
-    <div class="flow-handoff-instruction-card flow-handoff-instruction-card--above" role="note" aria-label="Handoff instructions">
-      <div class="flow-handoff-header">
-        <ion-icon name="document-text-outline" class="flow-handoff-icon"></ion-icon>
-        <span class="flow-handoff-title">Handoff Instructions</span>
+  @if (parent.canViewFlowNodeNote(recipient.id) && !parent.isDispatchNoteGrouped(recipient.id)) {
+    @if (parent.getFlowNodeRegularRemarks(recipient.id); as dispatchNote) {
+      <div class="flow-dispatch-note-card" role="note" aria-label="Dispatch note">
+        <div class="flow-dispatch-note-header">
+          <ion-icon name="send-outline"></ion-icon>
+          <span>
+            Dispatch note from
+            {{ parent.getFlowNodeSenderName(recipient.id) }}
+          </span>
+        </div>
+        <p>&ldquo;{{ dispatchNote }}&rdquo;</p>
+        <div class="flow-dispatch-note-target">
+          Sent to {{ parent.resolveUserName(recipient.toUserId, recipient.toUser) || recipient.toDivision }}
+        </div>
       </div>
-      <p class="flow-handoff-body">
-        &ldquo;{{ instruction }}&rdquo;
-      </p>
-      <div class="flow-handoff-user">
-        Instruction by {{ parent.getFlowNodeInstructionAuthor(recipient.id) }}
-      </div>
-    </div>
+    }
   }
 
   <button
@@ -44,12 +47,6 @@
             </span>
           }
         </div>
-        <div class="flow-action-meta">
-          <span class="flow-action-label">Action:</span>
-          <span class="flow-action-tag">
-            {{ recipient.actionRequested || 'Document Handoff' }}
-          </span>
-        </div>
       </div>
       <div class="flow-node-header-actions flex items-center gap-1.5 shrink-0">
         <span [ngClass]="parent.getFlowNodeStatusChipClass(recipient.id) | cls" class="flow-status-chip">
@@ -68,12 +65,6 @@
         }
       </div>
     </div>
-
-    @if (parent.getFlowNodeRegularRemarks(recipient.id); as regRemarks) {
-      <div class="flow-remarks-quote">
-        "{{ regRemarks }}"
-      </div>
-    }
 
     <!-- 3-stage Progress indicator -->
     <div class="flow-stages-grid" [attr.aria-label]="'Progress for ' + parent.resolveUserName(recipient.toUserId, recipient.toUser) + ': ' + parent.getFlowNodeSnapshot(recipient.id).status">
@@ -96,6 +87,18 @@
       </div>
     }
   </button>
+
+  @if (parent.canViewFlowNodeNote(recipient.id) && parent.getFlowNodeHandoffInstruction(recipient.id); as instruction) {
+    <div class="flow-handoff-instruction-card flow-handoff-instruction-card--below" role="note" aria-label="Final instruction">
+      <div class="flow-handoff-header">
+        <ion-icon name="document-text-outline" class="flow-handoff-icon"></ion-icon>
+        <span class="flow-handoff-title">
+          Final instruction from {{ parent.getFlowNodeInstructionAuthor(recipient.id) }}
+        </span>
+      </div>
+      <p class="flow-handoff-body">&ldquo;{{ instruction }}&rdquo;</p>
+    </div>
+  }
 
   @if (parent.canShowFlowNodeEnd(recipient.id)) {
     <div class="flow-connector" aria-hidden="true">

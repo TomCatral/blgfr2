@@ -143,18 +143,12 @@ export class AppComponent implements OnInit, OnDestroy {
   private targetDateInterval: number | null = null;
   private snoozeInterval: number | null = null;
 
+  // Personnel see their own transactions; SYSTEM_ADMIN receives the complete
+  // read-only monitoring view through the shared visibility policy.
   readonly accessibleDocuments = computed(() => {
     const user = this.currentUser();
     if (!user) return [];
-    const all = this.state.documents();
-    const permissions =
-      user.permissions ||
-      DEFAULT_ROLE_PERMISSIONS[user.role] ||
-      DEFAULT_ROLE_PERMISSIONS.STAFF;
-    if (user.role === 'SYSTEM_ADMIN' || permissions.canViewAllDocuments) {
-      return all;
-    }
-    return all.filter((document) =>
+    return this.state.documents().filter((document) =>
       isDocumentParticipant(document, user, this.state.auditLogs()),
     );
   });
@@ -166,7 +160,7 @@ export class AppComponent implements OnInit, OnDestroy {
   readonly existingRouteNumbers = computed(() =>
     this.state
       .documents()
-      .map((document) => document.routeNo)
+      .flatMap((document) => [document.routeNo, document.trackingNumber])
       .filter((routeNo): routeNo is string => Boolean(routeNo)),
   );
 
@@ -489,7 +483,13 @@ export class AppComponent implements OnInit, OnDestroy {
     this.isCreateModalOpen.set(true);
   };
 
-  openRoute = (doc: DocumentRecord): void => this.routeModalDoc.set(doc);
+  openRoute = (doc: DocumentRecord): void => {
+    if (this.currentUser()?.role === 'SYSTEM_ADMIN') {
+      this.ui.showError('System Administrators can monitor and edit records, but cannot route documents.');
+      return;
+    }
+    this.routeModalDoc.set(doc);
+  };
 
   closeCreate = (): void => this.isCreateModalOpen.set(false);
 
@@ -677,8 +677,15 @@ export class AppComponent implements OnInit, OnDestroy {
         throw new Error('Unable to allocate an available Document Route No.');
       }
       formData['routeNo'] = created.routeNo || candidateRouteNo;
-      this.state.prependDocument(created);
       await this.loadBackendData();
+      // Keep the successful create response visible even when the immediately
+      // following snapshot was read before the database replica caught up.
+      // prependDocument is an upsert, so the server copy wins when available
+      // and the create response safely fills the short replication gap.
+      const refreshedCreated = this.state.documents().find(
+        (document) => document.id === created!.id || document.routeNo === created!.routeNo,
+      );
+      this.state.prependDocument(refreshedCreated || created);
 
       if (shouldPrint) {
         this.slipSelectedDoc.set(created);
@@ -722,6 +729,10 @@ export class AppComponent implements OnInit, OnDestroy {
     const actingUser = this.currentUser();
     if (!actingUser) {
       alert('Your session has ended. Please sign in again.');
+      return false;
+    }
+    if (actingUser.role === 'SYSTEM_ADMIN') {
+      this.ui.showError('System Administrators cannot route documents.');
       return false;
     }
     try {
@@ -790,6 +801,10 @@ export class AppComponent implements OnInit, OnDestroy {
   ): Promise<boolean> => {
     const user = this.currentUser();
     if (!notification.documentId || !user) return false;
+    if (user.role === 'SYSTEM_ADMIN') {
+      this.ui.showError('System Administrators cannot approve or disapprove routing transactions.');
+      return false;
+    }
     if (this.decisionSubmittingId() === notification.id) return false;
     let remarks = '';
     if (decision === 'DISAPPROVED') {
@@ -996,24 +1011,30 @@ export class AppComponent implements OnInit, OnDestroy {
     document: DocumentRecord,
     route: DocumentRecord['routes'][number],
   ): Promise<void> => {
-    if (!route.toUserId) return;
+    const targetUserId = route.toUserId || document.assignedUserId;
+    if (!targetUserId) {
+      this.ui.showError('No assigned handler found for this document.');
+      return;
+    }
+    const recipientUser = this.state.users().find((user) => user.id === targetUserId);
     const currentHandlerName =
-      this.state.users().find((user) => user.id === route.toUserId)?.fullName ||
+      recipientUser?.fullName ||
       route.toUser ||
+      document.assignedUser ||
       'document handler';
     const message = await showPrompt(
-      `Reminder for ${currentHandlerName}:`,
+      `Send an in-app pop-up reminder to ${currentHandlerName}:`,
       'Please take action on this routed document.',
     );
     if (!message?.trim()) return;
     try {
-      await firstValueFrom(this.api.sendRoutingReminder({
+      const response = await firstValueFrom(this.api.sendRoutingReminder({
         documentId: document.id,
-        recipientUserId: route.toUserId,
+        recipientUserId: targetUserId,
         message: message.trim(),
         actionRequested: route.actionRequested || 'Appropriate Action',
       }));
-      this.ui.showSuccess(`Reminder sent to ${currentHandlerName}.`);
+      this.ui.showSuccess(`In-app pop-up reminder sent to ${currentHandlerName}.`);
       await this.loadBackendData();
     } catch (error: unknown) {
       this.ui.showError(`Failed to send reminder: ${String((error as Error)?.message || error)}`);
@@ -1229,7 +1250,8 @@ export class AppComponent implements OnInit, OnDestroy {
                 (!route.toUserId &&
                   route.toUser?.trim().toLowerCase() ===
                     user.fullName.trim().toLowerCase())) &&
-              !/^(APPROVED|DISAPPROVED)$/i.test(route.actionRequested),
+              route.statusAfter !== 'COMPLETED' &&
+              !/\bCOMPLETED\b/i.test(`${route.actionRequested || ''} ${route.remarks || ''}`),
           )
           .map((route) => ({ document, route })),
       )
@@ -1261,7 +1283,10 @@ export class AppComponent implements OnInit, OnDestroy {
             new Date(log.timestamp).getTime() >= assignedAt &&
             ['ROUTE_DOC', 'TRANSFER_DOC', 'UPDATE_STATUS'].includes(log.action),
         );
-        return !userAlreadyActed;
+        // A manually sent reminder must reopen the pop-up even when the user
+        // previously approved or recorded another action but has not completed
+        // or forwarded the step yet.
+        return hasUrgentReminder || !userAlreadyActed;
       })
       .sort(
         (a, b) =>
@@ -1295,7 +1320,7 @@ export class AppComponent implements OnInit, OnDestroy {
       return !isRoutingPopupSnoozed(closedAt);
     });
     if (!next) {
-      if (this.routingPopup()?.requiresDecision) this.routingPopup.set(null);
+      if (this.routingPopup()) this.routingPopup.set(null);
       return;
     }
     const reminderForDoc = currentNotifs.find(
@@ -1316,8 +1341,8 @@ export class AppComponent implements OnInit, OnDestroy {
       message: reminderForDoc?.message || `Document ${next.document.routeNo || next.document.trackingNumber} requires your approval.`,
       documentId: next.document.id,
       trackingNumber: next.document.routeNo || next.document.trackingNumber,
-      type: 'ACTION_REQUIRED',
-      requiresDecision: true,
+      type: reminderForDoc ? 'URGENT' : 'ACTION_REQUIRED',
+      requiresDecision: !reminderForDoc,
       createdAt: next.route.createdAt,
     });
   }
@@ -1384,7 +1409,11 @@ export class AppComponent implements OnInit, OnDestroy {
       } catch {
         // Keep the session snooze.
       }
-      this.ui.showToast('Approval reminder snoozed for 24 hours. It remains available in Notifications.');
+      this.ui.showToast(
+        target.requiresDecision
+          ? 'Approval request closed for 24 hours. It remains available in Notifications.'
+          : 'Reminder closed for 24 hours. It remains available in Notifications.',
+      );
     }
     if (this.routingPopup()?.id === target?.id) {
       this.routingPopup.set(null);

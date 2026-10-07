@@ -322,7 +322,123 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-  animation: ua-fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+animation: ua-fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Compact standalone strip: Login Page Background (System Administrator only) */
+.ua-login-bg-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: 1rem;
+  border: 1px solid var(--ui-border, #e2e8f0);
+  background: #ffffff;
+  box-shadow: 0 2px 8px -4px rgba(15, 23, 42, 0.12);
+
+  @media (max-width: 640px) {
+    flex-wrap: wrap;
+  }
+}
+
+.ua-login-bg-strip-icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.625rem;
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+  box-shadow: 0 4px 10px -4px rgba(37, 99, 235, 0.55);
+
+  ion-icon {
+    font-size: 1.1rem;
+  }
+}
+
+.ua-login-bg-strip-thumb {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 5.5rem;
+  height: 3.125rem;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  border: 1.5px dashed #cbd5e1;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: rgba(226, 232, 240, 0.7);
+
+  > ion-icon {
+    font-size: 1.15rem;
+  }
+
+  img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &.has-img {
+    border-style: solid;
+    border-color: #334155;
+  }
+}
+
+.ua-login-bg-strip-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgba(2, 6, 23, 0.62), rgba(2, 6, 23, 0.82));
+}
+
+.ua-login-bg-strip-card {
+  position: absolute;
+  width: 2.5rem;
+  height: 1.5rem;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 4px 10px -4px rgba(2, 6, 23, 0.9);
+}
+
+.ua-login-bg-strip-text {
+  flex: 1 1 12rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.ua-login-bg-strip-title {
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.ua-login-bg-strip-sub {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.ua-login-bg-strip-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-left: auto;
+
+  .ua-btn-primary,
+  .ua-btn-secondary {
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
 }
 
 .ua-toolbar {

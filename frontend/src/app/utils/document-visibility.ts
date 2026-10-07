@@ -48,6 +48,7 @@ export const isDocumentParticipant = (
   user: User,
   auditLogs: AuditLog[] = [],
 ) =>
+  user.role === 'SYSTEM_ADMIN' ||
   matchesParticipant(user, document.assignedUserId, document.assignedUser) ||
   matchesParticipant(user, document.createdByUserId, document.createdBy) ||
   matchesParticipant(user, undefined, document.recipientName) ||
@@ -64,4 +65,3 @@ export const isDocumentParticipant = (
       (matchesParticipant(user, log.userId, log.userName) ||
         auditNamesRecipient(log.details, user.fullName)),
   );
-

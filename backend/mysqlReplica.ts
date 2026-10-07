@@ -120,6 +120,16 @@ async function ensureUserIdForeignKeys(target: PrismaClient) {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);
 
+  // Single-row-per-key store for portal settings such as the login background.
+  await target.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS \`system_settings\` (
+      \`setting_key\` VARCHAR(64) NOT NULL,
+      \`setting_value\` TEXT NULL,
+      \`updated_at\` DATETIME(3) NOT NULL,
+      PRIMARY KEY (\`setting_key\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `);
+
   try {
     await target.$executeRawUnsafe(
       'ALTER TABLE `employee_profiles` MODIFY COLUMN `office_type` VARCHAR(50) NOT NULL DEFAULT \'BLGF\'',
@@ -783,6 +793,32 @@ async function writeUser(target: PrismaClient, user: DataRecord) {
 export async function saveUserDirect(user: unknown) {
   if (!client || !status.connected) return;
   await writeUser(client, user as DataRecord);
+}
+
+export async function readSystemSetting(
+  key: string,
+): Promise<string | null> {
+  if (!client || !status.connected) return null;
+  const rows = await client.$queryRawUnsafe<Array<{ setting_value: string | null }>>(
+    'SELECT `setting_value` FROM `system_settings` WHERE `setting_key` = ? LIMIT 1',
+    key,
+  );
+  return rows[0]?.setting_value ?? null;
+}
+
+export async function saveSystemSetting(
+  key: string,
+  value: string | null,
+): Promise<void> {
+  if (!client || !status.connected) return;
+  await client.$executeRawUnsafe(
+    `INSERT INTO \`system_settings\` (\`setting_key\`, \`setting_value\`, \`updated_at\`)
+     VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE \`setting_value\` = VALUES(\`setting_value\`), \`updated_at\` = VALUES(\`updated_at\`)`,
+    key,
+    value,
+    new Date(),
+  );
 }
 
 export async function deleteUserDirect(userId: string) {

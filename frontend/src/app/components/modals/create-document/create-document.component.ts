@@ -1030,7 +1030,7 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     );
   }
 
-  private buildFormData(): any {
+  private buildFormData(forceRegisterOnly = false): any {
     const isOutside = this.isOutsideOffice();
     const div = isOutside ? (this.currentUser.divisionCode || 'ORD') : this.currentDivision();
     const addl = isOutside ? [] : this.additionalDivisions();
@@ -1057,7 +1057,10 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
       this.selectedRecipientIds().length > 0 ||
       holdRecips.length > 0;
     const hasDivision = Boolean(this.currentDivision());
-    const isNotYetRouted = !isOutside && !hasRecipient && !hasDivision;
+    // The clicked action is authoritative. "Register Only" must never create
+    // an initial route just because the user previously selected a division or
+    // recipient while filling out the form.
+    const isNotYetRouted = !isOutside && (forceRegisterOnly || (!hasRecipient && !hasDivision));
 
     return {
       direction: this.direction(),
@@ -1070,7 +1073,7 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
       destinationOffice:
         isOutside
           ? combinedRecipOffice
-          : (this.recipientOffice() || (isNotYetRouted ? 'Awaiting Initial Routing' : 'BLGF Regional Office II')),
+          : (isNotYetRouted ? 'Awaiting Initial Routing' : (this.recipientOffice() || 'BLGF Regional Office II')),
       senderName: this.senderName(),
       senderPosition: this.senderPosition(),
       senderAddress: this.senderAddress(),
@@ -1080,9 +1083,9 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
         isOutside || isNotYetRouted
           ? undefined
           : (selIds.length === 0 ? this.recipientUserId() : undefined),
-      recipientPosition: isOutside ? combinedRecipPos : this.recipientPosition(),
-      recipientOffice: isOutside ? combinedRecipOffice : this.recipientOffice(),
-      recipientAddress: isOutside ? combinedRecipAddress : this.recipientAddress(),
+      recipientPosition: isOutside ? combinedRecipPos : (isNotYetRouted ? undefined : this.recipientPosition()),
+      recipientOffice: isOutside ? combinedRecipOffice : (isNotYetRouted ? undefined : this.recipientOffice()),
+      recipientAddress: isOutside ? combinedRecipAddress : (isNotYetRouted ? undefined : this.recipientAddress()),
       outsideRecipients: isOutside ? outsideList : [],
       isOutside: isOutside,
       currentStatus: isOutside ? 'COMPLETED' : (isNotYetRouted ? 'NOT_YET_ROUTED' : 'PENDING'),
@@ -1091,9 +1094,9 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
         div === 'ALL'
           ? this.currentUser.divisionCode
           : (div || this.currentUser.divisionCode || 'AD'),
-      routeAllDivisions: !isOutside && div === 'ALL',
+      routeAllDivisions: !isOutside && !isNotYetRouted && div === 'ALL',
       routeMultipleDivisions:
-        !isOutside && (addl.length > 0 || selIds.length > 1),
+        !isOutside && !isNotYetRouted && (addl.length > 0 || selIds.length > 1),
       initialTargetDivisions:
         isOutside || div === 'ALL' || isNotYetRouted
           ? []
@@ -1184,7 +1187,7 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     }
     this.validationErrors.set([]);
     this.submitting.set(true);
-    const formData = this.buildFormData();
+    const formData = this.buildFormData(!isOutside && actionType === 'none');
     formData.shouldRouteModal =
       !isOutside &&
       actionType === 'route' &&

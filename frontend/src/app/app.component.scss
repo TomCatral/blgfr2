@@ -655,6 +655,57 @@
   overflow-y: auto;
 }
 
+.routing-reminder-simple {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 1.1rem;
+  border: 1px solid #bfdbfe;
+  border-left: 4px solid #2563eb;
+  border-radius: 0.9rem;
+  background: #eff6ff;
+}
+
+.routing-reminder-simple-icon {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 9999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 1.25rem;
+}
+
+.routing-reminder-simple-content {
+  min-width: 0;
+
+  p {
+    margin: 0.3rem 0 0.65rem;
+    color: #172554;
+    font-size: 0.95rem;
+    font-weight: 650;
+    line-height: 1.55;
+    white-space: pre-wrap;
+  }
+}
+
+.routing-reminder-simple-label {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.routing-reminder-simple-route {
+  color: #2563eb;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
 .routing-hero-card {
   padding: 1.1rem 1.25rem;
   border-radius: 1rem;

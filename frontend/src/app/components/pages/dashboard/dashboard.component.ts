@@ -11,6 +11,7 @@ import {
   DEFAULT_ROLE_PERMISSIONS
 } from '../../../types';
 import { STATUS_CONFIGS, formatDate } from '../../../utils/status-utils';
+import { isDocumentParticipant } from '../../../utils/document-visibility';
 import { IonicModule } from '@ionic/angular';
 import { AppModalLayerComponent } from '../../ui/modal-layer.component';
 
@@ -41,7 +42,6 @@ export class DashboardComponent implements OnChanges {
   @Input({ required: true }) onSendRoutingReminder: (document: DocumentRecord, route: DocumentRouteStep) => Promise<void> = async () => {};
 
   selectedCard = signal<'incoming' | 'outgoing' | 'inProgress' | 'pending' | 'completed' | 'returned' | null>(null);
-  cardFlowFilter = signal<'MY' | 'ALL'>('MY');
   isUserStatusOpen = signal(false);
   transactionPage = signal(1);
   recentDocFilter = signal<'ALL' | 'INCOMING' | 'OUTGOING'>('ALL');
@@ -53,7 +53,6 @@ export class DashboardComponent implements OnChanges {
   };
 
   selectCard(card: 'incoming' | 'outgoing' | 'inProgress' | 'pending' | 'completed' | 'returned'): void {
-    this.cardFlowFilter.set('MY');
     this.selectedCard.set(card);
   };
 
@@ -71,10 +70,6 @@ export class DashboardComponent implements OnChanges {
 
   get canAccessDocumentSlip() {
     return (this.perms.allowedViews || []).includes('slip');
-  }
-
-  get canViewDivisionWorkload() {
-    return (this.perms.allowedViews || []).includes('division-workload');
   }
 
   canViewRoutingMonitor() {
@@ -162,6 +157,7 @@ export class DashboardComponent implements OnChanges {
   });
 
   canReapproveDocument(doc: DocumentRecord): boolean {
+    if (this.currentUser.role === 'SYSTEM_ADMIN') return false;
     return this.getLatestDocumentDecision(doc, this.currentUser.id)?.status === 'DISAPPROVED';
   }
 
@@ -207,22 +203,21 @@ export class DashboardComponent implements OnChanges {
 
   recentTransactions = computed(() => {
     this.inputRevision();
-    if (this.currentUser.role === 'SYSTEM_ADMIN') return this.documents;
-    return this.documents.filter(doc => {
-      const isDocumentOwnerOrHandler =
-        doc.createdByUserId === this.currentUser.id ||
-        doc.assignedUserId === this.currentUser.id ||
-        doc.createdBy?.trim().toLowerCase() === this.normalizedUserName ||
-        doc.assignedUser?.trim().toLowerCase() === this.normalizedUserName;
-      const isRoutingParticipant = (doc.routes || []).some(route =>
-        route.fromUserId === this.currentUser.id ||
-        route.toUserId === this.currentUser.id ||
-        route.fromUser?.trim().toLowerCase() === this.normalizedUserName ||
-        route.toUser?.trim().toLowerCase() === this.normalizedUserName
-      );
-      return isDocumentOwnerOrHandler || isRoutingParticipant;
-    });
+    return this.documents
+      .filter(doc => isDocumentParticipant(doc, this.currentUser, this.auditLogs))
+      .sort((a, b) => this.documentActivityTime(b) - this.documentActivityTime(a));
   });
+
+  private documentActivityTime(document: DocumentRecord): number {
+    const routeTime = (document.routes || []).reduce(
+      (latest, route) => Math.max(latest, new Date(route.processedAt || route.createdAt).getTime() || 0),
+      0,
+    );
+    return Math.max(
+      routeTime,
+      new Date(document.updatedAt || document.createdAt || document.dateReceived).getTime() || 0,
+    );
+  }
 
   readonly transactionsPerPage = 6;
 
@@ -295,7 +290,7 @@ export class DashboardComponent implements OnChanges {
     if (!card) return [];
     if (card === 'returned') return this.myDisapprovedTransactions();
 
-    let docs = this.documents.filter(doc => {
+    const candidates = this.documents.filter(doc => {
       if (card === 'incoming') return doc.direction === 'INCOMING';
       if (card === 'outgoing') return doc.direction === 'OUTGOING';
       if (card === 'inProgress') return doc.currentStatus === 'IN_PROGRESS';
@@ -304,46 +299,34 @@ export class DashboardComponent implements OnChanges {
       return false;
     });
 
-    const isSystemAdmin = this.currentUser.role === 'SYSTEM_ADMIN';
-    if (!isSystemAdmin || this.cardFlowFilter() === 'MY') {
-      docs = docs.filter(doc => {
-        if (card === 'pending') {
-          const isCreator =
-            doc.createdByUserId === this.currentUser.id ||
-            doc.createdBy?.trim().toLowerCase() === this.normalizedUserName;
-          const isAssigned =
-            doc.assignedUserId === this.currentUser.id ||
-            doc.assignedUser?.trim().toLowerCase() === this.normalizedUserName;
-          const latestRoute = (doc.routes || [])[(doc.routes || []).length - 1];
-          const isLatestRecipient = Boolean(
-            latestRoute &&
-            (latestRoute.toUserId === this.currentUser.id ||
-              latestRoute.toUser?.trim().toLowerCase() === this.normalizedUserName)
-          );
-          return (doc.currentStatus === 'NOT_YET_ROUTED' && isCreator) || isAssigned || isLatestRecipient;
-        }
+    if (this.currentUser.role === 'SYSTEM_ADMIN') return candidates;
 
-        const isOwnerOrHandler =
+    // Personnel cards only contain transactions the account created, received,
+    // or routed.
+    return candidates.filter(doc => {
+      if (card === 'pending') {
+        const isCreator =
           doc.createdByUserId === this.currentUser.id ||
+          doc.createdBy?.trim().toLowerCase() === this.normalizedUserName;
+        const isAssigned =
           doc.assignedUserId === this.currentUser.id ||
-          doc.createdBy?.trim().toLowerCase() === this.normalizedUserName ||
           doc.assignedUser?.trim().toLowerCase() === this.normalizedUserName;
-        const isParticipant = (doc.routes || []).some(route =>
-          route.fromUserId === this.currentUser.id ||
-          route.toUserId === this.currentUser.id ||
-          route.fromUser?.trim().toLowerCase() === this.normalizedUserName ||
-          route.toUser?.trim().toLowerCase() === this.normalizedUserName
+        const latestRoute = (doc.routes || [])[(doc.routes || []).length - 1];
+        const isLatestRecipient = Boolean(
+          latestRoute &&
+          (latestRoute.toUserId === this.currentUser.id ||
+            latestRoute.toUser?.trim().toLowerCase() === this.normalizedUserName)
         );
-        return isOwnerOrHandler || isParticipant;
-      });
-    }
+        return (doc.currentStatus === 'NOT_YET_ROUTED' && isCreator) || isAssigned || isLatestRecipient;
+      }
 
-    return docs;
+      return isDocumentParticipant(doc, this.currentUser, this.auditLogs);
+    });
   });
 
   getCardVisibleRoutes(document: DocumentRecord): GroupedRouteTransaction[] {
     const grouped = this.groupRouteTransactions(document);
-    if (this.cardFlowFilter() === 'ALL' || grouped.length <= 1) {
+    if (grouped.length <= 1) {
       return grouped;
     }
 
@@ -354,11 +337,8 @@ export class DashboardComponent implements OnChanges {
       r.toUser?.trim().toLowerCase() === this.normalizedUserName ||
       (r.toUsers || []).some(u => u.trim().toLowerCase() === this.normalizedUserName);
 
-    const hasUserInStep = grouped.some(isUserParticipant);
-    if (!hasUserInStep) {
-      return grouped;
-    }
-
+    // Only the steps this account routed or received. There is no "All
+    // Personnel" view - other personnel's routing stays hidden.
     return grouped.filter(isUserParticipant);
   }
 

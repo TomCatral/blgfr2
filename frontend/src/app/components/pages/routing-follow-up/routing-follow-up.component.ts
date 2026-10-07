@@ -19,11 +19,14 @@ interface RoutingFollowUpItem {
   awaitingAction: boolean;
 }
 
-const getRouteDecision = (route: DocumentRouteStep): 'APPROVED' | 'DISAPPROVED' | undefined => {
+const isRouteCompleted = (route: DocumentRouteStep): boolean => {
+  const value = `${route.statusAfter || ''} ${route.actionRequested || ''} ${route.remarks || ''}`.toUpperCase();
+  return route.statusAfter === 'COMPLETED' || /\b(COMPLETED|TRANSACTION COMPLETED)\b/.test(value);
+};
+
+const isDecisionOnlyRoute = (route: DocumentRouteStep): boolean => {
   const value = `${route.actionRequested || ''} ${route.remarks || ''}`.toUpperCase();
-  if (value.includes('DISAPPROVED')) return 'DISAPPROVED';
-  if (value.includes('APPROVED')) return 'APPROVED';
-  return undefined;
+  return /\b(APPROVED|DISAPPROVED)\b/.test(value);
 };
 
 const DIVISION_NAMES: Record<string, string> = {
@@ -94,7 +97,7 @@ export class RoutingFollowUpComponent implements DoCheck {
           new Date(second.createdAt).getTime(),
       );
       for (const route of routes) {
-        if (!route.toUserId || getRouteDecision(route)) continue;
+        if (!route.toUserId || isRouteCompleted(route) || isDecisionOnlyRoute(route)) continue;
         const assignedAt = new Date(route.createdAt).getTime();
         const handlerName = (
           this.userNameById.get(route.toUserId) ||
@@ -107,18 +110,21 @@ export class RoutingFollowUpComponent implements DoCheck {
           (candidate) =>
             new Date(candidate.createdAt).getTime() > assignedAt &&
             (candidate.fromUserId === route.toUserId ||
-              candidate.fromUser?.trim().toLowerCase() === handlerName),
+              candidate.fromUser?.trim().toLowerCase() === handlerName) &&
+            !isDecisionOnlyRoute(candidate) &&
+            !isRouteCompleted(candidate),
         );
-        const hasLaterAuditAction = this.auditLogs.some(
+        const hasLaterCompletion = this.auditLogs.some(
           (log) =>
             (log.documentTrackingNumber === document.trackingNumber ||
               log.documentTrackingNumber === document.routeNo) &&
             new Date(log.timestamp).getTime() > assignedAt &&
             (log.userId === route.toUserId ||
               log.userName.trim().toLowerCase() === handlerName) &&
-            ['ROUTE_DOC', 'TRANSFER_DOC', 'UPDATE_STATUS'].includes(log.action),
+            ['ROUTE_DOC', 'TRANSFER_DOC', 'UPDATE_STATUS'].includes(log.action) &&
+            /(?:Action:\s*|Status:\s*)COMPLETED\b/i.test(log.details),
         );
-        if (hasLaterRouteAction || hasLaterAuditAction) continue;
+        if (hasLaterRouteAction || hasLaterCompletion) continue;
         latestByHandler.set(`${document.id}:${route.toUserId}`, {
           document,
           route,
@@ -154,7 +160,8 @@ export class RoutingFollowUpComponent implements DoCheck {
         .filter(
           (route) =>
             route.toUserId &&
-            !getRouteDecision(route) &&
+            !isRouteCompleted(route) &&
+            !isDecisionOnlyRoute(route) &&
             (!document.assignedUserId ||
               route.toUserId === document.assignedUserId),
         )
@@ -165,7 +172,7 @@ export class RoutingFollowUpComponent implements DoCheck {
         )
         .at(-1);
       const fallbackRoute = [...(document.routes || [])]
-        .filter((route) => route.toUserId && !getRouteDecision(route))
+        .filter((route) => route.toUserId && !isRouteCompleted(route) && !isDecisionOnlyRoute(route))
         .sort(
           (first, second) =>
             new Date(first.createdAt).getTime() -
@@ -287,12 +294,21 @@ export class RoutingFollowUpComponent implements DoCheck {
       .join(' ');
   }
 
-  recordHandler(route: DocumentRouteStep): string {
+  recordHandler(route: DocumentRouteStep, document?: DocumentRecord): string {
+    const userId = route.toUserId || document?.assignedUserId;
     return (
-      this.userNameById.get(route.toUserId || '') ||
+      this.userNameById.get(userId || '') ||
       route.toUser ||
+      document?.assignedUser ||
       'Unassigned handler'
     );
+  }
+
+  recordHandlerDivision(route: DocumentRouteStep, document?: DocumentRecord): string {
+    const userId = route.toUserId || document?.assignedUserId;
+    const user = this.users.find((u) => u.id === userId);
+    const div = route.toDivision || user?.divisionCode || document?.currentDivision;
+    return this.divisionName(div);
   }
 
   reminderHistory(document: DocumentRecord, handler: string): AuditLog[] {
@@ -305,6 +321,7 @@ export class RoutingFollowUpComponent implements DoCheck {
           log.details
             .slice('Routing reminder sent to '.length)
             .split(' | Message:')[0]
+            .split(' (')[0]
             .trim()
             .toLowerCase() === handler.trim().toLowerCase(),
       )

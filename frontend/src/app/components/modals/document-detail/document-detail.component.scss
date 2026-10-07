@@ -87,20 +87,49 @@
 }
 
 /* Wide Responsive Flow Tree Grid */
-.flow-roots-grid {
-  display: grid;
-  grid-template-columns: repeat(var(--roots-count, 1), minmax(300px, 1fr));
-  gap: 1.25rem;
-  align-items: start;
-  list-style: none;
-  margin: 0;
-  padding: 0.5rem 0.25rem 1rem;
+.flow-grouped-note {
+  width: min(100% - 1rem, 38rem);
+  margin: 0 auto 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #bfdbfe;
+  border-left: 4px solid #2563eb;
+  border-radius: 0.875rem;
+  background: linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%);
+  box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.1);
+
+  p {
+    margin: 0.35rem 0 0;
+    color: #334155;
+    font-size: 0.8125rem;
+    font-style: italic;
+  }
+}
+
+.flow-grouped-note-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #1e3a8a;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.045em;
+}
+
+.flow-grouped-note-targets {
+  margin-top: 0.4rem;
+  color: #64748b;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.flow-tree-scroll {
+  width: 100%;
   overflow-x: auto;
   scroll-behavior: smooth;
 
-  &::-webkit-scrollbar {
-    height: 6px;
-  }
+  &::-webkit-scrollbar { height: 6px; }
   &::-webkit-scrollbar-track {
     background: rgba(148, 163, 184, 0.08);
     border-radius: 9999px;
@@ -109,6 +138,75 @@
     background: rgba(148, 163, 184, 0.35);
     border-radius: 9999px;
   }
+}
+
+.flow-tree-canvas {
+  width: 100%;
+}
+
+.flow-root-connectors {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--roots-count, 1), minmax(300px, 1fr));
+  column-gap: 1.25rem;
+  height: 44px;
+  padding: 0 0.25rem;
+  overflow: visible;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    height: 15px;
+    border-left: 2px solid #cbd5e1;
+  }
+}
+
+.flow-root-connector {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 14px;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: 14px;
+    width: calc(50% + 0.625rem);
+    border-top: 2px solid #cbd5e1;
+  }
+
+  &::before { right: 50%; }
+  &::after { left: 50%; }
+  &.is-first::before,
+  &.is-last::after { display: none; }
+}
+
+.flow-root-connector-stem {
+  width: 2px;
+  height: 17px;
+  background: #cbd5e1;
+}
+
+.flow-root-connector-arrow {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 6px solid #94a3b8;
+}
+
+.flow-roots-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--roots-count, 1), minmax(300px, 1fr));
+  gap: 1.25rem;
+  align-items: start;
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0.25rem 1rem;
 }
 
 /* --------------------------------------------------------------------------

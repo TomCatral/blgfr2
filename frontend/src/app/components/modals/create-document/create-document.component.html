@@ -829,10 +829,11 @@
         Cancel
       </button>
       <button
-        type="submit"
+        type="button"
         [disabled]="submitting()"
         class="cd-btn-secondary"
         title="Register document without routing"
+        (click)="handleSubmit($event, 'none')"
       >
         @if (submitting()) {
           <span class="cd-spinner dark-spinner"></span>

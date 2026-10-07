@@ -130,9 +130,29 @@ async function ensureUserIdForeignKeys(target) {
       PRIMARY KEY (\`id\`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);
+  await target.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS \`system_settings\` (
+      \`setting_key\` VARCHAR(64) NOT NULL,
+      \`setting_value\` TEXT NULL,
+      \`updated_at\` DATETIME(3) NOT NULL,
+      PRIMARY KEY (\`setting_key\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `);
   try {
     await target.$executeRawUnsafe(
       "ALTER TABLE `employee_profiles` MODIFY COLUMN `office_type` VARCHAR(50) NOT NULL DEFAULT 'BLGF'"
+    );
+  } catch {
+  }
+  try {
+    await target.$executeRawUnsafe(
+      "ALTER TABLE `documents` MODIFY COLUMN `current_status` VARCHAR(50) NOT NULL DEFAULT 'PENDING'"
+    );
+  } catch {
+  }
+  try {
+    await target.$executeRawUnsafe(
+      "UPDATE `documents` SET `current_status` = 'NOT_YET_ROUTED' WHERE `current_status` = '' OR `current_status` IS NULL"
     );
   } catch {
   }
@@ -728,6 +748,25 @@ async function saveUserDirect(user) {
   if (!client || !status.connected) return;
   await writeUser(client, user);
 }
+async function readSystemSetting(key) {
+  if (!client || !status.connected) return null;
+  const rows = await client.$queryRawUnsafe(
+    "SELECT `setting_value` FROM `system_settings` WHERE `setting_key` = ? LIMIT 1",
+    key
+  );
+  return rows[0]?.setting_value ?? null;
+}
+async function saveSystemSetting(key, value) {
+  if (!client || !status.connected) return;
+  await client.$executeRawUnsafe(
+    `INSERT INTO \`system_settings\` (\`setting_key\`, \`setting_value\`, \`updated_at\`)
+     VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE \`setting_value\` = VALUES(\`setting_value\`), \`updated_at\` = VALUES(\`updated_at\`)`,
+    key,
+    value,
+    /* @__PURE__ */ new Date()
+  );
+}
 async function deleteUserDirect(userId) {
   if (!client || !status.connected) return;
   await client.user.deleteMany({ where: { id: userId } });
@@ -1095,7 +1134,7 @@ async function sendTemporaryPasswordEmail(user, temporaryPassword, expiresInMinu
             </div>
 
             <p style="margin: 0 0 12px; font-size: 13px; line-height: 1.55; color: #334155;">
-              <strong>Next Steps:</strong> Sign in with your username (<code>${user.username}</code>) and this temporary password, then immediately update your password under User Settings.
+              <strong>Next Steps:</strong> Sign in with your username (<code>${user.username}</code>) and this temporary password. The system will then ask you to create your own new password before you can continue.
             </p>
             
             <div style="margin: 20px 0 0; padding: 12px 14px; background: #fef2f2; border-left: 3px solid #ef4444; border-radius: 0 6px 6px 0; font-size: 12px; color: #991b1b; line-height: 1.5;">
@@ -1129,7 +1168,7 @@ async function sendTemporaryPasswordEmail(user, temporaryPassword, expiresInMinu
         `Temporary Password: ${temporaryPassword}`,
         `Validity: ${expiresInMinutes} minutes only`,
         "",
-        "Please sign in immediately using this temporary password and update your password under User Settings.",
+        "Please sign in immediately using this temporary password. The system will ask you to create your own new password before you can continue.",
         "If you did not request this recovery, please check your account immediately."
       ].join("\n"),
       html: htmlContent
@@ -1439,13 +1478,13 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
   );
   const hasUserAction = (user, action) => {
     if (!user) return false;
-    if (user.role === "SYSTEM_ADMIN") return true;
+    if (user.role === "SYSTEM_ADMIN" || user.divisionCode === "ITMS") return true;
     if (action.startsWith("USER_")) return false;
     const permissions = user.permissions || DEFAULT_ROLE_PERMISSIONS[user.role] || DEFAULT_ROLE_PERMISSIONS.STAFF;
     return Boolean(permissions.allowedActions?.includes(action));
   };
   const sanitizeUserAccountPermissions = (user) => {
-    if (user.role === "SYSTEM_ADMIN") return user;
+    if (user.role === "SYSTEM_ADMIN" || user.divisionCode === "ITMS") return user;
     const adminActions = [
       "USER_ACCOUNT_CREATE",
       "USER_ACCOUNT_EDIT",
@@ -1488,10 +1527,11 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
     if (!actingUser) {
       return res.status(401).json({ error: "Active database user required." });
     }
-    if (actingUser.role !== "SYSTEM_ADMIN") {
+    if (actingUser.role !== "SYSTEM_ADMIN" && actingUser.divisionCode !== "ITMS") {
       return res.status(403).json({ error: "System Administrator access required to create user accounts." });
     }
-    if (body.role === "SYSTEM_ADMIN" && !hasUserAction(actingUser, "USER_SYSTEM_ADMIN_MANAGE")) {
+    const isTargetITMS = body.divisionCode === "ITMS" || body.role === "SYSTEM_ADMIN";
+    if (isTargetITMS && !hasUserAction(actingUser, "USER_SYSTEM_ADMIN_MANAGE")) {
       return res.status(403).json({
         error: "Protected System Administrator account permission required."
       });
@@ -1501,9 +1541,9 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
         error: "You cannot grant protected System Administrator permissions."
       });
     }
-    if (body.role === "SYSTEM_ADMIN" && usersState2.filter((user) => user.role === "SYSTEM_ADMIN").length >= MAX_SYSTEM_ADMINISTRATORS) {
+    if (isTargetITMS && usersState2.filter((user) => user.role === "SYSTEM_ADMIN" || user.divisionCode === "ITMS").length >= MAX_SYSTEM_ADMINISTRATORS) {
       return res.status(403).json({
-        error: "A maximum of three System Administrator accounts is allowed."
+        error: "A maximum of three System Administrator (ITMS) accounts is allowed."
       });
     }
     const username = String(body.username || "").trim();
@@ -1515,19 +1555,22 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
     )) {
       return res.status(409).json({ error: "Username already exists" });
     }
+    const divisionCode = body.divisionCode || (body.role === "SYSTEM_ADMIN" ? "ITMS" : "AD");
+    const isITMS = divisionCode === "ITMS" || body.role === "SYSTEM_ADMIN";
+    const computedRole = isITMS ? "SYSTEM_ADMIN" : divisionCode === "ORD" ? "ORD" : body.role || "STAFF";
     const newUser = sanitizeUserAccountPermissions({
       id: nextReadableId("USR", usersState2),
       username,
       password: body.password,
       fullName: body.fullName,
       email: body.email,
-      role: body.role || "STAFF",
-      divisionCode: body.role === "ADMIN" ? "AD" : body.role === "SYSTEM_ADMIN" ? "ITMS" : body.divisionCode || "AD",
-      designation: body.designation || "Staff Member",
+      role: computedRole,
+      divisionCode,
+      designation: body.designation || (isITMS ? "IT Officer / System Administrator" : "Staff Member"),
       contactNo: body.contactNo || "",
       avatarUrl: body.avatarUrl,
       permissions: body.permissions || structuredClone(
-        DEFAULT_ROLE_PERMISSIONS[body.role || "STAFF"] || DEFAULT_ROLE_PERMISSIONS.STAFF
+        DEFAULT_ROLE_PERMISSIONS[computedRole] || DEFAULT_ROLE_PERMISSIONS.STAFF
       ),
       active: true,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
@@ -1567,16 +1610,18 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
       return res.status(404).json({ error: "User not found" });
     }
     const isSelfUpdate = actingUser.id === req.params.id;
-    if (!isSelfUpdate && actingUser.role !== "SYSTEM_ADMIN") {
+    const isActingAdmin = actingUser.role === "SYSTEM_ADMIN" || actingUser.divisionCode === "ITMS";
+    if (!isSelfUpdate && !isActingAdmin) {
       return res.status(403).json({ error: "System Administrator access required to modify user accounts." });
     }
-    const isSystemAdministrator = usersState2[uIdx].role === "SYSTEM_ADMIN";
+    const isSystemAdministrator = usersState2[uIdx].role === "SYSTEM_ADMIN" || usersState2[uIdx].divisionCode === "ITMS";
     if (!isSelfUpdate && isSystemAdministrator && !hasUserAction(actingUser, "USER_SYSTEM_ADMIN_MANAGE")) {
       return res.status(403).json({
         error: "Protected System Administrator account permission required."
       });
     }
-    if (req.body.role === "SYSTEM_ADMIN" && !hasUserAction(actingUser, "USER_SYSTEM_ADMIN_MANAGE")) {
+    const willBeAdmin = req.body.divisionCode === "ITMS" || req.body.role === "SYSTEM_ADMIN";
+    if (willBeAdmin && !hasUserAction(actingUser, "USER_SYSTEM_ADMIN_MANAGE")) {
       return res.status(403).json({
         error: "Protected System Administrator role assignment permission required."
       });
@@ -1584,6 +1629,19 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
     const requestedCurrentPassword = String(req.body.currentPassword || "");
     const updates = { ...req.body };
     delete updates.currentPassword;
+    if (updates.divisionCode) {
+      if (updates.divisionCode === "ITMS") {
+        updates.role = "SYSTEM_ADMIN";
+        if (!updates.permissions) {
+          updates.permissions = structuredClone(DEFAULT_ROLE_PERMISSIONS.SYSTEM_ADMIN);
+        }
+      } else if (usersState2[uIdx].role === "SYSTEM_ADMIN" || updates.role === "SYSTEM_ADMIN") {
+        updates.role = updates.divisionCode === "ORD" ? "ORD" : "STAFF";
+        if (!updates.permissions) {
+          updates.permissions = structuredClone(DEFAULT_ROLE_PERMISSIONS.STAFF);
+        }
+      }
+    }
     if (updates.permissions) {
       const currentlyCanManageSystemAdministrators = Boolean(
         usersState2[uIdx].permissions?.allowedActions?.includes(
@@ -1774,14 +1832,14 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
       return res.status(401).json({ error: "Active database user required." });
     }
     const permissions = actingUser.permissions || DEFAULT_ROLE_PERMISSIONS[actingUser.role] || DEFAULT_ROLE_PERMISSIONS.STAFF;
-    const canDeleteUser = actingUser.role === "SYSTEM_ADMIN" || Boolean(permissions.canDelete) || Boolean(permissions.allowedActions?.includes("USER_ACCOUNT_DELETE"));
+    const canDeleteUser = actingUser.role === "SYSTEM_ADMIN" || actingUser.divisionCode === "ITMS" || Boolean(permissions.canDelete) || Boolean(permissions.allowedActions?.includes("USER_ACCOUNT_DELETE"));
     if (!canDeleteUser) {
       return res.status(403).json({ error: "Delete permission or System Administrator access required to delete user accounts." });
     }
     const accountToDelete = usersState2.find(
       (user) => user.id === req.params.id
     );
-    if (accountToDelete?.role === "SYSTEM_ADMIN") {
+    if (accountToDelete?.role === "SYSTEM_ADMIN" || accountToDelete?.divisionCode === "ITMS") {
       return res.status(403).json({
         error: "System Administrator accounts cannot be deleted."
       });
@@ -1858,6 +1916,13 @@ function hasOpenDisapproval(document) {
   return getRouteDecision(decisions[decisions.length - 1]) === "DISAPPROVED";
 }
 function recalculateDocumentStatus(document) {
+  const record = document;
+  if (!document.routes || document.routes.length === 0) {
+    record.currentStatus = "NOT_YET_ROUTED";
+    record.assignedUser = "Not Yet Routed";
+    record.assignedUserId = void 0;
+    return [];
+  }
   const pendingRecipients = getPendingRecipients(document);
   const hasCompletedRoute = document.routes.some((route) => route.statusAfter === "COMPLETED");
   let status2;
@@ -1870,7 +1935,6 @@ function recalculateDocumentStatus(document) {
   } else {
     status2 = "PENDING";
   }
-  const record = document;
   record.currentStatus = status2;
   if (pendingRecipients.length > 0) {
     record.assignedUser = pendingRecipients[0].toUser;
@@ -1924,7 +1988,7 @@ var auditNamesRecipient = (details, fullName) => {
   }
   return pattern.test(details);
 };
-var isDocumentParticipant = (document, user, auditLogs = []) => matchesParticipant(user, document.assignedUserId, document.assignedUser) || matchesParticipant(user, document.createdByUserId, document.createdBy) || matchesParticipant(user, void 0, document.recipientName) || matchesParticipant(user, void 0, document.senderName) || (document.routes || []).some(
+var isDocumentParticipant = (document, user, auditLogs = []) => user.role === "SYSTEM_ADMIN" || matchesParticipant(user, document.assignedUserId, document.assignedUser) || matchesParticipant(user, document.createdByUserId, document.createdBy) || matchesParticipant(user, void 0, document.recipientName) || matchesParticipant(user, void 0, document.senderName) || (document.routes || []).some(
   (route) => matchesParticipant(user, route.fromUserId, route.fromUser) || matchesParticipant(user, route.toUserId, route.toUser)
 ) || auditLogs.some(
   (log) => (log.documentTrackingNumber === document.trackingNumber || Boolean(document.routeNo) && log.documentTrackingNumber === document.routeNo) && (matchesParticipant(user, log.userId, log.userName) || auditNamesRecipient(log.details, user.fullName))
@@ -1947,21 +2011,23 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     const now = /* @__PURE__ */ new Date();
     const directionCode = direction === "OUTGOING" ? "OUT" : "IN";
     const prefix = `BLGFR2-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${directionCode}-`;
-    const usedSequences = /* @__PURE__ */ new Set();
+    const sequenceOf = (number) => {
+      if (!number?.startsWith(prefix)) return 0;
+      const seq = Number(number.slice(prefix.length));
+      return Number.isInteger(seq) && seq > 0 ? seq : 0;
+    };
+    let highest = 0;
     for (const document of getDocumentsState()) {
-      for (const number of [document.trackingNumber, document.routeNo]) {
-        if (number?.startsWith(prefix)) {
-          const seq = Number(number.slice(prefix.length));
-          if (Number.isInteger(seq) && seq > 0) {
-            usedSequences.add(seq);
-          }
-        }
-      }
+      highest = Math.max(
+        highest,
+        sequenceOf(document.trackingNumber),
+        sequenceOf(document.routeNo)
+      );
     }
-    let nextSeq = 1;
-    while (usedSequences.has(nextSeq)) {
-      nextSeq++;
+    for (const log of getAuditLogsState()) {
+      highest = Math.max(highest, sequenceOf(log.documentTrackingNumber));
     }
+    const nextSeq = highest + 1;
     return `${prefix}${String(nextSeq).padStart(2, "0")}`;
   };
   const recalculateDocumentStatus2 = (document) => recalculateDocumentStatus(document);
@@ -1999,13 +2065,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       console.error("[healStaleReturnedStatus] MySQL write failed:", error);
     });
   };
-  const canViewDocument = (user, document) => {
-    const permissions = user.permissions || DEFAULT_ROLE_PERMISSIONS[user.role] || DEFAULT_ROLE_PERMISSIONS.STAFF;
-    if (user.role === "SYSTEM_ADMIN" || permissions.canViewAllDocuments) {
-      return true;
-    }
-    return isDocumentParticipant(document, user, getAuditLogsState());
-  };
+  const canViewDocument = (user, document) => isDocumentParticipant(document, user, getAuditLogsState());
   const getPendingDecisionRoute = (user, document) => [...document.routes || []].reverse().find((assignedRoute) => {
     if (["APPROVED", "DISAPPROVED"].includes(assignedRoute.actionRequested.toUpperCase())) return false;
     const assignedToUser = assignedRoute.toUserId === user.id || !assignedRoute.toUserId && assignedRoute.toUser?.trim().toLowerCase() === user.fullName.trim().toLowerCase();
@@ -2171,6 +2231,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       });
     }
     const isOutside = Boolean(body.isOutside);
+    const isNotYetRouted = !isOutside && (body.currentStatus === "NOT_YET_ROUTED" || body.registerOnly === true || body.isNotYetRouted || !body.currentDivision && !body.assignedUserId && (!body.initialRecipientIds || body.initialRecipientIds.length === 0));
     const completedRemarks = body.remarks && String(body.remarks).trim() !== "" && String(body.remarks).trim() !== "N/A" ? String(body.remarks).trim() : "Completed - Recorded as Outside Office Outgoing Dispatch";
     const newDoc = {
       id: newDocumentId,
@@ -2185,15 +2246,15 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       senderName: body.senderName || "",
       senderPosition: body.senderPosition || "",
       senderAddress: body.senderAddress || "",
-      recipientName: body.recipientName || "",
+      recipientName: isOutside ? body.recipientName || "" : isNotYetRouted ? "Not Yet Routed" : body.recipientName || "",
       recipientPosition: body.recipientPosition || "",
       recipientOffice: body.recipientOffice || "",
       recipientAddress: body.recipientAddress || "",
       priority: isOutside ? "ROUTINE" : body.priority || "ROUTINE",
-      currentStatus: isOutside ? "COMPLETED" : body.currentStatus || "PENDING",
-      currentDivision: body.currentDivision || "AD",
-      assignedUser: isOutside ? body.recipientName || "External Recipient" : directlyAssignedUser?.fullName || "",
-      assignedUserId: isOutside ? void 0 : directlyAssignedUser?.id,
+      currentStatus: isOutside ? "COMPLETED" : isNotYetRouted ? "NOT_YET_ROUTED" : body.currentStatus || "PENDING",
+      currentDivision: isNotYetRouted ? actingUser.divisionCode || "AD" : body.currentDivision || "AD",
+      assignedUser: isOutside ? body.recipientName || "External Recipient" : isNotYetRouted ? "Not Yet Routed" : directlyAssignedUser?.fullName || "",
+      assignedUserId: isOutside || isNotYetRouted ? void 0 : directlyAssignedUser?.id,
       dateReceived: body.dateReceived || now,
       targetCompletionDate: body.targetCompletionDate || new Date(Date.now() + 3 * 864e5).toISOString(),
       tags: body.tags || [],
@@ -2203,7 +2264,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
         attachmentScope: "DOCUMENT",
         uploadedByUserId: actingUser.id
       })),
-      actionRequested: isOutside ? "Dispatched / Recorded (Outside Office)" : body.initialAction || "Appropriate Action",
+      actionRequested: isOutside ? "Dispatched / Recorded (Outside Office)" : isNotYetRouted ? body.initialAction || "Awaiting Initial Routing" : body.initialAction || "Appropriate Action",
       routes: isOutside ? [
         {
           id: nextRouteId(),
@@ -2223,7 +2284,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
           receivedAt: now,
           createdAt: now
         }
-      ] : initialRecipients.length > 0 ? initialRecipients.map((recipient, index) => ({
+      ] : isNotYetRouted ? [] : initialRecipients.length > 0 ? initialRecipients.map((recipient, index) => ({
         id: nextRouteId(),
         documentId: newDocumentId,
         stepNumber: index + 1,
@@ -2296,7 +2357,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       false
     );
     const createdNotifications = [];
-    if (!isOutside && body.assignedUserId) {
+    if (!isOutside && !isNotYetRouted && body.assignedUserId) {
       const assignedRecipient = usersState2.find(
         (user) => user.id === body.assignedUserId && user.active && user.role !== "SYSTEM_ADMIN" && user.divisionCode !== "ITMS"
       );
@@ -2315,7 +2376,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
           )
         );
       }
-    } else if (!isOutside && body.currentDivision) {
+    } else if (!isOutside && !isNotYetRouted && body.currentDivision) {
       const excludedRecipientIds = Array.isArray(body.excludedRecipientIds) ? body.excludedRecipientIds : [];
       usersState2.filter(
         (user) => user.active && (isMultiDivisionInitialRoute ? Array.isArray(body.initialRecipientIds) && body.initialRecipientIds.includes(user.id) : user.divisionCode === body.currentDivision) && !excludedRecipientIds.includes(user.id)
@@ -2354,10 +2415,13 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     if (!actingUser) {
       return res.status(401).json({ error: "Active database user required." });
     }
+    if (actingUser.role === "SYSTEM_ADMIN") {
+      return res.status(403).json({ error: "System Administrators cannot approve or disapprove routing transactions." });
+    }
     if (docIndex === -1) return res.status(404).json({ error: "Document not found." });
     const doc = documentsState2[docIndex];
     if (doc.currentStatus === "COMPLETED" || hasCompletedPart(doc, actingUser)) {
-      return res.status(409).json({ error: "This transaction has ended. Completed documents cannot be routed or changed." });
+      return res.status(409).json({ error: "This transaction has ended. Completed documents cannot be approved or disapproved." });
     }
     const decision = String(req.body.decision || "").toUpperCase();
     const remarks = String(req.body.remarks || "").trim();
@@ -2497,11 +2561,15 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     if (!actingUser) {
       return res.status(401).json({ error: "Active database user required." });
     }
+    if (actingUser.role === "SYSTEM_ADMIN") {
+      return res.status(403).json({ error: "System Administrators cannot route documents." });
+    }
     if (!canViewDocument(actingUser, doc)) {
       return res.status(404).json({ error: "Document not found" });
     }
-    if (doc.currentStatus === "COMPLETED" || hasCompletedPart(doc, actingUser)) {
-      return res.status(409).json({ error: "This transaction has ended. Completed documents cannot be routed or changed." });
+    const wasCompleted = doc.currentStatus === "COMPLETED";
+    if (wasCompleted && !hasCompletedPart(doc, actingUser) && !["ADMIN", "ORD", "RECORDS_OFFICER"].includes(actingUser.role)) {
+      return res.status(403).json({ error: "Only the completing user or an authorized records officer can continue this completed transaction." });
     }
     if (hasOpenDisapproval(doc)) {
       return res.status(409).json({
@@ -2540,7 +2608,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     if (newStatus === "COMPLETED" && (toUserId || toUser)) {
       return res.status(400).json({ error: "Complete your part without sending to new recipients." });
     }
-    const nextStatus = newStatus || doc.currentStatus;
+    const nextStatus = newStatus || (wasCompleted ? "IN_PROGRESS" : doc.currentStatus === "NOT_YET_ROUTED" ? "PENDING" : doc.currentStatus);
     const stepNumber = (doc.routes || []).length + 1;
     markLatestRouteAsProcessed(
       doc,
@@ -2588,6 +2656,10 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       doc.assignedUserId = pendingRecipients[0]?.toUserId;
     }
     doc.updatedAt = now;
+    if (wasCompleted) {
+      doc.completedDate = void 0;
+      doc.destinationOffice = void 0;
+    }
     setNotificationsState(
       getNotificationsState().filter(
         (notification) => !(notification.documentId === doc.id && notification.userId === actingUser.id)
@@ -2647,6 +2719,9 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     if (!actingUser) {
       return res.status(401).json({ error: "Active database user required." });
     }
+    if (actingUser.role === "SYSTEM_ADMIN") {
+      return res.status(403).json({ error: "System Administrators cannot remove routing steps." });
+    }
     const targetRouteIndex = (doc.routes || []).findIndex((r) => r.id === routeId);
     if (targetRouteIndex === -1) {
       return res.status(404).json({ error: "Route not found" });
@@ -2654,9 +2729,9 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     const targetRoute = doc.routes[targetRouteIndex];
     const isRouteCreator = targetRoute.fromUserId === actingUser.id || targetRoute.fromUser?.trim().toLowerCase() === actingUser.fullName?.trim().toLowerCase();
     const isDocCreator = doc.createdByUserId === actingUser.id || doc.createdBy?.trim().toLowerCase() === actingUser.fullName?.trim().toLowerCase();
-    const isAdmin = actingUser.role === "ADMIN" || actingUser.role === "SYSTEM_ADMIN";
+    const isAdmin = actingUser.role === "ADMIN";
     const permissions = actingUser.permissions || DEFAULT_ROLE_PERMISSIONS[actingUser.role] || DEFAULT_ROLE_PERMISSIONS.STAFF;
-    const hasDeletePermission = actingUser.role === "SYSTEM_ADMIN" || Boolean(permissions.canDelete);
+    const hasDeletePermission = Boolean(permissions.canDelete);
     if (!isRouteCreator && !isDocCreator && !isAdmin && !hasDeletePermission) {
       return res.status(403).json({ error: "You are not authorized to remove this routing step." });
     }
@@ -2689,20 +2764,19 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
           userRole: actingUser.role,
           action: "DELETE_DOC",
           documentTrackingNumber: doc.trackingNumber,
-          details: `Cancelled initial transaction [${doc.trackingNumber}] (${doc.title}) by ${actingUser.fullName}. Route number freed up for reuse. Reason: Misrouted at initial entry / cancelled`,
+          details: `Cancelled initial transaction [${doc.trackingNumber}] (${doc.title}) by ${actingUser.fullName}. Route number retired and will not be reused. Reason: Misrouted at initial entry / cancelled`,
           ipAddress: req.ip || "127.0.0.1"
         },
         false
       );
-      await Promise.all([
-        deleteDocumentDirect(doc.id, doc.trackingNumber, doc.routeNo),
-        saveAuditLogDirect(deletionAuditLog)
-      ]);
+      await deleteDocumentDirect(doc.id, doc.trackingNumber, doc.routeNo);
+      await saveAuditLogDirect(deletionAuditLog);
+      saveDatabaseToFile2(false);
       return res.json({
         success: true,
         deletedDocument: true,
-        freedRouteNumber: doc.routeNo || doc.trackingNumber,
-        message: `Transaction [${doc.trackingNumber}] and route number were completely removed and freed for reuse.`
+        retiredRouteNumber: doc.routeNo || doc.trackingNumber,
+        message: `Transaction [${doc.trackingNumber}] and route number were completely removed. The route number is retired and will not be reused.`
       });
     }
     const removedRecipientName = targetRoute.toUser || "Recipient";
@@ -2778,11 +2852,14 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     if (!actingUser) {
       return res.status(401).json({ error: "Active database user required." });
     }
+    if (actingUser.role === "SYSTEM_ADMIN") {
+      return res.status(403).json({ error: "System Administrators cannot transfer or reassign documents." });
+    }
     if (!canViewDocument(actingUser, doc)) {
       return res.status(404).json({ error: "Document not found" });
     }
     if (doc.currentStatus === "COMPLETED" || hasCompletedPart(doc, actingUser)) {
-      return res.status(409).json({ error: "This transaction has ended. Completed documents cannot be routed or changed." });
+      return res.status(409).json({ error: "This transaction has ended. Completed documents cannot be transferred or reassigned." });
     }
     const recipient = findActiveDatabaseUser(toUserId);
     if (recipient?.role === "SYSTEM_ADMIN" || recipient?.divisionCode === "ITMS") {
@@ -2883,11 +2960,15 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     if (!actingUser) {
       return res.status(401).json({ error: "Active database user required." });
     }
+    if (actingUser.role === "SYSTEM_ADMIN") {
+      return res.status(403).json({ error: "System Administrators cannot route documents." });
+    }
     if (!canViewDocument(actingUser, doc)) {
       return res.status(404).json({ error: "Document not found" });
     }
-    if (doc.currentStatus === "COMPLETED" || hasCompletedPart(doc, actingUser)) {
-      return res.status(409).json({ error: "This transaction has ended. Completed documents cannot be routed or changed." });
+    const wasCompleted = doc.currentStatus === "COMPLETED";
+    if (wasCompleted && !hasCompletedPart(doc, actingUser) && !["ADMIN", "ORD", "RECORDS_OFFICER"].includes(actingUser.role)) {
+      return res.status(403).json({ error: "Only the completing user or an authorized records officer can continue this completed transaction." });
     }
     if (hasOpenDisapproval(doc)) {
       return res.status(409).json({
@@ -2939,7 +3020,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     if (newStatus === "COMPLETED") {
       return res.status(400).json({ error: "Complete your part without sending to new recipients." });
     }
-    const nextStatus = newStatus || doc.currentStatus;
+    const nextStatus = newStatus || (wasCompleted ? "IN_PROGRESS" : doc.currentStatus);
     markLatestRouteAsProcessed(
       doc,
       actingUser.id,
@@ -2995,6 +3076,10 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     doc.currentStatus = nextStatus;
     doc.actionRequested = actionRequested || doc.actionRequested;
     doc.updatedAt = now;
+    if (wasCompleted) {
+      doc.completedDate = void 0;
+      doc.destinationOffice = void 0;
+    }
     setNotificationsState(
       getNotificationsState().filter(
         (notification) => !(notification.documentId === doc.id && notification.userId === actingUser.id)
@@ -3232,10 +3317,9 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       false
     );
     try {
-      await Promise.all([
-        deleteDocumentDirect(doc.id, doc.trackingNumber, doc.routeNo),
-        saveAuditLogDirect(deletionAuditLog)
-      ]);
+      await deleteDocumentDirect(doc.id, doc.trackingNumber, doc.routeNo);
+      await saveAuditLogDirect(deletionAuditLog);
+      saveDatabaseToFile2(false);
     } catch (error) {
       setDocumentsState(documentsState2);
       return res.status(500).json({ error: "Failed to delete the document from the database." });
@@ -3488,7 +3572,8 @@ var ENVELOPE_LOG_DB_FILE = path.join(DATA_DIR, "blgf_envelope_logs_db.json");
 var STORAGE_ROOT_DIR = path.join(DATA_DIR, "storage");
 var STORAGE_DIRECTORIES = {
   documentAttachments: path.join(STORAGE_ROOT_DIR, "attachments"),
-  profilePictures: path.join(STORAGE_ROOT_DIR, "profile-pictures")
+  profilePictures: path.join(STORAGE_ROOT_DIR, "profile-pictures"),
+  loginBackground: path.join(STORAGE_ROOT_DIR, "login-background")
 };
 var RECORDS_ROOT_DIR = path.join(
   IS_VERCEL ? os.tmpdir() : process.cwd(),
@@ -3561,7 +3646,7 @@ var RESERVED_SYSTEM_ADMIN = {
   fullName: "Tom Catral",
   email: "catraltom@gmail.com",
   role: "SYSTEM_ADMIN",
-  divisionCode: "ORD",
+  divisionCode: "ITMS",
   designation: "System Administrator",
   contactNo: "",
   active: true,
@@ -3733,6 +3818,7 @@ function initDatabaseStorage() {
       );
       auditLogsState = (data.auditLogs || []).filter((log) => {
         if (!log.documentTrackingNumber) return true;
+        if (log.action === "DELETE_DOC") return true;
         return validDocKeys.has(log.documentTrackingNumber.trim().toUpperCase());
       });
       if (fs.existsSync(ENVELOPE_LOG_DB_FILE)) {
@@ -4064,6 +4150,13 @@ async function createApp() {
   const getRequestUser = (req) => usersState.find(
     (user) => user.id === String(req.get("X-User-Id") || "") && user.active !== false
   );
+  const LOGIN_BACKGROUND_KEY = "login_background_url";
+  let loginBackgroundUrl = null;
+  try {
+    loginBackgroundUrl = await readSystemSetting(LOGIN_BACKGROUND_KEY);
+  } catch (error) {
+    console.warn("[SETTINGS] Login background load warning:", error);
+  }
   app.use((_req, res, next) => {
     res.locals.getUsersState = () => usersState;
     res.locals.getDocumentsState = () => documentsState;
@@ -4114,6 +4207,9 @@ async function createApp() {
       if (!Object.prototype.hasOwnProperty.call(STORAGE_DIRECTORIES, kind) || !req.file) {
         return res.status(400).json({ error: "Invalid storage type or file." });
       }
+      if (kind === "loginBackground" && !/^image\/(jpe?g|png|webp|gif)$/.test(req.file.mimetype)) {
+        return res.status(400).json({ error: "Login background must be a JPG, PNG, WEBP, or GIF image." });
+      }
       const fileName = safeStorageFileName(req.file.originalname);
       fs.mkdirSync(STORAGE_DIRECTORIES[kind], { recursive: true });
       fs.writeFileSync(
@@ -4127,6 +4223,28 @@ async function createApp() {
       });
     }
   );
+  app.get("/api/settings/login-background", (_req, res) => {
+    res.json({ url: loginBackgroundUrl });
+  });
+  app.put("/api/settings/login-background", async (req, res) => {
+    const actingUser = getRequestUser(req);
+    if (!actingUser || actingUser.role !== "SYSTEM_ADMIN") {
+      return res.status(403).json({ error: "SYSTEM_ADMIN access required." });
+    }
+    const rawUrl = typeof req.body?.url === "string" ? req.body.url.trim() : "";
+    const nextUrl = rawUrl ? rawUrl : null;
+    if (nextUrl && !nextUrl.startsWith("/api/storage/files/loginBackground/")) {
+      return res.status(400).json({ error: "Invalid background image URL." });
+    }
+    try {
+      await saveSystemSetting(LOGIN_BACKGROUND_KEY, nextUrl);
+      loginBackgroundUrl = nextUrl;
+      res.json({ url: loginBackgroundUrl });
+    } catch (error) {
+      console.error("Failed to save login background:", error);
+      res.status(500).json({ error: "Failed to save login background." });
+    }
+  });
   app.get("/api/storage/files/:kind/:fileName", async (req, res) => {
     const kind = req.params.kind;
     if (!Object.prototype.hasOwnProperty.call(STORAGE_DIRECTORIES, kind)) {
@@ -4273,6 +4391,51 @@ async function createApp() {
     const {
       password: _password,
       temporaryPasswordExpiresAt: _temporaryPasswordExpiresAt,
+      ...safeUser
+    } = user;
+    const mustChangePassword = Boolean(user.temporaryPasswordExpiresAt);
+    return res.json({ user: safeUser, mustChangePassword });
+  });
+  app.post("/api/auth/complete-password-setup", async (req, res) => {
+    const username = String(req.body?.username || "").trim().toLowerCase();
+    const temporaryPassword = String(req.body?.temporaryPassword || "");
+    const newPassword = String(req.body?.newPassword || "");
+    if (!username || !temporaryPassword || !newPassword) {
+      return res.status(400).json({ error: "Username, temporary password, and new password are required." });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters long." });
+    }
+    if (newPassword === temporaryPassword) {
+      return res.status(400).json({ error: "Your new password must be different from the temporary password." });
+    }
+    const user = usersState.find(
+      (candidate) => candidate.active && candidate.username.trim().toLowerCase() === username
+    );
+    if (!user || typeof user.password !== "string" || user.password !== temporaryPassword || !user.temporaryPasswordExpiresAt) {
+      return res.status(401).json({ error: "Temporary password is no longer valid. Sign in again." });
+    }
+    if (new Date(user.temporaryPasswordExpiresAt).getTime() <= Date.now()) {
+      return res.status(401).json({ error: "Temporary password expired. Request a new temporary password." });
+    }
+    user.password = newPassword;
+    user.temporaryPasswordExpiresAt = null;
+    try {
+      await saveUserDirect(user);
+    } catch (databaseError) {
+      console.warn("[AUTH] New password persistence warning:", databaseError);
+    }
+    addAuditLog(auditLogsState, {
+      userId: user.id,
+      userName: user.fullName,
+      userRole: user.role,
+      action: "UPDATE_USER",
+      details: `${user.fullName} replaced a temporary password with a new account password.`,
+      ipAddress: req.ip || "127.0.0.1"
+    });
+    const {
+      password: _newPassword,
+      temporaryPasswordExpiresAt: _clearedExpiry,
       ...safeUser
     } = user;
     return res.json({ user: safeUser });
@@ -4596,7 +4759,12 @@ async function createApp() {
       storedIn: "records-management"
     });
   });
-  app.get("/api/stats", (_req, res) => {
+  app.get("/api/stats", async (_req, res) => {
+    try {
+      const liveDocuments = await loadLiveDocuments();
+      if (liveDocuments) documentsState = liveDocuments;
+    } catch {
+    }
     const totalIncoming = documentsState.filter(
       (d) => d.direction === "INCOMING"
     ).length;
@@ -4604,7 +4772,7 @@ async function createApp() {
       (d) => d.direction === "OUTGOING"
     ).length;
     const pendingCount = documentsState.filter(
-      (d) => d.currentStatus === "PENDING"
+      (d) => d.currentStatus === "PENDING" || d.currentStatus === "NOT_YET_ROUTED"
     ).length;
     const inProgressCount = documentsState.filter(
       (d) => d.currentStatus === "IN_PROGRESS"
@@ -4623,13 +4791,22 @@ async function createApp() {
       divMap[d.code] = 0;
     });
     documentsState.forEach((doc) => {
-      divMap[doc.currentDivision] = (divMap[doc.currentDivision] || 0) + 1;
+      if (doc.currentStatus === "COMPLETED") return;
+      const heldBy = /* @__PURE__ */ new Set();
+      getPendingRecipients(doc).forEach((route) => {
+        if (route.toDivision) heldBy.add(route.toDivision);
+      });
+      if (!heldBy.size && doc.currentDivision) heldBy.add(doc.currentDivision);
+      heldBy.forEach((code) => {
+        divMap[code] = (divMap[code] || 0) + 1;
+      });
     });
     const divisionBreakdown = Object.entries(divMap).map(([code, count]) => ({
       division: code,
       count
     }));
     const statusMap = {
+      NOT_YET_ROUTED: 0,
       PENDING: 0,
       IN_PROGRESS: 0,
       FOR_SIGNATURE: 0,
@@ -4641,6 +4818,12 @@ async function createApp() {
       statusMap[d.currentStatus] = (statusMap[d.currentStatus] || 0) + 1;
     });
     const statusBreakdown = [
+      {
+        status: "NOT_YET_ROUTED",
+        label: "Not Yet Routed",
+        count: statusMap.NOT_YET_ROUTED,
+        color: "#8b5cf6"
+      },
       {
         status: "COMPLETED",
         label: "Completed",
@@ -4835,6 +5018,7 @@ async function createApp() {
       if (d.trackingNumber) activeDocTrackings.set(d.trackingNumber.trim().toUpperCase(), d);
       if (d.routeNo) activeDocTrackings.set(d.routeNo.trim().toUpperCase(), d);
     }
+    const isOwnDocument = (document) => isDocumentParticipant(document, requestingUser, auditLogsState);
     notificationsState = notificationsState.filter((n) => {
       if (n.documentId && !activeDocTrackings.has(n.documentId.trim().toUpperCase())) {
         return false;
@@ -4844,16 +5028,16 @@ async function createApp() {
       }
       return true;
     });
-    const storedNotifications = notificationsState.filter(
-      (notification) => notification.userId === userId
+    const storedNotifications = notificationsState.filter((notification) => notification.userId === userId).map(
+      (notification) => notification.title === "Routing Action Reminder" ? { ...notification, type: "URGENT", requiresDecision: false, decisionStatus: void 0 } : notification
     );
     const globalTransactionNotifications = canViewAllTransactionNotifications ? auditLogsState.filter(
       (log) => Boolean(log.documentTrackingNumber) && activeDocTrackings.has(log.documentTrackingNumber.trim().toUpperCase()) && ["CREATE_DOC", "ROUTE_DOC", "TRANSFER_DOC", "UPDATE_STATUS"].includes(
         log.action
-      )
+      ) && !log.details?.startsWith("Routing reminder sent to")
     ).map((log) => {
       const matchedDoc = log.documentTrackingNumber ? activeDocTrackings.get(log.documentTrackingNumber.trim().toUpperCase()) : void 0;
-      if (!matchedDoc) return null;
+      if (!matchedDoc || !isOwnDocument(matchedDoc)) return null;
       const decision = log.details.match(
         /(?:Action:\s*|^)(APPROVED|DISAPPROVED)\b/i
       )?.[1]?.toUpperCase();
@@ -4972,7 +5156,7 @@ async function createApp() {
       ...activeNotifications
     ]);
   });
-  app.post("/api/notifications/reminder", (req, res) => {
+  app.post("/api/notifications/reminder", async (req, res) => {
     const actingUser = getRequestUser(req);
     if (!actingUser) {
       return res.status(401).json({ error: "Active database user required." });
@@ -4985,15 +5169,19 @@ async function createApp() {
       (candidate) => candidate.id === String(req.body.documentId || "")
     );
     const recipient = usersState.find(
-      (candidate) => candidate.id === String(req.body.recipientUserId || "") && candidate.active && candidate.role !== "SYSTEM_ADMIN" && candidate.divisionCode !== "ITMS"
+      (candidate) => candidate.id === String(req.body.recipientUserId || "") && candidate.active
     );
     const message = String(req.body.message || "").trim();
     if (!document || !recipient) {
       return res.status(400).json({ error: "Select a valid document handler." });
     }
+    if (document.currentStatus === "COMPLETED") {
+      return res.status(409).json({ error: "This transaction is already completed and no longer needs a reminder." });
+    }
     if (!message) {
       return res.status(400).json({ error: "Enter a reminder message." });
     }
+    const actionRequested = String(req.body.actionRequested || "").trim() || "Appropriate Action";
     const reminder = createNotification({
       userId: recipient.id,
       title: "Routing Action Reminder",
@@ -5001,10 +5189,10 @@ async function createApp() {
       documentId: document.id,
       trackingNumber: document.routeNo || document.trackingNumber,
       type: "URGENT",
-      requiresDecision: true,
+      requiresDecision: false,
       reminderSenderName: actingUser.fullName,
       reminderHandlerName: recipient.fullName,
-      reminderActionRequested: String(req.body.actionRequested || "").trim() || "Appropriate Action"
+      reminderActionRequested: actionRequested
     }, notificationsState);
     notificationsState.unshift(reminder);
     addAuditLog(auditLogsState, {
@@ -5017,7 +5205,10 @@ async function createApp() {
       ipAddress: req.ip || "127.0.0.1"
     });
     saveDatabaseToFile();
-    res.status(201).json(reminder);
+    res.status(201).json({
+      ...reminder,
+      recipientName: recipient.fullName
+    });
   });
   app.delete("/api/notifications/:id", (_req, res) => {
     res.json({ success: true });

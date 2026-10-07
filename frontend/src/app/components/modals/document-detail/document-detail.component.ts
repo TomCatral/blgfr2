@@ -369,7 +369,9 @@ export class DocumentDetailComponent implements OnChanges {
     return false;
   }
 
-  intakeRoute = computed<DocumentRouteStep>(() => ({
+  intakeRoute = computed<DocumentRouteStep>(() => {
+    this.docVersion();
+    return {
     id: `intake-${this.document.id}`,
     documentId: this.document.id,
     routeNo: this.document.routeNo,
@@ -385,9 +387,11 @@ export class DocumentDetailComponent implements OnChanges {
     statusAfter: this.document.currentStatus || 'PENDING',
     createdAt: this.document.createdAt,
     stepNumber: 0,
-  }));
+    };
+  });
 
   rawHistoryRoutes = computed<DocumentRouteStep[]>(() => {
+    this.docVersion();
     const routes = (this.document.routes || []).filter((r) => {
       if (getRouteDecision(r)) return false;
       const hasRecipient = Boolean(r.toUserId || (r.toUser && r.toUser.trim() && r.toUser.trim() !== 'N/A'));
@@ -462,6 +466,52 @@ export class DocumentDetailComponent implements OnChanges {
   flowRootSenders = computed<string[]>(() => {
     return [this.firstDispatchSender()];
   });
+
+  isFlowRootRecipient(id: string): boolean {
+    return this.flowRoots().some((route) => route.id === id);
+  }
+
+  flowGroupedDispatchNotes = computed(() => {
+    this.docVersion();
+    const groups = new Map<string, { sender: string; note: string; routes: DocumentRouteStep[] }>();
+
+    for (const route of this.flowRoots()) {
+      const note = this.getFlowNodeRegularRemarks(route.id);
+      if (!note) continue;
+      const sender = this.getFlowNodeSenderName(route.id);
+      const key = `${sender.trim().toLowerCase()}::${note.trim().toLowerCase()}`;
+      const group = groups.get(key) || { sender, note, routes: [] };
+      group.routes.push(route);
+      groups.set(key, group);
+    }
+
+    return [...groups.entries()]
+      .filter(([, group]) => group.routes.length > 1)
+      .map(([key, group]) => {
+        const visibleRoutes = group.routes.filter((route) => this.canViewFlowNodeNote(route.id));
+        return {
+          key,
+          sender: group.sender,
+          note: group.note,
+          recipients: visibleRoutes.map((route) =>
+            this.resolveUserName(route.toUserId, route.toUser) || route.toDivision,
+          ),
+        };
+      })
+      .filter((group) => group.recipients.length > 0);
+  });
+
+  isDispatchNoteGrouped(id: string): boolean {
+    const route = this.flowRoots().find((item) => item.id === id);
+    if (!route) return false;
+    const note = this.getFlowNodeRegularRemarks(route.id);
+    if (!note) return false;
+    const sender = this.getFlowNodeSenderName(route.id);
+    return this.flowRoots().filter((item) =>
+      this.getFlowNodeSenderName(item.id).trim().toLowerCase() === sender.trim().toLowerCase() &&
+      (this.getFlowNodeRegularRemarks(item.id) || '').trim().toLowerCase() === note.trim().toLowerCase(),
+    ).length > 1;
+  }
 
   currentCustodian = computed(() => {
     if (this.document.currentStatus === 'COMPLETED') {
@@ -689,6 +739,7 @@ export class DocumentDetailComponent implements OnChanges {
   pendingDecisionRoute = this.pendingDecisionRouteSignal;
 
   readonly isDecisionRequired = computed(() => {
+    if (this.currentUser?.role === 'SYSTEM_ADMIN') return false;
     if (this.document.currentStatus === 'COMPLETED' || this.document.currentStatus === 'RETURNED') {
       return false;
     }
@@ -726,22 +777,28 @@ export class DocumentDetailComponent implements OnChanges {
 
   canRouteDocument = computed(() => {
     this.docVersion();
+    if (this.currentUser?.role === 'SYSTEM_ADMIN') return false;
     const isUnrouted =
       this.document.currentStatus === 'NOT_YET_ROUTED' ||
       !this.document.routes ||
       this.document.routes.length === 0;
-    const isPrivileged = ['ADMIN', 'SYSTEM_ADMIN', 'ORD', 'RECORDS_OFFICER'].includes(
+    const isPrivileged = ['ADMIN', 'ORD', 'RECORDS_OFFICER'].includes(
       this.currentUser?.role || '',
     );
+    const completedByCurrentUser = hasCompletedPart(this.document, this.currentUser);
+    const canReopenCompleted = this.document.currentStatus !== 'COMPLETED' || completedByCurrentUser || isPrivileged;
     return (
-      this.document.currentStatus !== 'COMPLETED' &&
-      !hasCompletedPart(this.document, this.currentUser) &&
+      canReopenCompleted &&
       this.document.currentStatus !== 'RETURNED' &&
       this.latestDocumentDecision() !== 'DISAPPROVED' &&
       !this.isDecisionRequired() &&
       (this.isDocumentParticipant() || isPrivileged || isUnrouted)
     );
   });
+
+  completedRouteCanContinue = computed(() =>
+    this.document.currentStatus === 'COMPLETED' || hasCompletedPart(this.document, this.currentUser),
+  );
 
   sharedDocumentFiles = computed(() => (this.document.attachments || []).filter((file) => isSharedDocumentFile(file, this.document, this.auditLogs)));
 
@@ -769,9 +826,12 @@ export class DocumentDetailComponent implements OnChanges {
       { label: 'Requested action', value: route.actionRequested },
     ];
 
-    const regRemarks = this.getFlowNodeRegularRemarks(route.id);
+    const regRemarks = this.canViewFlowNodeNote(route.id) ? this.getFlowNodeRegularRemarks(route.id) : null;
     if (regRemarks) {
-      fields.push({ label: 'Routing Notes', value: regRemarks });
+      fields.push({
+        label: `Dispatch note from ${this.getFlowNodeSenderName(route.id)}`,
+        value: regRemarks,
+      });
     }
 
     return fields.filter((field) => field.value && !/^(N\/A|None)$/i.test(field.value));
@@ -784,7 +844,10 @@ export class DocumentDetailComponent implements OnChanges {
     const activities = this.selectedActivities();
     const completedActivity = activities.find((a) => a.status === 'COMPLETED');
     const isCompleted = Boolean(snap?.ended || snap?.status === 'Completed' || completedActivity || route.statusAfter === 'COMPLETED');
-    const handoffInst = this.getFlowNodeHandoffInstruction(route.id) || completedActivity?.instruction;
+    const canViewPrivateStepContent = this.canViewFlowNodeNote(route.id);
+    const handoffInst = canViewPrivateStepContent
+      ? (this.getFlowNodeHandoffInstruction(route.id) || completedActivity?.instruction)
+      : null;
 
     if (!isCompleted && !handoffInst && this.document.currentStatus !== 'COMPLETED') {
       return null;
@@ -792,18 +855,19 @@ export class DocumentDetailComponent implements OnChanges {
 
     const performer =
       completedActivity?.performerName ||
-      this.resolveUserName(route.fromUserId, route.fromUser) ||
       this.resolveUserName(route.toUserId, route.toUser) ||
+      this.resolveUserName(route.fromUserId, route.fromUser) ||
       route.toDivision ||
       '';
 
-    const performerDivision = completedActivity?.performerDivision || route.fromDivision || route.toDivision || '';
+    const performerDivision = completedActivity?.performerDivision || route.toDivision || route.fromDivision || '';
 
-    const instruction =
-      handoffInst ||
-      completedActivity?.instruction ||
-      (completedActivity?.remarks && !this.isNoneRemark(completedActivity.remarks) ? completedActivity.remarks : '') ||
-      '';
+    const instruction = canViewPrivateStepContent
+      ? (handoffInst ||
+        completedActivity?.instruction ||
+        (completedActivity?.remarks && !this.isNoneRemark(completedActivity.remarks) ? completedActivity.remarks : '') ||
+        '')
+      : '';
 
     const timestamp = completedActivity?.timestamp || snap?.lastUpdated || route.processedAt || route.createdAt;
 
@@ -846,6 +910,7 @@ export class DocumentDetailComponent implements OnChanges {
     // 1. Scan all routes in document.routes
     const routes = this.document.routes || [];
     routes.forEach((route, idx) => {
+      if (!this.canViewFlowNodeNote(route.id)) return;
       const isRouteCompleted = route.statusAfter === 'COMPLETED';
       const snap = this.getRecipientSnapshot(route);
       const activities = this.getHandlerActivitySubsteps(route);
@@ -902,6 +967,9 @@ export class DocumentDetailComponent implements OnChanges {
     // 2. Scan audit logs for any completion logs that might have been recorded directly
     const auditLogs = this.docAuditLogs();
     for (const log of auditLogs) {
+      const canViewAuditInstruction = this.currentUser?.role === 'SYSTEM_ADMIN' ||
+        this.matchesPerson(log.userId, log.userName, this.currentUser?.id, this.currentUser?.fullName);
+      if (!canViewAuditInstruction) continue;
       if ((log.action === 'UPDATE_STATUS' || log.action === 'ROUTE_DOC') && /(?:Action:\s*|^)COMPLETED\b|Status:\s*COMPLETED\b/i.test(log.details)) {
         const instructionMatch = log.details.match(/Remarks:\s*(.*?)(?:\s*\|\s*Status:|$)/i)?.[1]?.trim() || '';
         const cleaned = cleanInstruction(instructionMatch);
@@ -1003,93 +1071,200 @@ export class DocumentDetailComponent implements OnChanges {
     if (!route) return false;
     if (!this.currentUser) return false;
 
-    // Administrators and Records Officers can view all step attachments
-    if (
-      this.currentUser.role === 'ADMIN' ||
-      this.currentUser.role === 'SYSTEM_ADMIN' ||
-      this.currentUser.role === 'ORD' ||
-      this.currentUser.role === 'RECORDS_OFFICER' ||
-      this.currentUser.divisionCode === 'ORD'
-    ) {
-      return true;
-    }
-
-    // Document creator can view
-    if (this.matchesPerson(this.document.createdByUserId, this.document.createdBy, this.currentUser.id, this.currentUser.fullName)) {
-      return true;
-    }
-
-    // Participants of this handoff / step (Sender or Recipient) can view
-    if (this.isParticipantInStep(route)) {
-      return true;
-    }
-
-    // Members of the recipient or sender division can view if assigned to their office
-    if (
-      this.currentUser.divisionCode &&
-      (this.currentUser.divisionCode === route.toDivision || this.currentUser.divisionCode === route.fromDivision)
-    ) {
-      return true;
-    }
-
-    return false;
+    return this.currentUser.role === 'SYSTEM_ADMIN' || this.isParticipantInStep(route);
   });
 
   selectedStepFiles = computed<DocumentAttachment[]>(() => {
+    return this.selectedStepAttachmentMessages().flatMap((message) => message.files);
+  });
+
+  selectedStepAttachmentMessages = computed(() => {
     const route = this.selectedRoute();
     if (!route) return [];
 
-    // Keys of original document attachments (intake / document registration files that belong at the top "sa taas")
-    const sharedKeys = new Set(
-      this.sharedDocumentFiles().map((f) => String(f.id || f.url || f.fileName))
-    );
-
-    const files: DocumentAttachment[] = [];
+    const sharedKeys = new Set(this.sharedDocumentFiles().map((file) => this.attachmentIdentity(file)));
     const seen = new Set<string>();
+    const messages: {
+      id: string;
+      sender: string;
+      division: string;
+      timestamp: string;
+      isReply: boolean;
+      title: string;
+      note: string;
+      instruction: string;
+      files: DocumentAttachment[];
+    }[] = [];
 
-    const addFile = (f?: DocumentAttachment | null) => {
-      if (!f) return;
-      const key = String(f.id || f.url || f.fileName);
-      if (!key) return;
-
-      // Do NOT include original / shared document files here - they remain at the top
-      if (sharedKeys.has(key)) return;
-      if (isSharedDocumentFile(f, this.document, this.auditLogs)) return;
-
-      if (!seen.has(key)) {
+    const addMessage = (
+      id: string,
+      senderId: string | undefined,
+      senderName: string | undefined,
+      division: string | undefined,
+      timestamp: string | undefined,
+      files: DocumentAttachment[] | undefined,
+      title: string,
+      note = '',
+      instruction = '',
+      includeWithoutFiles = true,
+    ) => {
+      const uniqueFiles = (files || []).filter((file) => {
+        const key = this.attachmentIdentity(file);
+        if (!key || sharedKeys.has(key) || seen.has(key) || isSharedDocumentFile(file, this.document, this.auditLogs)) return false;
         seen.add(key);
-        files.push(f);
-      }
+        return true;
+      });
+      if (!uniqueFiles.length && !includeWithoutFiles) return;
+      messages.push({
+        id,
+        sender: this.resolveUserName(senderId, senderName) || senderName || division || 'Sender not recorded',
+        division: this.resolveUserDivision(senderId, division),
+        timestamp: timestamp || uniqueFiles[0]?.uploadDate || route.createdAt,
+        isReply: this.matchesPerson(senderId, senderName, route.toUserId, route.toUser),
+        title,
+        note: this.isNoneRemark(note) ? '' : displayRouteRemarks(note),
+        instruction,
+        files: uniqueFiles,
+      });
     };
 
-    // 1. Files attached specifically when sending / replying to this route
-    (route.attachments || []).forEach(addFile);
+    // More specific reply/action records are registered first so mirrored route copies are removed.
+    this.getHandlerActivitySubsteps(route).forEach((activity) =>
+      addMessage(
+        `activity-${activity.id}`,
+        activity.performerId,
+        activity.performerName,
+        activity.performerDivision,
+        activity.timestamp,
+        activity.attachments,
+        activity.status === 'COMPLETED'
+          ? 'Completed this step'
+          : activity.destination
+            ? `Forwarded to ${activity.destination}`
+            : activity.action || 'Recorded an action',
+        activity.remarks,
+        activity.instruction,
+      ),
+    );
 
-    // 2. Files uploaded specifically for this route or recipient scope
-    (this.document.attachments || []).forEach((f) => {
-      if (f.uploadedForRouteId === route.id) {
-        addFile(f);
-      } else if (
-        f.attachmentScope === 'RECIPIENT' &&
-        f.uploadedByUserId &&
-        (f.uploadedByUserId === route.toUserId || f.uploadedByUserId === route.fromUserId)
-      ) {
-        addFile(f);
-      }
-    });
-
-    // 3. Attachments from activities/substeps performed on this route
-    this.getHandlerActivitySubsteps(route).forEach((act) => {
-      (act.attachments || []).forEach(addFile);
-    });
-
-    // 4. Attachments from decision taken on this route
-    const dec = this.getHandlerDecision(route);
-    if (dec && dec.attachments) {
-      dec.attachments.forEach(addFile);
+    const handoffInstruction = this.getFlowNodeHandoffInstruction(route.id) || '';
+    const instructionAlreadyShown = this.getHandlerActivitySubsteps(route).some(
+      (activity) => activity.instruction?.trim() === handoffInstruction.trim(),
+    );
+    if (handoffInstruction && !instructionAlreadyShown) {
+      addMessage(
+        `handoff-${route.id}`,
+        route.toUserId,
+        route.toUser,
+        route.toDivision,
+        this.selectedSnapshot()?.lastUpdated || route.processedAt || route.createdAt,
+        [],
+        'Completed this step',
+        '',
+        handoffInstruction,
+      );
     }
 
-    return files;
+    // Keep the selected step as one conversation thread: replies and final
+    // instructions recorded by downstream recipients belong to the handoff
+    // that started from this step. Only include branches visible to the user.
+    const addDownstreamReplies = (parentRoute: DocumentRouteStep, visited = new Set<string>()) => {
+      if (visited.has(parentRoute.id)) return;
+      visited.add(parentRoute.id);
+
+      for (const child of this.getFlowNodeChildren(parentRoute.id)) {
+        if (!this.canViewFlowNodeNote(child.id)) continue;
+        const childRecipientName = this.resolveUserName(child.toUserId, child.toUser) || child.toUser || child.toDivision;
+        const childActivities = this.getHandlerActivitySubsteps(child);
+        childActivities.forEach((activity) =>
+          addMessage(
+            `downstream-activity-${activity.id}`,
+            activity.performerId || child.toUserId,
+            activity.performerName || child.toUser,
+            activity.performerDivision || child.toDivision,
+            activity.timestamp,
+            activity.attachments,
+            activity.status === 'COMPLETED' ? `Final instruction from ${activity.performerName || childRecipientName}` : (activity.action || 'Recorded an action'),
+            activity.remarks,
+            activity.instruction,
+          ),
+        );
+
+        const childInstruction = this.getFlowNodeHandoffInstruction(child.id) || '';
+        const childInstructionShown = childActivities.some((activity) =>
+          activity.instruction?.trim() === childInstruction.trim(),
+        );
+        if (childInstruction && !childInstructionShown) {
+          addMessage(
+            `downstream-handoff-${child.id}`,
+            child.toUserId,
+            child.toUser,
+            child.toDivision,
+            this.getFlowNodeSnapshot(child.id).lastUpdated || child.processedAt || child.createdAt,
+            [],
+            `Final instruction from ${childRecipientName}`,
+            '',
+            childInstruction,
+          );
+        }
+
+        addDownstreamReplies(child, visited);
+      }
+    };
+    addDownstreamReplies(route);
+
+    const decision = this.getHandlerDecision(route);
+    if (decision) {
+      addMessage(
+        `decision-${decision.id}`,
+        decision.fromUserId,
+        decision.fromUser,
+        decision.fromDivision,
+        decision.processedAt || decision.createdAt,
+        decision.attachments,
+        `Decision: ${formatReadableStatus(getRouteDecision(decision))}`,
+        decision.remarks || '',
+      );
+    }
+
+    const scopedFiles = (this.document.attachments || []).filter((file) =>
+      file.uploadedForRouteId === route.id ||
+      (file.attachmentScope === 'RECIPIENT' && file.uploadedByUserId &&
+        (file.uploadedByUserId === route.toUserId || file.uploadedByUserId === route.fromUserId)),
+    );
+    const scopedBySender = new Map<string, DocumentAttachment[]>();
+    scopedFiles.forEach((file) => {
+      const senderKey = file.uploadedByUserId || 'unknown';
+      scopedBySender.set(senderKey, [...(scopedBySender.get(senderKey) || []), file]);
+    });
+    scopedBySender.forEach((files, senderId) =>
+      addMessage(
+        `upload-${senderId}`,
+        senderId === 'unknown' ? undefined : senderId,
+        undefined,
+        undefined,
+        files[0]?.uploadDate,
+        files,
+        'Uploaded an attachment',
+        '',
+        '',
+        false,
+      ),
+    );
+
+    addMessage(
+      `route-${route.id}`,
+      route.fromUserId,
+      route.fromUser,
+      route.fromDivision,
+      route.createdAt,
+      route.attachments,
+      `Sent to ${this.resolveUserName(route.toUserId, route.toUser) || route.toDivision}`,
+      displayRouteRemarks(route.remarks),
+      '',
+    );
+
+    return messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
   });
 
   finalReleaseRoute = computed(() => [...(this.document.routes || [])].reverse().find((r) => r.statusAfter === 'COMPLETED'));
@@ -1188,8 +1363,8 @@ export class DocumentDetailComponent implements OnChanges {
         detailFields: [
           ['Office', route.toDivision],
           ['Requested action', route.actionRequested],
-          ['Routing Notes', this.getFlowNodeRegularRemarks(route.id) || ''],
-          ['Handoff Instructions', (this.document.currentStatus === 'COMPLETED' && (snapshot.ended || snapshot.status === 'Completed')) ? (this.getFlowNodeHandoffInstruction(route.id) || '') : ''],
+          [`Dispatch note from ${this.getFlowNodeSenderName(route.id)}`, this.canViewFlowNodeNote(route.id) ? (this.getFlowNodeRegularRemarks(route.id) || '') : ''],
+          [`Final instruction from ${this.getFlowNodeInstructionAuthor(route.id)}`, this.canViewFlowNodeNote(route.id) && (snapshot.ended || snapshot.status === 'Completed') ? (this.getFlowNodeHandoffInstruction(route.id) || '') : ''],
           ['Decision', decision ? formatReadableStatus(getRouteDecision(decision)) : 'Pending'],
         ]
           .filter(([, value]) => value && !/^(N\/A|None)$/i.test(value))
@@ -1659,6 +1834,10 @@ export class DocumentDetailComponent implements OnChanges {
   }
 
   handleOpenRouteDoc(): void {
+    if (this.currentUser?.role === 'SYSTEM_ADMIN') {
+      alert('System Administrators can monitor and edit records, but cannot route documents.');
+      return;
+    }
     if (this.isDecisionRequired()) {
       alert('Action Required: You must take an action (Approve or Disapprove) on this document before you can proceed with routing.');
       return;
@@ -1668,6 +1847,7 @@ export class DocumentDetailComponent implements OnChanges {
   }
 
   async handleApprove(): Promise<void> {
+    if (this.currentUser?.role === 'SYSTEM_ADMIN') return;
     if (this.isSubmittingDecision()) return;
     this.isSubmittingDecision.set(true);
     try {
@@ -1691,6 +1871,7 @@ export class DocumentDetailComponent implements OnChanges {
   }
 
   async handleDisapprove(): Promise<void> {
+    if (this.currentUser?.role === 'SYSTEM_ADMIN') return;
     if (this.isSubmittingDecision()) return;
     if (this.onDecision) {
       this.isSubmittingDecision.set(true);
@@ -1747,34 +1928,16 @@ export class DocumentDetailComponent implements OnChanges {
 
   canRemoveRoute(route?: DocumentRouteStep | null): boolean {
     if (!route || !this.currentUser) return false;
+    if (this.currentUser.role === 'SYSTEM_ADMIN') return false;
     if (route.id.startsWith('intake-') || route.stepNumber === 0) return false;
     if (this.document.currentStatus === 'COMPLETED') return false;
 
-    const isRouteSender = this.matchesPerson(
-      route.fromUserId,
-      route.fromUser,
-      this.currentUser.id,
-      this.currentUser.fullName,
-    );
-    const isDocCreator = this.matchesPerson(
-      this.document.createdByUserId,
-      this.document.createdBy,
-      this.currentUser.id,
-      this.currentUser.fullName,
-    );
-    const isAdmin = this.currentUser.role === 'ADMIN' || this.currentUser.role === 'SYSTEM_ADMIN';
     const perm =
       this.currentUser.permissions ||
       DEFAULT_ROLE_PERMISSIONS[this.currentUser.role] ||
       DEFAULT_ROLE_PERMISSIONS.STAFF;
-    const hasDeletePermission = Boolean(perm.canDelete);
 
-    const isInitialRoute = route.stepNumber === 1 || !route.stepNumber;
-    if (isInitialRoute) {
-      return Boolean(isDocCreator || isAdmin || hasDeletePermission);
-    }
-
-    return Boolean(isRouteSender || isDocCreator || isAdmin || hasDeletePermission);
+    return Boolean(perm.canDelete);
   }
 
   async handleRemoveRoute(event: Event, route: DocumentRouteStep): Promise<void> {
@@ -1790,12 +1953,12 @@ export class DocumentDetailComponent implements OnChanges {
     const isInitialRoute = route.stepNumber === 1 || !route.stepNumber;
 
     const confirmMessage = isInitialRoute
-      ? `Are you sure you want to remove ${recipientName} from this transaction?\n\nSince this is the initial routing of a new document, the entire transaction will be cancelled and route number [${this.document.routeNo || this.document.trackingNumber}] will be freed up for reuse.`
+      ? `Are you sure you want to remove ${recipientName} from this transaction?\n\nSince this is the initial routing of a new document, the entire transaction will be cancelled and route number [${this.document.routeNo || this.document.trackingNumber}] will be retired. Retired route numbers are never handed out again.`
       : `Are you sure you want to remove Step ${route.stepNumber} for ${recipientName}?\n\nOnly this routing transaction will be removed. The document, route number, and other routing steps will remain.`;
 
     const confirmed = await showConfirm(confirmMessage, {
       title: isInitialRoute ? 'Cancel new document route?' : `Remove routing Step ${route.stepNumber}?`,
-      confirmLabel: isInitialRoute ? 'Cancel route & release number' : 'Remove this step',
+      confirmLabel: isInitialRoute ? 'Cancel route & retire number' : 'Remove this step',
       cancelLabel: 'Keep transaction',
       tone: 'danger',
     });
@@ -1807,26 +1970,25 @@ export class DocumentDetailComponent implements OnChanges {
         this.api.removeDocumentRoute(this.document.id, route.id, this.currentUser?.id),
       );
       if (res?.deletedDocument) {
-        this.ui.showSuccess(res?.message || 'Transaction and route number were completely removed and freed for reuse.');
-        await this.state.refreshNotifications().catch(() => undefined);
-        if (this.onRefreshDocument) {
-          await this.onRefreshDocument();
-        }
+        this.state.removeDocument(this.document.id);
+        this.ui.showSuccess(res?.message || 'Transaction and route number were completely removed. The route number is retired and will not be reused.');
         if (this.onClose) {
           this.onClose();
         }
+        void this.state.refreshNotifications().catch(() => undefined);
+        if (this.onRefreshDocument) void Promise.resolve(this.onRefreshDocument());
         return;
       }
 
       if (res?.document) {
         this.document = res.document;
+        this.state.replaceDocument(res.document);
       }
-      if (this.onRefreshDocument) {
-        await this.onRefreshDocument();
-      }
-      this.selectedFlowRecipient.set(null);
       this.docVersion.update((v) => v + 1);
+      const remainingRoutes = this.rawHistoryRoutes();
+      this.selectedFlowRecipient.set(remainingRoutes[0]?.id || null);
       this.ui.showSuccess(res?.message || `Removed ${recipientName} from transaction.`);
+      if (this.onRefreshDocument) void Promise.resolve(this.onRefreshDocument());
     } catch (err: any) {
       console.error('Failed to remove recipient route', err);
       this.ui.showError(err?.message || err?.error?.error || 'Unable to remove this recipient from the transaction. Please try again.');
@@ -1938,6 +2100,24 @@ export class DocumentDetailComponent implements OnChanges {
     return raw;
   }
 
+  canViewFlowNodeNote(id: string): boolean {
+    if (!this.currentUser) return false;
+    if (this.currentUser.role === 'SYSTEM_ADMIN') return true;
+    const route = this.flowRecipients().find((item) => item.id === id);
+    return Boolean(route && this.isParticipantInStep(route));
+  }
+
+  getFlowNodeSenderName(id: string): string {
+    const route = this.flowRecipients().find((item) => item.id === id);
+    if (!route) return 'Dispatch Origin';
+    return (
+      this.resolveUserName(route.fromUserId, route.fromUser) ||
+      route.fromUser ||
+      route.fromDivision ||
+      'Dispatch Origin'
+    );
+  }
+
   readonly flowNodeHandoffInstructionsMap = computed(() => {
     this.docVersion();
     const map = new Map<string, string | null>();
@@ -1964,10 +2144,6 @@ export class DocumentDetailComponent implements OnChanges {
   }
 
   private computeFlowNodeHandoffInstruction(id: string): string | null {
-    if (this.document.currentStatus !== 'COMPLETED') {
-      return null;
-    }
-
     const route = this.flowRecipients().find((r) => r.id === id);
     if (!route) return null;
 
@@ -1976,18 +2152,8 @@ export class DocumentDetailComponent implements OnChanges {
       instructionAuthor &&
       this.matchesPerson(instructionAuthor.userId, instructionAuthor.userName, route.toUserId, route.toUser),
     );
-    // Never attach a document-level instruction to a different recipient merely
-    // because that recipient happens to be the last card in the flow.
-    if (instructionAuthor && !isInstructionAuthor) {
-      return null;
-    }
-
     const snap = this.getFlowNodeSnapshot(id);
-    if (!snap.ended && snap.status !== 'Completed') {
-      const finalRoute = this.finalReleaseRoute();
-      const isFinal = finalRoute && (this.matchesPerson(finalRoute.fromUserId, finalRoute.fromUser, route.toUserId, route.toUser) || finalRoute.id === route.id);
-      if (!isFinal) return null;
-    }
+    if (!snap.ended && snap.status !== 'Completed') return null;
 
     // 1. Check if completed activity done by this recipient has Handoff Instructions
     const activities = this.getHandlerActivitySubsteps(route);
@@ -1999,7 +2165,7 @@ export class DocumentDetailComponent implements OnChanges {
     }
 
     // 2. Check if route itself has Handoff Instructions and was completed
-    if (route.remarks && /Handoff Instructions:/i.test(route.remarks) && (!instructionAuthor || isInstructionAuthor)) {
+    if (route.remarks && /Handoff Instructions:/i.test(route.remarks)) {
       const match = route.remarks.match(/Handoff Instructions:\s*(.*)$/is);
       if (match?.[1]?.trim()) return match[1].trim();
     }
@@ -2023,26 +2189,12 @@ export class DocumentDetailComponent implements OnChanges {
   }
 
   canShowFlowNodeEnd(id: string): boolean {
-    if (this.document.currentStatus !== 'COMPLETED') {
-      return false;
-    }
     // Cannot show end badge if this recipient forwarded to child recipients
     if (this.getFlowNodeChildren(id).length > 0) {
       return false;
     }
     const snap = this.getFlowNodeSnapshot(id);
-    if (snap.ended || snap.status === 'Completed') {
-      return true;
-    }
-    const finalRoute = this.finalReleaseRoute();
-    if (finalRoute && finalRoute.id === id) {
-      return true;
-    }
-    const recipients = this.flowRecipients();
-    if (recipients.length > 0 && recipients[recipients.length - 1].id === id) {
-      return true;
-    }
-    return false;
+    return snap.ended || snap.status === 'Completed';
   }
 
   readonly flowChildrenMap = computed(() => {
@@ -2072,6 +2224,14 @@ export class DocumentDetailComponent implements OnChanges {
 
   attachmentMeta(file: DocumentAttachment): string {
     return [file.fileSize, file.uploadDate ? formatDate(file.uploadDate) : ''].filter(Boolean).join(' - ');
+  }
+
+  private attachmentIdentity(file: DocumentAttachment): string {
+    const name = (file.fileName || '').trim().toLowerCase();
+    const size = (file.fileSize || '').trim().toLowerCase();
+    const type = (file.fileType || '').trim().toLowerCase();
+    const uploaded = file.uploadDate ? new Date(file.uploadDate).getTime() : '';
+    return [name, size, type, uploaded].join('|');
   }
 
   private createAttachmentObjectUrl(url: string) {

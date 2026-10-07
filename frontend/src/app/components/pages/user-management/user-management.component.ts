@@ -1,4 +1,4 @@
-import { Component, Input, signal, computed, inject, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, Input, signal, computed, inject, CUSTOM_ELEMENTS_SCHEMA, OnInit } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
@@ -233,7 +233,11 @@ function loadRolePermissions(): Record<Role, RolePermission> {
   templateUrl: './user-management.component.html',
   styleUrl: './user-management.component.scss',
 })
-export class UserManagementComponent {
+export class UserManagementComponent implements OnInit {
+  ngOnInit(): void {
+    void this.loadLoginBackground();
+  }
+
   @Input({ required: true }) users: User[] = [];
   @Input({ required: true }) divisions: Division[] = [];
   @Input({ required: true }) currentUser!: User;
@@ -261,6 +265,8 @@ export class UserManagementComponent {
   editingUser = signal<User | null>(null);
   targetUserForAvatar = signal<User | null>(null);
   isUploadingAvatar = signal(false);
+  isSavingLoginBackground = signal(false);
+  loginBackgroundUrl = signal<string | null>(null);
   isResettingPassword = signal<string | null>(null);
   searchTerm = signal('');
   roleFilter = signal<string>('ALL');
@@ -891,12 +897,75 @@ export class UserManagementComponent {
     this.avatarUrl.set('');
   }
 
-  canDeleteUsers(): boolean {
+
+canDeleteUsers(): boolean {
     return (
       this.currentUser?.role === 'SYSTEM_ADMIN' ||
       Boolean(this.currentUser?.permissions?.canDelete) ||
       Boolean(DEFAULT_ROLE_PERMISSIONS[this.currentUser?.role]?.canDelete)
     );
+  }
+
+  canManageLoginBackground(): boolean {
+    return this.currentUser?.role === 'SYSTEM_ADMIN';
+  }
+
+  async loadLoginBackground(): Promise<void> {
+    if (!this.canManageLoginBackground()) return;
+    try {
+      const result = await firstValueFrom(this.api.getLoginBackground());
+      this.loginBackgroundUrl.set(result?.url || null);
+    } catch {
+      this.loginBackgroundUrl.set(null);
+    }
+  }
+
+  triggerLoginBackgroundUpload(fileInput: HTMLInputElement): void {
+    if (!this.canManageLoginBackground()) return;
+    fileInput.value = '';
+    fileInput.click();
+  }
+
+  async onLoginBackgroundSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file || !this.canManageLoginBackground()) return;
+
+    if (!/^image\/(jpe?g|png|webp|gif)$/.test(file.type)) {
+      this.ui.showError('Login background must be a JPG, PNG, WEBP, or GIF image.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      this.ui.showError('Login background must be 10 MB or smaller.');
+      return;
+    }
+
+    try {
+      this.isSavingLoginBackground.set(true);
+      const stored = await firstValueFrom(this.api.uploadToStorage('loginBackground', file));
+      const result = await firstValueFrom(this.api.saveLoginBackground(stored.url));
+      this.loginBackgroundUrl.set(result?.url || stored.url);
+      this.ui.showSuccess('Login page background updated.');
+    } catch (err: unknown) {
+      this.ui.showError(String((err as Error)?.message || 'Failed to update the login background.'));
+    } finally {
+      this.isSavingLoginBackground.set(false);
+    }
+  }
+
+  async removeLoginBackground(): Promise<void> {
+    if (!this.canManageLoginBackground()) return;
+    try {
+      this.isSavingLoginBackground.set(true);
+      const result = await firstValueFrom(this.api.saveLoginBackground(null));
+      this.loginBackgroundUrl.set(result?.url ?? null);
+      this.ui.showSuccess('Login page background removed.');
+    } catch (err: unknown) {
+      this.ui.showError(String((err as Error)?.message || 'Failed to remove the login background.'));
+    } finally {
+      this.isSavingLoginBackground.set(false);
+    }
   }
 
   async handleDelete(user: User): Promise<void> {
@@ -1214,11 +1283,6 @@ export class UserManagementComponent {
 
   toggleUserCanViewAllRoutes(): void {
     this.userPermForm.update((p) => ({ ...p, canViewAllRoutes: !p.canViewAllRoutes }));
-    this.isUserPermDirty.set(true);
-  }
-
-  toggleUserCanViewAllDocuments(): void {
-    this.userPermForm.update((p) => ({ ...p, canViewAllDocuments: !p.canViewAllDocuments }));
     this.isUserPermDirty.set(true);
   }
 

@@ -59,6 +59,67 @@
     </div>
   </header>
 
+  <!-- Standalone: Login Page Background (System Administrator only) -->
+  @if (canManageLoginBackground()) {
+    <section class="ua-login-bg-strip" aria-label="Login Page Background">
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        #loginBackgroundInput
+        class="usersInput"
+        (change)="onLoginBackgroundSelected($event)"
+      />
+
+      <span class="ua-login-bg-strip-icon" aria-hidden="true">
+        <ion-icon name="image-outline"></ion-icon>
+      </span>
+
+      <div class="ua-login-bg-strip-thumb" [class.has-img]="!!loginBackgroundUrl()">
+        @if (loginBackgroundUrl()) {
+          <img [src]="loginBackgroundUrl()" alt="Login page background preview" />
+          <span class="ua-login-bg-strip-scrim"></span>
+          <span class="ua-login-bg-strip-card"></span>
+        } @else {
+          <ion-icon name="images-outline"></ion-icon>
+        }
+      </div>
+
+      <div class="ua-login-bg-strip-text">
+        <span class="ua-login-bg-strip-title">Login Page Background</span>
+        <span class="ua-login-bg-strip-sub">
+          @if (loginBackgroundUrl()) {
+            Custom image active &middot; shown on the sign-in page of every user
+          } @else {
+            No image &middot; the sign-in page uses its default blue theme
+          }
+        </span>
+      </div>
+
+      <div class="ua-login-bg-strip-actions">
+        <button
+          type="button"
+          class="ua-btn-primary ua-btn-sm"
+          (click)="triggerLoginBackgroundUpload(loginBackgroundInput)"
+          [disabled]="isSavingLoginBackground()"
+        >
+          <ion-icon name="cloud-upload-outline"></ion-icon>
+          <span>{{ loginBackgroundUrl() ? 'Replace' : 'Upload' }}</span>
+        </button>
+        @if (loginBackgroundUrl()) {
+          <button
+            type="button"
+            class="ua-btn-secondary ua-btn-sm"
+            (click)="removeLoginBackground()"
+            [disabled]="isSavingLoginBackground()"
+          >
+            <ion-icon name="trash-outline"></ion-icon>
+            <span>Remove</span>
+          </button>
+        }
+      </div>
+    </section>
+  }
+
   <!-- 2. Segmented Navigation Tabs -->
   <nav class="ua-tabs-nav" aria-label="User Management Sections">
     <ion-button
@@ -678,7 +739,7 @@
                 <td class="ua-matrix-feature-cell">
                   <div class="ua-feature-text">
                     <span class="ua-feature-title usersUaFeatureTitle">Delete Permission (Transactions, Accounts, Staff)</span>
-                    <span class="ua-feature-desc">Allows deleting/cancelling transactions, removing user accounts, and deleting directory personnel</span>
+                    <span class="ua-feature-desc">Allows deleting/cancelling transactions, removing routed recipients from a transaction, removing user accounts, and deleting directory personnel</span>
                   </div>
                 </td>
                 @for (r of allRoles; track r.role) {
@@ -1147,23 +1208,8 @@
                     </div>
                   </label>
 
-                  <!-- canViewAllDocuments -->
-                  <label class="ua-perm-toggle-row">
-                    <input
-                      type="checkbox"
-                      [checked]="userPermForm().canViewAllDocuments"
-                      (change)="toggleUserCanViewAllDocuments()"
-                      class="ua-perm-checkbox"
-                    />
-                    <div class="ua-perm-toggle-text">
-                      <span class="ua-perm-toggle-label">
-                        View All Division Documents
-                      </span>
-                      <span class="ua-perm-toggle-desc">
-                        Global visibility of all logged transactions across the regional office
-                      </span>
-                    </div>
-                  </label>
+                  <!-- canViewAllDocuments: kept on user records for compatibility, but
+                       document visibility is strictly personal (creator/recipient/router). -->
 
                   <!-- canDelete -->
                   <label class="ua-perm-toggle-row is-danger">
@@ -1178,7 +1224,7 @@
                         Delete Permission (Transactions, Accounts, Staff)
                       </span>
                       <span class="ua-perm-toggle-desc">
-                        Allows deleting/cancelling transactions, removing user accounts, and deleting directory personnel
+                        Allows deleting/cancelling transactions, removing routed recipients from a transaction, removing user accounts, and deleting directory personnel
                       </span>
                     </div>
                   </label>
