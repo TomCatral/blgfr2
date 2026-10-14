@@ -26,6 +26,22 @@ export function getPendingRecipients(document: Pick<DocumentRecord, 'routes'>): 
   }));
 }
 
+export function isRecipientPending(
+  document: Pick<DocumentRecord, 'routes'>,
+  recipient: Recipient,
+): boolean {
+  const recipientName = recipient.fullName?.trim().toLowerCase();
+  return getPendingRecipients(document).some((route) =>
+    route.toUserId && recipient.id
+      ? route.toUserId === recipient.id
+      : Boolean(
+          recipientName &&
+            route.toUser?.trim().toLowerCase() === recipientName &&
+            (!recipient.divisionCode || route.toDivision === recipient.divisionCode),
+        ),
+  );
+}
+
 // A decision is an audit event, not a new delivery to its "to" person.
 export function findPreviousDelivery(
   document: Pick<DocumentRecord, 'routes'> | null | undefined,

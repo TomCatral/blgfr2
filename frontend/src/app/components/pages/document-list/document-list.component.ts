@@ -268,7 +268,6 @@ export class DocumentListComponent implements OnInit {
   canRoute(doc: DocumentRecord): boolean {
     if (this.currentUser.role === 'SYSTEM_ADMIN') return false;
     return (
-      doc.currentStatus !== 'COMPLETED' &&
       doc.currentStatus !== 'RETURNED' &&
       !this.hasPendingDecision(doc)
     );

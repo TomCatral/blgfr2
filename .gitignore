@@ -29,4 +29,5 @@ frontend/.angular/
 .chrome-ui-check/
 .recovery/
 .tempmediaStorage/
-
+scratch/
+*.bak

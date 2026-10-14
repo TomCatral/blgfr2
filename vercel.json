@@ -6,10 +6,14 @@
   "functions": {
     "api/**/*.js": {
       "maxDuration": 60,
-      "regions": ["hnd1"]
+      "includeFiles": "backend/data/**,frontend/public/**"
     }
   },
   "routes": [
+    {
+      "src": "/api",
+      "dest": "/api/index?path="
+    },
     {
       "src": "/api/(.*)",
       "dest": "/api/index?path=$1"

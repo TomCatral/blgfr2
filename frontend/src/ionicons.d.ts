@@ -73,6 +73,7 @@ declare module 'ionicons/icons' {
   export const scan: string;
   export const search: string;
   export const settings: string;
+  export const settingsOutline: string;
   export const shieldCheckmark: string;
   export const shieldOutline: string;
   export const squareOutline: string;
@@ -131,6 +132,15 @@ declare module 'ionicons/icons' {
   export const logoApple: string;
   export const downloadOutline: string;
   export const shareOutline: string;
+  export const logoAndroid: string;
+  export const wifiOutline: string;
+  export const cloudOutline: string;
+  export const globeOutline: string;
+  export const cloudDownloadOutline: string;
+  export const mailOutline: string;
+  export const sunny: string;
+  export const sync: string;
+  export const imageOutline: string;
   export const sparkles: string;
   export const calendarOutline: string;
   export const addCircle: string;
@@ -143,4 +153,3 @@ declare module 'ionicons/icons' {
   export const refreshOutline: string;
   export const chevronForwardOutline: string;
 }
-

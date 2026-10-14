@@ -1,3 +1,4 @@
+import { startMdnsBroadcaster } from './mdns.js';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
@@ -1043,6 +1044,63 @@ export async function createApp() {
         auditLogs: auditLogsState.length,
       },
     });
+  });
+
+  app.get('/api/system/network-info', (req, res) => {
+    try {
+      const interfaces = os.networkInterfaces();
+      const addresses: string[] = [];
+      for (const name of Object.keys(interfaces)) {
+        for (const net of interfaces[name] || []) {
+          if (net.family === 'IPv4' && !net.internal) {
+            addresses.push(net.address);
+          }
+        }
+      }
+      const preferredIp =
+        addresses.find((ip) => ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) ||
+        addresses[0] ||
+        'localhost';
+
+      const hostname = os.hostname().toLowerCase();
+      const localDomain = 'blgf.local';
+      const domainPort = PORT === 80 ? '' : `:${PORT}`;
+      const domainUrl = `http://blgf.local${domainPort}/login`;
+      const fallbackDomainUrl = `http://${hostname}.local${domainPort}/login`;
+      const ipUrl = preferredIp !== 'localhost' ? `http://${preferredIp}${domainPort}/login` : `http://localhost${domainPort}/login`;
+
+      const hostHeader = req.get('host') || `${preferredIp}:${PORT}`;
+      const protocol = (req.headers['x-forwarded-proto'] as string) || req.protocol || (IS_VERCEL ? 'https' : 'http');
+      const currentOrigin = `${protocol}://${hostHeader}`;
+
+      res.json({
+        localIp: preferredIp,
+        port: PORT,
+        hostname,
+        localDomain,
+        domainUrl,
+        fallbackDomainUrl,
+        ipUrl,
+        lanUrl: domainUrl,
+        currentOrigin,
+        isVercel: IS_VERCEL,
+        allIps: addresses,
+      });
+    } catch (err: any) {
+      const hostHeader = req.get('host') || 'blgf-region2.vercel.app';
+      res.json({
+        localIp: 'localhost',
+        port: PORT,
+        hostname: 'server',
+        localDomain: 'server.local',
+        domainUrl: `http://server.local:${PORT}`,
+        ipUrl: `http://localhost:${PORT}`,
+        lanUrl: `http://server.local:${PORT}`,
+        currentOrigin: IS_VERCEL ? `https://${hostHeader}` : `http://localhost:${PORT}`,
+        isVercel: IS_VERCEL,
+        allIps: [],
+      });
+    }
   });
 
   // Explicit full MySQL replication for system administrators. Ordinary saves
@@ -2545,9 +2603,30 @@ export async function createApp() {
     });
   });
 
+  const interfaces = os.networkInterfaces();
+  const addresses: string[] = [];
+  for (const name of Object.keys(interfaces)) {
+    for (const net of interfaces[name] || []) {
+      if (net.family === 'IPv4' && !net.internal) {
+        addresses.push(net.address);
+      }
+    }
+  }
+  const preferredIp =
+    addresses.find((ip) => ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) ||
+    addresses[0] ||
+    'localhost';
+  const hostname = os.hostname().toLowerCase();
+
+  startMdnsBroadcaster(() => preferredIp, ['blgf.local', 'blgfdts.local', `${hostname}.local`, 'server.local']);
+
+  const domainPort = PORT === 80 ? '' : `:${PORT}`;
   console.log(`=======================================================`);
   console.log(`BLGF REGION II DOCUMENT TRACKING SYSTEM SERVER RUNNING`);
-  console.log(`URL: http://localhost:${PORT}`);
+  console.log(`Custom Domain  : http://blgf.local${domainPort}/login`);
+  console.log(`Local Hostname : http://${hostname}.local${domainPort}/login`);
+  console.log(`Direct Wi-Fi IP: http://${preferredIp}${domainPort}/login`);
+  console.log(`Desktop Local  : http://localhost:${PORT}/login`);
   console.log(`=======================================================`);
   return app;
 }

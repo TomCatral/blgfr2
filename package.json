@@ -7,27 +7,21 @@
     "postinstall": "prisma generate --schema prisma/mysql/schema.prisma",
     "prisma:generate": "prisma generate --schema prisma/mysql/schema.prisma",
     "db:migrate-readable-ids": "tsx backend/scripts/migrate_readable_ids.mjs",
-
     "dev": "node scripts/dev.cjs",
     "dev:concurrent": "concurrently --kill-others-on-fail --names server,frontend \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "tsx watch backend/server.ts",
     "dev:frontend": "npm run watch --prefix frontend",
-
-    "build:frontend:dev": "npm run build --prefix frontend -- --configuration development",
-    "build:frontend": "npm run build --prefix frontend",
-
+    "build:frontend:dev": "npm run build --prefix frontend -- --configuration development && node scripts/generate-offline-assets.cjs",
+    "build:frontend": "npm run build --prefix frontend && node scripts/generate-offline-assets.cjs",
     "build:backend": "esbuild backend/server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/backend/server.cjs",
-
     "build:api": "esbuild backend/vercel-handler.ts --bundle --platform=node --format=esm --packages=external --outfile=api/index.js",
-
     "build": "npm run build:frontend && npm run build:backend && npm run build:api",
-
     "start": "node dist/backend/server.cjs",
-
+    "offline": "node scripts/offline.cjs",
+    "offline:prepare": "npm run build",
+    "mobile": "node scripts/mobile.cjs",
     "preview": "node scripts/preview.cjs",
-
     "clean": "node scripts/clean.mjs",
-
     "lint:frontend": "cd frontend && npm run lint",
     "lint:backend": "tsc --noEmit -p backend/tsconfig.json",
     "lint": "npm run lint:frontend && npm run lint:backend"
@@ -38,6 +32,7 @@
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "multer": "^2.2.0",
+    "multicast-dns": "^7.2.5",
     "nodemailer": "^9.0.3"
   },
   "devDependencies": {

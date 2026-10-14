@@ -2,6 +2,7 @@ import {
   Component,
   OnInit,
   OnDestroy,
+  ViewChild,
   inject,
   signal,
   computed,
@@ -17,15 +18,18 @@ import { ApiService } from './services/api.service';
 import { SessionService } from './services/session.service';
 import { StateService } from './services/state.service';
 import { UiService } from './services/ui.service';
+import { OfflineSyncService } from './services/offline-sync.service';
 import { showConfirm, showPrompt } from './services/dialog.service';
 import { isDocumentParticipant } from './utils/document-visibility';
 import { isSharedDocumentFile } from './utils/attachment-visibility';
 import { isRoutingPopupSnoozed, routingPopupSnoozeKey } from './utils/routing-popup-snooze';
+import { isRecipientPending } from './utils/routing-recipients';
 import {
   DEFAULT_ROLE_PERMISSIONS,
   DocumentAttachment,
   DocumentDirection,
   DocumentRecord,
+  DocumentRouteStep,
   Division,
   NotificationItem,
   PopupAction,
@@ -106,6 +110,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   session = inject(SessionService);
   state = inject(StateService);
+  offlineSync = inject(OfflineSyncService);
   private ui = inject(UiService);
   private sanitizer = inject(DomSanitizer);
 
@@ -123,6 +128,7 @@ export class AppComponent implements OnInit, OnDestroy {
   readonly searchQuery = signal<string>('');
   readonly isSidebarCollapsed = signal(false);
   readonly isMobileSidebarOpen = signal(false);
+  @ViewChild('appHeader') appHeader?: HeaderComponent;
 
   readonly selectedDoc = signal<DocumentRecord | null>(null);
   readonly fullFlowDocumentId = signal<string | null>(null);
@@ -135,6 +141,32 @@ export class AppComponent implements OnInit, OnDestroy {
   readonly decisionSubmittingId = signal<string | null>(null);
   readonly targetDatePopup = signal<DocumentRecord | null>(null);
   readonly slipSelectedDoc = signal<DocumentRecord | null>(null);
+
+  readonly dismissedMobileBanner = signal(
+    typeof localStorage !== 'undefined' &&
+      localStorage.getItem('blgf_dismissed_mobile_banner') === 'true',
+  );
+  readonly isMobileDevice = computed(() => {
+    if (typeof window === 'undefined') return false;
+    const isSmallScreen = window.innerWidth <= 768;
+    const ua = (navigator.userAgent || '').toLowerCase();
+    const isMobileUa = /android|iphone|ipad|ipod|mobile/i.test(ua);
+    return isSmallScreen || isMobileUa;
+  });
+  readonly isStandaloneApp = computed(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as unknown as { standalone?: boolean }).standalone === true
+    );
+  });
+  readonly showMobileInstallBanner = computed(() => {
+    return (
+      this.isMobileDevice() &&
+      !this.isStandaloneApp() &&
+      !this.dismissedMobileBanner()
+    );
+  });
 
   private closedApprovalPopupIds = new Map<string, number>();
   private routingSnoozeTick = signal(0);
@@ -154,7 +186,7 @@ export class AppComponent implements OnInit, OnDestroy {
   });
 
   readonly showingStartupState = computed(
-    () => !this.session.isOnline() || !this.session.isDataLoaded(),
+    () => !this.session.isDataLoaded(),
   );
 
   readonly existingRouteNumbers = computed(() =>
@@ -279,6 +311,17 @@ export class AppComponent implements OnInit, OnDestroy {
       void this.state.refreshNotifications();
     });
     this.syncTargetDatePopup();
+    effect(() => {
+      const user = this.currentUser();
+      if (typeof window !== 'undefined' && typeof window.history !== 'undefined') {
+        const path = window.location.pathname;
+        if (!user && (path === '/' || path === '')) {
+          window.history.replaceState(null, '', '/login');
+        } else if (user && path === '/login') {
+          window.history.replaceState(null, '', '/');
+        }
+      }
+    });
   }
 
   ngOnInit(): void {
@@ -289,7 +332,10 @@ export class AppComponent implements OnInit, OnDestroy {
 
     const onOnline = (): void => {
       this.session.isOnline.set(true);
-      if (this.currentUser()) void this.state.refreshDashboard();
+      if (this.currentUser()) {
+        void this.offlineSync.syncQueue(() => this.loadBackendData());
+        void this.state.refreshDashboard();
+      }
     };
     const onOffline = (): void => this.session.isOnline.set(false);
     window.addEventListener('online', onOnline);
@@ -345,7 +391,25 @@ export class AppComponent implements OnInit, OnDestroy {
         this.session.clearPersistedUser();
       }
     } catch {
-      this.session.clearPersistedUser();
+      // Offline fallback: restore session and snapshot data from offline storage
+      const cachedUser = this.offlineSync.getOfflineUser(savedUserId);
+      if (cachedUser && cachedUser.active) {
+        const cachedSnapshot = this.offlineSync.loadSnapshot(savedUserId);
+        if (cachedSnapshot) {
+          if (cachedSnapshot.users?.length) this.state.users.set(cachedSnapshot.users);
+          if (cachedSnapshot.divisions?.length) this.state.divisions.set(cachedSnapshot.divisions);
+          if (cachedSnapshot.documents?.length) this.state.documents.set(cachedSnapshot.documents);
+          if (cachedSnapshot.stats) this.state.stats.set(cachedSnapshot.stats);
+          if (cachedSnapshot.auditLogs?.length) this.state.auditLogs.set(cachedSnapshot.auditLogs);
+          if (cachedSnapshot.envelopeLogs?.length) this.state.envelopeLogs.set(cachedSnapshot.envelopeLogs);
+        }
+        this.session.login(cachedUser);
+        if (cachedUser.role !== 'SYSTEM_ADMIN' && this.activeView() === 'users') {
+          this.activeView.set('dashboard');
+        }
+      } else {
+        this.session.clearPersistedUser();
+      }
     } finally {
       if (!this.currentUser()) this.session.markDataLoaded();
     }
@@ -555,6 +619,19 @@ export class AppComponent implements OnInit, OnDestroy {
     this.isMobileSidebarOpen.set(true);
   };
 
+  openScannerFromMobile = (): void => {
+    this.isMobileSidebarOpen.set(false);
+    if (this.appHeader) {
+      void this.appHeader.openScanner();
+    }
+  };
+
+  openMobileInstallGuide = (): void => {
+    if (this.appHeader) {
+      this.appHeader.openInstallGuide();
+    }
+  };
+
   stop(event: Event): void {
     event.stopPropagation();
   }
@@ -635,6 +712,69 @@ export class AppComponent implements OnInit, OnDestroy {
       const shouldPrint = formData['shouldPrintSlip'] as boolean;
       delete formData['shouldPrintSlip'];
       delete formData['shouldRouteModal'];
+
+      if (!this.session.isOnline()) {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const dirCode = formData['direction'] === 'OUTGOING' ? 'OUT' : 'IN';
+        const fallbackRouteNo = String(
+          formData['routeNo'] ||
+            `BLGFR2-${year}-${month}-${dirCode}-OFFLINE-${Date.now().toString().slice(-4)}`,
+        );
+        const tempId = `offline-doc-${Date.now()}`;
+        const offlineCreated: DocumentRecord = {
+          id: tempId,
+          trackingNumber: fallbackRouteNo,
+          routeNo: fallbackRouteNo,
+          direction: (formData['direction'] as DocumentDirection) || 'INCOMING',
+          title: String(formData['title'] || ''),
+          subject: String(formData['subject'] || ''),
+          category: String(formData['category'] || 'General Correspondence'),
+          originatingOffice: String(formData['originatingOffice'] || ''),
+          destinationOffice: String(formData['destinationOffice'] || ''),
+          senderName: String(formData['senderName'] || ''),
+          senderPosition: String(formData['senderPosition'] || ''),
+          recipientName: String(formData['recipientName'] || ''),
+          recipientPosition: String(formData['recipientPosition'] || ''),
+          priority: (formData['priority'] as any) || 'ROUTINE',
+          currentStatus: 'PENDING',
+          currentDivision: (formData['currentDivision'] as any) || actingUser.divisionCode,
+          assignedUserId: formData['assignedUserId'] as string,
+          assignedUser: this.state.users().find((u) => u.id === formData['assignedUserId'])?.fullName,
+          dateReceived: (formData['dateReceived'] as string) || now.toISOString(),
+          targetCompletionDate: (formData['targetCompletionDate'] as string) || now.toISOString(),
+          tags: (formData['tags'] as string[]) || [],
+          attachments: (formData['attachments'] as any) || [],
+          routes: [],
+          createdBy: actingUser.fullName,
+          createdByUserId: actingUser.id,
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+        };
+
+        this.state.prependDocument(offlineCreated);
+        this.offlineSync.enqueue({
+          type: 'CREATE_DOCUMENT',
+          payload: {
+            ...formData,
+            routeNo: fallbackRouteNo,
+          },
+          tempId,
+        });
+
+        this.ui.showSuccess(
+          `Nai-save sa mobile (Offline Mode). Kusang ia-upload ang ${fallbackRouteNo} pag nagka-internet.`,
+        );
+
+        if (shouldPrint) {
+          this.slipSelectedDoc.set(offlineCreated);
+          this.activeView.set('slip');
+        } else if (shouldRoute) {
+          this.routeModalDoc.set(offlineCreated);
+        }
+        return;
+      }
 
       let created: DocumentRecord | undefined;
       let candidateRouteNo = String(formData['routeNo'] || '');
@@ -735,6 +875,51 @@ export class AppComponent implements OnInit, OnDestroy {
       this.ui.showError('System Administrators cannot route documents.');
       return false;
     }
+
+    if (!this.session.isOnline()) {
+      const docId = routeData['documentId'] as string;
+      const targetDoc = this.state.documents().find((d) => d.id === docId);
+      if (targetDoc) {
+        const isMulti = ((routeData['recipients'] as unknown[])?.length || 0) > 1;
+        const now = new Date().toISOString();
+        const newStep: DocumentRouteStep = {
+          id: `offline-step-${Date.now()}`,
+          documentId: docId,
+          stepNumber: (targetDoc.routes?.length || 0) + 1,
+          routeNo: targetDoc.routeNo,
+          fromDivision: routeData['fromDivision'] as any,
+          fromUser: actingUser.fullName,
+          fromUserId: actingUser.id,
+          toDivision: routeData['toDivision'] as any,
+          toUser: routeData['toUser'] as string,
+          toUserId: routeData['toUserId'] as string,
+          actionRequested: (routeData['actionRequested'] as string) || 'For Appropriate Action',
+          remarks: routeData['remarks'] as string,
+          statusBefore: targetDoc.currentStatus,
+          statusAfter: (routeData['newStatus'] as any) || 'IN_PROGRESS',
+          createdAt: now,
+        };
+        const updatedDoc: DocumentRecord = {
+          ...targetDoc,
+          currentStatus: (routeData['newStatus'] as any) || 'IN_PROGRESS',
+          currentDivision: (routeData['toDivision'] as any) || targetDoc.currentDivision,
+          assignedUser: (routeData['toUser'] as string) || targetDoc.assignedUser,
+          assignedUserId: (routeData['toUserId'] as string) || targetDoc.assignedUserId,
+          routes: [...(targetDoc.routes || []), newStep],
+          updatedAt: now,
+        };
+        this.state.replaceDocument(updatedDoc);
+        this.offlineSync.enqueue({
+          type: isMulti ? 'MULTI_ROUTE_DOCUMENT' : 'ROUTE_DOCUMENT',
+          payload: routeData,
+        });
+        this.ui.showSuccess(
+          `Nai-save ang routing sa mobile (Offline Mode). Kusang ia-upload pag may koneksyon.`,
+        );
+        return true;
+      }
+    }
+
     try {
       const updatedDoc =
         (routeData['recipients'] as unknown[])?.length > 1
@@ -818,6 +1003,40 @@ export class AppComponent implements OnInit, OnDestroy {
         return false;
       }
     }
+
+    if (!this.session.isOnline()) {
+      const currentDocument = this.state
+        .documents()
+        .find((document) => document.id === notification.documentId);
+      if (currentDocument) {
+        const nextStatus = decision === 'DISAPPROVED' ? 'RETURNED' : 'COMPLETED';
+        const updatedDoc: DocumentRecord = {
+          ...currentDocument,
+          currentStatus: nextStatus as any,
+          updatedAt: new Date().toISOString(),
+        };
+        this.state.replaceDocument(updatedDoc);
+        this.state.notifications.set(
+          this.state.notifications().filter((item) => item.id !== notification.id),
+        );
+        this.offlineSync.enqueue({
+          type: 'RECORD_DECISION',
+          payload: {
+            documentId: notification.documentId,
+            decision,
+            remarks,
+            actingUserId: user.id,
+          },
+        });
+        this.routingPopup.set(null);
+        this.isNotifDrawerOpen.set(false);
+        this.ui.showSuccess(
+          `Nai-save ang desisyon sa mobile (Offline Mode). Kusang ia-upload pag may koneksyon.`,
+        );
+        return true;
+      }
+    }
+
     this.decisionSubmittingId.set(notification.id);
     try {
       let updated: DocumentRecord;
@@ -1011,27 +1230,64 @@ export class AppComponent implements OnInit, OnDestroy {
     document: DocumentRecord,
     route: DocumentRecord['routes'][number],
   ): Promise<void> => {
-    const targetUserId = route.toUserId || document.assignedUserId;
+    let targetUserId = route.toUserId || document.assignedUserId;
+    if (!targetUserId) {
+      const matchByName = this.state.users().find(
+        (u) =>
+          (route.toUser &&
+            u.fullName.trim().toLowerCase() === route.toUser.trim().toLowerCase()) ||
+          (document.assignedUser &&
+            u.fullName.trim().toLowerCase() === document.assignedUser.trim().toLowerCase()),
+      );
+      targetUserId = matchByName?.id;
+    }
     if (!targetUserId) {
       this.ui.showError('No assigned handler found for this document.');
       return;
     }
     const recipientUser = this.state.users().find((user) => user.id === targetUserId);
+    if (
+      document.currentStatus === 'COMPLETED' ||
+      !recipientUser ||
+      !isRecipientPending(document, recipientUser)
+    ) {
+      this.ui.showError('Completed or forwarded assignments no longer need a reminder.');
+      await this.loadBackendData();
+      return;
+    }
     const currentHandlerName =
       recipientUser?.fullName ||
       route.toUser ||
       document.assignedUser ||
       'document handler';
-    const message = await showPrompt(
+    const rawPrompt = await showPrompt(
       `Send an in-app pop-up reminder to ${currentHandlerName}:`,
       'Please take action on this routed document.',
     );
-    if (!message?.trim()) return;
+    const message = rawPrompt?.trim();
+    if (!message) return;
+
+    if (!this.session.isOnline()) {
+      this.offlineSync.enqueue({
+        type: 'SEND_REMINDER',
+        payload: {
+          documentId: document.id,
+          recipientUserId: targetUserId,
+          message,
+          actionRequested: route.actionRequested || 'Appropriate Action',
+        },
+      });
+      this.ui.showSuccess(
+        `Nai-queue ang paalala para kay ${currentHandlerName}. Kusang ipapadala pag online na.`,
+      );
+      return;
+    }
+
     try {
       const response = await firstValueFrom(this.api.sendRoutingReminder({
         documentId: document.id,
         recipientUserId: targetUserId,
-        message: message.trim(),
+        message,
         actionRequested: route.actionRequested || 'Appropriate Action',
       }));
       this.ui.showSuccess(`In-app pop-up reminder sent to ${currentHandlerName}.`);
@@ -1040,6 +1296,32 @@ export class AppComponent implements OnInit, OnDestroy {
       this.ui.showError(`Failed to send reminder: ${String((error as Error)?.message || error)}`);
     }
   };
+
+  dismissMobileInstallBanner(): void {
+    this.dismissedMobileBanner.set(true);
+    try {
+      localStorage.setItem('blgf_dismissed_mobile_banner', 'true');
+    } catch {}
+  }
+
+  handleMobileInstallFromBanner(): void {
+    const prompt = (window as any).__blgfInstallPrompt;
+    if (prompt) {
+      prompt.prompt();
+      void prompt.userChoice.then((choice: any) => {
+        if (choice?.outcome === 'accepted') {
+          this.dismissMobileInstallBanner();
+        }
+      });
+    } else {
+      if (this.appHeader) {
+        this.appHeader.openMobileQrGuide();
+      } else {
+        const guideBtn = document.querySelector('.user-menu-qr-btn, .headInstallGuideTriggerBtn') as HTMLElement;
+        if (guideBtn) guideBtn.click();
+      }
+    }
+  }
 
   deleteDocument = async (doc: DocumentRecord): Promise<void> => {
     if (
@@ -1278,7 +1560,8 @@ export class AppComponent implements OnInit, OnDestroy {
             candidate.id !== route.id,
         ) || this.state.auditLogs().some(
           (log) =>
-            log.documentTrackingNumber === document.trackingNumber &&
+            (log.documentTrackingNumber === document.trackingNumber ||
+              log.documentTrackingNumber === document.routeNo) &&
             log.userId === user.id &&
             new Date(log.timestamp).getTime() >= assignedAt &&
             ['ROUTE_DOC', 'TRANSFER_DOC', 'UPDATE_STATUS'].includes(log.action),
@@ -1332,7 +1615,9 @@ export class AppComponent implements OnInit, OnDestroy {
             (n.trackingNumber === next.document.routeNo ||
               n.trackingNumber === next.document.trackingNumber))),
     );
-    const popupId = `approval-popup-${next.route.id}`;
+    const popupId = reminderForDoc
+      ? `approval-popup-${next.route.id}-reminder-${reminderForDoc.id}`
+      : `approval-popup-${next.route.id}`;
     if (this.routingPopup()?.id === popupId) return;
     this.routingPopup.set({
       id: popupId,
@@ -1343,7 +1628,7 @@ export class AppComponent implements OnInit, OnDestroy {
       trackingNumber: next.document.routeNo || next.document.trackingNumber,
       type: reminderForDoc ? 'URGENT' : 'ACTION_REQUIRED',
       requiresDecision: !reminderForDoc,
-      createdAt: next.route.createdAt,
+      createdAt: reminderForDoc?.createdAt || next.route.createdAt,
     });
   }
 
@@ -1398,9 +1683,12 @@ export class AppComponent implements OnInit, OnDestroy {
   snoozeRoutingActionPopup = (popup?: PopupAction | null): void => {
     const target = popup || this.routingPopup();
     if (target?.id.startsWith('approval-popup-')) {
+      const routeId = target.id
+        .replace(/^approval-popup-/, '')
+        .replace(/-reminder-.*$/, '');
       const key = routingPopupSnoozeKey(
         this.currentUser()?.id || '',
-        target.id.slice('approval-popup-'.length),
+        routeId,
       );
       const closedAt = Date.now();
       this.closedApprovalPopupIds.set(key, closedAt);

@@ -1596,27 +1596,27 @@
    -------------------------------------------------------------------------- */
 .canvas-viewport {
   position: relative;
-  padding: 2rem 1.5rem;
+  padding: 1.25rem;
   background: #f1f5f9;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 380px;
+  min-height: 250px;
   overflow: hidden;
 }
 
 .mockup-envelope {
   position: relative;
   width: 100%;
-  max-width: 680px;
+  max-width: 480px;
   background: #fcfcfb;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
   box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.06),
-    0 12px 28px -4px rgba(0, 0, 0, 0.1),
-    0 24px 32px -12px rgba(0, 0, 0, 0.05);
-  padding: 1.5rem 1.75rem;
+    0 1px 3px rgba(0, 0, 0, 0.05),
+    0 8px 20px -3px rgba(15, 23, 42, 0.12),
+    0 16px 24px -8px rgba(15, 23, 42, 0.06);
+  padding: 1.1rem 1.25rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -3033,4 +3033,117 @@
 }
 .btn-icon-action.is-active {
   color: #2563eb;
+}
+
+/* Compact native-style envelope workspace for phones. */
+@media (max-width: 640px) {
+  .envelope-studio-page {
+    gap: 0.65rem;
+    padding: 0.6rem 0.55rem 1rem;
+  }
+
+  .studio-header {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+    padding: 0.7rem;
+    border-radius: 16px;
+  }
+  .studio-header-identity { min-width: 0; gap: 0.55rem; }
+  .btn-studio-back { width: 36px; height: 36px; flex: 0 0 36px; }
+  .studio-main-title { font-size: 0.92rem; }
+  .icon-badge { width: 27px; height: 27px; }
+  .studio-subtitle { display: none; }
+  .linked-doc-badge { max-width: 100%; font-size: 0.62rem; }
+  .linked-badge-route { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .studio-header-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem;
+    width: 100%;
+  }
+  .studio-header-actions .status-pill { grid-column: 1 / -1; min-height: 28px; font-size: 0.62rem; }
+  .btn-studio-primary,
+  .btn-studio-slate,
+  .btn-studio-secondary {
+    justify-content: center;
+    min-width: 0;
+    min-height: 40px;
+    padding: 0.45rem 0.25rem;
+    border-radius: 10px;
+    font-size: 0.6rem;
+    line-height: 1.1;
+  }
+
+  .studio-grid,
+  .studio-left-column,
+  .studio-right-column { gap: 0.65rem; }
+  .studio-card { border-radius: 15px; box-shadow: 0 4px 14px -10px rgba(15, 23, 42, 0.28); }
+  .card-header-compact,
+  .card-header-with-actions { gap: 0.4rem; padding: 0.65rem 0.7rem; }
+  .card-header-title h3 { font-size: 0.72rem; }
+  .size-chip-active { padding: 0.15rem 0.4rem; font-size: 0.58rem; }
+
+  .size-presets-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 0.35rem;
+    padding: 0.55rem;
+  }
+  .preset-card-btn {
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    min-height: 76px;
+    gap: 0.25rem;
+    padding: 0.4rem 0.2rem;
+    text-align: center;
+    border-radius: 11px;
+  }
+  .preset-icon-box { width: 27px; height: 27px; }
+  .preset-name { font-size: 0.6rem; }
+  .preset-specs { display: none; }
+
+  .canvas-viewport {
+    min-height: 180px;
+    max-height: 240px;
+    padding: 0.5rem;
+    overflow: auto;
+  }
+  .mockup-envelope {
+    max-width: 320px;
+    min-height: 145px !important;
+    padding: 0.6rem 0.75rem !important;
+    border-radius: 6px;
+    box-shadow: 0 4px 14px -4px rgba(15, 23, 42, 0.25);
+  }
+  .mockup-letterhead {
+    max-width: 65%;
+    gap: 0.4rem;
+    .mockup-blgf-logo { width: 1.6rem; height: 1.6rem; }
+    .gov-rep-line { font-size: 0.52rem; }
+    .gov-dof-line { font-size: 0.55rem; }
+    .gov-agency-text { font-size: 0.62rem; margin: 0; }
+    .gov-regional-line { font-size: 0.55rem; }
+    .gov-address-line { font-size: 0.5rem; display: none; }
+  }
+  .mockup-recipient-block {
+    margin-left: 24%;
+    gap: 0.35rem;
+    margin-bottom: 0.25rem;
+    .recipient-to-heading { font-size: 0.68rem; }
+    .recipient-name { font-size: 0.72rem; }
+    .recipient-position, .recipient-office, .recipient-address { font-size: 0.6rem; line-height: 1.2; }
+  }
+  .mockup-stamp-box {
+    top: 0.4rem;
+    right: 0.4rem;
+    padding: 0.15rem 0.35rem;
+    font-size: 0.45rem;
+  }
+  .canvas-footer { padding: 0.55rem !important; }
+  .canvas-footer-info { display: none !important; }
+  .canvas-footer-btns,
+  .btn-quick-print { width: 100%; }
+  .btn-quick-print { justify-content: center; min-height: 40px; font-size: 0.68rem; }
 }

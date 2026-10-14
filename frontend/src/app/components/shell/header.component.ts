@@ -8,13 +8,18 @@ import {
   Output,
   ViewChild,
   CUSTOM_ELEMENTS_SCHEMA,
+  inject,
 } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import QRCode from 'qrcode';
 import { NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ClsPipe } from '../../shared/cls.pipe';
 import { HighlightPipe } from '../../shared/highlight.pipe';
 import { AuditLog, DocumentRecord, NotificationItem, User } from '../../types';
 import { Html5Qrcode } from 'html5-qrcode';
+import { OfflineSyncService } from '../../services/offline-sync.service';
 interface SearchResult {
   doc: DocumentRecord;
   matchedField: string;
@@ -64,6 +69,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   @Output() onLogout = new EventEmitter<void>();
   @Output() onToggleDarkMode = new EventEmitter<void>();
   @Output() onOpenMobileSidebar = new EventEmitter<void>();
+  @Output() onOpenScanner = new EventEmitter<void>();
 
   @ViewChild('searchInput', { read: ElementRef }) searchInputRef?: ElementRef<HTMLInputElement | HTMLElement>;
 
@@ -116,12 +122,28 @@ export class HeaderComponent implements OnInit, OnDestroy {
     }
   }
 
+  offlineSync = inject(OfflineSyncService);
+  private http = inject(HttpClient);
+
   showUserMenu = false;
   private _searchQuery = '';
   isSearchFocused = false;
   activeResultIndex = -1;
   private searchBlurTimer: number | null = null;
   isScannerOpen = false;
+  isHttpCameraRestricted = false;
+
+  get isLocalDomainOnDesktop(): boolean {
+    return (
+      (window.location.hostname === 'blgf.local' || window.location.hostname.includes('192.168.') || window.location.hostname.includes('10.')) &&
+      !/Android|iPhone|iPad|Mobile/i.test(window.navigator.userAgent)
+    );
+  }
+
+  switchToLocalhost(): void {
+    const port = window.location.port ? ':' + window.location.port : '';
+    window.location.href = window.location.protocol + '//localhost' + port + window.location.pathname + window.location.search;
+  }
   scannerError = '';
   scrolled = false;
   installPrompt: BeforeInstallPromptEvent | null = null;
@@ -132,7 +154,14 @@ export class HeaderComponent implements OnInit, OnDestroy {
     window.matchMedia('(display-mode: standalone)').matches ||
     (window.navigator as unknown as { standalone?: boolean }).standalone === true;
   showInstallGuide = false;
-  activeInstallTab: 'desktop' | 'android' | 'ios' = 'desktop';
+  activeInstallTab: 'android' | 'ios' | 'desktop' = 'android';
+  mobileQrDataUrl = '';
+  activeMobileUrlType: 'domain' | 'ip' | 'vercel' = 'domain';
+  localDomainUrl = 'http://blgf.local:3001/login';
+  directIpUrl = '';
+  lanUrl = '';
+  vercelUrl = 'https://blgf-region2.vercel.app';
+  isGeneratingQr = false;
 
   window = window;
 
@@ -516,14 +545,105 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   copiedLink = false;
 
-  copyAppLink(): void {
-    const url = window.location.origin;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      void navigator.clipboard.writeText(url).then(() => {
-        this.copiedLink = true;
-        window.setTimeout(() => (this.copiedLink = false), 2500);
-      });
+  get activeMobileQrUrl(): string {
+    // If accessed directly from phone or another device, use current origin
+    if (
+      typeof window !== 'undefined' &&
+      window.location.hostname !== 'localhost' &&
+      window.location.hostname !== '127.0.0.1' &&
+      !window.location.hostname.includes('vercel.app')
+    ) {
+      return window.location.origin;
     }
+    if (this.activeMobileUrlType === 'domain') {
+      return this.localDomainUrl || 'http://blgf.local:3001/login';
+    }
+    if (this.activeMobileUrlType === 'ip') {
+      return this.directIpUrl || this.lanUrl || this.localDomainUrl || 'http://blgf.local:3001/login';
+    }
+    return this.vercelUrl;
+  }
+
+  async updateMobileQr(): Promise<void> {
+    const targetUrl = this.activeMobileQrUrl;
+    try {
+      this.isGeneratingQr = true;
+      this.mobileQrDataUrl = await QRCode.toDataURL(targetUrl, {
+        width: 360,
+        margin: 2,
+        color: {
+          dark: '#0f2d59',
+          light: '#ffffff',
+        },
+        errorCorrectionLevel: 'H',
+      });
+    } catch (e) {
+      console.error('Failed to generate mobile QR:', e);
+    } finally {
+      this.isGeneratingQr = false;
+    }
+  }
+
+  async fetchNetworkInfo(): Promise<void> {
+    try {
+      const res: any = await firstValueFrom(this.http.get('/api/system/network-info'));
+      if (res?.domainUrl) {
+        this.localDomainUrl = res.domainUrl;
+      }
+      if (res?.ipUrl) {
+        this.directIpUrl = res.ipUrl;
+        this.lanUrl = res.ipUrl;
+      } else if (res?.localIp && res.localIp !== 'localhost') {
+        this.directIpUrl = `http://${res.localIp}:${res.port || 3001}`;
+        this.lanUrl = this.directIpUrl;
+      }
+    } catch {
+      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        this.localDomainUrl = window.location.origin;
+        this.directIpUrl = window.location.origin;
+      }
+    }
+    await this.updateMobileQr();
+  }
+
+  setMobileUrlType(type: 'domain' | 'ip' | 'vercel'): void {
+    this.activeMobileUrlType = type;
+    void this.updateMobileQr();
+  }
+
+  async copyAppLink(): Promise<void> {
+    const url = this.activeMobileQrUrl;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const field = document.createElement('textarea');
+        field.value = url;
+        field.setAttribute('readonly', '');
+        field.style.position = 'fixed';
+        field.style.opacity = '0';
+        document.body.appendChild(field);
+        field.select();
+        document.execCommand('copy');
+        field.remove();
+      }
+      this.copiedLink = true;
+      window.setTimeout(() => (this.copiedLink = false), 2500);
+    } catch (error) {
+      console.error('Failed to copy mobile app link:', error);
+    }
+  }
+
+  downloadQrCode(): void {
+    if (!this.mobileQrDataUrl) return;
+    const a = document.createElement('a');
+    a.href = this.mobileQrDataUrl;
+    a.download = 'blgf-dts-mobile-install-qr.png';
+    a.click();
+  }
+
+  triggerManualSync(): void {
+    void this.offlineSync.syncQueue();
   }
 
   detectInstallPlatform(): void {
@@ -537,8 +657,13 @@ export class HeaderComponent implements OnInit, OnDestroy {
     }
   }
 
-  setInstallTab(tab: 'desktop' | 'android' | 'ios'): void {
+  setInstallTab(tab: 'android' | 'ios' | 'desktop'): void {
     this.activeInstallTab = tab;
+    void this.fetchNetworkInfo();
+  }
+
+  openMobileQrGuide(): void {
+    this.openInstallGuide();
   }
 
   openInstallGuide(): void {
@@ -546,6 +671,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.detectInstallPlatform();
     this.showInstallGuide = true;
     document.body.classList.add('pwa-guide-open');
+    void this.fetchNetworkInfo();
   }
 
   closeInstallGuide(): void {
@@ -575,69 +701,160 @@ export class HeaderComponent implements OnInit, OnDestroy {
   async openScanner(): Promise<void> {
     this.isScannerOpen = true;
     this.scannerError = '';
-    await new Promise((resolve) => window.setTimeout(resolve, 50));
+    this.isHttpCameraRestricted = false;
+    document.body.classList.add('scanner-open');
+
+    // Notify parent to close any open sidebars or mobile menus immediately
+    this.onOpenScanner.emit();
+
+    await this.closeScanner();
+    await new Promise((resolve) => window.setTimeout(resolve, 80));
+
     const element = document.getElementById('document-search-scanner');
     if (!element) return;
     element.replaceChildren();
-    this.closeScanner();
-    const scanner = new Html5Qrcode('document-search-scanner');
-    this.scanner = scanner;
+
+    // Check mediaDevices support
+    const hasGetUserMedia = Boolean(
+      navigator?.mediaDevices?.getUserMedia ||
+      (navigator as any)?.webkitGetUserMedia ||
+      (navigator as any)?.mozGetUserMedia
+    );
+
+    // Non-localhost HTTP on modern browsers restricts continuous live camera
+    const isRestrictedOrigin =
+      !window.isSecureContext &&
+      window.location.hostname !== 'localhost' &&
+      window.location.hostname !== '127.0.0.1';
+
+    if (!hasGetUserMedia || isRestrictedOrigin) {
+      this.isHttpCameraRestricted = true;
+      return;
+    }
+
     try {
+      const scanner = new Html5Qrcode('document-search-scanner');
+      this.scanner = scanner;
+
+      const qrConfig = {
+        fps: 20,
+        qrbox: (w: number, h: number) => {
+          const edge = Math.min(w, h);
+          return {
+            width: Math.min(260, Math.floor(edge * 0.82)),
+            height: Math.min(260, Math.floor(edge * 0.82)),
+          };
+        },
+        aspectRatio: 1.0,
+      };
+
+      const handleSuccess = (decodedText: string) => {
+        this.dismissScanner();
+        this.processScannedCode(decodedText);
+      };
+
+      // 1. Try rear / environment camera
+      try {
+        await scanner.start({ facingMode: 'environment' }, qrConfig, handleSuccess, () => undefined);
+        return;
+      } catch (e1) {
+        console.warn('Environment camera failed, trying user camera...', e1);
+      }
+
+      // 2. Try user camera (webcams on desktop/laptop)
+      try {
+        await scanner.start({ facingMode: 'user' }, qrConfig, handleSuccess, () => undefined);
+        return;
+      } catch (e2) {
+        console.warn('User camera failed, enumerating cameras...', e2);
+      }
+
+      // 3. Try any available camera device
       const cameras = await Html5Qrcode.getCameras();
-      if (!cameras.length) throw new Error('No camera was found on this device.');
-      const preferredCamera =
-        [...cameras].reverse().find((camera) => /back|rear|environment/i.test(camera.label)) ||
-        cameras[cameras.length - 1];
-      await scanner.start(
-        preferredCamera.id,
-        {
-          fps: 15,
-          qrbox: (width: number, height: number) => ({
-            width: Math.min(260, Math.floor(width * 0.8)),
-            height: Math.min(260, Math.floor(height * 0.8)),
-          }),
-          aspectRatio: 1,
-        },
-        (decodedText) => {
-          this.processScannedCode(decodedText);
-        },
-        () => undefined,
-      );
-    } catch (error) {
-      this.scannerError =
-        (error as Error)?.message ||
-        'Camera access failed. Allow camera permission and open the application through HTTPS.';
+      if (cameras && cameras.length > 0) {
+        await scanner.start(cameras[0].id, qrConfig, handleSuccess, () => undefined);
+        return;
+      }
+
+      throw new Error('No camera hardware found');
+    } catch (err) {
+      console.warn('Live scanner initialization:', err);
+      this.isHttpCameraRestricted = true;
     }
   }
 
-  closeScanner(): void {
+  async scanQrImage(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    this.scannerError = '';
+    try {
+      await this.closeScanner();
+      const scanner = new Html5Qrcode('document-search-scanner');
+      this.scanner = scanner;
+      const decodedText = await scanner.scanFile(file, true);
+      this.dismissScanner();
+      this.processScannedCode(decodedText);
+    } catch {
+      this.scannerError =
+        'The captured image does not contain a clear document QR code. Please position the QR code in good lighting and try again.';
+    } finally {
+      input.value = '';
+    }
+  }
+
+  dismissScanner(): void {
+    this.isScannerOpen = false;
+    this.isHttpCameraRestricted = false;
+    this.scannerError = '';
+    void this.closeScanner();
+  }
+
+  async closeScanner(): Promise<void> {
+    document.body.classList.remove('scanner-open');
     const scanner = this.scanner;
     this.scanner = null;
     if (!scanner) return;
-    scanner
-      .stop()
-      .then(() => scanner.clear())
-      .catch(() => undefined)
-      .finally(() => document.getElementById('document-search-scanner')?.replaceChildren());
+    try {
+      if (scanner.isScanning) {
+        await scanner.stop();
+      }
+      scanner.clear();
+    } catch (e) {
+      console.warn('Scanner cleanup warning:', e);
+    } finally {
+      document.getElementById('document-search-scanner')?.replaceChildren();
+    }
   }
 
   processScannedCode(decodedText: string): void {
     const rawCode = decodedText.trim();
+    if (!rawCode) return;
+
     const routeNumber =
       rawCode.match(/BLGFR2-\d{4}-\d{2}-(?:IN|OUT)-\d+/i)?.[0] || rawCode;
     const scannedCode = routeNumber.trim();
     if (!scannedCode) return;
+
     this.searchQuery = scannedCode;
     this.isSearchFocused = false;
+
+    const lower = scannedCode.toLowerCase();
     const exactDocument = this.documents.find(
-      (document) => document.routeNo?.toLowerCase() === scannedCode.toLowerCase(),
+      (document) =>
+        document.routeNo?.toLowerCase() === lower ||
+        document.trackingNumber?.toLowerCase() === lower ||
+        document.id?.toLowerCase() === lower ||
+        (document.routeNo && lower.includes(document.routeNo.toLowerCase())) ||
+        (document.trackingNumber && lower.includes(document.trackingNumber.toLowerCase())),
     );
+
     if (exactDocument) {
       this.isScannerOpen = false;
       this.onSelectDoc.emit(exactDocument);
-      this.closeScanner();
+      void this.closeScanner();
     } else {
-      this.scannerError = `No document found for QR code: ${scannedCode}`;
+      this.scannerError = `Document not found for: "${scannedCode}". Searching system records...`;
       this.onSearchDoc.emit(scannedCode);
     }
   }

@@ -72,6 +72,7 @@
         }
       </nav>
 
+
       <div class="sidebar-divider"></div>
 
       <button
@@ -84,7 +85,7 @@
       >
         <div class="sidebar-avatar">
           @if (currentUser.avatarUrl) {
-            <img [src]="currentUser.avatarUrl" [alt]="currentUser.fullName + ' profile'" class="sidebar-avatar-image" />
+            <img [src]="currentUser.avatarUrl" [alt]="currentUser.fullName + ' profile'" class="sidebar-avatar-image" (error)="currentUser.avatarUrl = ''" />
           } @else {
             {{ currentUser.fullName.charAt(0) || 'U' }}
           }

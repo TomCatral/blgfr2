@@ -1664,3 +1664,66 @@
   }
 }
 
+/* Compact mobile editor: no clipped actions or crowded form controls. */
+@media (max-width: 639px) {
+  .cd-dialog {
+    width: 100%;
+    max-height: calc(100dvh - 0.75rem);
+    border-radius: 18px 18px 0 0;
+  }
+
+  .cd-header {
+    gap: 0.6rem;
+    padding: 0.65rem 0.75rem;
+  }
+  .cd-header-icon { width: 34px; height: 34px; border-radius: 10px; }
+  .cd-header-icon ion-icon { font-size: 1rem; }
+  .cd-title { font-size: 1rem; }
+  .cd-subtitle {
+    max-width: 13rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.62rem;
+  }
+  .cd-close-btn {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    border-color: #e2e8f0;
+    background: #f8fafc;
+  }
+
+  .cd-form-body {
+    padding: 0.75rem !important;
+    gap: 0.75rem !important;
+    overscroll-behavior: contain;
+  }
+  .cd-grid-2col { grid-template-columns: minmax(0, 1fr) !important; gap: 0.75rem !important; }
+  .cd-field-label { font-size: 0.68rem !important; }
+  .cd-input,
+  .cd-date-input,
+  .cd-select { min-height: 42px !important; font-size: 0.76rem !important; }
+  .cd-stepper-card { padding: 0.6rem !important; }
+  .cd-step-name { font-size: 0.58rem !important; }
+  .cd-dropzone { min-height: 112px !important; padding: 0.75rem !important; }
+
+  .cd-footer {
+    z-index: 30;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem;
+    padding: 0.55rem 0.65rem max(0.55rem, env(safe-area-inset-bottom));
+  }
+  .cd-btn-cancel,
+  .cd-btn-secondary,
+  .cd-btn-primary {
+    min-width: 0;
+    min-height: 40px;
+    padding: 0.45rem 0.3rem;
+    border-radius: 10px;
+    font-size: 0.64rem;
+    line-height: 1.15;
+    white-space: normal;
+  }
+}

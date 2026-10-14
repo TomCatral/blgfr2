@@ -14,6 +14,7 @@
         [ngClass]="'appAppShell2' | cls"
       >
         <app-header
+          #appHeader
           [currentUser]="currentUser()!"
           [users]="state.users()"
           [documents]="accessibleDocuments()"
@@ -29,6 +30,7 @@
           (onLogout)="handleLogout()"
           (onToggleDarkMode)="session.toggleDarkMode()"
           (onOpenMobileSidebar)="openMobileSidebar()"
+          (onOpenScanner)="isMobileSidebarOpen.set(false); isSidebarCollapsed.set(true)"
         />
 
         <div class="app-workspace">
@@ -44,6 +46,7 @@
                   (navigate)="navigateTo($event)"
                   (onToggleCollapse)="toggleCollapse()"
                   (onCloseMobile)="isMobileSidebarOpen.set(false)"
+                  (onOpenMobileQr)="openMobileInstallGuide()"
                 />
               </div>
             </div>
@@ -58,6 +61,7 @@
                   (navigate)="navigateTo($event)"
                   (onToggleCollapse)="toggleCollapse()"
                   (onCloseMobile)="isMobileSidebarOpen.set(false)"
+                  (onOpenMobileQr)="openMobileInstallGuide()"
                 />
               </div>
             </div>
@@ -78,6 +82,7 @@
                     [onNavigateToView]="navigateTo"
                     [onReapproveDocument]="reapproveDocument"
                     [onSendRoutingReminder]="sendRoutingReminder"
+                    [onOpenMobileQr]="openMobileInstallGuide"
                   />
                 }
                 @if (activeView() === 'routing-followup') {
@@ -651,5 +656,97 @@
           (onDecision)="routeDecision($event.notification, $event.decision)"
           (onSelectDoc)="openNotificationDocument($event)"
         />
+
+        @if (showMobileInstallBanner()) {
+          <div class="mobile-pwa-install-banner" role="banner">
+            <div class="mobile-banner-left">
+              <img src="/blgflogo.jpg" alt="BLGF Logo" class="mobile-banner-icon" />
+              <div class="mobile-banner-info">
+                <div class="mobile-banner-title">Install BLGF DTS Mobile</div>
+                <div class="mobile-banner-subtitle">Offline access &bull; Auto-sync with database</div>
+              </div>
+            </div>
+            <div class="mobile-banner-actions">
+              <button
+                type="button"
+                class="mobile-banner-btn install"
+                (click)="handleMobileInstallFromBanner()"
+                aria-label="Install App"
+              >
+                <ion-icon name="download"></ion-icon>
+                <span>Install</span>
+              </button>
+              <button
+                type="button"
+                class="mobile-banner-btn close"
+                (click)="dismissMobileInstallBanner()"
+                aria-label="Close install banner"
+              >
+                <ion-icon name="close"></ion-icon>
+              </button>
+            </div>
+          </div>
+        }
+
+        <!-- Interactive Mobile Bottom Navigation Bar -->
+        <nav class="mobile-bottom-nav" aria-label="Mobile Navigation">
+          <button
+            type="button"
+            class="mobile-nav-item"
+            [class.active]="activeView() === 'dashboard'"
+            (click)="navigateTo('dashboard')"
+            id="mobileNavHome"
+          >
+            <div class="mobile-nav-icon-wrap">
+              <ion-icon [name]="activeView() === 'dashboard' ? 'grid' : 'grid-outline'"></ion-icon>
+            </div>
+            <span class="mobile-nav-label">Home</span>
+          </button>
+
+          <button
+            type="button"
+            class="mobile-nav-item"
+            [class.active]="activeView() === 'incoming'"
+            (click)="navigateTo('incoming')"
+            id="mobileNavIncoming"
+          >
+            <div class="mobile-nav-icon-wrap">
+              <ion-icon [name]="activeView() === 'incoming' ? 'file-tray-full' : 'file-tray-full-outline'"></ion-icon>
+              @if (userPendingCount() > 0) {
+                <span class="mobile-nav-badge">{{ userPendingCount() > 99 ? '99+' : userPendingCount() }}</span>
+              }
+            </div>
+            <span class="mobile-nav-label">Incoming</span>
+          </button>
+
+          <button
+            type="button"
+            class="mobile-nav-item"
+            [class.active]="activeView() === 'outgoing'"
+            (click)="navigateTo('outgoing')"
+            id="mobileNavOutgoing"
+          >
+            <div class="mobile-nav-icon-wrap">
+              <ion-icon [name]="activeView() === 'outgoing' ? 'paper-plane' : 'paper-plane-outline'"></ion-icon>
+            </div>
+            <span class="mobile-nav-label">Outgoing</span>
+          </button>
+
+          <button
+            type="button"
+            class="mobile-nav-item"
+            [class.active]="isMobileSidebarOpen()"
+            (click)="openMobileSidebar()"
+            id="mobileNavMenu"
+          >
+            <div class="mobile-nav-icon-wrap">
+              <ion-icon name="menu-outline"></ion-icon>
+              @if (offlineSync.pendingCount() > 0) {
+                <span class="mobile-nav-sync-dot" [title]="offlineSync.pendingCount() + ' offline change(s) pending sync'"></span>
+              }
+            </div>
+            <span class="mobile-nav-label">Menu</span>
+          </button>
+        </nav>
       </div>
     }

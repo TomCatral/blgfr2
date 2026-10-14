@@ -1,4 +1,5 @@
-import { Component, Input, signal, computed, inject, CUSTOM_ELEMENTS_SCHEMA, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, signal, computed, inject, CUSTOM_ELEMENTS_SCHEMA, OnInit, OnChanges, SimpleChanges } from '@angular/core';
+import QRCode from 'qrcode';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
@@ -85,7 +86,7 @@ const TRANSACTION_STAGE: Record<DocumentRecord['currentStatus'], number> = {
   templateUrl: './document-detail.component.html',
   styleUrls: ['./document-detail.component.scss'],
 })
-export class DocumentDetailComponent implements OnChanges {
+export class DocumentDetailComponent implements OnInit, OnChanges {
   private api = inject(ApiService);
   private ui = inject(UiService);
   private state = inject(StateService);
@@ -107,6 +108,45 @@ export class DocumentDetailComponent implements OnChanges {
   @Input() onDecision?: (doc: DocumentRecord, decision: 'APPROVED' | 'DISAPPROVED') => Promise<boolean> | boolean;
   @Input() pendingPopupAction?: PopupAction | null;
   @Input() onSnoozeClose?: () => void;
+
+  docQrDataUrl = signal<string>('');
+  isQrEnlarged = signal<boolean>(false);
+
+  ngOnInit(): void {
+    void this.updateDocumentQr();
+  }
+
+  async updateDocumentQr(): Promise<void> {
+    const code = this.document?.routeNo || this.document?.trackingNumber || this.document?.id || '';
+    if (!code) {
+      this.docQrDataUrl.set('');
+      return;
+    }
+    try {
+      const url = await QRCode.toDataURL(code, {
+        width: 256,
+        margin: 1,
+        color: {
+          dark: '#0f172a',
+          light: '#ffffff',
+        },
+        errorCorrectionLevel: 'M',
+      });
+      this.docQrDataUrl.set(url);
+    } catch (err) {
+      console.warn('Failed to generate document detail QR', err);
+    }
+  }
+
+  downloadDocQr(): void {
+    const url = this.docQrDataUrl();
+    if (!url) return;
+    const route = this.document?.routeNo || this.document?.trackingNumber || 'document';
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${route}-QR.png`;
+    a.click();
+  }
 
   isSubmittingDecision = signal(false);
   docVersion = signal(0);
@@ -221,6 +261,7 @@ export class DocumentDetailComponent implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['document'] && this.document) {
+      void this.updateDocumentQr();
       if (this.document.finalInstructions?.trim()) {
         this.overrideFinalInstructions.set(this.document.finalInstructions.trim());
       } else {
@@ -786,9 +827,13 @@ export class DocumentDetailComponent implements OnChanges {
       this.currentUser?.role || '',
     );
     const completedByCurrentUser = hasCompletedPart(this.document, this.currentUser);
-    const canReopenCompleted = this.document.currentStatus !== 'COMPLETED' || completedByCurrentUser || isPrivileged;
+    const canContinueCompleted =
+      this.document.currentStatus !== 'COMPLETED' ||
+      completedByCurrentUser ||
+      isPrivileged ||
+      this.isDocumentParticipant();
     return (
-      canReopenCompleted &&
+      canContinueCompleted &&
       this.document.currentStatus !== 'RETURNED' &&
       this.latestDocumentDecision() !== 'DISAPPROVED' &&
       !this.isDecisionRequired() &&

@@ -16,7 +16,10 @@ export default async function handler(req: Request, res: Response) {
           query.append(key, String(value));
         }
       }
-      req.url = `/api/${requestedPath}${query.size ? `?${query}` : ''}`;
+      const pathSegment = requestedPath ? `/${requestedPath}` : '';
+      req.url = `/api${pathSegment}${query.size ? `?${query}` : ''}`;
+    } else if (req.url && !req.url.startsWith('/api')) {
+      req.url = `/api${req.url.startsWith('/') ? '' : '/'}${req.url}`;
     }
     appPromise ??= createApp();
     const app = await appPromise;

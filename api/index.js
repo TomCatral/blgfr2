@@ -1,3 +1,38 @@
+// backend/mdns.ts
+import mdns from "multicast-dns";
+function startMdnsBroadcaster(getIp, hostnames = ["blgf.local", "blgfdts.local", "server.local"]) {
+  try {
+    const responder = mdns();
+    responder.on("query", (query) => {
+      const answers = [];
+      const currentIp = getIp();
+      if (!currentIp || currentIp === "localhost" || currentIp === "127.0.0.1") return;
+      for (const q of query?.questions || []) {
+        const name = String(q.name || "").toLowerCase();
+        if (hostnames.includes(name) && (q.type === "A" || q.type === "ANY")) {
+          answers.push({
+            name: q.name,
+            type: "A",
+            ttl: 120,
+            data: currentIp
+          });
+        }
+      }
+      if (answers.length > 0) {
+        responder.respond({ answers });
+      }
+    });
+    responder.on("error", (err) => {
+      if (err?.code !== "EADDRINUSE") {
+      }
+    });
+    return responder;
+  } catch (err) {
+    console.warn("[mDNS] Could not initialize mDNS responder for custom domains:", err?.message || err);
+    return null;
+  }
+}
+
 // backend/server.ts
 import express3 from "express";
 import path from "path";
@@ -273,6 +308,13 @@ async function ensureUserIdForeignKeys(target) {
   }
 }
 async function connectMySQLReplica() {
+  if (process.env.BLGF_OFFLINE_MODE === "1") {
+    status.configured = false;
+    status.connected = false;
+    status.lastError = null;
+    console.log("Offline mode enabled; using the local JSON data store.");
+    return;
+  }
   const datasourceUrl = buildDatabaseUrl();
   status.configured = Boolean(datasourceUrl);
   if (!datasourceUrl) return;
@@ -1469,6 +1511,9 @@ var DEFAULT_ROLE_PERMISSIONS = {
 var MAX_SYSTEM_ADMINISTRATORS = 3;
 var withoutCredentials = (user) => {
   const { password: _password, temporaryPasswordExpiresAt: _expires, ...safe } = user;
+  if (safe.avatarUrl) {
+    safe.avatarUrl = safe.avatarUrl.replace(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?\/?/i, "/");
+  }
   return safe;
 };
 function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, syncEmployeeProfile) {
@@ -2568,9 +2613,6 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       return res.status(404).json({ error: "Document not found" });
     }
     const wasCompleted = doc.currentStatus === "COMPLETED";
-    if (wasCompleted && !hasCompletedPart(doc, actingUser) && !["ADMIN", "ORD", "RECORDS_OFFICER"].includes(actingUser.role)) {
-      return res.status(403).json({ error: "Only the completing user or an authorized records officer can continue this completed transaction." });
-    }
     if (hasOpenDisapproval(doc)) {
       return res.status(409).json({
         error: "This document is disapproved. Re-approve it before routing."
@@ -2967,9 +3009,6 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       return res.status(404).json({ error: "Document not found" });
     }
     const wasCompleted = doc.currentStatus === "COMPLETED";
-    if (wasCompleted && !hasCompletedPart(doc, actingUser) && !["ADMIN", "ORD", "RECORDS_OFFICER"].includes(actingUser.role)) {
-      return res.status(403).json({ error: "Only the completing user or an authorized records officer can continue this completed transaction." });
-    }
     if (hasOpenDisapproval(doc)) {
       return res.status(409).json({
         error: "This document is disapproved. Re-approve it before routing."
@@ -4342,6 +4381,56 @@ async function createApp() {
       }
     });
   });
+  app.get("/api/system/network-info", (req, res) => {
+    try {
+      const interfaces2 = os.networkInterfaces();
+      const addresses2 = [];
+      for (const name of Object.keys(interfaces2)) {
+        for (const net of interfaces2[name] || []) {
+          if (net.family === "IPv4" && !net.internal) {
+            addresses2.push(net.address);
+          }
+        }
+      }
+      const preferredIp2 = addresses2.find((ip) => ip.startsWith("192.168.") || ip.startsWith("10.") || ip.startsWith("172.")) || addresses2[0] || "localhost";
+      const hostname2 = os.hostname().toLowerCase();
+      const localDomain = "blgf.local";
+      const domainPort2 = PORT === 80 ? "" : `:${PORT}`;
+      const domainUrl = `http://blgf.local${domainPort2}/login`;
+      const fallbackDomainUrl = `http://${hostname2}.local${domainPort2}/login`;
+      const ipUrl = preferredIp2 !== "localhost" ? `http://${preferredIp2}${domainPort2}/login` : `http://localhost${domainPort2}/login`;
+      const hostHeader = req.get("host") || `${preferredIp2}:${PORT}`;
+      const protocol = req.headers["x-forwarded-proto"] || req.protocol || (IS_VERCEL ? "https" : "http");
+      const currentOrigin = `${protocol}://${hostHeader}`;
+      res.json({
+        localIp: preferredIp2,
+        port: PORT,
+        hostname: hostname2,
+        localDomain,
+        domainUrl,
+        fallbackDomainUrl,
+        ipUrl,
+        lanUrl: domainUrl,
+        currentOrigin,
+        isVercel: IS_VERCEL,
+        allIps: addresses2
+      });
+    } catch (err) {
+      const hostHeader = req.get("host") || "blgf-region2.vercel.app";
+      res.json({
+        localIp: "localhost",
+        port: PORT,
+        hostname: "server",
+        localDomain: "server.local",
+        domainUrl: `http://server.local:${PORT}`,
+        ipUrl: `http://localhost:${PORT}`,
+        lanUrl: `http://server.local:${PORT}`,
+        currentOrigin: IS_VERCEL ? `https://${hostHeader}` : `http://localhost:${PORT}`,
+        isVercel: IS_VERCEL,
+        allIps: []
+      });
+    }
+  });
   app.post("/api/admin/sync", (req, res) => {
     const actingUser = usersState.find(
       (user) => user.id === req.header("X-User-Id")
@@ -5457,9 +5546,25 @@ async function createApp() {
       reject(error);
     });
   });
+  const interfaces = os.networkInterfaces();
+  const addresses = [];
+  for (const name of Object.keys(interfaces)) {
+    for (const net of interfaces[name] || []) {
+      if (net.family === "IPv4" && !net.internal) {
+        addresses.push(net.address);
+      }
+    }
+  }
+  const preferredIp = addresses.find((ip) => ip.startsWith("192.168.") || ip.startsWith("10.") || ip.startsWith("172.")) || addresses[0] || "localhost";
+  const hostname = os.hostname().toLowerCase();
+  startMdnsBroadcaster(() => preferredIp, ["blgf.local", "blgfdts.local", `${hostname}.local`, "server.local"]);
+  const domainPort = PORT === 80 ? "" : `:${PORT}`;
   console.log(`=======================================================`);
   console.log(`BLGF REGION II DOCUMENT TRACKING SYSTEM SERVER RUNNING`);
-  console.log(`URL: http://localhost:${PORT}`);
+  console.log(`Custom Domain  : http://blgf.local${domainPort}/login`);
+  console.log(`Local Hostname : http://${hostname}.local${domainPort}/login`);
+  console.log(`Direct Wi-Fi IP: http://${preferredIp}${domainPort}/login`);
+  console.log(`Desktop Local  : http://localhost:${PORT}/login`);
   console.log(`=======================================================`);
   return app;
 }
@@ -5495,7 +5600,10 @@ async function handler(req, res) {
           query.append(key, String(value));
         }
       }
-      req.url = `/api/${requestedPath}${query.size ? `?${query}` : ""}`;
+      const pathSegment = requestedPath ? `/${requestedPath}` : "";
+      req.url = `/api${pathSegment}${query.size ? `?${query}` : ""}`;
+    } else if (req.url && !req.url.startsWith("/api")) {
+      req.url = `/api${req.url.startsWith("/") ? "" : "/"}${req.url}`;
     }
     appPromise ??= createApp();
     const app = await appPromise;

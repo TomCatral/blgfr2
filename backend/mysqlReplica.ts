@@ -280,6 +280,13 @@ async function ensureUserIdForeignKeys(target: PrismaClient) {
 }
 
 export async function connectMySQLReplica() {
+  if (process.env.BLGF_OFFLINE_MODE === '1') {
+    status.configured = false;
+    status.connected = false;
+    status.lastError = null;
+    console.log('Offline mode enabled; using the local JSON data store.');
+    return;
+  }
   const datasourceUrl = buildDatabaseUrl();
   status.configured = Boolean(datasourceUrl);
   if (!datasourceUrl) return;

@@ -24,30 +24,75 @@
         <div class="document-detail-panel flex flex-col w-full overflow-hidden bg-white text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-slate-100">
           <div class="document-detail-content max-h-[calc(88vh-4.5rem)] space-y-5 overflow-y-auto bg-slate-50/60 p-4 sm:space-y-6 sm:p-6 dark:bg-slate-950/30">
             <header class="document-detail-hero p-4 sm:p-6" aria-labelledby="tracking-title">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                  <div class="min-w-0">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                  <div class="min-w-0 flex-1">
                     <div class="doc-hero-eyebrow flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em]">
                       <ion-icon name="git-network" class="h-4 w-4"></ion-icon>
                       Routing &amp; Tracking
                     </div>
                     <h1 id="tracking-title" class="tracking-title mt-1.5 text-2xl font-black sm:text-[28px]">Tracking Documents</h1>
                     <p class="doc-hero-sub mt-1.5 max-w-xl text-[13px] font-medium leading-relaxed">Follow the document from registration to completion - check each recipient's latest status, response, and next action.</p>
+
+                    <div class="mt-3 flex flex-wrap items-center gap-2">
+                      <span
+                        class="doc-hero-chip inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wide"
+                        [class.doc-hero-chip-unrouted]="document.currentStatus === 'NOT_YET_ROUTED'"
+                      >
+                        <ion-icon name="radio-button-on" class="h-3.5 w-3.5"></ion-icon>
+                        {{ document.currentStatus.replaceAll('_', ' ') }}
+                      </span>
+                      <button type="button" (click)="scrollToFlow()" class="doc-hero-btn inline-flex min-h-[36px] items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold cursor-pointer">
+                        <span>View flow</span>
+                        <ion-icon name="chevron-down" class="h-4 w-4"></ion-icon>
+                      </button>
+                    </div>
                   </div>
-                  <div class="flex shrink-0 flex-wrap items-center gap-2">
-                    <span
-                      class="doc-hero-chip inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-black uppercase tracking-wide"
-                      [class.doc-hero-chip-unrouted]="document.currentStatus === 'NOT_YET_ROUTED'"
-                    >
-                      <ion-icon name="radio-button-on" class="h-3.5 w-3.5"></ion-icon>
-                      {{ document.currentStatus.replaceAll('_', ' ') }}
-                    </span>
-                    <button type="button" (click)="scrollToFlow()" class="doc-hero-btn inline-flex min-h-[40px] items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold cursor-pointer">
-                      <span>View flow</span>
-                      <ion-icon name="chevron-down" class="h-4 w-4"></ion-icon>
-                    </button>
-                  </div>
+
+                  <!-- Document QR Code in Routing & Tracking -->
+                  @if (docQrDataUrl()) {
+                    <div class="doc-hero-qr-badge" title="Document Official QR Code">
+                      <div class="doc-hero-qr-frame" (click)="isQrEnlarged.set(true)" title="Click to view full QR code">
+                        <img [src]="docQrDataUrl()" [alt]="document.routeNo || 'Document QR Code'" class="doc-hero-qr-img" />
+                        <span class="doc-hero-qr-zoom-hint">
+                          <ion-icon name="expand-outline"></ion-icon>
+                        </span>
+                      </div>
+                      <div class="doc-hero-qr-meta">
+                        <span class="doc-hero-qr-label">Official QR Code</span>
+                        <strong class="doc-hero-qr-route" [title]="document.routeNo || document.trackingNumber">{{ document.routeNo || document.trackingNumber }}</strong>
+                        <button type="button" class="doc-hero-qr-dl-btn" (click)="downloadDocQr()" title="Download QR Code PNG">
+                          <ion-icon name="download-outline"></ion-icon>
+                          <span>Save QR</span>
+                        </button>
+                      </div>
+                    </div>
+                  }
                 </div>
               </header>
+
+              @if (isQrEnlarged()) {
+                <div class="qr-enlarge-overlay" (click)="isQrEnlarged.set(false)">
+                  <div class="qr-enlarge-card" (click)="$event.stopPropagation()">
+                    <div class="qr-enlarge-header">
+                      <h3>Official Document QR Code</h3>
+                      <button type="button" class="qr-enlarge-close-btn" (click)="isQrEnlarged.set(false)" aria-label="Close QR popup">
+                        <ion-icon name="close"></ion-icon>
+                      </button>
+                    </div>
+                    <div class="qr-enlarge-body">
+                      <img [src]="docQrDataUrl()" [alt]="document.routeNo || 'Document QR Code'" class="qr-enlarge-img" />
+                      <p class="qr-enlarge-route">{{ document.routeNo || document.trackingNumber }}</p>
+                      <p class="qr-enlarge-title">{{ document.title }}</p>
+                    </div>
+                    <div class="qr-enlarge-actions">
+                      <button type="button" class="qr-enlarge-dl-btn" (click)="downloadDocQr()">
+                        <ion-icon name="download-outline"></ion-icon>
+                        <span>Download QR PNG</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              }
 
               @if (isDecisionRequired()) {
                 <section class="decision-required-card" aria-labelledby="decision-required-title">

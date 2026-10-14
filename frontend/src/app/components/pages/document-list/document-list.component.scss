@@ -784,13 +784,28 @@
 }
 
 @media (max-width: 767px) {
-  .header { align-items: stretch; flex-direction: column; }
-  .header .createButton { width: 100%; }
-  .title { font-size: 1.0625rem; }
-  .filterGrid { grid-template-columns: 1fr; }
-  .directionTabs { width: 100%; overflow-x: auto; }
-  .directionTab { flex: 1; justify-content: center; white-space: nowrap; }
-  .table { min-width: 980px; }
+  .page { gap: 0.85rem; }
+  .header, .filters, .tableCard {
+    padding: 0.85rem 1rem !important;
+    border-radius: 1rem !important;
+  }
+  .header { align-items: stretch; flex-direction: column; gap: 0.75rem; }
+  .header .createButton {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+  .title { font-size: 1.15rem; }
+  .filterGrid { grid-template-columns: 1fr; gap: 0.65rem; }
+  .directionTabs { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .directionTab {
+    flex: 1;
+    min-height: 40px;
+    justify-content: center;
+    white-space: nowrap;
+  }
+  .table { min-width: 960px; }
+  .tableScroll { -webkit-overflow-scrolling: touch; }
   .actionsCell, .actionsHead { position: static; box-shadow: none; }
 }
 

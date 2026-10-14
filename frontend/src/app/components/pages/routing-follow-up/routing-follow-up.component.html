@@ -14,7 +14,7 @@
           </div>
           <div [ngClass]="'routing-followup-summary' | cls">
             <div [ngClass]="'routing-followup-summaryCount' | cls">{{ routingProgress.length }}</div>
-            <div [ngClass]="'routing-followup-summaryLabel' | cls">Routing records</div>
+            <div [ngClass]="'routing-followup-summaryLabel' | cls">Pending reminders</div>
             <div [ngClass]="'routing-followup-summaryPending' | cls">{{ pendingRoutes.length }} awaiting action</div>
           </div>
         </div>
@@ -44,7 +44,7 @@
         <div [ngClass]="'routing-followup-panelHeading' | cls">
           <ion-icon name="time" size="small" [ngClass]="'routing-followup-clockIcon' | cls"></ion-icon>
           <h2 [ngClass]="'routing-followup-panelTitle' | cls">
-            All Routing Progress - longest in status first
+            Pending Routing Actions - longest waiting first
           </h2>
         </div>
         <div [ngClass]="'routing-followup-records' | cls">
@@ -146,7 +146,7 @@
               @if (searchQuery()) {
                 No routing records match "{{ searchQuery() }}".
               } @else {
-                No routing progress records are available.
+                No pending routing actions need a reminder.
               }
             </div>
           }

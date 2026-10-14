@@ -5,7 +5,7 @@ const { writeRuntimePort } = require('./dev-runtime.cjs');
 
 const projectRoot = path.join(__dirname, '..');
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-const useShell = process.platform === 'win32';
+const npmCli = process.env.npm_execpath;
 
 function killProcessTree(pid) {
   if (!pid) return;
@@ -18,14 +18,81 @@ function killProcessTree(pid) {
   } catch {}
 }
 
+function spawnNpm(args, env) {
+  const command = npmCli ? process.execPath : npmCommand;
+  const commandArgs = npmCli ? [npmCli, ...args] : args;
+  return spawn(command, commandArgs, {
+    cwd: projectRoot,
+    env,
+    stdio: 'inherit',
+    shell: false,
+  });
+}
+
+function spawnNpmSync(args, env) {
+  const command = npmCli ? process.execPath : npmCommand;
+  const commandArgs = npmCli ? [npmCli, ...args] : args;
+  return spawnSync(command, commandArgs, {
+    cwd: projectRoot,
+    env,
+    stdio: 'inherit',
+    shell: false,
+  });
+}
+
+function runDevProcesses(env) {
+  return new Promise((resolve, reject) => {
+    // Spawn both services here instead of nesting them under `concurrently`.
+    // On Windows the extra shell layer can drop runtime environment overrides,
+    // making the API bind to 3001 even after the launcher selected another port.
+    const children = [
+      spawnNpm(['run', 'dev:backend', '--', '--port', env.PORT], env),
+      spawnNpm(['run', 'dev:frontend'], env),
+    ];
+
+    let settled = false;
+    const cleanup = (except) => {
+      for (const child of children) {
+        if (child === except) continue;
+        killProcessTree(child.pid);
+      }
+    };
+
+    const finish = (code, child) => {
+      if (settled) return;
+      settled = true;
+      cleanup(child);
+      process.exitCode = code ?? 1;
+      resolve();
+    };
+
+    for (const child of children) {
+      child.on('error', (error) => {
+        if (settled) return;
+        settled = true;
+        cleanup(child);
+        reject(error);
+      });
+      child.on('exit', (code, signal) => finish(signal ? 1 : code, child));
+    }
+
+    const stopAll = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve();
+    };
+
+    for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+      process.once(signal, stopAll);
+    }
+    process.once('exit', () => cleanup());
+  });
+}
+
 function runNpm(args, env) {
   return new Promise((resolve, reject) => {
-    const child = spawn(npmCommand, args, {
-      cwd: projectRoot,
-      env,
-      stdio: 'inherit',
-      shell: useShell,
-    });
+    const child = spawnNpm(args, env);
 
     const cleanup = () => {
       killProcessTree(child.pid);
@@ -74,14 +141,32 @@ async function main() {
 
   writeRuntimePort(port);
 
-  console.log(`Starting the BLGF API and Frontend on http://localhost:${port}...`);
+  const os = require('node:os');
+  const interfaces = os.networkInterfaces();
+  const addresses = [];
+  for (const name of Object.keys(interfaces)) {
+    for (const net of interfaces[name] || []) {
+      if (net.family === 'IPv4' && !net.internal) {
+        addresses.push(net.address);
+      }
+    }
+  }
+  const preferredIp =
+    addresses.find((ip) => ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) ||
+    addresses[0] ||
+    'localhost';
+  const hostname = os.hostname().toLowerCase();
 
-  const build = spawnSync(npmCommand, ['run', 'build:frontend:dev'], {
-    cwd: projectRoot,
-    env,
-    stdio: 'inherit',
-    shell: useShell,
-  });
+  const portSuffix = port === 80 ? '' : `:${port}`;
+  console.log(`=======================================================`);
+  console.log(`Starting the BLGF API and Frontend...`);
+  console.log(`Desktop Local  : http://localhost${portSuffix}/login (Webcam Ready)`);
+  console.log(`Custom Domain  : http://blgf.local${portSuffix}/login`);
+  console.log(`Local Hostname : http://${hostname}.local${portSuffix}/login`);
+  console.log(`Direct Wi-Fi IP: http://${preferredIp}${portSuffix}/login`);
+  console.log(`=======================================================`);
+
+  const build = spawnNpmSync(['run', 'build:frontend:dev'], env);
 
   if (build.error) {
     console.error('Initial build error:', build.error);
@@ -94,7 +179,7 @@ async function main() {
     return;
   }
 
-  await runNpm(['run', 'dev:concurrent'], env);
+  await runDevProcesses(env);
 }
 
 main().catch((error) => {

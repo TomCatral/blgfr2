@@ -1,6 +1,8 @@
 import { Injectable, signal } from '@angular/core';
 import { User } from '../types';
 
+import { sanitizeAssetUrl } from '../utils/asset-url';
+
 @Injectable({ providedIn: 'root' })
 export class SessionService {
   readonly currentUser = signal<User | null>(null);
@@ -14,6 +16,10 @@ export class SessionService {
 
   constructor() {
     this.applyTheme(this.isDarkMode());
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => this.isOnline.set(true));
+      window.addEventListener('offline', () => this.isOnline.set(false));
+    }
   }
 
   applyTheme(dark: boolean): void {
@@ -43,10 +49,17 @@ export class SessionService {
   }
 
   login(user: User): void {
+    if (user.avatarUrl) {
+      user.avatarUrl = sanitizeAssetUrl(user.avatarUrl);
+    }
     this.currentUser.set(user);
     this.isDataLoaded.set(false);
     sessionStorage.setItem('blgf_current_user', user.id);
     localStorage.setItem('blgf_current_user', user.id);
+    try {
+      localStorage.setItem(`blgf_offline_user_${user.id}`, JSON.stringify(user));
+      localStorage.setItem('blgf_offline_last_active_user', JSON.stringify(user));
+    } catch {}
   }
 
   logout(): void {

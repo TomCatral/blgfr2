@@ -947,3 +947,301 @@
     transform: translateY(0);
   }
 }
+
+/* Document QR Code Badge in Routing & Tracking Hero */
+.doc-hero-qr-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.08);
+  transition: all 180ms ease;
+
+  &:hover {
+    box-shadow: 0 6px 20px -2px rgba(37, 99, 235, 0.18);
+    border-color: rgba(37, 99, 235, 0.35);
+  }
+
+  .doc-hero-qr-frame {
+    position: relative;
+    width: 68px;
+    height: 68px;
+    padding: 3px;
+    background: #ffffff;
+    border: 1.5px solid rgba(37, 99, 235, 0.25);
+    border-radius: 14px;
+    cursor: pointer;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+
+    .doc-hero-qr-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      image-rendering: pixelated;
+    }
+
+    .doc-hero-qr-zoom-hint {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.5);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 160ms ease;
+      border-radius: 12px;
+
+      ion-icon {
+        font-size: 1.35rem;
+      }
+    }
+
+    &:hover .doc-hero-qr-zoom-hint {
+      opacity: 1;
+    }
+  }
+
+  .doc-hero-qr-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.22rem;
+    min-width: 0;
+
+    .doc-hero-qr-label {
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #64748b;
+    }
+
+    .doc-hero-qr-route {
+      font-size: 12.5px;
+      font-weight: 800;
+      color: #1e3a8a;
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 190px;
+    }
+
+    .doc-hero-qr-dl-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.22rem 0.6rem;
+      border-radius: 8px;
+      background: rgba(37, 99, 235, 0.08);
+      border: 1px solid rgba(37, 99, 235, 0.22);
+      color: #1d4ed8;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      width: fit-content;
+      transition: all 140ms ease;
+
+      &:hover {
+        background: #2563eb;
+        color: #ffffff;
+        border-color: #2563eb;
+      }
+
+      ion-icon {
+        font-size: 13px;
+      }
+    }
+  }
+}
+
+:host-context(.dark) {
+  .doc-hero-qr-badge {
+    background: rgba(30, 41, 59, 0.85);
+    border-color: rgba(51, 65, 85, 0.85);
+
+    .doc-hero-qr-frame {
+      border-color: rgba(56, 189, 248, 0.35);
+    }
+
+    .doc-hero-qr-meta {
+      .doc-hero-qr-label {
+        color: #94a3b8;
+      }
+      .doc-hero-qr-route {
+        color: #38bdf8;
+      }
+      .doc-hero-qr-dl-btn {
+        background: rgba(56, 189, 248, 0.14);
+        border-color: rgba(56, 189, 248, 0.3);
+        color: #38bdf8;
+
+        &:hover {
+          background: #0284c7;
+          color: #ffffff;
+        }
+      }
+    }
+  }
+}
+
+/* Enlarged QR Modal */
+.qr-enlarge-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.qr-enlarge-card {
+  width: 100%;
+  max-width: 350px;
+  background: #ffffff;
+  border-radius: 24px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  .qr-enlarge-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.95rem 1.25rem;
+    border-bottom: 1px solid #f1f5f9;
+
+    h3 {
+      font-size: 1rem;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0;
+    }
+
+    .qr-enlarge-close-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: none;
+      background: #f1f5f9;
+      color: #64748b;
+      cursor: pointer;
+
+      &:hover {
+        background: #e2e8f0;
+        color: #0f172a;
+      }
+    }
+  }
+
+  .qr-enlarge-body {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    background: #f8fafc;
+
+    .qr-enlarge-img {
+      width: 220px;
+      height: 220px;
+      padding: 10px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 18px;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+      image-rendering: pixelated;
+    }
+
+    .qr-enlarge-route {
+      margin-top: 1rem;
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #1e3a8a;
+      letter-spacing: -0.01em;
+    }
+
+    .qr-enlarge-title {
+      font-size: 0.82rem;
+      color: #64748b;
+      margin-top: 0.3rem;
+      line-height: 1.35;
+      max-height: 2.7em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .qr-enlarge-actions {
+    padding: 1rem 1.25rem;
+    display: flex;
+    justify-content: center;
+
+    .qr-enlarge-dl-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.65rem 1.4rem;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #ffffff;
+      border: none;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+      transition: all 160ms ease;
+
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+      }
+    }
+  }
+}
+
+:host-context(.dark) {
+  .qr-enlarge-card {
+    background: #0f172a;
+    border-color: rgba(51, 65, 85, 0.85);
+
+    .qr-enlarge-header {
+      border-bottom-color: rgba(51, 65, 85, 0.6);
+      h3 { color: #f8fafc; }
+      .qr-enlarge-close-btn {
+        background: rgba(30, 41, 59, 0.8);
+        color: #94a3b8;
+        &:hover { background: #334155; color: #ffffff; }
+      }
+    }
+
+    .qr-enlarge-body {
+      background: #020617;
+      .qr-enlarge-img {
+        border-color: rgba(51, 65, 85, 0.6);
+      }
+      .qr-enlarge-route {
+        color: #38bdf8;
+      }
+      .qr-enlarge-title {
+        color: #94a3b8;
+      }
+    }
+  }
+}

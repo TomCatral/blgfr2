@@ -6,6 +6,10 @@
   flex-shrink: 0;
   position: relative;
   z-index: 20;
+
+  @media (max-width: 768px) {
+    display: none !important;
+  }
 }
 
 .blgf-builtin-footer {

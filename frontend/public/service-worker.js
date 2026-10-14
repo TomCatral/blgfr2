@@ -1,7 +1,8 @@
-const CACHE_NAME = 'blgf-dts-v3';
+const CACHE_NAME = 'blgf-dts-v13';
 const APP_SHELL = [
   '/',
   '/manifest.webmanifest',
+  '/favicon.ico',
   '/blgflogo.jpg',
   '/icon-192.png',
   '/icon-512.png',
@@ -11,11 +12,18 @@ const APP_SHELL = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) =>
-      cache.addAll(APP_SHELL).catch((err) => {
-        console.warn('[SW] Cache addAll warning:', err);
-      }),
-    ),
+    caches.open(CACHE_NAME).then(async (cache) => {
+      await cache.addAll(APP_SHELL);
+      try {
+        const response = await fetch('/offline-assets.json', { cache: 'no-store' });
+        if (response.ok) {
+          const assets = await response.json();
+          if (Array.isArray(assets)) await cache.addAll(assets);
+        }
+      } catch (err) {
+        console.warn('[SW] Optional offline asset cache warning:', err);
+      }
+    }),
   );
   self.skipWaiting();
 });
@@ -41,7 +49,9 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    fetch(event.request)
+    (event.request.mode === 'navigate'
+      ? fetch(event.request).catch(() => caches.match('/') )
+      : fetch(event.request)
       .then((response) => {
         if (response && response.status === 200 && response.type === 'basic') {
           const copy = response.clone();
@@ -51,7 +61,7 @@ self.addEventListener('fetch', (event) => {
       })
       .catch(() =>
         caches.match(event.request).then((cached) => cached || caches.match('/')),
-      ),
+      )),
   );
 });
 

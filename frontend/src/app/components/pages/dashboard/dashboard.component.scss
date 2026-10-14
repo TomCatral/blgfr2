@@ -166,6 +166,7 @@
     }
   }
 
+
   .hero-title {
     margin-top: 0.75rem;
     font-size: 1.5rem;
@@ -2682,3 +2683,137 @@ div[role="dialog"] {
   }
 }
 
+// Mobile Layout Polish
+@media (max-width: 640px) {
+  .hero-command-card {
+    padding: 1.25rem 1rem !important;
+    border-radius: 1.25rem !important;
+
+    .hero-title {
+      font-size: 1.25rem !important;
+      line-height: 1.3 !important;
+    }
+
+    .hero-subtitle {
+      font-size: 0.76rem !important;
+    }
+
+    .hero-actions {
+      width: 100% !important;
+
+      button {
+        flex: 1 1 auto !important;
+        justify-content: center !important;
+      }
+    }
+  }
+
+  .urgent-banner {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+    padding: 0.85rem 1rem !important;
+
+    .urgent-action-btn {
+      width: 100% !important;
+      justify-content: center !important;
+    }
+  }
+
+  .kpi-card {
+    padding: 0.85rem 0.95rem !important;
+    min-height: 106px !important;
+
+    &:active {
+      transform: scale(0.97) !important;
+    }
+  }
+}
+
+/* Mobile dashboard: compact hierarchy, clear cards, and tactile controls. */
+@media (max-width: 640px) {
+  .dashboard-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.7rem 0.65rem 1.25rem !important;
+  }
+
+  .hero-command-card {
+    padding: 1rem !important;
+    border-radius: 20px !important;
+    box-shadow: 0 10px 28px -18px rgba(37, 99, 235, 0.45) !important;
+
+    .hero-content { gap: 0.85rem !important; }
+    .hero-badges { gap: 0.4rem !important; }
+    .hero-badge-primary,
+    .hero-badge-live,
+    .hero-badge-date {
+      min-height: 28px;
+      padding: 0.32rem 0.55rem !important;
+      font-size: 0.62rem !important;
+      border-radius: 999px !important;
+    }
+    .hero-title {
+      margin-top: 0.85rem !important;
+      font-size: clamp(1.3rem, 6vw, 1.65rem) !important;
+      line-height: 1.2 !important;
+      letter-spacing: -0.035em !important;
+    }
+    .hero-subtitle {
+      margin-top: 0.45rem !important;
+      max-width: 36rem;
+      font-size: 0.74rem !important;
+      line-height: 1.5 !important;
+    }
+    .hero-actions {
+      display: grid !important;
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      gap: 0.55rem !important;
+      margin-top: 0.15rem !important;
+    }
+    .hero-actions > button {
+      min-height: 48px !important;
+      padding: 0.65rem 0.55rem !important;
+      border-radius: 14px !important;
+      font-size: 0.76rem !important;
+      white-space: nowrap !important;
+      box-shadow: none !important;
+    }
+    .hero-actions > button:active { transform: scale(0.97) !important; }
+  }
+
+  .kpi-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.65rem !important;
+  }
+
+  .kpi-card {
+    min-width: 0;
+    min-height: 112px !important;
+    padding: 0.85rem !important;
+    border-radius: 17px !important;
+    text-align: left;
+    box-shadow: 0 6px 18px -12px rgba(15, 23, 42, 0.28) !important;
+    transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease !important;
+
+    &:active { transform: scale(0.965) !important; }
+    &:focus-visible { outline: 3px solid rgba(37, 99, 235, 0.28); outline-offset: 2px; }
+    &.active-card { box-shadow: 0 0 0 2px #3b82f6, 0 8px 22px -14px rgba(37, 99, 235, 0.65) !important; }
+    .kpi-header { font-size: 0.64rem !important; letter-spacing: 0.055em; }
+    .kpi-icon-badge { width: 32px !important; height: 32px !important; }
+    .kpi-value { margin-top: 0.35rem !important; font-size: 1.65rem !important; line-height: 1 !important; }
+    .kpi-footer { margin-top: auto !important; font-size: 0.6rem !important; }
+  }
+
+  .urgent-banner { border-radius: 16px !important; }
+  .workload-section,
+  .dashboard-transactions { border-radius: 18px !important; padding: 0.85rem !important; }
+}
+
+@media (max-width: 380px) {
+  .hero-command-card .hero-actions { grid-template-columns: 1fr !important; }
+  .kpi-grid { gap: 0.5rem !important; }
+  .kpi-card { min-height: 106px !important; padding: 0.72rem !important; }
+}

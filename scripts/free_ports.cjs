@@ -1,5 +1,4 @@
 const net = require('node:net');
-const childProcess = require('node:child_process');
 
 const DEFAULT_PORT = 3001;
 const MAX_ATTEMPTS = 20;
@@ -12,36 +11,6 @@ function isPortFree(port, host = '0.0.0.0') {
       probe.close(() => resolve(true));
     });
   });
-}
-
-function freePort(port) {
-  if (process.platform === 'win32') {
-    try {
-      const output = childProcess.execSync('netstat -ano -p tcp', {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      });
-      const lines = output.split(/\r?\n/);
-      const pids = new Set();
-      for (const line of lines) {
-        if (line.includes(`:${port}`) && line.includes('LISTENING')) {
-          const match = line.trim().match(/\s+(\d+)$/);
-          if (match && match[1] && match[1] !== '0' && Number(match[1]) !== process.pid) {
-            pids.add(match[1]);
-          }
-        }
-      }
-      for (const pid of pids) {
-        try {
-          childProcess.execSync(`taskkill /F /T /PID ${pid}`, { stdio: 'ignore' });
-        } catch {}
-      }
-    } catch {}
-  } else {
-    try {
-      childProcess.execSync(`fuser -k ${port}/tcp`, { stdio: 'ignore' });
-    } catch {}
-  }
 }
 
 async function isBlgfServer(port) {
@@ -62,6 +31,14 @@ async function isBlgfServer(port) {
 }
 
 async function resolveDevPort(startPort = Number(process.env.PORT || DEFAULT_PORT)) {
+  // If port 80 is completely free (e.g. Apache stopped), prefer port 80 so URLs
+  // look like clean domains (http://blgf.local/login) without needing :3001.
+  if (startPort === 80 || !process.env.PORT || process.env.PORT === String(DEFAULT_PORT)) {
+    if (await isPortFree(80)) {
+      return { port: 80 };
+    }
+  }
+
   const firstPort =
     Number.isInteger(startPort) && startPort > 0 ? startPort : DEFAULT_PORT;
 
@@ -69,22 +46,20 @@ async function resolveDevPort(startPort = Number(process.env.PORT || DEFAULT_POR
     return { port: firstPort };
   }
 
-  // If port is occupied by a lingering instance, kill it to ensure a clean start
-  freePort(firstPort);
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-
-  if (await isPortFree(firstPort)) {
-    return { port: firstPort };
+  // If port 80 was attempted and busy, try default port 3001 first before searching higher
+  if (firstPort === 80 && (await isPortFree(DEFAULT_PORT))) {
+    return { port: DEFAULT_PORT };
   }
 
-  for (let port = firstPort + 1; port < firstPort + MAX_ATTEMPTS; port += 1) {
+  const searchBase = firstPort === 80 ? DEFAULT_PORT : firstPort;
+  for (let port = searchBase + 1; port < searchBase + MAX_ATTEMPTS; port += 1) {
     if (await isPortFree(port)) {
       return { port };
     }
   }
 
   throw new Error(
-    `No usable port found from ${firstPort} to ${firstPort + MAX_ATTEMPTS - 1}.`,
+    `No usable port found from ${searchBase} to ${searchBase + MAX_ATTEMPTS - 1}.`,
   );
 }
 
@@ -96,7 +71,7 @@ async function waitForBlgfServer(port, attempts = 30) {
   return false;
 }
 
-module.exports = { resolveDevPort, waitForBlgfServer, isPortFree, isBlgfServer, freePort };
+module.exports = { resolveDevPort, waitForBlgfServer, isPortFree, isBlgfServer };
 
 if (require.main === module) {
   resolveDevPort()

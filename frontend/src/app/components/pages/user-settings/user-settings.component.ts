@@ -16,6 +16,7 @@ import { User, DivisionCode } from '../../../types';
 import { ApiService } from '../../../services/api.service';
 import { UiService } from '../../../services/ui.service';
 import { IonicModule } from '@ionic/angular';
+import { sanitizeAssetUrl } from '../../../utils/asset-url';
 
 type ActiveTab = 'profile' | 'security' | 'preferences';
 
@@ -88,7 +89,7 @@ export class UserSettingsComponent implements OnInit {
     this.contactNoSignal.set(this.currentUser.contactNo || '');
     this.designationSignal.set(this.currentUser.designation || '');
     this.divisionCodeSignal.set(this.currentUser.divisionCode || 'AD');
-    this.avatarUrlSignal.set(this.currentUser.avatarUrl || '');
+    this.avatarUrlSignal.set(sanitizeAssetUrl(this.currentUser.avatarUrl || ''));
   }
 
   get activeTab(): ActiveTab {
@@ -277,7 +278,7 @@ export class UserSettingsComponent implements OnInit {
       const storedFile = await firstValueFrom(
         this.api.uploadToStorage('profilePictures', file),
       );
-      this.avatarUrlSignal.set(storedFile.url);
+      this.avatarUrlSignal.set(sanitizeAssetUrl(storedFile.url));
     } catch (err: unknown) {
       this.showErrorMsg(
         this.errorOf(err) || 'Could not store the profile picture.',

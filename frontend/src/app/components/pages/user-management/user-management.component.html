@@ -323,7 +323,7 @@
                             title="Click to change photo"
                           >
                             @if (usr.avatarUrl) {
-                              <img [src]="usr.avatarUrl" [alt]="usr.fullName + ' photo'" class="ua-avatar-img" />
+                              <img [src]="usr.avatarUrl" [alt]="usr.fullName + ' photo'" class="ua-avatar-img" (error)="usr.avatarUrl = ''" />
                             } @else {
                               <span class="ua-avatar-letter">{{ usr.fullName ? usr.fullName.charAt(0) : 'U' }}</span>
                             }
@@ -472,7 +472,7 @@
                       title="Click to change photo"
                     >
                       @if (usr.avatarUrl) {
-                        <img [src]="usr.avatarUrl" [alt]="usr.fullName + ' photo'" class="ua-avatar-img" />
+                        <img [src]="usr.avatarUrl" [alt]="usr.fullName + ' photo'" class="ua-avatar-img" (error)="usr.avatarUrl = ''" />
                       } @else {
                         <span class="ua-avatar-initials">{{ initialsOf(usr.fullName) }}</span>
                       }

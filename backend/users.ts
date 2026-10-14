@@ -25,6 +25,9 @@ const MAX_SYSTEM_ADMINISTRATORS = 3;
 const withoutCredentials = (user: User) => {
   const { password: _password, temporaryPasswordExpiresAt: _expires, ...safe } =
     user;
+  if (safe.avatarUrl) {
+    safe.avatarUrl = safe.avatarUrl.replace(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?\/?/i, '/');
+  }
   return safe;
 };
 

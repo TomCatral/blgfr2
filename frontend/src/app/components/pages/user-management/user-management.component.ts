@@ -17,6 +17,7 @@ import { UiService } from '../../../services/ui.service';
 import { ApiService } from '../../../services/api.service';
 import { IonicModule } from '@ionic/angular';
 import { HighlightPipe } from '../../../shared/highlight.pipe';
+import { sanitizeAssetUrl } from '../../../utils/asset-url';
 
 interface RoleOption {
   role: Role;
@@ -759,7 +760,7 @@ export class UserManagementComponent implements OnInit {
     this.password.set('');
     this.currentPassword.set('');
     this.email.set(user.email);
-    this.avatarUrl.set(user.avatarUrl || '');
+    this.avatarUrl.set(sanitizeAssetUrl(user.avatarUrl || ''));
     const divCode = (user.divisionCode || (user.role === 'SYSTEM_ADMIN' ? 'ITMS' : 'AD')) as DivisionCode;
     this.divisionCode.set(divCode);
     const computedRole: Role = divCode === 'ITMS' ? 'SYSTEM_ADMIN' : (divCode === 'ORD' ? 'ORD' : 'STAFF');
@@ -852,8 +853,9 @@ export class UserManagementComponent implements OnInit {
     try {
       this.isUploadingAvatar.set(true);
       const stored = await firstValueFrom(this.api.uploadToStorage('profilePictures', file));
-      await this.onUpdateUser(targetUser.id, { avatarUrl: stored.url });
-      targetUser.avatarUrl = stored.url;
+      const cleanedUrl = sanitizeAssetUrl(stored.url);
+      await this.onUpdateUser(targetUser.id, { avatarUrl: cleanedUrl });
+      targetUser.avatarUrl = cleanedUrl;
       this.ui.showSuccess(`Profile picture updated for ${targetUser.fullName}!`);
     } catch (err: unknown) {
       this.ui.showError(String((err as Error)?.message || 'Failed to upload profile picture.'));
@@ -883,7 +885,7 @@ export class UserManagementComponent implements OnInit {
     try {
       this.isUploadingAvatar.set(true);
       const stored = await firstValueFrom(this.api.uploadToStorage('profilePictures', file));
-      this.avatarUrl.set(stored.url);
+      this.avatarUrl.set(sanitizeAssetUrl(stored.url));
       this.ui.showSuccess('Photo uploaded successfully.');
     } catch (err: unknown) {
       this.ui.showError(String((err as Error)?.message || 'Failed to upload photo.'));

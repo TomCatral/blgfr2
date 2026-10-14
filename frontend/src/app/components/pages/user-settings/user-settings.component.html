@@ -5,7 +5,7 @@
           <div class="settings-avatarWrap">
             <div class="settings-avatar">
               @if (avatarUrl) {
-                <img [src]="avatarUrl" alt="Avatar" class="settings-avatarImage" />
+                <img [src]="avatarUrl" alt="Avatar" class="settings-avatarImage" (error)="avatarUrl = ''" />
               } @else {
                 <span>{{ currentUser.fullName ? currentUser.fullName.charAt(0) : 'U' }}</span>
               }

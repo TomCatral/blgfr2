@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from './api.service';
 import { SessionService } from './session.service';
+import { OfflineSyncService } from './offline-sync.service';
 import {
   AuditLog,
   DashboardStats,
@@ -12,6 +13,7 @@ import {
   User,
 } from '../types';
 import { isDocumentParticipant } from '../utils/document-visibility';
+import { sanitizeAssetUrl } from '../utils/asset-url';
 
 const dismissedNotificationKey = (userId: string) =>
   `blgf_dismissed_notifications_${userId}`;
@@ -82,6 +84,7 @@ const emptyStats: DashboardStats = {
 export class StateService {
   private api = inject(ApiService);
   private session = inject(SessionService);
+  private offlineSync = inject(OfflineSyncService);
 
   readonly documents = signal<DocumentRecord[]>([]);
   readonly users = signal<User[]>([]);
@@ -162,12 +165,54 @@ private intervals: number[] = [];
     }
 
     this.lastCommittedSnapshot = requestId;
-    if (docs) this.documents.set(docs);
+    const hasNetworkData = Boolean(docs || statsData || usersData || divisionsData || logs || envelopeLogsData);
+    if (docs) {
+      docs.forEach((d) => {
+        (d.attachments || []).forEach((a) => {
+          if (a.url) a.url = sanitizeAssetUrl(a.url);
+        });
+        (d.routes || []).forEach((r) => {
+          (r.attachments || []).forEach((a) => {
+            if (a.url) a.url = sanitizeAssetUrl(a.url);
+          });
+        });
+      });
+      this.documents.set(docs);
+    }
     if (statsData) this.stats.set(statsData);
-    if (usersData) this.users.set(usersData);
+    if (usersData) {
+      usersData.forEach((u) => {
+        if (u.avatarUrl) u.avatarUrl = sanitizeAssetUrl(u.avatarUrl);
+      });
+      this.users.set(usersData);
+    }
     if (divisionsData) this.divisions.set(divisionsData);
     if (logs) this.auditLogs.set(logs);
     if (envelopeLogsData) this.envelopeLogs.set(envelopeLogsData);
+
+    if (hasNetworkData && token.userId) {
+      this.offlineSync.saveSnapshot(token.userId, {
+        documents: this.documents(),
+        stats: this.stats(),
+        users: this.users(),
+        divisions: this.divisions(),
+        auditLogs: this.auditLogs(),
+        envelopeLogs: this.envelopeLogs(),
+      });
+    } else if (!hasNetworkData && token.userId && this.documents().length === 0) {
+      // Offline fallback: restore data from cached offline snapshot
+      const cached = this.offlineSync.loadSnapshot(token.userId);
+      if (cached) {
+        if (cached.documents?.length) this.documents.set(cached.documents);
+        if (cached.stats) this.stats.set(cached.stats);
+        if (cached.users?.length) this.users.set(cached.users);
+        if (cached.divisions?.length) this.divisions.set(cached.divisions);
+        if (cached.auditLogs?.length) this.auditLogs.set(cached.auditLogs);
+        if (cached.envelopeLogs?.length) this.envelopeLogs.set(cached.envelopeLogs);
+        if (cached.notifications?.length) this.notifications.set(cached.notifications);
+      }
+    }
+
     if (markLoaded) this.session.markDataLoaded();
   }
 
@@ -275,8 +320,13 @@ private intervals: number[] = [];
     const dismissed = this.getDismissedNotificationIds(userId);
     dismissed.add(id);
     const target = this.notifications().find((item) => item.id === id);
-    if (target?.documentId) dismissed.add(`doc-${target.documentId}`);
-    if (target?.trackingNumber) dismissed.add(`doc-${target.trackingNumber}`);
+    const isReminder =
+      target?.title === 'Routing Action Reminder' ||
+      Boolean(target?.title?.includes('Reminder'));
+    if (!isReminder) {
+      if (target?.documentId) dismissed.add(`doc-${target.documentId}`);
+      if (target?.trackingNumber) dismissed.add(`doc-${target.trackingNumber}`);
+    }
     localStorage.setItem(dismissedNotificationKey(userId), JSON.stringify([...dismissed]));
     this.notifications.set(this.notifications().filter((item) => item.id !== id));
   }
@@ -287,6 +337,12 @@ private intervals: number[] = [];
         document.id === updated.id ? updated : document,
       ),
     );
+    const userId = this.session.currentUser()?.id;
+    if (userId) {
+      this.offlineSync.saveSnapshot(userId, {
+        documents: this.documents(),
+      });
+    }
   }
 
   prependDocument(created: DocumentRecord): void {
@@ -298,6 +354,12 @@ private intervals: number[] = [];
           (!created.routeNo || document.routeNo !== created.routeNo),
       ),
     ]);
+    const userId = this.session.currentUser()?.id;
+    if (userId) {
+      this.offlineSync.saveSnapshot(userId, {
+        documents: this.documents(),
+      });
+    }
   }
 
   removeDocument(id: string): void {
@@ -514,10 +576,24 @@ private intervals: number[] = [];
       return 10;
     };
 
+    const isDismissed = (item: NotificationItem): boolean => {
+      if (dismissedIds.has(item.id)) return true;
+      const isReminder =
+        item.title === 'Routing Action Reminder' ||
+        Boolean(item.title?.includes('Reminder'));
+      if (isReminder) return false;
+      if (item.documentId && dismissedIds.has(`doc-${item.documentId}`)) return true;
+      if (item.trackingNumber && dismissedIds.has(`doc-${item.trackingNumber}`)) return true;
+      return false;
+    };
+
     const groupedByDoc = new Map<string, NotificationItem>();
     const nonDocItems: NotificationItem[] = [];
 
     for (const item of allCandidates) {
+      if (isDismissed(item) && !item.requiresDecision) {
+        continue;
+      }
       const docKey = getDocKey(item);
       if (!docKey) {
         nonDocItems.push(item);
@@ -546,13 +622,6 @@ private intervals: number[] = [];
     }
 
     const dedupedNotifications = [...groupedByDoc.values(), ...nonDocItems];
-
-    const isDismissed = (item: NotificationItem): boolean => {
-      if (dismissedIds.has(item.id)) return true;
-      if (item.documentId && dismissedIds.has(`doc-${item.documentId}`)) return true;
-      if (item.trackingNumber && dismissedIds.has(`doc-${item.trackingNumber}`)) return true;
-      return false;
-    };
 
     this.notifications.set(
       dedupedNotifications

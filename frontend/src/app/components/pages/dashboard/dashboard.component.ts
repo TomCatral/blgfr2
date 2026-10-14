@@ -35,11 +35,12 @@ export class DashboardComponent implements OnChanges {
   @Input({ required: true }) users: User[] = [];
   @Input({ required: true }) isOnline = false;
   @Input({ required: true }) auditLogs: AuditLog[] = [];
-  @Input({ required: true }) onSelectDoc: (doc: DocumentRecord) => void = () => {};
-  @Input({ required: true }) onOpenCreateDoc: () => void = () => {};
-  @Input({ required: true }) onNavigateToView: (view: string) => void = () => {};
-  @Input({ required: true }) onReapproveDocument: (doc: DocumentRecord) => void = () => {};
-  @Input({ required: true }) onSendRoutingReminder: (document: DocumentRecord, route: DocumentRouteStep) => Promise<void> = async () => {};
+  @Input({ required: true }) onSelectDoc: (doc: DocumentRecord) => void = () => { };
+  @Input({ required: true }) onOpenCreateDoc: () => void = () => { };
+  @Input({ required: true }) onNavigateToView: (view: string) => void = () => { };
+  @Input({ required: true }) onReapproveDocument: (doc: DocumentRecord) => void = () => { };
+  @Input({ required: true }) onSendRoutingReminder: (document: DocumentRecord, route: DocumentRouteStep) => Promise<void> = async () => { };
+  @Input() onOpenMobileQr: () => void = () => { };
 
   selectedCard = signal<'incoming' | 'outgoing' | 'inProgress' | 'pending' | 'completed' | 'returned' | null>(null);
   isUserStatusOpen = signal(false);
@@ -85,10 +86,17 @@ export class DashboardComponent implements OnChanges {
   }
 
   get greeting(): string {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
+    const hour = Number(
+      new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Manila',
+        hour: 'numeric',
+        hourCycle: 'h23'
+      }).format(new Date())
+    );
+
+    if (hour >= 18) return 'Good Evening';
+    if (hour >= 12) return 'Good Afternoon';
+    return 'Good Morning';
   }
 
   get formattedToday(): string {

@@ -9,6 +9,7 @@ import {
   User,
 } from '../../../types';
 import { formatDate } from '../../../utils/status-utils';
+import { getPendingRecipients } from '../../../utils/routing-recipients';
 import { IonicModule } from '@ionic/angular';
 
 interface RoutingFollowUpItem {
@@ -18,16 +19,6 @@ interface RoutingFollowUpItem {
   statusSince: string;
   awaitingAction: boolean;
 }
-
-const isRouteCompleted = (route: DocumentRouteStep): boolean => {
-  const value = `${route.statusAfter || ''} ${route.actionRequested || ''} ${route.remarks || ''}`.toUpperCase();
-  return route.statusAfter === 'COMPLETED' || /\b(COMPLETED|TRANSACTION COMPLETED)\b/.test(value);
-};
-
-const isDecisionOnlyRoute = (route: DocumentRouteStep): boolean => {
-  const value = `${route.actionRequested || ''} ${route.remarks || ''}`.toUpperCase();
-  return /\b(APPROVED|DISAPPROVED)\b/.test(value);
-};
 
 const DIVISION_NAMES: Record<string, string> = {
   ITMS: 'ITMS',
@@ -88,50 +79,11 @@ export class RoutingFollowUpComponent implements DoCheck {
   }
 
   get pendingRoutes(): Array<{ document: DocumentRecord; route: DocumentRouteStep }> {
-    const latestByHandler = new Map<string, { document: DocumentRecord; route: DocumentRouteStep }>();
-    for (const document of this.documents) {
-      if (document.currentStatus === 'COMPLETED') continue;
-      const routes = [...(document.routes || [])].sort(
-        (first, second) =>
-          new Date(first.createdAt).getTime() -
-          new Date(second.createdAt).getTime(),
-      );
-      for (const route of routes) {
-        if (!route.toUserId || isRouteCompleted(route) || isDecisionOnlyRoute(route)) continue;
-        const assignedAt = new Date(route.createdAt).getTime();
-        const handlerName = (
-          this.userNameById.get(route.toUserId) ||
-          route.toUser ||
-          ''
-        )
-          .trim()
-          .toLowerCase();
-        const hasLaterRouteAction = routes.some(
-          (candidate) =>
-            new Date(candidate.createdAt).getTime() > assignedAt &&
-            (candidate.fromUserId === route.toUserId ||
-              candidate.fromUser?.trim().toLowerCase() === handlerName) &&
-            !isDecisionOnlyRoute(candidate) &&
-            !isRouteCompleted(candidate),
-        );
-        const hasLaterCompletion = this.auditLogs.some(
-          (log) =>
-            (log.documentTrackingNumber === document.trackingNumber ||
-              log.documentTrackingNumber === document.routeNo) &&
-            new Date(log.timestamp).getTime() > assignedAt &&
-            (log.userId === route.toUserId ||
-              log.userName.trim().toLowerCase() === handlerName) &&
-            ['ROUTE_DOC', 'TRANSFER_DOC', 'UPDATE_STATUS'].includes(log.action) &&
-            /(?:Action:\s*|Status:\s*)COMPLETED\b/i.test(log.details),
-        );
-        if (hasLaterRouteAction || hasLaterCompletion) continue;
-        latestByHandler.set(`${document.id}:${route.toUserId}`, {
-          document,
-          route,
-        });
-      }
-    }
-    return [...latestByHandler.values()].sort(
+    return this.documents.flatMap((document) =>
+      document.currentStatus === 'COMPLETED'
+        ? []
+        : getPendingRecipients(document).map((route) => ({ document, route })),
+    ).sort(
       (first, second) =>
         new Date(first.route.createdAt).getTime() -
         new Date(second.route.createdAt).getTime(),
@@ -139,57 +91,12 @@ export class RoutingFollowUpComponent implements DoCheck {
   }
 
   get routingProgress(): RoutingFollowUpItem[] {
-    const items: RoutingFollowUpItem[] = [];
-    for (const document of this.documents) {
-      if (document.currentStatus === 'COMPLETED') continue;
-      const documentPendingRoutes = this.pendingRoutes.filter(
-        (item) => item.document.id === document.id,
-      );
-      if (documentPendingRoutes.length > 0) {
-        for (const item of documentPendingRoutes) {
-          items.push({
-            ...item,
-            status: 'WAITING FOR ACTION',
-            statusSince: item.route.createdAt,
-            awaitingAction: true,
-          });
-        }
-        continue;
-      }
-      const activeHandlerRoute = [...(document.routes || [])]
-        .filter(
-          (route) =>
-            route.toUserId &&
-            !isRouteCompleted(route) &&
-            !isDecisionOnlyRoute(route) &&
-            (!document.assignedUserId ||
-              route.toUserId === document.assignedUserId),
-        )
-        .sort(
-          (first, second) =>
-            new Date(first.createdAt).getTime() -
-            new Date(second.createdAt).getTime(),
-        )
-        .at(-1);
-      const fallbackRoute = [...(document.routes || [])]
-        .filter((route) => route.toUserId && !isRouteCompleted(route) && !isDecisionOnlyRoute(route))
-        .sort(
-          (first, second) =>
-            new Date(first.createdAt).getTime() -
-            new Date(second.createdAt).getTime(),
-        )
-        .at(-1);
-      const reminderRoute = activeHandlerRoute || fallbackRoute;
-      if (!reminderRoute) continue;
-      items.push({
-        document,
-        route: reminderRoute,
-        status: document.currentStatus.replaceAll('_', ' '),
-        statusSince: document.updatedAt || reminderRoute.createdAt,
-        awaitingAction: false,
-      });
-    }
-    return items.sort(
+    return this.pendingRoutes.map((item) => ({
+      ...item,
+      status: 'WAITING FOR ACTION',
+      statusSince: item.route.createdAt,
+      awaitingAction: true,
+    })).sort(
       (first, second) => this.statusSinceMs(first.statusSince) - this.statusSinceMs(second.statusSince),
     );
   }

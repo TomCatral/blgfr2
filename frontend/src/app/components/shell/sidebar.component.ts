@@ -49,6 +49,7 @@ export class SidebarComponent {
   @Output() navigate = new EventEmitter<string>();
   @Output() onToggleCollapse = new EventEmitter<void>();
   @Output() onCloseMobile = new EventEmitter<void>();
+  @Output() onOpenMobileQr = new EventEmitter<void>();
 
   displayedView = '';
   innerWidth = window.innerWidth;

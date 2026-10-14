@@ -41,6 +41,39 @@ npm run build
 npm start
 ```
 
+## Offline/local operation
+
+After running `npm run build` once, the system can run without an internet or
+MySQL connection:
+
+```bash
+npm run offline
+```
+
+Open the localhost URL printed by the command. Offline mode reads and writes
+the local recovery database under `backend/data/`; changes are preserved on
+that computer. Run `npm run offline:prepare` after pulling frontend or backend
+code changes so the local production bundle and offline asset cache are fresh.
+The installed browser app also caches its complete application shell after one
+successful load. Features that inherently require an external service, such as
+sending email, remain unavailable while disconnected.
+
+### Install on a phone using this laptop as the server
+
+Run the following while the laptop has internet access:
+
+```powershell
+npm.cmd run mobile
+```
+
+The launcher starts the local JSON server, creates a temporary secure HTTPS
+link through Cloudflare Tunnel, and writes a scannable QR image to
+`output/mobile-install-qr.png`. Keep the command window and laptop open while
+the phone is using or synchronizing with the system. The tunnel URL changes
+whenever the command is restarted. Mobile browsers always require the user to
+confirm **Install app** or **Add to Home Screen**; operating systems do not
+permit silent installation.
+
 Production is hosted on Vercel and reads/writes a MySQL database through
 Prisma. Configure `MYSQL_DATABASE_URL` (recommended) or the individual `MYSQL_*`
 values documented in `.env.example`. Never commit `.env` files or expose

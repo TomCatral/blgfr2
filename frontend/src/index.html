@@ -12,16 +12,12 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="BLGF DTS" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
     <link rel="icon" href="/blgflogo.jpg" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
     <script>
       (function() {
         try {
@@ -43,13 +39,39 @@
         window.__blgfInstallPrompt = null;
         window.dispatchEvent(new CustomEvent('blgf-pwa-installed'));
       });
-      if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+      if (
+        'serviceWorker' in navigator &&
+        (window.isSecureContext || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ) {
         window.addEventListener('load', function () {
           navigator.serviceWorker
-            .register('/service-worker.js', { scope: '/' })
+            .register('/service-worker.js', { scope: '/', updateViaCache: 'none' })
+            .then(function (registration) {
+              registration.update().catch(function () {});
+              if (registration.waiting) {
+                registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+              }
+              registration.addEventListener('updatefound', function () {
+                var worker = registration.installing;
+                if (!worker) return;
+                worker.addEventListener('statechange', function () {
+                  if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+                    worker.postMessage({ type: 'SKIP_WAITING' });
+                  }
+                });
+              });
+            })
             .catch(function (err) {
               console.warn('BLGF DTS ServiceWorker registration error:', err);
             });
+        });
+
+        var refreshingForUpdate = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          if (refreshingForUpdate || sessionStorage.getItem('blgf_sw_refreshed_v13') === '1') return;
+          refreshingForUpdate = true;
+          sessionStorage.setItem('blgf_sw_refreshed_v13', '1');
+          window.location.reload();
         });
       }
     </script>

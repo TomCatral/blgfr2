@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { findPreviousDelivery, hasCompletedPart, getPendingRecipients } from '../frontend/src/app/utils/routing-recipients.ts';
+import { findPreviousDelivery, hasCompletedPart, getPendingRecipients, isRecipientPending } from '../frontend/src/app/utils/routing-recipients.ts';
 import type { DocumentRouteStep } from '../frontend/src/app/types.ts';
 
 const delivery = { id: 'first', toUserId: 'person-1', toUser: 'Jamie Cruz', toDivision: 'AD', actionRequested: 'For review' } as DocumentRouteStep;
@@ -38,6 +38,8 @@ test('one completed recipient does not complete parallel recipients', () => {
   assert.equal(hasCompletedPart(doc, {id:'person-1'}), true);
   assert.equal(hasCompletedPart(doc, {id:'person-2'}), false);
   assert.deepEqual(getPendingRecipients(doc).map(route=>route.toUserId), ['person-2']);
+  assert.equal(isRecipientPending(doc, { id: 'person-1' }), false);
+  assert.equal(isRecipientPending(doc, { id: 'person-2' }), true);
 });
 test('document can end after every recipient completes their part', () => {
   const doc = { routes: [sent('a','person-1'), sent('b','person-2'), done('person-1'), done('person-2')] };

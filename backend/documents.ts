@@ -832,13 +832,6 @@ export function createDocumentsRouter(
       return res.status(404).json({ error: 'Document not found' });
     }
     const wasCompleted = doc.currentStatus === 'COMPLETED';
-    if (
-      wasCompleted &&
-      !hasCompletedPart(doc, actingUser) &&
-      !['ADMIN', 'ORD', 'RECORDS_OFFICER'].includes(actingUser.role)
-    ) {
-      return res.status(403).json({ error: 'Only the completing user or an authorized records officer can continue this completed transaction.' });
-    }
     if (hasOpenDisapproval(doc)) {
       return res.status(409).json({
         error: 'This document is disapproved. Re-approve it before routing.',
@@ -1377,13 +1370,6 @@ export function createDocumentsRouter(
       return res.status(404).json({ error: 'Document not found' });
     }
     const wasCompleted = doc.currentStatus === 'COMPLETED';
-    if (
-      wasCompleted &&
-      !hasCompletedPart(doc, actingUser) &&
-      !['ADMIN', 'ORD', 'RECORDS_OFFICER'].includes(actingUser.role)
-    ) {
-      return res.status(403).json({ error: 'Only the completing user or an authorized records officer can continue this completed transaction.' });
-    }
     if (hasOpenDisapproval(doc)) {
       return res.status(409).json({
         error: 'This document is disapproved. Re-approve it before routing.',
