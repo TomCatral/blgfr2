@@ -439,9 +439,11 @@ export function createDocumentsRouter(
       currentStatus: isOutside
         ? 'COMPLETED'
         : (isNotYetRouted ? 'NOT_YET_ROUTED' : (body.currentStatus || 'PENDING')),
-      currentDivision: isNotYetRouted
-        ? (actingUser.divisionCode || 'AD')
-        : (body.currentDivision || 'AD'),
+      currentDivision: isOutside
+        ? 'Other Agencies'
+        : (isNotYetRouted
+          ? (actingUser.divisionCode === 'ITMS' ? 'ORD' : (actingUser.divisionCode || 'AD'))
+          : (body.currentDivision === 'ITMS' ? 'Other Agencies' : (body.currentDivision || 'AD'))),
       assignedUser: isOutside
         ? (body.recipientName || 'External Recipient')
         : (isNotYetRouted ? 'Not Yet Routed' : (directlyAssignedUser?.fullName || '')),
@@ -467,10 +469,10 @@ export function createDocumentsRouter(
               documentId: newDocumentId,
               stepNumber: 1,
               routeNo: trackingNumber,
-              fromDivision: actingUser.divisionCode || body.currentDivision || 'AD',
+              fromDivision: actingUser.divisionCode === 'ITMS' ? 'ORD' : (actingUser.divisionCode || body.currentDivision || 'ORD'),
               fromUserId: actingUser.id,
               fromUser: actingUser.fullName,
-              toDivision: undefined,
+              toDivision: 'Other Agencies',
               toUser: body.recipientName || 'External Recipient',
               toUserId: undefined,
               actionRequested: 'Dispatched / Recorded (Outside Office)',

@@ -439,7 +439,7 @@
                     </div>
                     <div class="rounded-lg border border-slate-200/60 bg-slate-50/70 p-2 dark:border-slate-800 dark:bg-slate-800/40">
                       <span class="text-[9.5px] font-bold uppercase tracking-wider text-slate-400">Office Custody</span>
-                      <p class="truncate text-xs font-bold text-slate-800 dark:text-slate-100">{{ currentCustodian().office || document.currentDivision }}</p>
+                      <p class="truncate text-xs font-bold text-slate-800 dark:text-slate-100">{{ currentCustodian().office || (document.isOutside ? 'Other Agencies' : document.currentDivision) }}</p>
                     </div>
                     <div class="rounded-lg border border-slate-200/60 bg-slate-50/70 p-2 dark:border-slate-800 dark:bg-slate-800/40">
                       <span class="text-[9.5px] font-bold uppercase tracking-wider text-slate-400">Workflow Status</span>
@@ -535,15 +535,15 @@
                         <div class="border-b border-slate-100 pb-3 dark:border-slate-800">
                           <div class="flex items-center justify-between gap-2">
                             <span class="rounded-full bg-blue-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                              {{ selectedRoute()!.toDivision }}
+                              {{ getRouteRecipientDivision(selectedRoute()!) }}
                             </span>
                             <span class="text-xs font-bold text-slate-500 dark:text-slate-400">{{ formatDate(selectedRoute()!.createdAt) }}</span>
                           </div>
                           <h3 class="mt-1.5 text-base font-extrabold text-slate-900 dark:text-white">
-                            {{ resolveUserName(selectedRoute()!.toUserId, selectedRoute()!.toUser) || selectedRoute()!.toDivision }}
+                            {{ resolveUserName(selectedRoute()!.toUserId, selectedRoute()!.toUser) || getRouteRecipientDivision(selectedRoute()!) }}
                           </h3>
                           <p class="text-xs text-slate-500 dark:text-slate-400">
-                            Handoff from <strong>{{ resolveUserName(selectedRoute()!.fromUserId, selectedRoute()!.fromUser) || selectedRoute()!.fromDivision || 'Sender' }}</strong>
+                            Handoff from <strong>{{ resolveUserName(selectedRoute()!.fromUserId, selectedRoute()!.fromUser) || getRouteSenderDivision(selectedRoute()!) || 'Sender' }}</strong>
                           </p>
                         </div>
 

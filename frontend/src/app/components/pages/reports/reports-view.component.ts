@@ -349,6 +349,20 @@ export class ReportsViewComponent implements OnInit, OnChanges, OnDestroy {
     )[0];
   }
 
+  formatHolderDivision(document: DocumentRecord, route?: DocumentRouteStep): string {
+    const rawDiv = route?.toDivision || document.currentDivision;
+    if (
+      document.isOutside ||
+      route?.actionRequested?.includes('Outside') ||
+      document.destinationOffice !== 'BLGF Regional Office II' ||
+      (document.recipientOffice && !document.recipientOffice.includes('BLGF Regional Office')) ||
+      (rawDiv === 'ITMS' && document.assignedUser && !document.assignedUserId)
+    ) {
+      return 'Other Agencies';
+    }
+    return rawDiv || 'Other Agencies';
+  }
+
   routeHistoryFor(document: DocumentRecord): RouteHistoryRow[] {
     const removalLogs = (this.auditLogs || []).filter((log) => {
       const isThisDoc =
@@ -373,11 +387,23 @@ export class ReportsViewComponent implements OnInit, OnChanges, OnDestroy {
     });
 
     const list: RouteHistoryRow[] = activeRoutes.map((route) => {
-      const fromName = route.fromDivision
-        ? `${route.fromDivision}${route.fromUser ? ' (' + route.fromUser + ')' : ''}`
+      let fromDiv = route.fromDivision;
+      if (fromDiv === 'ITMS' && (document.isOutside || route.actionRequested?.includes('Outside'))) {
+        fromDiv = 'ORD';
+      }
+      const fromName = fromDiv
+        ? `${fromDiv}${route.fromUser ? ' (' + route.fromUser + ')' : ''}`
         : (route.fromUser || 'Originating Office');
-      const toName = route.toDivision
-        ? `${route.toDivision}${route.toUser ? ' (' + route.toUser + ')' : ''}`
+      let toDiv = route.toDivision;
+      if (
+        document.isOutside ||
+        route.actionRequested?.includes('Outside') ||
+        (toDiv === 'ITMS' && route.toUser && !route.toUserId)
+      ) {
+        toDiv = 'Other Agencies';
+      }
+      const toName = toDiv
+        ? `${toDiv}${route.toUser ? ' (' + route.toUser + ')' : ''}`
         : (route.toUser || 'Assigned Division');
       return {
         id: `route-${route.id}`,
@@ -699,8 +725,7 @@ export class ReportsViewComponent implements OnInit, OnChanges, OnDestroy {
         '—';
       const currentOffice =
         document.recipientOffice ||
-        latestRoute?.toDivision ||
-        document.currentDivision ||
+        this.formatHolderDivision(document, latestRoute) ||
         '';
 
       const actionText =
@@ -949,7 +974,7 @@ export class ReportsViewComponent implements OnInit, OnChanges, OnDestroy {
           ? document.originatingOffice
           : '';
         const currentHolder = document.recipientName || latestRoute?.toUser || document.assignedUser || '—';
-        const currentOffice = document.recipientOffice || latestRoute?.toDivision || document.currentDivision || '';
+        const currentOffice = document.recipientOffice || this.formatHolderDivision(document, latestRoute) || '';
 
         const actionText = latestRoute?.actionTaken || latestRoute?.actionRequested || document.actionRequested || '';
         const remarksText = latestRoute?.remarks || document.remarks || '';

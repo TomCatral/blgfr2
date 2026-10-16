@@ -167,7 +167,7 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
   readonly outsideDepartmentOptions = [
     { code: 'PTO', label: 'Provincial Treasury Offices (PTO)', icon: 'business', desc: 'Provincial treasury administration & local finance' },
     { code: 'MTO', label: 'Municipal Treasury Offices / LGUs (MTO)', icon: 'business-outline', desc: 'Municipal treasuries and local government units' },
-    { code: 'PARTNER', label: 'Partner Agencies & External Stakeholders', icon: 'globe-outline', desc: 'Regional & national government agencies and partners' }
+    { code: 'PARTNER', label: 'Other Agencies (Partner & External Offices)', icon: 'globe-outline', desc: 'Regional & national government agencies and partners' }
   ];
 
   readonly filteredOutsideDepartmentOptions = computed(() => {
@@ -470,7 +470,7 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
       parts.push('Municipal Treasurer');
     }
     if (deptCodes.includes('PARTNER')) {
-      parts.push('all Agencies');
+      parts.push('Other Agencies');
     }
     for (const code of deptCodes) {
       if (!['PTO', 'MTO', 'PARTNER'].includes(code)) {
@@ -503,7 +503,7 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
       parts.push('Municipal Treasury Offices - Region II');
     }
     if (deptCodes.includes('PARTNER')) {
-      parts.push('Partner Agencies & Stakeholders');
+      parts.push('Other Agencies');
     }
     return parts.join('; ') || 'External Offices - Region II';
   }
@@ -1388,7 +1388,7 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
 
   private buildFormData(forceRegisterOnly = false): any {
     const isOutside = this.isOutsideOffice();
-    const div = isOutside ? (this.currentUser.divisionCode || 'ORD') : this.currentDivision();
+    const div = isOutside ? 'Other Agencies' : this.currentDivision();
     const addl = isOutside ? [] : this.additionalDivisions();
     const selIds = isOutside ? [] : this.selectedRecipientIds();
     const holdRecips = isOutside ? [] : this.holdingDivisionRecipients();
@@ -1472,10 +1472,11 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
       isOutside: isOutside,
       currentStatus: isOutside ? 'COMPLETED' : (isNotYetRouted ? 'NOT_YET_ROUTED' : 'PENDING'),
       priority: isOutside ? 'ROUTINE' : (this.priority() || 'ROUTINE'),
-      currentDivision:
-        div === 'ALL'
-          ? this.currentUser.divisionCode
-          : (div || this.currentUser.divisionCode || 'AD'),
+      currentDivision: isOutside
+        ? 'Other Agencies'
+        : (div === 'ALL'
+          ? (this.currentUser.divisionCode === 'ITMS' ? 'ORD' : this.currentUser.divisionCode)
+          : (div || (this.currentUser.divisionCode === 'ITMS' ? 'ORD' : this.currentUser.divisionCode) || 'AD')),
       routeAllDivisions: !isOutside && !isNotYetRouted && div === 'ALL',
       routeMultipleDivisions:
         !isOutside && !isNotYetRouted && (addl.length > 0 || selIds.length > 1),

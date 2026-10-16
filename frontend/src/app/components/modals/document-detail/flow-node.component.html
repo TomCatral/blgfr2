@@ -39,7 +39,7 @@
             {{ parent.resolveUserName(recipient.toUserId, recipient.toUser) || recipient.toDivision }}
           </span>
           <span class="flow-division-tag">
-            {{ recipient.toDivision }}
+            {{ parent.getRouteRecipientDivision(recipient) }}
           </span>
           @if (parent.isRecipientYou(recipient)) {
             <span class="flow-you-badge">

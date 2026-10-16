@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-16T11:05:09.076Z",
+  "updatedAt": "2026-10-16T11:35:57.635Z",
   "divisions": [
     {
       "id": "DIV-0001",
@@ -123,8 +123,8 @@
       "contactNo": null,
       "avatarUrl": "/api/storage/files/profilePictures/1790823594744_profile%20_1_.png",
       "permissions": {
-        "canViewAllRoutes": false,
-        "canViewAllDocuments": false,
+        "canViewAllRoutes": true,
+        "canViewAllDocuments": true,
         "canDelete": true,
         "mainMenu": true,
         "management": true,
@@ -772,7 +772,7 @@
       "recipientAddress": "Basco, Batanes",
       "priority": "ROUTINE",
       "currentStatus": "COMPLETED",
-      "currentDivision": "ITMS",
+      "currentDivision": "Other Agencies",
       "assignedUser": "Juanito Y. Abengaña, Mila Q. Mallonga, Maria Theresa Araneta-Flores, Rhoda B. Soriano-Moreno, Fe B. Mangaccat, Ma. Cristina A. Caccam, Rosanna H. Ugali, Henry E. Cabuco, Flora A. Fagar, Hino Jesus I. Cielo, Buenaventura F. Lagundi, Elizabeth D. Baylon, Edna C. Morales, Janie C. Ursulum, Romarico T. Panaga, Emerita O. Alonzo, Pacita E. Cusili, Marcelo A. Pataueg, Isabelita C. Fronda, Violeta T. Tajon, Tomas M. Binasoy, Ana T. Gammad, Teresita T. Lamusao, Carlito B. Andres, Delia A. Pararuan, Elizabeth A. Casabar, Lourdes B. Guingab, Cenita M. Cariaga, Flora C. Mariano, Judy T. Palitayan, Josefa U. Gumpal, Ferdinand G. Baggao, Eufemia G. Fernandez, Narciso G. Balabbo, Rodante R. Madriaga, Luzviminda M. Galamgam, Rozaida L. Bueno, Celerina D. Padilla, Richard B. Paguirigan, Teresita R. Cruz, Cesar B. Lagutao, Marites U. Gayo, Jolly L. Piligan, Carmelo P. Laureta, Dolores C. Soldevilla, Saturnina A. Tamang, Marygine M. Salvador, Armie R. Soriano, Lea C. Cureg, Efren C. Guiyab, William N. Pacunana, Gloria G. Fontanilla, Gliceria R. Basco, Gilbert G. Pagulayan",
       "dateReceived": "2026-10-16T09:05:38.745Z",
       "targetCompletionDate": "2026-10-19T09:05:38.741Z",
@@ -796,7 +796,7 @@
           "documentId": "DOC-0003",
           "stepNumber": 1,
           "routeNo": "BLGFR2-2026-10-OUT-02",
-          "fromDivision": "ITMS",
+          "fromDivision": "ORD",
           "fromUserId": "USR-0008",
           "fromUser": "Tom tom G. Catral",
           "toUser": "Juanito Y. Abengaña, Mila Q. Mallonga, Maria Theresa Araneta-Flores, Rhoda B. Soriano-Moreno, Fe B. Mangaccat, Ma. Cristina A. Caccam, Rosanna H. Ugali, Henry E. Cabuco, Flora A. Fagar, Hino Jesus I. Cielo, Buenaventura F. Lagundi, Elizabeth D. Baylon, Edna C. Morales, Janie C. Ursulum, Romarico T. Panaga, Emerita O. Alonzo, Pacita E. Cusili, Marcelo A. Pataueg, Isabelita C. Fronda, Violeta T. Tajon, Tomas M. Binasoy, Ana T. Gammad, Teresita T. Lamusao, Carlito B. Andres, Delia A. Pararuan, Elizabeth A. Casabar, Lourdes B. Guingab, Cenita M. Cariaga, Flora C. Mariano, Judy T. Palitayan, Josefa U. Gumpal, Ferdinand G. Baggao, Eufemia G. Fernandez, Narciso G. Balabbo, Rodante R. Madriaga, Luzviminda M. Galamgam, Rozaida L. Bueno, Celerina D. Padilla, Richard B. Paguirigan, Teresita R. Cruz, Cesar B. Lagutao, Marites U. Gayo, Jolly L. Piligan, Carmelo P. Laureta, Dolores C. Soldevilla, Saturnina A. Tamang, Marygine M. Salvador, Armie R. Soriano, Lea C. Cureg, Efren C. Guiyab, William N. Pacunana, Gloria G. Fontanilla, Gliceria R. Basco, Gilbert G. Pagulayan",
@@ -805,13 +805,15 @@
           "statusBefore": "PENDING",
           "statusAfter": "COMPLETED",
           "receivedAt": "2026-10-16T09:05:38.745Z",
-          "createdAt": "2026-10-16T09:05:38.745Z"
+          "createdAt": "2026-10-16T09:05:38.745Z",
+          "toDivision": "Other Agencies"
         }
       ],
       "createdBy": "Tom tom G. Catral",
       "createdByUserId": "USR-0008",
       "createdAt": "2026-10-16T09:05:38.745Z",
-      "updatedAt": "2026-10-16T09:05:38.745Z"
+      "updatedAt": "2026-10-16T09:05:38.745Z",
+      "isOutside": true
     },
     {
       "id": "DOC-0002",
@@ -1064,6 +1066,97 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "LOG-0110",
+      "timestamp": "2026-10-16T11:35:57.498Z",
+      "userId": "USR-0008",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "DELETE_DOC",
+      "documentTrackingNumber": "BLGFR2-2026-10-OUT-04",
+      "details": "Deleted document BLGFR2-2026-10-OUT-04 (Test Outside Dispatch)",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0108",
+      "timestamp": "2026-10-16T11:26:24.522Z",
+      "userId": "USR-0002",
+      "userName": "Jay ann M. Mangoba",
+      "userRole": "STAFF",
+      "action": "LOGIN",
+      "details": "User Jay ann M. Mangoba (STAFF) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0107",
+      "timestamp": "2026-10-16T11:26:16.899Z",
+      "userId": "USR-0008",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "UPDATE_USER",
+      "details": "Updated account details for Jay ann M. Mangoba",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0106",
+      "timestamp": "2026-10-16T11:26:07.218Z",
+      "userId": "USR-0008",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0105",
+      "timestamp": "2026-10-16T11:25:39.367Z",
+      "userId": "USR-0002",
+      "userName": "Jay ann M. Mangoba",
+      "userRole": "STAFF",
+      "action": "LOGIN",
+      "details": "User Jay ann M. Mangoba (STAFF) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0104",
+      "timestamp": "2026-10-16T11:05:46.285Z",
+      "userId": "USR-0002",
+      "userName": "Jay ann M. Mangoba",
+      "userRole": "STAFF",
+      "action": "LOGIN",
+      "details": "User Jay ann M. Mangoba (STAFF) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0103",
+      "timestamp": "2026-10-16T11:05:38.337Z",
+      "userId": "USR-0008",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "UPDATE_USER",
+      "details": "Updated account details for Jay ann M. Mangoba",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0102",
+      "timestamp": "2026-10-16T11:05:28.769Z",
+      "userId": "USR-0008",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0101",
+      "timestamp": "2026-10-16T11:05:14.799Z",
+      "userId": "USR-0002",
+      "userName": "Jay ann M. Mangoba",
+      "userRole": "STAFF",
+      "action": "LOGIN",
+      "details": "User Jay ann M. Mangoba (STAFF) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
     {
       "id": "LOG-0100",
       "timestamp": "2026-10-16T11:03:44.961Z",

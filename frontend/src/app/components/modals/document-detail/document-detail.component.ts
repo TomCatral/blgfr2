@@ -55,6 +55,7 @@ const DIVISION_OFFICE_NAMES: Record<string, string> = {
   LTOD: 'Local Treasury Operations Division',
   FD: 'Financial Division',
   LU: 'Legal Division / Unit',
+  'Other Agencies': 'Other Agencies',
 };
 
 const NEXT_ACTION: Record<DocumentRecord['currentStatus'], string> = {
@@ -314,6 +315,7 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
       isMultipleTreasurers ||
       rawReceiverName.includes('Provincial Treasurer') ||
       rawReceiverName.includes('Municipal Treasurer') ||
+      rawReceiverName.includes('Other Agencies') ||
       rawReceiverName.includes('All Agencies') ||
       rawReceiverName.includes('all Agencies')
     ) {
@@ -322,9 +324,9 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
       const hasPartner = posStr.includes('partner') || posStr.includes('agenc') || posStr.includes('stakeholder');
 
       if (hasProvincial && hasMunicipal && hasPartner) {
-        latestReceiverName = 'All Provincial Treasurer, Municipal Treasurer all Agencies';
-        latestReceiverPosition = 'Provincial Treasurer, Municipal Treasurer, Partner Agencies';
-        latestReceiverOffice = 'Provincial & Municipal Treasury Offices - Region II; Partner Agencies';
+        latestReceiverName = 'All Provincial Treasurer, Municipal Treasurer, Other Agencies';
+        latestReceiverPosition = 'Provincial Treasurer, Municipal Treasurer, Other Agencies';
+        latestReceiverOffice = 'Provincial & Municipal Treasury Offices - Region II; Other Agencies';
         latestReceiverAddress = 'Various LGUs / Partner Offices, Region II';
       } else if (hasProvincial && hasMunicipal) {
         latestReceiverName = 'All Provincial Treasurer, Municipal Treasurer';
@@ -342,9 +344,9 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
         latestReceiverOffice = 'Municipal Treasury Offices - Region II';
         latestReceiverAddress = 'Various Municipalities, Region II';
       } else if (hasPartner) {
-        latestReceiverName = 'all Agencies';
+        latestReceiverName = 'Other Agencies';
         latestReceiverPosition = 'Agency Head / Representative';
-        latestReceiverOffice = 'Partner Agencies & Stakeholders';
+        latestReceiverOffice = 'Other Agencies (Partner & External Offices)';
         latestReceiverAddress = 'Various Offices, Region II';
       }
     } else if (
@@ -586,22 +588,30 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
 
   intakeRoute = computed<DocumentRouteStep>(() => {
     this.docVersion();
+    const isOutside =
+      this.document.isOutside ||
+      this.document.currentDivision === 'Other Agencies' ||
+      (this.document.currentDivision === 'ITMS' && this.document.assignedUser && !this.document.assignedUserId);
+    const toDiv = isOutside
+      ? ('Other Agencies' as DivisionCode)
+      : (this.document.currentDivision as DivisionCode) || (this.document.destinationOffice as DivisionCode) || 'ORD';
+
     return {
-    id: `intake-${this.document.id}`,
-    documentId: this.document.id,
-    routeNo: this.document.routeNo,
-    fromDivision: (this.document.originatingOffice as DivisionCode) || 'ORD',
-    fromUser: this.document.createdBy || 'Originating Office',
-    fromUserId: this.document.createdByUserId || 'origin',
-    toDivision: (this.document.currentDivision as DivisionCode) || (this.document.destinationOffice as DivisionCode) || 'ORD',
-    toUser: this.resolveUserName(this.document.assignedUserId, this.document.assignedUser) || this.document.destinationOffice || 'Records Section',
-    toUserId: this.document.assignedUserId || 'assigned',
-    actionRequested: 'Document Logged & Initial Intake',
-    remarks: this.document.subject || 'Document registered in BLGF Document Tracking System',
-    statusBefore: 'PENDING',
-    statusAfter: this.document.currentStatus || 'PENDING',
-    createdAt: this.document.createdAt,
-    stepNumber: 0,
+      id: `intake-${this.document.id}`,
+      documentId: this.document.id,
+      routeNo: this.document.routeNo,
+      fromDivision: (this.document.originatingOffice as DivisionCode) || 'ORD',
+      fromUser: this.document.createdBy || 'Originating Office',
+      fromUserId: this.document.createdByUserId || 'origin',
+      toDivision: toDiv,
+      toUser: this.resolveUserName(this.document.assignedUserId, this.document.assignedUser) || this.document.destinationOffice || 'Records Section',
+      toUserId: this.document.assignedUserId || 'assigned',
+      actionRequested: 'Document Logged & Initial Intake',
+      remarks: this.document.subject || 'Document registered in BLGF Document Tracking System',
+      statusBefore: 'PENDING',
+      statusAfter: this.document.currentStatus || 'PENDING',
+      createdAt: this.document.createdAt,
+      stepNumber: 0,
     };
   });
 
@@ -757,9 +767,21 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
         (latestRoute.toUserId && u.id === latestRoute.toUserId) ||
         (latestRoute.toUser && u.fullName.trim().toLowerCase() === latestRoute.toUser.trim().toLowerCase())
       );
+      const isOutsideRoute =
+        this.document.isOutside ||
+        latestRoute.toDivision === 'Other Agencies' ||
+        latestRoute.actionRequested?.includes('Outside') ||
+        (this.document.recipientOffice && !this.document.recipientOffice.includes('BLGF Regional Office')) ||
+        (this.document.destinationOffice && this.document.destinationOffice !== 'BLGF Regional Office II' && !this.document.destinationOffice.includes('BLGF'));
+
+      let office = recipientUser?.divisionCode || latestRoute.toDivision;
+      if (isOutsideRoute || (office === 'ITMS' && latestRoute.toUser && !latestRoute.toUserId)) {
+        office = 'Other Agencies' as any;
+      }
+
       return {
         name: this.resolveUserName(latestRoute.toUserId, latestRoute.toUser) || latestRoute.toDivision,
-        office: recipientUser?.divisionCode || latestRoute.toDivision,
+        office: office || latestRoute.toDivision,
         action: latestRoute.actionRequested || 'In processing',
       };
     }
@@ -767,9 +789,20 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
       (this.document.assignedUserId && u.id === this.document.assignedUserId) ||
       (this.document.assignedUser && u.fullName.trim().toLowerCase() === this.document.assignedUser.trim().toLowerCase())
     );
+    const isOutsideDoc =
+      this.document.isOutside ||
+      this.document.currentDivision === 'Other Agencies' ||
+      (this.document.recipientOffice && !this.document.recipientOffice.includes('BLGF Regional Office')) ||
+      (this.document.destinationOffice && this.document.destinationOffice !== 'BLGF Regional Office II' && !this.document.destinationOffice.includes('BLGF'));
+
+    let office = assignedUser?.divisionCode || this.document.currentDivision || this.document.destinationOffice;
+    if (isOutsideDoc || (office === 'ITMS' && this.document.assignedUser && !this.document.assignedUserId)) {
+      office = 'Other Agencies';
+    }
+
     return {
       name: this.resolveUserName(this.document.assignedUserId, this.document.assignedUser) || this.document.assignedUser || 'Assigned Handler',
-      office: assignedUser?.divisionCode || this.document.currentDivision || this.document.destinationOffice,
+      office: office,
       action: 'Initial Intake',
     };
   });
@@ -803,7 +836,7 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
       actorName: this.document.createdBy || 'Originating Office',
       actorDivision: this.document.originatingOffice,
       targetName: this.resolveUserName(this.document.assignedUserId, this.document.assignedUser) || this.document.assignedUser || this.document.destinationOffice,
-      targetDivision: this.document.destinationOffice,
+      targetDivision: this.document.isOutside ? 'Other Agencies' : this.document.destinationOffice,
       action: `Logged document [${this.document.routeNo || this.document.trackingNumber}]`,
       remarks: this.document.subject || 'Document logged and assigned in BLGF Document Tracking System',
       status: this.document.currentStatus,
@@ -818,6 +851,19 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
       const isDec = Boolean(decision);
       const actorName = this.resolveUserName(route.fromUserId, route.fromUser) || route.fromDivision || 'Sender';
       const targetName = this.resolveUserName(route.toUserId, route.toUser) || route.toDivision;
+      let actorDiv = route.fromDivision;
+      if (actorDiv === 'ITMS' && (this.document.isOutside || route.actionRequested?.includes('Outside'))) {
+        actorDiv = 'ORD' as any;
+      }
+      let targetDiv = route.toDivision;
+      if (
+        this.document.isOutside ||
+        targetDiv === 'Other Agencies' ||
+        route.actionRequested?.includes('Outside') ||
+        (targetDiv === 'ITMS' && route.toUser && !route.toUserId)
+      ) {
+        targetDiv = 'Other Agencies' as any;
+      }
 
       items.push({
         id: `tx-route-${route.id || idx}`,
@@ -825,9 +871,9 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
         typeLabel: isDec ? `Decision: ${decision}` : `Route #${route.stepNumber || idx + 1}`,
         timestamp: route.createdAt,
         actorName,
-        actorDivision: route.fromDivision,
+        actorDivision: actorDiv,
         targetName,
-        targetDivision: route.toDivision,
+        targetDivision: targetDiv,
         action: route.actionRequested || (isDec ? `Decision recorded: ${decision}` : 'Forwarded document'),
         remarks: displayRouteRemarks(route.remarks) !== 'N/A' ? displayRouteRemarks(route.remarks) : undefined,
         status: route.statusAfter,
@@ -1175,13 +1221,23 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
           route.toDivision ||
           'Personnel';
 
-        const division =
+        let division =
           completedActivity?.performerDivision ||
           route.fromDivision ||
           this.resolveUserDivision(route.fromUserId) ||
           route.toDivision ||
           this.resolveUserDivision(route.toUserId) ||
           '';
+
+        if (
+          this.document.isOutside ||
+          route.toDivision === 'Other Agencies' ||
+          route.actionRequested?.includes('Outside')
+        ) {
+          if (division === 'ITMS') {
+            division = route.fromUserId && !route.toUserId ? 'ORD' : 'Other Agencies';
+          }
+        }
 
         const timestamp = completedActivity?.timestamp || snap?.lastUpdated || route.processedAt || route.createdAt;
         const key = `${performer.toLowerCase()}_${(instruction || '').toLowerCase()}`;
@@ -1643,6 +1699,26 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
       if (name) return name;
     }
     return legacyName || '';
+  }
+
+  getRouteRecipientDivision(route: DocumentRouteStep): string {
+    const isOutside =
+      this.document.isOutside ||
+      route.toDivision === 'Other Agencies' ||
+      route.actionRequested?.includes('Outside') ||
+      (this.document.recipientOffice && !this.document.recipientOffice.includes('BLGF Regional Office')) ||
+      (route.toDivision === 'ITMS' && route.toUser && !route.toUserId);
+    if (isOutside) {
+      return 'Other Agencies';
+    }
+    return route.toDivision || 'Other Agencies';
+  }
+
+  getRouteSenderDivision(route: DocumentRouteStep): string {
+    if (route.fromDivision === 'ITMS' && (this.document.isOutside || route.actionRequested?.includes('Outside'))) {
+      return 'ORD';
+    }
+    return route.fromDivision || 'Originating Office';
   }
 
   matchesPerson(firstId?: string, firstName?: string, secondId?: string, secondName?: string): boolean {

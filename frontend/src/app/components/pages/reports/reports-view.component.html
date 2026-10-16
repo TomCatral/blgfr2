@@ -128,7 +128,7 @@
                 {{ latestRoute?.toUser || document.assignedUser || 'Unassigned' }}
               </div>
               <div [ngClass]="'reports-mutedLine' | cls">
-                {{ latestRoute?.toDivision || document.currentDivision }}
+                {{ formatHolderDivision(document, latestRoute) }}
               </div>
             </td>
             <td [ngClass]="'reports-cell' | cls">
@@ -288,8 +288,7 @@
             <span class="reports-m-meta-label">Current Holder:</span>
             <span class="reports-m-meta-val">
               {{ latestRouteOf(document)?.toUser || document.assignedUser || 'Unassigned' }}
-              <small class="reports-m-div-hint">({{ latestRouteOf(document)?.toDivision || document.currentDivision
-                }})</small>
+              <small class="reports-m-div-hint">({{ formatHolderDivision(document, latestRouteOf(document)) }})</small>
             </span>
           </div>
           <div class="reports-m-meta-col">

@@ -280,10 +280,10 @@ export interface DocumentRouteStep {
   documentId: string;
   stepNumber: number;
   routeNo?: string;
-  fromDivision: DivisionCode;
+  fromDivision: DivisionCode | string;
   fromUserId?: string;
   fromUser: string;
-  toDivision: DivisionCode;
+  toDivision: DivisionCode | string;
   toUser?: string;
   toUserId?: string;
   actionRequested: string; // e.g., 'For Appropriate Action', 'For Signature', 'For Review/Comment', 'For Filing'
@@ -331,7 +331,7 @@ export interface DocumentRecord {
   recipientAddress?: string;
   priority: PriorityLevel;
   currentStatus: DocumentStatus;
-  currentDivision: DivisionCode;
+  currentDivision: DivisionCode | string;
   assignedUser?: string;
   assignedUserId?: string;
   dateReceived: string; // ISO date string

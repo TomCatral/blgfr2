@@ -103,7 +103,7 @@ export class DocumentListComponent implements OnInit {
     const matches = this.userFilteredDocs().filter((doc) => {
       if (direction !== 'ALL' && doc.direction !== direction) return false;
       if (status !== 'ALL' && doc.currentStatus !== status) return false;
-      if (division !== 'ALL' && doc.currentDivision !== division) return false;
+      if (division !== 'ALL' && this.getDocumentDivision(doc) !== division && doc.currentDivision !== division) return false;
       if (priority !== 'ALL' && doc.priority !== priority) return false;
 
       if (tokens.length > 0) {
@@ -245,6 +245,19 @@ export class DocumentListComponent implements OnInit {
   dirTabClass(dir: DocumentDirection | 'ALL'): string {
     const active = this.effectiveDirection() === dir;
     return cx('directionTab', active && 'directionTabActive', active && dir === 'OUTGOING' && 'outgoingTab');
+  }
+
+  getDocumentDivision(doc: DocumentRecord): string {
+    const raw = doc.currentDivision;
+    if (
+      doc.isOutside ||
+      doc.destinationOffice !== 'BLGF Regional Office II' ||
+      (doc.recipientOffice && !doc.recipientOffice.includes('BLGF Regional Office')) ||
+      (raw === 'ITMS' && doc.assignedUser && !doc.assignedUserId)
+    ) {
+      return 'Other Agencies';
+    }
+    return raw || 'Other Agencies';
   }
 
   dirLabel(dir: DocumentDirection | 'ALL'): string {
