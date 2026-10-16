@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-16T09:33:53.310Z",
+  "updatedAt": "2026-10-16T09:38:50.043Z",
   "divisions": [
     {
       "id": "DIV-0001",
@@ -728,9 +728,9 @@
       "recipientOffice": "",
       "recipientAddress": "",
       "priority": "ROUTINE",
-      "currentStatus": "PENDING",
-      "currentDivision": "ITMS",
-      "assignedUser": "",
+      "currentStatus": "IN_PROGRESS",
+      "currentDivision": "AD",
+      "assignedUser": "Robert Bermudez",
       "dateReceived": "2026-10-16T09:02:44.419Z",
       "targetCompletionDate": "2026-10-19T09:02:44.413Z",
       "tags": [],
@@ -765,13 +765,52 @@
           "statusAfter": "PENDING",
           "isMultiRoute": false,
           "receivedAt": "2026-10-16T09:02:44.419Z",
-          "createdAt": "2026-10-16T09:02:44.419Z"
+          "createdAt": "2026-10-16T09:02:44.419Z",
+          "actionTaken": "APPROVED",
+          "processedAt": "2026-10-16T09:37:34.592Z"
+        },
+        {
+          "id": "RTE-0016",
+          "documentId": "DOC-0002",
+          "stepNumber": 2,
+          "routeNo": "BLGFR2-2026-10-IN-01",
+          "fromDivision": "LU",
+          "fromUserId": "USR-0003",
+          "fromUser": "Raymond C. Rosete",
+          "toDivision": "ITMS",
+          "toUser": "Tom tom G. Catral",
+          "toUserId": "USR-0008",
+          "actionRequested": "APPROVED",
+          "remarks": "Approved; proceed with routing.",
+          "statusBefore": "PENDING",
+          "statusAfter": "IN_PROGRESS",
+          "receivedAt": "2026-10-16T09:37:34.592Z",
+          "createdAt": "2026-10-16T09:37:34.592Z"
+        },
+        {
+          "id": "RTE-0017",
+          "documentId": "DOC-0002",
+          "stepNumber": 3,
+          "routeNo": "BLGFR2-2026-10-IN-01",
+          "fromDivision": "LU",
+          "fromUserId": "USR-0003",
+          "fromUser": "Raymond C. Rosete",
+          "toDivision": "AD",
+          "toUser": "Robert Bermudez",
+          "toUserId": "USR-0009",
+          "actionRequested": "Appropriate Action",
+          "remarks": "For you action also. Thanks.",
+          "statusBefore": "IN_PROGRESS",
+          "statusAfter": "IN_PROGRESS",
+          "receivedAt": "2026-10-16T09:38:16.015Z",
+          "createdAt": "2026-10-16T09:38:16.015Z"
         }
       ],
       "createdBy": "Tom tom G. Catral",
       "createdByUserId": "USR-0008",
       "createdAt": "2026-10-16T09:02:44.419Z",
-      "updatedAt": "2026-10-16T09:02:44.419Z"
+      "updatedAt": "2026-10-16T09:38:16.015Z",
+      "assignedUserId": "USR-0009"
     },
     {
       "id": "DOC-0001",
@@ -902,6 +941,48 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "LOG-0072",
+      "timestamp": "2026-10-16T09:38:49.888Z",
+      "userId": "USR-0008",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0071",
+      "timestamp": "2026-10-16T09:38:16.016Z",
+      "userId": "USR-0003",
+      "userName": "Raymond C. Rosete",
+      "userRole": "STAFF",
+      "action": "ROUTE_DOC",
+      "documentTrackingNumber": "BLGFR2-2026-10-IN-01",
+      "details": "Routed by: Raymond C. Rosete | Document: BLGF MEMORANDUM CIRCULAR No. 001-2026 DATED 06 January 2026 [BLGFR2-2026-10-IN-01] | Subject: Implementation of Republic Act (R.A.) No. 12001 | From: LU | To: Robert Bermudez | Action: Appropriate Action | Remarks: For you action also. Thanks. | Status: IN_PROGRESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0070",
+      "timestamp": "2026-10-16T09:37:34.593Z",
+      "userId": "USR-0003",
+      "userName": "Raymond C. Rosete",
+      "userRole": "STAFF",
+      "action": "UPDATE_STATUS",
+      "documentTrackingNumber": "BLGFR2-2026-10-IN-01",
+      "details": "APPROVED by Raymond C. Rosete | Remarks: Approved; proceed with routing.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0069",
+      "timestamp": "2026-10-16T09:37:32.810Z",
+      "userId": "USR-0003",
+      "userName": "Raymond C. Rosete",
+      "userRole": "STAFF",
+      "action": "LOGIN",
+      "details": "User Raymond C. Rosete (STAFF) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
     {
       "id": "LOG-0068",
       "timestamp": "2026-10-16T09:31:09.135Z",
@@ -1599,6 +1680,16 @@
     }
   ],
   "notifications": [
+    {
+      "id": "NTF-0010",
+      "createdAt": "2026-10-16T09:38:16.016Z",
+      "userId": "USR-0009",
+      "title": "Document Routed to You",
+      "message": "Document BLGFR2-2026-10-IN-01 (BLGF MEMORANDUM CIRCULAR No. 001-2026 DATED 06 January 2026) forwarded for: Appropriate Action",
+      "documentId": "DOC-0002",
+      "trackingNumber": "BLGFR2-2026-10-IN-01",
+      "type": "INFO"
+    },
     {
       "id": "NTF-0008",
       "createdAt": "2026-10-16T09:25:11.912Z",

@@ -242,8 +242,13 @@ export class OutgoingEnvelopeComponent implements OnInit {
         );
         this.employees = activeEmployees;
         localStorage.setItem('blgf_employees', JSON.stringify(activeEmployees));
+        this.ensureDefaultTemplates(activeEmployees);
       },
-      error: () => {},
+      error: () => {
+        if (this.employees.length > 0) {
+          this.ensureDefaultTemplates(this.employees);
+        }
+      },
     });
   }
 
@@ -915,14 +920,155 @@ export class OutgoingEnvelopeComponent implements OnInit {
       const stored = localStorage.getItem('blgf_envelope_formats');
       if (stored) {
         const parsed = JSON.parse(stored);
-        return Array.isArray(parsed)
-          ? parsed.filter(
-              (item: SavedEnvelopeFormat) =>
-                item && typeof item.name === 'string' && Array.isArray(item.addressees),
-            )
-          : [];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.filter(
+            (item: SavedEnvelopeFormat) =>
+              item && typeof item.name === 'string' && Array.isArray(item.addressees),
+          );
+        }
       }
     } catch (e) {}
+
+    const storedEmployees = this.loadStoredEmployees();
+    if (storedEmployees.length > 0) {
+      return this.buildDefaultTemplates(storedEmployees);
+    }
     return [];
+  }
+
+  persistFormats(): void {
+    try {
+      localStorage.setItem('blgf_envelope_formats', JSON.stringify(this.savedFormats));
+    } catch {}
+  }
+
+  resetDirectoryTemplates(): void {
+    const list = this.employees.length > 0 ? this.employees : this.loadStoredEmployees();
+    const templates = this.buildDefaultTemplates(list);
+    if (templates.length === 0) {
+      this.ui.showToast('No directory employees found to generate templates.');
+      return;
+    }
+    const userCustom = this.savedFormats.filter((f) => !f.id.startsWith('tmpl-'));
+    this.savedFormats = [...templates, ...userCustom];
+    this.persistFormats();
+    this.ui.showSuccess(`Loaded ${templates.length} official templates from directory (PTO, MTO, Regional Agencies).`);
+  }
+
+  ensureDefaultTemplates(employees: EmployeeProfile[]): void {
+    if (!employees || employees.length === 0) return;
+    const defaultTemplates = this.buildDefaultTemplates(employees);
+    const existingFormats = [...this.savedFormats];
+
+    for (const defTmpl of defaultTemplates) {
+      const idx = existingFormats.findIndex(
+        (f) => f.id === defTmpl.id || f.name.toLowerCase() === defTmpl.name.toLowerCase(),
+      );
+      if (idx >= 0) {
+        if (!existingFormats[idx].addressees || existingFormats[idx].addressees.length === 0) {
+          existingFormats[idx] = defTmpl;
+        }
+      } else {
+        existingFormats.push(defTmpl);
+      }
+    }
+
+    this.savedFormats = existingFormats;
+    this.persistFormats();
+  }
+
+  buildDefaultTemplates(employees: EmployeeProfile[]): SavedEnvelopeFormat[] {
+    const defaultSender: EnvelopeSender = {
+      name: 'ATTY. JULAIDA T. CADDAWAN-PANCHO',
+      position: 'Regional Director',
+      office: 'Bureau of Local Government Finance - Regional Office II',
+      address: 'Regional Government Center, Carig Sur, Tuguegarao City, Cagayan 3500',
+    };
+
+    // 1. Provincial Treasurers
+    const ptoEmployees = employees.filter(
+      (e) =>
+        e.officeType === 'PROVINCIAL_TREASURER' ||
+        /provincial\s+treasur/i.test(`${e.position} ${e.office}`),
+    );
+    const ptoAddressees: EnvelopeAddressee[] = ptoEmployees.map((e, i) => ({
+      id: `pto-${e.id || i}`,
+      name: e.fullName,
+      position: e.position || 'Provincial Treasurer',
+      office: e.office || 'Provincial Treasury Office',
+      address: e.address || 'Provincial Capitol',
+    }));
+
+    // 2. Municipal Treasurers
+    const mtoEmployees = employees.filter(
+      (e) =>
+        (e.officeType === 'MUNICIPAL_TREASURER' ||
+          e.officeType === 'LGU' ||
+          /municipal\s+treasur|city\s+treasur/i.test(`${e.position} ${e.office}`)) &&
+        !ptoEmployees.includes(e),
+    );
+    const mtoAddressees: EnvelopeAddressee[] = mtoEmployees.map((e, i) => ({
+      id: `mto-${e.id || i}`,
+      name: e.fullName,
+      position: e.position || 'Municipal Treasurer',
+      office: e.office || 'Municipal Treasury Office',
+      address: e.address || 'Municipal Hall',
+    }));
+
+    // 3. Regional Line Agencies & Partner Stakeholders
+    const agencyEmployees = employees.filter(
+      (e) =>
+        (e.officeType === 'OTHER_AGENCIES' ||
+          /agency|regional\s+director|department/i.test(`${e.position} ${e.office}`)) &&
+        !ptoEmployees.includes(e) &&
+        !mtoEmployees.includes(e) &&
+        !/blgf/i.test(e.office),
+    );
+    const agencyAddressees: EnvelopeAddressee[] = agencyEmployees.map((e, i) => {
+      const addr = e.address && !e.address.toLowerCase().includes('not independently verified')
+        ? e.address
+        : 'Regional Government Center, Carig Sur, Tuguegarao City, Cagayan 3500';
+      return {
+        id: `agency-${e.id || i}`,
+        name: e.fullName,
+        position: e.position || 'Regional Director',
+        office: e.office || 'Regional Office',
+        address: addr,
+      };
+    });
+
+    const templates: SavedEnvelopeFormat[] = [];
+
+    if (ptoAddressees.length > 0) {
+      templates.push({
+        id: 'tmpl-pto-region2',
+        name: 'Provincial Treasurers (PTO - Region II)',
+        subject: 'Treasury Memorandum / Transmittal of Official Reports',
+        sender: defaultSender,
+        addressees: ptoAddressees,
+      });
+    }
+
+    if (mtoAddressees.length > 0) {
+      templates.push({
+        id: 'tmpl-mto-region2',
+        name: 'Municipal Treasurers (MTO - Region II)',
+        subject: 'BLGF Memorandum Circular / Local Finance Advisory',
+        sender: defaultSender,
+        addressees: mtoAddressees,
+      });
+    }
+
+    if (agencyAddressees.length > 0) {
+      templates.push({
+        id: 'tmpl-regional-agencies',
+        name: 'Regional Line Agencies & Stakeholders',
+        subject: 'Inter-Agency Coordination / Official Communication',
+        sender: defaultSender,
+        addressees: agencyAddressees,
+      });
+    }
+
+    return templates;
   }
 }

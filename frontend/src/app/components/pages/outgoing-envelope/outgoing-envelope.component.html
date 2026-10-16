@@ -655,15 +655,26 @@
               <span class="badge-count">{{ savedFormats.length }}</span>
             }
           </div>
-          <button
-            type="button"
-            (click)="showSaveFormat = !showSaveFormat"
-            class="btn-toggle-templates"
-            [attr.title]="showSaveFormat ? 'Collapse format templates' : 'Expand format templates'"
-          >
-            <ion-icon [name]="showSaveFormat ? 'chevron-up' : 'chevron-down'" class="icon-xs"></ion-icon>
-            <span>{{ showSaveFormat ? 'Hide' : 'Show' }}</span>
-          </button>
+          <div class="header-actions-group flex items-center gap-2">
+            <button
+              type="button"
+              (click)="resetDirectoryTemplates()"
+              class="btn-toggle-templates"
+              title="Reload official templates from directory (PTO, MTO, Regional Agencies)"
+            >
+              <ion-icon name="sync-outline" class="icon-xs"></ion-icon>
+              <span>Sync Directory</span>
+            </button>
+            <button
+              type="button"
+              (click)="showSaveFormat = !showSaveFormat"
+              class="btn-toggle-templates"
+              [attr.title]="showSaveFormat ? 'Collapse format templates' : 'Expand format templates'"
+            >
+              <ion-icon [name]="showSaveFormat ? 'chevron-up' : 'chevron-down'" class="icon-xs"></ion-icon>
+              <span>{{ showSaveFormat ? 'Hide' : 'Show' }}</span>
+            </button>
+          </div>
         </div>
 
         @if (showSaveFormat) {
@@ -792,7 +803,10 @@
                 <div class="empty-templates-message">
                   <ion-icon name="bookmark-outline" class="empty-icon"></ion-icon>
                   <p class="empty-title">No saved templates yet</p>
-                  <p class="empty-desc">Create your envelope setup above and save it here for 1-click reuse.</p>
+                  <p class="empty-desc">Create your envelope setup above, or generate official templates from the directory.</p>
+                  <button type="button" (click)="resetDirectoryTemplates()" class="btn-save-template" style="margin-top: 0.75rem;">
+                    <ion-icon name="sync-outline" style="margin-right: 0.35rem;"></ion-icon> Load Directory Templates
+                  </button>
                 </div>
               }
             </div>
