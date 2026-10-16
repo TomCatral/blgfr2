@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-16T09:59:35.417Z",
+  "updatedAt": "2026-10-16T10:07:12.940Z",
   "divisions": [
     {
       "id": "DIV-0001",
@@ -104,7 +104,8 @@
           "slip",
           "users"
         ],
-        "notificationViewAllConfigured": true
+        "notificationViewAllConfigured": true,
+        "canViewConfidentialSteps": true
       },
       "active": true,
       "createdAt": "1970-01-01T00:00:00.000Z"
@@ -155,7 +156,8 @@
           "EMPLOYEE_EDIT",
           "EMPLOYEE_FOLDER_MANAGE"
         ],
-        "notificationViewAllConfigured": true
+        "notificationViewAllConfigured": true,
+        "canViewConfidentialSteps": true
       },
       "active": true,
       "createdAt": "1970-01-01T00:00:00.000Z"
@@ -981,6 +983,36 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "LOG-0082",
+      "timestamp": "2026-10-16T10:07:12.778Z",
+      "userId": "USR-0008",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "UPDATE_USER",
+      "details": "Updated account details for Administrator",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0081",
+      "timestamp": "2026-10-16T10:07:08.183Z",
+      "userId": "USR-0008",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "UPDATE_USER",
+      "details": "Updated account details for Jay ann M. Mangoba",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0080",
+      "timestamp": "2026-10-16T10:06:49.574Z",
+      "userId": "USR-0008",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
     {
       "id": "LOG-0079",
       "timestamp": "2026-10-16T09:49:02.361Z",

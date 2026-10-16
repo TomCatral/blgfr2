@@ -20,6 +20,10 @@ backend/data/storage-settings.json
 .vercel-cli-cache/
 *.txt
 ~$*.docx
+*.docx
+*.pptx
+*.xlsx
+docs/thesis-defense/
 documentation_assets*/
 full_diff.txt
 working_diff.txt
