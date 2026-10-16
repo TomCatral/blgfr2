@@ -188,6 +188,21 @@
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
 
+  &[draggable='true'] {
+    cursor: grab;
+  }
+
+  &.is-dragging {
+    opacity: 0.45;
+    cursor: grabbing;
+  }
+
+  &.is-drag-over {
+    outline: 2px dashed #2563eb;
+    outline-offset: 2px;
+    transform: translateY(-1px);
+  }
+
   &:disabled {
     cursor: not-allowed;
     opacity: 0.45;
@@ -268,35 +283,70 @@
    2. CATEGORY FILTER TABS
    ========================================================================== */
 .ep-tabs-card {
-  padding: 0.375rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem;
   background: var(--ui-surface, #ffffff);
   border: 1px solid var(--ui-border, #e2e8f0);
-  border-radius: var(--ui-radius-lg, 1.25rem);
-  box-shadow: var(--ui-shadow-xs, 0 1px 3px rgba(0, 0, 0, 0.04));
+  border-radius: 0.875rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   overflow-x: auto;
+}
+
+.ep-tabs-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex: 0 0 auto;
+  padding: 0 0.625rem 0 0.25rem;
+  border-right: 1px solid var(--ui-border, #e2e8f0);
+}
+
+.ep-tabs-heading-icon {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.625rem;
+  color: #2563eb;
+  background: #eff6ff;
+
+  ion-icon { font-size: 1rem; }
+}
+
+.ep-tabs-heading-copy {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+
+  strong { font-size: 0.75rem; color: var(--ui-text, #0f172a); }
+  span { margin-top: 0.125rem; font-size: 0.625rem; color: var(--ui-text-muted, #64748b); }
 }
 
 .ep-tabs-track {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
+  flex: 1;
+  flex-wrap: nowrap;
+  gap: 0.25rem;
   min-width: max-content;
-
-  @media (min-width: 640px) {
-    min-width: 0;
-  }
+  padding: 0.1875rem;
+  border-radius: 0.6875rem;
+  background: #f8fafc;
 }
 
 .ep-tab {
   display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.5rem 0.875rem;
-  border-radius: 0.75rem;
+  justify-content: center;
+  flex: 0 0 auto;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  border-radius: 0.5625rem;
   font-size: 0.75rem;
   font-weight: 700;
-  border: 1px solid transparent;
+  border: 0;
   background: transparent;
   color: var(--ui-text-muted, #64748b);
   cursor: pointer;
@@ -309,10 +359,27 @@
   }
 
   &.active {
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    background: #2563eb;
     color: #ffffff;
-    box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.35);
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
   }
+}
+
+.ep-tab::part(native) {
+  min-height: 2.25rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.5625rem;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+  text-transform: none;
+}
+
+.ep-tab.active::part(native) { background: #2563eb; }
+
+@media (max-width: 900px) {
+  .ep-tabs-card { align-items: stretch; flex-direction: column; }
+  .ep-tabs-heading { padding: 0 0 0.5rem; border-right: 0; border-bottom: 1px solid var(--ui-border, #e2e8f0); }
 }
 
 .ep-tab-label {

@@ -16,6 +16,7 @@ import {
   User,
   DEFAULT_ROLE_PERMISSIONS,
   DivisionCode,
+  EmployeeProfile,
 } from '../../../types';
 import { formatDate } from '../../../utils/status-utils';
 import { isDocumentParticipant } from '../../../utils/document-visibility';
@@ -111,9 +112,17 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
 
   docQrDataUrl = signal<string>('');
   isQrEnlarged = signal<boolean>(false);
+  directoryEmployees = signal<EmployeeProfile[]>([]);
 
   ngOnInit(): void {
     void this.updateDocumentQr();
+    this.loadDirectoryEmployees();
+  }
+
+  private loadDirectoryEmployees(): void {
+    firstValueFrom(this.api.getEmployees())
+      .then((employees) => this.directoryEmployees.set(employees || []))
+      .catch(() => this.directoryEmployees.set([]));
   }
 
   async updateDocumentQr(): Promise<void> {
@@ -288,13 +297,68 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
           user.fullName.trim().toLowerCase() === latestRoute.toUser?.trim().toLowerCase(),
         )
       : undefined;
-    const latestReceiverName = latestUser?.fullName || latestRoute?.toUser?.trim() || this.document.recipientName || 'Not recorded';
-    const isOriginalRecipient = latestReceiverName.trim().toLowerCase() === this.document.recipientName?.trim().toLowerCase();
-    const latestReceiverPosition = latestUser?.designation?.trim() || (isOriginalRecipient ? this.document.recipientPosition?.trim() : '') || 'Not recorded';
-    const latestReceiverOffice = latestRoute?.toDivision
+    const rawReceiverName = latestUser?.fullName || latestRoute?.toUser?.trim() || this.document.recipientName || 'Not recorded';
+    const isOriginalRecipient = rawReceiverName.trim().toLowerCase() === this.document.recipientName?.trim().toLowerCase();
+    let latestReceiverName = rawReceiverName;
+    let latestReceiverPosition = latestUser?.designation?.trim() || (isOriginalRecipient ? this.document.recipientPosition?.trim() : '') || 'Not recorded';
+    let latestReceiverOffice = latestRoute?.toDivision
       ? (DIVISION_OFFICE_NAMES[latestRoute.toDivision] || latestRoute.toDivision)
       : this.document.recipientOffice?.trim() || this.document.destinationOffice?.trim() || 'Not recorded';
-    const latestReceiverAddress = isOriginalRecipient ? this.document.recipientAddress?.trim() || 'Not recorded' : 'Not recorded';
+    let latestReceiverAddress = isOriginalRecipient ? this.document.recipientAddress?.trim() || 'Not recorded' : 'Not recorded';
+
+    const names = rawReceiverName.split(/\s*,\s*/).map((n) => n.trim()).filter(Boolean);
+    const posStr = `${this.document.recipientPosition || ''} ${rawReceiverName}`.toLowerCase();
+    const isMultipleTreasurers = names.length > 2 && (posStr.includes('treasur') || posStr.includes('pto') || posStr.includes('mto'));
+
+    if (
+      isMultipleTreasurers ||
+      rawReceiverName.includes('Provincial Treasurer') ||
+      rawReceiverName.includes('Municipal Treasurer') ||
+      rawReceiverName.includes('All Agencies') ||
+      rawReceiverName.includes('all Agencies')
+    ) {
+      const hasProvincial = posStr.includes('provincial') || posStr.includes('pto');
+      const hasMunicipal = posStr.includes('municipal') || posStr.includes('mto') || posStr.includes('city');
+      const hasPartner = posStr.includes('partner') || posStr.includes('agenc') || posStr.includes('stakeholder');
+
+      if (hasProvincial && hasMunicipal && hasPartner) {
+        latestReceiverName = 'All Provincial Treasurer, Municipal Treasurer all Agencies';
+        latestReceiverPosition = 'Provincial Treasurer, Municipal Treasurer, Partner Agencies';
+        latestReceiverOffice = 'Provincial & Municipal Treasury Offices - Region II; Partner Agencies';
+        latestReceiverAddress = 'Various LGUs / Partner Offices, Region II';
+      } else if (hasProvincial && hasMunicipal) {
+        latestReceiverName = 'All Provincial Treasurer, Municipal Treasurer';
+        latestReceiverPosition = 'Provincial Treasurer, Municipal Treasurer';
+        latestReceiverOffice = 'Provincial & Municipal Treasury Offices - Region II';
+        latestReceiverAddress = 'Various LGUs, Region II';
+      } else if (hasProvincial) {
+        latestReceiverName = 'All Provincial Treasurer';
+        latestReceiverPosition = 'Provincial Treasurer';
+        latestReceiverOffice = 'Provincial Treasury Offices - Region II';
+        latestReceiverAddress = 'Various Provinces, Region II';
+      } else if (hasMunicipal) {
+        latestReceiverName = 'Municipal Treasurer';
+        latestReceiverPosition = 'Municipal Treasurer';
+        latestReceiverOffice = 'Municipal Treasury Offices - Region II';
+        latestReceiverAddress = 'Various Municipalities, Region II';
+      } else if (hasPartner) {
+        latestReceiverName = 'all Agencies';
+        latestReceiverPosition = 'Agency Head / Representative';
+        latestReceiverOffice = 'Partner Agencies & Stakeholders';
+        latestReceiverAddress = 'Various Offices, Region II';
+      }
+    } else if (
+      this.document.routeAllDivisions ||
+      rawReceiverName.toLowerCase().includes('all division') ||
+      this.document.destinationOffice?.toLowerCase().includes('all division')
+    ) {
+      latestReceiverName = 'All Divisions';
+      latestReceiverPosition = 'Division Chiefs & Staff';
+      latestReceiverOffice = 'All BLGF Regional Office II Divisions';
+      latestReceiverAddress = 'Regional Government Center, Carig Sur, Tuguegarao City';
+    } else if (names.length > 3) {
+      latestReceiverName = `${names[0]} & ${names.length - 1} other recipients`;
+    }
 
     return [
       { label: 'Category', value: this.document.category },

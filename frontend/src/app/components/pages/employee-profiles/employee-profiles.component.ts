@@ -281,6 +281,8 @@ export class EmployeeProfilesComponent implements OnInit {
   colorPalettes = SECTION_COLOR_PALETTES;
   editingOfficeId = signal<string | null>(null);
   directorySections = signal<DirectorySection[]>(loadDirectorySections());
+  draggedTabKey = signal<string | null>(null);
+  dragOverTabKey = signal<string | null>(null);
 
   readonly accessibleDirectorySections = computed(() =>
     this.directorySections().filter((section) => this.canViewDirectorySection(section)),
@@ -662,6 +664,43 @@ export class EmployeeProfilesComponent implements OnInit {
     sections.splice(targetIdx, 0, moved);
     this.persistDirectorySections(sections);
     this.ui.showToast(`Category "${moved.label}" moved ${direction}.`);
+  }
+
+  onTabDragStart(event: DragEvent, key: string): void {
+    if (key === 'ALL') return;
+    this.draggedTabKey.set(key);
+    event.dataTransfer?.setData('text/plain', key);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+  }
+
+  onTabDragOver(event: DragEvent, key: string): void {
+    const sourceKey = this.draggedTabKey();
+    if (!sourceKey || key === 'ALL' || sourceKey === key) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    this.dragOverTabKey.set(key);
+  }
+
+  onTabDrop(event: DragEvent, targetKey: string): void {
+    event.preventDefault();
+    const sourceKey = this.draggedTabKey() || event.dataTransfer?.getData('text/plain');
+    this.draggedTabKey.set(null);
+    this.dragOverTabKey.set(null);
+    if (!sourceKey || sourceKey === targetKey || targetKey === 'ALL') return;
+
+    const sections = [...this.directorySections()];
+    const sourceIndex = sections.findIndex((section) => section.id === sourceKey);
+    const targetIndex = sections.findIndex((section) => section.id === targetKey);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+    const [moved] = sections.splice(sourceIndex, 1);
+    sections.splice(targetIndex, 0, moved);
+    this.persistDirectorySections(sections);
+    this.ui.showToast(`Moved "${moved.label}" to its new position.`);
+  }
+
+  onTabDragEnd(): void {
+    this.draggedTabKey.set(null);
+    this.dragOverTabKey.set(null);
   }
 
   saveOffice(): void {

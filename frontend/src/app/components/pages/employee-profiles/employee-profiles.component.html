@@ -63,6 +63,14 @@
           (click)="openTab(tab.key)"
           class="ep-tab"
           [class.active]="activeTab() === tab.key"
+          [class.is-dragging]="draggedTabKey() === tab.key"
+          [class.is-drag-over]="dragOverTabKey() === tab.key"
+          [attr.draggable]="tab.key !== 'ALL' ? 'true' : null"
+          [title]="tab.key === 'ALL' ? tab.label : 'Drag to rearrange · ' + tab.label"
+          (dragstart)="onTabDragStart($event, tab.key)"
+          (dragover)="onTabDragOver($event, tab.key)"
+          (drop)="onTabDrop($event, tab.key)"
+          (dragend)="onTabDragEnd()"
         >
           <span class="ep-tab-label">{{ tab.label }}</span>
           <span class="ep-tab-badge" [class.active]="activeTab() === tab.key">

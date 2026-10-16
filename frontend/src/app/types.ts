@@ -337,6 +337,12 @@ export interface DocumentRecord {
   createdAt: string;
   updatedAt: string;
   finalInstructions?: string;
+  routeAllDivisions?: boolean;
+  routeMultipleDivisions?: boolean;
+  initialTargetDivisions?: string[];
+  initialRecipientIds?: string[];
+  isOutside?: boolean;
+  outsideRecipients?: any[];
 }
 
 export interface AuditLog {

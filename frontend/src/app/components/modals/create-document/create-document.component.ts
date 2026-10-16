@@ -82,6 +82,8 @@ const DIVISION_OPTIONS: Array<[string, string]> = [
   ['LU', 'Legal Division / Unit'],
 ];
 
+const DIVISION_OFFICE_NAMES: Record<string, string> = Object.fromEntries(DIVISION_OPTIONS);
+
 @Component({
   selector: 'app-create-document',
   standalone: true,
@@ -108,6 +110,7 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
   private api = inject(ApiService);
 
   readonly DIVISION_OPTIONS = DIVISION_OPTIONS;
+  readonly DIVISION_OFFICE_NAMES = DIVISION_OFFICE_NAMES;
 
   direction = signal<DocumentDirection>(this.initialDirection);
   recipientType = signal<'INTERNAL' | 'OUTSIDE'>('OUTSIDE');
@@ -265,29 +268,41 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     this.isOutsideDeptDropdownOpen.set(false);
     this.outsideDeptSearch.set('');
 
-    const recipients = this.getEmployeesForDept(deptCode).map((employee) => ({
-      id: employee.id,
-      name: employee.fullName || '',
-      position: employee.position || '',
-      office: employee.office || '',
-      address: employee.address || '',
-    }));
-
-    if (recipients.length > 0) {
-      this.populateFieldsFromRecipient(recipients[0]);
-    }
+    const depts = this.selectedOutsideDepartments();
+    this.recipientName.set(this.getDepartmentGroupRecipientName(depts));
+    this.recipientPosition.set(this.getDepartmentGroupPositions(depts));
+    this.recipientOffice.set(this.getDepartmentGroupOffices(depts));
+    this.recipientAddress.set(this.getDepartmentGroupAddress(depts));
   }
 
   selectAndAddDivision(divCode: string): void {
     if (divCode === 'ALL') {
       this.currentDivision.set('ALL');
       this.additionalDivisions.set([]);
+      this.recipientName.set('All Divisions');
+      this.recipientPosition.set('Division Chiefs & Staff');
+      this.recipientOffice.set('All BLGF Regional Office II Divisions');
+      this.recipientAddress.set('Regional Government Center, Carig Sur, Tuguegarao City');
     } else {
       const code = divCode as DivisionCode;
       if (!this.currentDivision() || this.currentDivision() === 'ALL') {
         this.currentDivision.set(code);
       } else if (this.currentDivision() !== code && !this.additionalDivisions().includes(code)) {
         this.additionalDivisions.set([...this.additionalDivisions(), code]);
+      }
+      const allSelected = [this.currentDivision(), ...this.additionalDivisions()].filter(Boolean) as DivisionCode[];
+      if (allSelected.length > 1) {
+        const names = allSelected.map((d) => this.DIVISION_OFFICE_NAMES[d] || d);
+        this.recipientName.set(names.join(', '));
+        this.recipientPosition.set('Division Chiefs & Staff');
+        this.recipientOffice.set(names.join('; '));
+        this.recipientAddress.set('Regional Government Center, Carig Sur, Tuguegarao City');
+      } else {
+        const single = allSelected[0];
+        this.recipientName.set(this.DIVISION_OFFICE_NAMES[single] || single);
+        this.recipientPosition.set('Division Chief / Staff');
+        this.recipientOffice.set(this.DIVISION_OFFICE_NAMES[single] || single);
+        this.recipientAddress.set('Regional Government Center, Carig Sur, Tuguegarao City');
       }
     }
     this.isInsideDivDropdownOpen.set(false);
@@ -446,6 +461,57 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     return depts.map((d) => this.getDepartmentShortCode(d)).join(' & ');
   });
 
+  getDepartmentGroupRecipientName(deptCodes: string[]): string {
+    const parts: string[] = [];
+    if (deptCodes.includes('PTO')) {
+      parts.push('All Provincial Treasurer');
+    }
+    if (deptCodes.includes('MTO')) {
+      parts.push('Municipal Treasurer');
+    }
+    if (deptCodes.includes('PARTNER')) {
+      parts.push('all Agencies');
+    }
+    for (const code of deptCodes) {
+      if (!['PTO', 'MTO', 'PARTNER'].includes(code)) {
+        parts.push(this.getDepartmentLabel(code));
+      }
+    }
+    return parts.join(', ');
+  }
+
+  getDepartmentGroupPositions(deptCodes: string[]): string {
+    const parts: string[] = [];
+    if (deptCodes.includes('PTO')) {
+      parts.push('Provincial Treasurer');
+    }
+    if (deptCodes.includes('MTO')) {
+      parts.push('Municipal Treasurer');
+    }
+    if (deptCodes.includes('PARTNER')) {
+      parts.push('Agency Head / Representative');
+    }
+    return parts.join(', ') || 'Authorized Recipient';
+  }
+
+  getDepartmentGroupOffices(deptCodes: string[]): string {
+    const parts: string[] = [];
+    if (deptCodes.includes('PTO')) {
+      parts.push('Provincial Treasury Offices - Region II');
+    }
+    if (deptCodes.includes('MTO')) {
+      parts.push('Municipal Treasury Offices - Region II');
+    }
+    if (deptCodes.includes('PARTNER')) {
+      parts.push('Partner Agencies & Stakeholders');
+    }
+    return parts.join('; ') || 'External Offices - Region II';
+  }
+
+  getDepartmentGroupAddress(_deptCodes?: string[]): string {
+    return 'Various LGUs / Partner Offices, Region II';
+  }
+
   getEmployeesForDept(deptKey: string): EmployeeProfile[] {
     if (deptKey === 'PTO') return this.provincialTreasuryProfiles();
     if (deptKey === 'MTO') return this.municipalTreasuryProfiles();
@@ -486,34 +552,28 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     this.outsideOfficeDepartment.set(deptVal);
     if (deptVal) {
       this.selectedOutsideDepartments.set([deptVal]);
+      this.recipientName.set(this.getDepartmentGroupRecipientName([deptVal]));
+      this.recipientPosition.set(this.getDepartmentGroupPositions([deptVal]));
+      this.recipientOffice.set(this.getDepartmentGroupOffices([deptVal]));
+      this.recipientAddress.set(this.getDepartmentGroupAddress([deptVal]));
     } else {
       this.selectedOutsideDepartments.set([]);
+      this.clearOutsideRecipientFields();
     }
     this.selectedOutsideEmployeeId.set('');
     this.excludedOutsideRecipientIds.set([]);
-
-    const recipients = deptVal
-      ? this.getEmployeesForDept(deptVal).map((employee) => ({
-          id: employee.id,
-          name: employee.fullName || '',
-          position: employee.position || '',
-          office: employee.office || '',
-          address: employee.address || '',
-        }))
-      : [];
-
-    if (recipients.length > 0) {
-      this.populateFieldsFromRecipient(recipients[0]);
-    } else {
-      this.clearOutsideRecipientFields();
-    }
   }
 
   onAddOutsideDepartment(event: Event): void {
     const dept = (event.target as HTMLSelectElement).value;
     if (dept && !this.selectedOutsideDepartments().includes(dept)) {
-      this.selectedOutsideDepartments.set([...this.selectedOutsideDepartments(), dept]);
+      const updated = [...this.selectedOutsideDepartments(), dept];
+      this.selectedOutsideDepartments.set(updated);
       this.outsideOfficeDepartment.set(dept);
+      this.recipientName.set(this.getDepartmentGroupRecipientName(updated));
+      this.recipientPosition.set(this.getDepartmentGroupPositions(updated));
+      this.recipientOffice.set(this.getDepartmentGroupOffices(updated));
+      this.recipientAddress.set(this.getDepartmentGroupAddress(updated));
     }
     this.showAddOutsideDepartment.set(false);
   }
@@ -526,9 +586,11 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     }
     this.selectedOutsideEmployeeId.set('');
 
-    const recipients = this.outsideDepartmentRecipients();
-    if (recipients.length > 0) {
-      this.populateFieldsFromRecipient(recipients[0]);
+    if (remaining.length > 0) {
+      this.recipientName.set(this.getDepartmentGroupRecipientName(remaining));
+      this.recipientPosition.set(this.getDepartmentGroupPositions(remaining));
+      this.recipientOffice.set(this.getDepartmentGroupOffices(remaining));
+      this.recipientAddress.set(this.getDepartmentGroupAddress(remaining));
     } else {
       this.clearOutsideRecipientFields();
     }
@@ -1200,13 +1262,20 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
       );
     }
     this.excludedRecipientIds.set([]);
-    if (division) {
+    if (division === 'ALL') {
       this.selectedRecipientIds.set([]);
-      this.recipientName.set('');
+      this.recipientName.set('All Divisions');
       this.recipientUserId.set('');
-      this.recipientPosition.set('');
-      this.recipientOffice.set('');
-      this.recipientAddress.set('');
+      this.recipientPosition.set('Division Chiefs & Staff');
+      this.recipientOffice.set('All BLGF Regional Office II Divisions');
+      this.recipientAddress.set('Regional Government Center, Carig Sur, Tuguegarao City');
+    } else if (division) {
+      this.selectedRecipientIds.set([]);
+      this.recipientName.set(this.DIVISION_OFFICE_NAMES[division] || division);
+      this.recipientUserId.set('');
+      this.recipientPosition.set('Division Chief / Staff');
+      this.recipientOffice.set(this.DIVISION_OFFICE_NAMES[division] || `BLGF Regional Office II - ${division}`);
+      this.recipientAddress.set('Regional Government Center, Carig Sur, Tuguegarao City');
     }
   }
 
@@ -1325,19 +1394,45 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     const holdRecips = isOutside ? [] : this.holdingDivisionRecipients();
     const displayed = this.displayedRouteNo();
 
+    const depts = this.selectedOutsideDepartments();
     const outsideList = isOutside ? this.outsideDepartmentRecipients() : [];
-    const combinedRecipName = outsideList.length > 0
-      ? outsideList.map((r) => r.name).join(', ')
-      : this.recipientName();
-    const combinedRecipPos = outsideList.length > 0
-      ? outsideList.map((r) => r.position).filter(Boolean).join(', ')
-      : this.recipientPosition();
-    const combinedRecipOffice = outsideList.length > 0
-      ? [...new Set(outsideList.map((r) => r.office))].join('; ')
-      : (this.recipientOffice() || 'External Office');
-    const combinedRecipAddress = outsideList.length > 0
-      ? outsideList[0].address
-      : this.recipientAddress();
+
+    let combinedRecipName = this.recipientName().trim();
+    let combinedRecipPos = this.recipientPosition()?.trim() || '';
+    let combinedRecipOffice = this.recipientOffice()?.trim() || (isOutside ? 'External Office' : 'BLGF Regional Office II');
+    let combinedRecipAddress = this.recipientAddress()?.trim() || '';
+
+    if (isOutside) {
+      if (depts.length > 0) {
+        combinedRecipName = this.getDepartmentGroupRecipientName(depts);
+        combinedRecipPos = this.getDepartmentGroupPositions(depts);
+        combinedRecipOffice = this.getDepartmentGroupOffices(depts);
+        combinedRecipAddress = this.getDepartmentGroupAddress(depts);
+      } else if (outsideList.length > 0) {
+        combinedRecipName = outsideList.map((r) => r.name).join(', ');
+        combinedRecipPos = outsideList.map((r) => r.position).filter(Boolean).join(', ');
+        combinedRecipOffice = [...new Set(outsideList.map((r) => r.office))].join('; ');
+        combinedRecipAddress = outsideList[0].address;
+      }
+    } else {
+      if (div === 'ALL') {
+        combinedRecipName = 'All Divisions';
+        combinedRecipPos = 'Division Chiefs & Staff';
+        combinedRecipOffice = 'All BLGF Regional Office II Divisions';
+        combinedRecipAddress = 'Regional Government Center, Carig Sur, Tuguegarao City';
+      } else if (addl.length > 0 && selIds.length === 0) {
+        const divNames = [div, ...addl].map((d) => this.DIVISION_OFFICE_NAMES[d] || d);
+        combinedRecipName = divNames.join(', ');
+        combinedRecipPos = 'Division Chiefs & Staff';
+        combinedRecipOffice = divNames.join('; ');
+        combinedRecipAddress = 'Regional Government Center, Carig Sur, Tuguegarao City';
+      } else if (!combinedRecipName && div) {
+        combinedRecipName = this.DIVISION_OFFICE_NAMES[div] || div;
+        combinedRecipPos = 'Division Chief / Staff';
+        combinedRecipOffice = this.DIVISION_OFFICE_NAMES[div] || div;
+        combinedRecipAddress = 'Regional Government Center, Carig Sur, Tuguegarao City';
+      }
+    }
 
     const hasRecipient =
       Boolean(this.recipientUserId()) ||
@@ -1360,19 +1455,19 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
       destinationOffice:
         isOutside
           ? combinedRecipOffice
-          : (isNotYetRouted ? 'Awaiting Initial Routing' : (this.recipientOffice() || 'BLGF Regional Office II')),
+          : (isNotYetRouted ? 'Awaiting Initial Routing' : combinedRecipOffice),
       senderName: this.senderName(),
       senderPosition: this.senderPosition(),
       senderAddress: this.senderAddress(),
-      recipientName: isOutside ? combinedRecipName : (isNotYetRouted ? 'Not Yet Routed' : this.recipientName()),
-      assignedUser: isOutside ? combinedRecipName : (isNotYetRouted ? 'Not Yet Routed' : this.recipientName()),
+      recipientName: isOutside ? combinedRecipName : (isNotYetRouted ? 'Not Yet Routed' : combinedRecipName),
+      assignedUser: isOutside ? combinedRecipName : (isNotYetRouted ? 'Not Yet Routed' : combinedRecipName),
       assignedUserId:
         isOutside || isNotYetRouted
           ? undefined
           : (selIds.length === 0 ? this.recipientUserId() : undefined),
-      recipientPosition: isOutside ? combinedRecipPos : (isNotYetRouted ? undefined : this.recipientPosition()),
-      recipientOffice: isOutside ? combinedRecipOffice : (isNotYetRouted ? undefined : this.recipientOffice()),
-      recipientAddress: isOutside ? combinedRecipAddress : (isNotYetRouted ? undefined : this.recipientAddress()),
+      recipientPosition: isOutside ? combinedRecipPos : (isNotYetRouted ? undefined : combinedRecipPos),
+      recipientOffice: isOutside ? combinedRecipOffice : (isNotYetRouted ? undefined : combinedRecipOffice),
+      recipientAddress: isOutside ? combinedRecipAddress : (isNotYetRouted ? undefined : combinedRecipAddress),
       outsideRecipients: isOutside ? outsideList : [],
       isOutside: isOutside,
       currentStatus: isOutside ? 'COMPLETED' : (isNotYetRouted ? 'NOT_YET_ROUTED' : 'PENDING'),
