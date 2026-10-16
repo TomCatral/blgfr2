@@ -784,13 +784,11 @@ export function createDocumentsRouter(
       fromDivision: actingUser.divisionCode,
       fromUserId: actingUser.id,
       fromUser: actingUser.fullName,
-      toDivision: decision === 'DISAPPROVED' && sender
-        ? sender.divisionCode
-        : actingUser.divisionCode,
+      toDivision: sender ? sender.divisionCode : actingUser.divisionCode,
       toUser: sender?.fullName,
       toUserId: sender?.id,
       actionRequested: decision,
-      remarks: remarks || 'Approved; proceed with routing.',
+      remarks: remarks || (decision === 'APPROVED' ? 'Approved; proceed with routing.' : 'Disapproved.'),
       statusBefore: doc.currentStatus,
       statusAfter: decision === 'DISAPPROVED' ? 'RETURNED' : 'IN_PROGRESS',
       receivedAt: now,
@@ -799,11 +797,11 @@ export function createDocumentsRouter(
     doc.routes.push(decisionRoute);
     doc.currentStatus = decisionRoute.statusAfter;
     doc.updatedAt = now;
-    if (decision === 'DISAPPROVED' && sender) {
+    if (sender) {
       doc.currentDivision = sender.divisionCode;
       doc.assignedUser = sender.fullName;
       doc.assignedUserId = sender.id;
-    } else if (decision === 'APPROVED') {
+    } else {
       doc.currentDivision = actingUser.divisionCode;
       doc.assignedUser = actingUser.fullName;
       doc.assignedUserId = actingUser.id;

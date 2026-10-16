@@ -118,16 +118,34 @@ export class DashboardComponent implements OnChanges {
       const divMap: Record<string, number> = {};
       this.primaryDivisions.forEach(code => { divMap[code] = 0; });
       activeDocs.forEach(doc => {
-        const involved = new Set<string>();
-        if (doc.currentDivision) involved.add(doc.currentDivision);
-        const creator = this.users.find(u => u.id === doc.createdByUserId);
-        if (creator?.divisionCode) involved.add(creator.divisionCode);
-        (doc.routes || []).forEach(r => {
-          if (r.toDivision) involved.add(r.toDivision);
-          if (r.fromDivision) involved.add(r.fromDivision);
-        });
-        involved.forEach(code => {
-          if (divMap[code] !== undefined) divMap[code]++;
+        const assignedDivisions = new Set<string>();
+        const pendingRoutes = (doc.routes || []).filter(r => !r.actionTaken && r.statusAfter !== 'COMPLETED');
+        if (pendingRoutes.length > 0) {
+          pendingRoutes.forEach(r => {
+            const recipientUser = this.users.find(u =>
+              (r.toUserId && u.id === r.toUserId) ||
+              (r.toUser && u.fullName.trim().toLowerCase() === r.toUser.trim().toLowerCase())
+            );
+            const code = recipientUser?.divisionCode || r.toDivision;
+            if (code && divMap[code] !== undefined) {
+              assignedDivisions.add(code);
+            }
+          });
+        }
+
+        if (assignedDivisions.size === 0) {
+          const targetUser = this.users.find(u =>
+            (doc.assignedUserId && u.id === doc.assignedUserId) ||
+            (doc.assignedUser && u.fullName.trim().toLowerCase() === doc.assignedUser.trim().toLowerCase())
+          );
+          const divisionCode = targetUser?.divisionCode || doc.currentDivision;
+          if (divisionCode && divMap[divisionCode] !== undefined) {
+            assignedDivisions.add(divisionCode);
+          }
+        }
+
+        assignedDivisions.forEach(code => {
+          divMap[code]++;
         });
       });
       return this.primaryDivisions.map(code => ({ division: code, count: divMap[code] || 0 }));

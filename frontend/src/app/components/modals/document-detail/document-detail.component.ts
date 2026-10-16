@@ -623,15 +623,23 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
     }
     const latestRoute = [...(this.document.routes || [])].reverse().find((r) => !getRouteDecision(r));
     if (latestRoute) {
+      const recipientUser = this.users.find(u =>
+        (latestRoute.toUserId && u.id === latestRoute.toUserId) ||
+        (latestRoute.toUser && u.fullName.trim().toLowerCase() === latestRoute.toUser.trim().toLowerCase())
+      );
       return {
         name: this.resolveUserName(latestRoute.toUserId, latestRoute.toUser) || latestRoute.toDivision,
-        office: latestRoute.toDivision,
+        office: recipientUser?.divisionCode || latestRoute.toDivision,
         action: latestRoute.actionRequested || 'In processing',
       };
     }
+    const assignedUser = this.users.find(u =>
+      (this.document.assignedUserId && u.id === this.document.assignedUserId) ||
+      (this.document.assignedUser && u.fullName.trim().toLowerCase() === this.document.assignedUser.trim().toLowerCase())
+    );
     return {
       name: this.resolveUserName(this.document.assignedUserId, this.document.assignedUser) || this.document.assignedUser || 'Assigned Handler',
-      office: this.document.currentDivision || this.document.destinationOffice,
+      office: assignedUser?.divisionCode || this.document.currentDivision || this.document.destinationOffice,
       action: 'Initial Intake',
     };
   });

@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-16T04:33:28.280Z",
+  "updatedAt": "2026-10-16T05:09:10.050Z",
   "divisions": [
     {
       "id": "DIV-0001",
@@ -497,9 +497,9 @@
       "recipientAddress": "Regional Government Center, Carig Sur, Tuguegarao City",
       "priority": "ROUTINE",
       "currentStatus": "IN_PROGRESS",
-      "currentDivision": "FD",
-      "assignedUser": "Dominick Catral",
-      "assignedUserId": "USR-0005",
+      "currentDivision": "AD",
+      "assignedUser": "Jay ann M. Mangoba",
+      "assignedUserId": "USR-0002",
       "dateReceived": "2026-10-16T01:27:08.305Z",
       "targetCompletionDate": "2026-10-19T01:27:08.302Z",
       "tags": [],
@@ -590,7 +590,7 @@
           "fromDivision": "FD",
           "fromUserId": "USR-0005",
           "fromUser": "Dominick Catral",
-          "toDivision": "FD",
+          "toDivision": "AD",
           "toUser": "Jay ann M. Mangoba",
           "toUserId": "USR-0002",
           "actionRequested": "APPROVED",
