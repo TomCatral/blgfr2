@@ -56,9 +56,21 @@ export const SECTION_COLOR_PALETTES: SectionColorOption[] = [
 const DEFAULT_DIRECTORY_SECTIONS: DirectorySection[] = [
   { id: 'BLGF', label: 'BLGF Personnel', officeTypes: ['BLGF'], color: 'blue' },
   {
+    id: 'MUNICIPAL_TREASURER',
+    label: 'Municipal Treasurers',
+    officeTypes: ['MUNICIPAL_TREASURER'],
+    color: 'purple',
+  },
+  {
+    id: 'PROVINCIAL_TREASURER',
+    label: 'Provincial Treasurers',
+    officeTypes: ['PROVINCIAL_TREASURER'],
+    color: 'cyan',
+  },
+  {
     id: 'LGU_STAFF',
     label: 'LGU Staff',
-    officeTypes: ['PROVINCIAL_TREASURER', 'MUNICIPAL_TREASURER', 'LGU'],
+    officeTypes: ['LGU'],
     color: 'emerald',
   },
   {
@@ -89,12 +101,82 @@ export const sanitizeDirectorySection = (sec: any): DirectorySection => ({
   color: sec?.color || 'blue',
 });
 
+export const migrateDirectorySections = (sections: DirectorySection[]): DirectorySection[] => {
+  if (!Array.isArray(sections) || sections.length === 0) {
+    return DEFAULT_DIRECTORY_SECTIONS.map(sanitizeDirectorySection);
+  }
+  let result = sections.map(sanitizeDirectorySection);
+
+  const hasDedicatedMto = result.some(
+    (s) => s.officeTypes.length === 1 && s.officeTypes[0] === 'MUNICIPAL_TREASURER',
+  );
+
+  if (!hasDedicatedMto) {
+    result = result.map((s) => {
+      if (s.officeTypes.includes('MUNICIPAL_TREASURER')) {
+        return {
+          ...s,
+          officeTypes: s.officeTypes.filter((t) => t !== 'MUNICIPAL_TREASURER'),
+        };
+      }
+      return s;
+    });
+
+    const mtoSection: DirectorySection = {
+      id: 'MUNICIPAL_TREASURER',
+      label: 'Municipal Treasurers',
+      officeTypes: ['MUNICIPAL_TREASURER'],
+      color: 'purple',
+    };
+    const blgfIdx = result.findIndex((s) => s.id === 'BLGF');
+    if (blgfIdx >= 0) {
+      result.splice(blgfIdx + 1, 0, mtoSection);
+    } else {
+      result.unshift(mtoSection);
+    }
+  }
+
+  const hasDedicatedPto = result.some(
+    (s) => s.officeTypes.length === 1 && s.officeTypes[0] === 'PROVINCIAL_TREASURER',
+  );
+  if (!hasDedicatedPto) {
+    result = result.map((s) => {
+      if (s.officeTypes.includes('PROVINCIAL_TREASURER')) {
+        return {
+          ...s,
+          officeTypes: s.officeTypes.filter((t) => t !== 'PROVINCIAL_TREASURER'),
+        };
+      }
+      return s;
+    });
+
+    const ptoSection: DirectorySection = {
+      id: 'PROVINCIAL_TREASURER',
+      label: 'Provincial Treasurers',
+      officeTypes: ['PROVINCIAL_TREASURER'],
+      color: 'cyan',
+    };
+    const mtoIdx = result.findIndex((s) => s.id === 'MUNICIPAL_TREASURER');
+    if (mtoIdx >= 0) {
+      result.splice(mtoIdx + 1, 0, ptoSection);
+    } else {
+      result.push(ptoSection);
+    }
+  }
+
+  return result;
+};
+
 const loadDirectorySections = (): DirectorySection[] => {
   try {
     const raw = localStorage.getItem('blgf_directory_sections');
     const parsed = raw ? JSON.parse(raw) : DEFAULT_DIRECTORY_SECTIONS;
     if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.map(sanitizeDirectorySection);
+      const migrated = migrateDirectorySections(parsed.map(sanitizeDirectorySection));
+      try {
+        localStorage.setItem('blgf_directory_sections', JSON.stringify(migrated));
+      } catch {}
+      return migrated;
     }
     return DEFAULT_DIRECTORY_SECTIONS.map(sanitizeDirectorySection);
   } catch {
@@ -203,6 +285,62 @@ export class EmployeeProfilesComponent implements OnInit {
   readonly accessibleDirectorySections = computed(() =>
     this.directorySections().filter((section) => this.canViewDirectorySection(section)),
   );
+
+  readonly availableOfficeCategories = computed(() => {
+    const sections = this.accessibleDirectorySections();
+    const categories: { value: string; label: string; color?: string }[] = [];
+    const seenValues = new Set<string>();
+
+    for (const section of sections) {
+      const types = normalizeOfficeTypes(section.officeTypes);
+      if (types.length === 1) {
+        const val = types[0];
+        if (!seenValues.has(val)) {
+          seenValues.add(val);
+          categories.push({
+            value: val,
+            label: section.label,
+            color: section.color,
+          });
+        }
+      } else if (types.length > 1) {
+        for (const t of types) {
+          if (!seenValues.has(t)) {
+            seenValues.add(t);
+            let subLabel = t.replace(/_/g, ' ');
+            if (t === 'MUNICIPAL_TREASURER') subLabel = 'Municipal Treasurer';
+            else if (t === 'PROVINCIAL_TREASURER') subLabel = 'Provincial Treasurer';
+            else if (t === 'LGU') subLabel = 'LGU Staff';
+            categories.push({
+              value: t,
+              label: `${section.label} (${subLabel})`,
+              color: section.color,
+            });
+          }
+        }
+      } else {
+        const val = section.id;
+        if (!seenValues.has(val)) {
+          seenValues.add(val);
+          categories.push({
+            value: val,
+            label: section.label,
+            color: section.color,
+          });
+        }
+      }
+    }
+
+    const currentType = this.formData().officeType;
+    if (currentType && !seenValues.has(currentType)) {
+      categories.unshift({
+        value: currentType,
+        label: this.officeTypeLabel(currentType),
+      });
+    }
+
+    return categories;
+  });
 
   readonly filteredDirectorySections = computed(() => {
     const q = this.titleFilter().toLowerCase().trim();
@@ -322,7 +460,7 @@ export class EmployeeProfilesComponent implements OnInit {
       firstValueFrom(this.api.getDirectorySections()).catch(() => null),
     ]);
     if (Array.isArray(apiSections) && apiSections.length > 0) {
-      const sanitized = apiSections.map(sanitizeDirectorySection);
+      const sanitized = migrateDirectorySections(apiSections.map(sanitizeDirectorySection));
       this.directorySections.set(sanitized);
       try {
         localStorage.setItem('blgf_directory_sections', JSON.stringify(sanitized));
@@ -430,6 +568,8 @@ export class EmployeeProfilesComponent implements OnInit {
     }
     if (
       section.id === 'LGU_STAFF' ||
+      section.id === 'MUNICIPAL_TREASURER' ||
+      section.id === 'PROVINCIAL_TREASURER' ||
       officeTypes.some((type) =>
         ['PROVINCIAL_TREASURER', 'MUNICIPAL_TREASURER', 'LGU'].includes(type),
       )
@@ -488,7 +628,13 @@ export class EmployeeProfilesComponent implements OnInit {
   }
 
   isSystemDefault(office: DirectorySection): boolean {
-    return ['BLGF', 'LGU_STAFF', 'OTHER_AGENCIES'].includes(office.id);
+    return [
+      'BLGF',
+      'MUNICIPAL_TREASURER',
+      'PROVINCIAL_TREASURER',
+      'LGU_STAFF',
+      'OTHER_AGENCIES',
+    ].includes(office.id);
   }
 
   sectionEmployeeCount(section: DirectorySection): number {
@@ -586,7 +732,7 @@ export class EmployeeProfilesComponent implements OnInit {
   async deleteOffice(office: DirectorySection): Promise<void> {
     if (this.isSystemDefault(office)) {
       this.ui.showError(
-        'System default directory titles (BLGF, LGU Staff, Other Agencies) are required by the system and cannot be deleted.',
+        'System default directory titles (BLGF, Municipal Treasurers, Provincial Treasurers, LGU Staff, Other Agencies) are required by the system and cannot be deleted.',
       );
       return;
     }
@@ -613,6 +759,15 @@ export class EmployeeProfilesComponent implements OnInit {
   openAddForm(): void {
     this.editingEmp.set(null);
     this.resetFormData();
+    const activeSection = this.accessibleDirectorySections().find(
+      (s) => s.id === this.activeTab(),
+    );
+    if (activeSection && activeSection.officeTypes.length > 0) {
+      this.formData.update((d) => ({
+        ...d,
+        officeType: activeSection.officeTypes[0] as any,
+      }));
+    }
     this.showForm.set(true);
   }
 
@@ -642,7 +797,7 @@ export class EmployeeProfilesComponent implements OnInit {
 
   private defaultOfficeType(): EmployeeProfile['officeType'] {
     if (this.canViewAllPersonnel() || this.canManage('DIRECTORY_BLGF_VIEW')) return 'BLGF';
-    if (this.canManage('DIRECTORY_LGU_VIEW')) return 'PROVINCIAL_TREASURER';
+    if (this.canManage('DIRECTORY_LGU_VIEW')) return 'MUNICIPAL_TREASURER';
     return 'OTHER_AGENCIES';
   }
 

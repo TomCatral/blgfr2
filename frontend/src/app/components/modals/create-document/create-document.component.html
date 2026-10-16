@@ -233,9 +233,9 @@
             <app-autocomplete-field
               [value]="senderName()"
               [suggestions]="senderNameSuggestions()"
-              (onChange)="senderName.set($event)"
+              (onChange)="onSenderNameChange($event)"
               [required]="true"
-              [placeholder]="'Name of sender or signatory'"
+              [placeholder]="direction() === 'OUTGOING' && recipientType() === 'OUTSIDE' ? 'Search BLGF employee / signatory' : 'Name of sender or signatory'"
               [ariaLabel]="'Letter From or Sender'"
               [className]="'cd-input'"
             ></app-autocomplete-field>

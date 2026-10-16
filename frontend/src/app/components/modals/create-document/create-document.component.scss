@@ -1735,6 +1735,24 @@
   width: 100%;
 }
 
+/* These outside-recipient controls already render their own input outline.
+   Keep the combobox wrapper invisible to avoid a distracting double border. */
+#outside-dept-select,
+#outside-handler-select {
+  > .cd-searchable-trigger {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+
+    &:hover,
+    &:focus-within {
+      border: 0;
+      box-shadow: none;
+    }
+  }
+}
+
 .cd-searchable-trigger {
   display: flex;
   align-items: center;
@@ -2014,4 +2032,3 @@
     }
   }
 }
-

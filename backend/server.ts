@@ -154,12 +154,37 @@ export interface DirectorySectionRecord {
   color?: string;
 }
 
+const normalizeDirectoryOfficeTypes = (types: unknown): string[] => {
+  if (Array.isArray(types)) return types.map((t) => String(t));
+  if (typeof types === 'string') {
+    try {
+      const parsed = JSON.parse(types);
+      if (Array.isArray(parsed)) return parsed.map((t) => String(t));
+    } catch {
+      return [types];
+    }
+  }
+  return [];
+};
+
 const DEFAULT_DIRECTORY_SECTIONS: DirectorySectionRecord[] = [
   { id: 'BLGF', label: 'BLGF Personnel', officeTypes: ['BLGF'], color: 'blue' },
   {
+    id: 'MUNICIPAL_TREASURER',
+    label: 'Municipal Treasurers',
+    officeTypes: ['MUNICIPAL_TREASURER'],
+    color: 'purple',
+  },
+  {
+    id: 'PROVINCIAL_TREASURER',
+    label: 'Provincial Treasurers',
+    officeTypes: ['PROVINCIAL_TREASURER'],
+    color: 'cyan',
+  },
+  {
     id: 'LGU_STAFF',
     label: 'LGU Staff',
-    officeTypes: ['PROVINCIAL_TREASURER', 'MUNICIPAL_TREASURER', 'LGU'],
+    officeTypes: ['LGU'],
     color: 'emerald',
   },
   {
@@ -169,6 +194,75 @@ const DEFAULT_DIRECTORY_SECTIONS: DirectorySectionRecord[] = [
     color: 'amber',
   },
 ];
+
+function migrateDirectorySections(sections: DirectorySectionRecord[]): DirectorySectionRecord[] {
+  if (!Array.isArray(sections) || sections.length === 0) {
+    return [...DEFAULT_DIRECTORY_SECTIONS];
+  }
+  let result = sections.map((s) => ({
+    ...s,
+    officeTypes: normalizeDirectoryOfficeTypes(s.officeTypes),
+  }));
+
+  const hasDedicatedMto = result.some(
+    (s) => s.officeTypes.length === 1 && s.officeTypes[0] === 'MUNICIPAL_TREASURER',
+  );
+
+  if (!hasDedicatedMto) {
+    result = result.map((s) => {
+      if (s.officeTypes.includes('MUNICIPAL_TREASURER')) {
+        return {
+          ...s,
+          officeTypes: s.officeTypes.filter((t) => t !== 'MUNICIPAL_TREASURER'),
+        };
+      }
+      return s;
+    });
+
+    const mtoSection: DirectorySectionRecord = {
+      id: 'MUNICIPAL_TREASURER',
+      label: 'Municipal Treasurers',
+      officeTypes: ['MUNICIPAL_TREASURER'],
+      color: 'purple',
+    };
+    const blgfIdx = result.findIndex((s) => s.id === 'BLGF');
+    if (blgfIdx >= 0) {
+      result.splice(blgfIdx + 1, 0, mtoSection);
+    } else {
+      result.unshift(mtoSection);
+    }
+  }
+
+  const hasDedicatedPto = result.some(
+    (s) => s.officeTypes.length === 1 && s.officeTypes[0] === 'PROVINCIAL_TREASURER',
+  );
+  if (!hasDedicatedPto) {
+    result = result.map((s) => {
+      if (s.officeTypes.includes('PROVINCIAL_TREASURER')) {
+        return {
+          ...s,
+          officeTypes: s.officeTypes.filter((t) => t !== 'PROVINCIAL_TREASURER'),
+        };
+      }
+      return s;
+    });
+
+    const ptoSection: DirectorySectionRecord = {
+      id: 'PROVINCIAL_TREASURER',
+      label: 'Provincial Treasurers',
+      officeTypes: ['PROVINCIAL_TREASURER'],
+      color: 'cyan',
+    };
+    const mtoIdx = result.findIndex((s) => s.id === 'MUNICIPAL_TREASURER');
+    if (mtoIdx >= 0) {
+      result.splice(mtoIdx + 1, 0, ptoSection);
+    } else {
+      result.push(ptoSection);
+    }
+  }
+
+  return result;
+}
 
 let directorySectionsState: DirectorySectionRecord[] = DEFAULT_DIRECTORY_SECTIONS;
 
@@ -416,7 +510,7 @@ function initDatabaseStorage() {
       repairInitialRouteRecipients();
       purgeRecalledRecipientRoutes();
       employeesState = data.employees || [];
-      directorySectionsState = data.directorySections || DEFAULT_DIRECTORY_SECTIONS;
+      directorySectionsState = migrateDirectorySections(data.directorySections || DEFAULT_DIRECTORY_SECTIONS);
       if (typeof data.systemSettings?.login_background_url !== 'undefined') {
         loginBackgroundUrlState = data.systemSettings.login_background_url || null;
       }
@@ -2658,6 +2752,7 @@ export async function createApp() {
     if (!directorySectionsState || directorySectionsState.length === 0) {
       directorySectionsState = [...DEFAULT_DIRECTORY_SECTIONS];
     }
+    directorySectionsState = migrateDirectorySections(directorySectionsState);
     const actingUser = getRequestUser(req);
     if (!actingUser) {
       return res.status(401).json({ error: 'Active database user required.' });

@@ -727,19 +727,27 @@
   </app-modal-layer>
 
   <!-- Add / Edit Personnel Modal -->
-  <app-modal-layer [isOpen]="showForm()" [onClose]="closeForm" maxWidth="40rem">
+  <app-modal-layer [isOpen]="showForm()" [onClose]="closeForm" maxWidth="45rem">
     <div class="ep-modal-content ep-personnel-modal-enhanced">
       <!-- Modal Header -->
       <div class="ep-modal-header ep-modal-header-enhanced">
-        <div class="ep-modal-header-text">
-          <div class="ep-modal-header-badge-row">
-            <h3 class="ep-modal-title">
-              {{ editingEmp() ? 'Edit Personnel Profile' : 'Add Personnel / Staff' }}
-            </h3>
+        <div class="ep-header-left">
+          <div class="ep-header-icon-wrap" [class.is-edit]="editingEmp()">
+            <ion-icon [name]="editingEmp() ? 'person-circle-outline' : 'person-add-outline'"></ion-icon>
           </div>
-          <p class="ep-modal-subtitle">
-            Enter the personnel details below.
-          </p>
+          <div class="ep-modal-header-text">
+            <div class="ep-modal-header-badge-row">
+              <h3 class="ep-modal-title">
+                {{ editingEmp() ? 'Edit Personnel Profile' : 'Add Personnel / Staff' }}
+              </h3>
+              <span class="ep-status-pill" [class.is-edit]="editingEmp()">
+                {{ editingEmp() ? 'Editing Profile' : 'New Personnel Record' }}
+              </span>
+            </div>
+            <p class="ep-modal-subtitle">
+              {{ editingEmp() ? 'Update official position, office designation, and contact coordinates.' : 'Enter the official information below to register a new personnel in the directory.' }}
+            </p>
+          </div>
         </div>
         <ion-button
           type="button"
@@ -756,8 +764,12 @@
         <!-- Card 1: Official Identity & Role -->
         <section class="ep-form-section-card">
           <header class="ep-section-header">
-            <div>
-              <h4 class="ep-section-title">Personnel Information</h4>
+            <div class="ep-section-icon-badge is-blue">
+              <ion-icon name="person-outline"></ion-icon>
+            </div>
+            <div class="ep-section-header-titles">
+              <h4 class="ep-section-title">Official Identity & Classification</h4>
+              <p class="ep-section-desc">Employee full name, official title, and directory category</p>
             </div>
           </header>
 
@@ -786,7 +798,7 @@
               <div class="ep-input-wrapper">
                 <ion-input
                   type="text"
-                  placeholder="e.g. Local Treasury Operations Officer IV"
+                  placeholder="e.g. Municipal Treasurer / Administrative Officer V"
                   [ngModel]="formData().position || ''"
                   (ngModelChange)="setForm('position', $event)"
                   class="ep-modal-input ep-input-field"
@@ -794,7 +806,7 @@
               </div>
             </div>
 
-            <!-- Office Category -->
+            <!-- Office Category (Dynamically pulled from Office Directory) -->
             <div class="ep-field-group">
               <label class="ep-form-label">
                 Office Category <span class="ep-req">*</span>
@@ -805,20 +817,10 @@
                   [ngModel]="formData().officeType || 'BLGF'"
                   (ngModelChange)="setForm('officeType', $event)"
                   class="ep-modal-select ep-select-field"
+                  aria-label="Select Office Category"
                 >
-                  @if (canManage('DIRECTORY_BLGF_VIEW') || canViewAllPersonnel()) {
-                    <ion-select-option value="BLGF">BLGF Personnel (Confidential)</ion-select-option>
-                  }
-                  @if (canManage('DIRECTORY_LGU_VIEW') || canViewAllPersonnel()) {
-                    <ion-select-option value="PROVINCIAL_TREASURER">Provincial Treasurer</ion-select-option>
-                    <ion-select-option value="MUNICIPAL_TREASURER">Municipal Treasurer</ion-select-option>
-                    <ion-select-option value="LGU">LGU Staff</ion-select-option>
-                  }
-                  @if (canManage('DIRECTORY_OTHER_VIEW') || canViewAllPersonnel()) {
-                    <ion-select-option value="OTHER_AGENCIES">Other Agencies</ion-select-option>
-                  }
-                  @for (section of customSections(); track section.id) {
-                    <ion-select-option [value]="section.officeTypes[0]">{{ section.label }}</ion-select-option>
+                  @for (cat of availableOfficeCategories(); track cat.value) {
+                    <ion-select-option [value]="cat.value">{{ cat.label }}</ion-select-option>
                   }
                 </ion-select>
               </div>
@@ -829,8 +831,12 @@
         <!-- Card 2: Assigned Office & Station Location -->
         <section class="ep-form-section-card">
           <header class="ep-section-header">
-            <div>
-              <h4 class="ep-section-title">Office Assignment</h4>
+            <div class="ep-section-icon-badge is-purple">
+              <ion-icon name="business-outline"></ion-icon>
+            </div>
+            <div class="ep-section-header-titles">
+              <h4 class="ep-section-title">Office & Station Assignment</h4>
+              <p class="ep-section-desc">Department, municipal or provincial office, and physical address</p>
             </div>
           </header>
 
@@ -846,7 +852,7 @@
                   [ngModel]="formData().office || ''"
                   (ngModelChange)="setForm('office', $event)"
                   (keydown)="stopPropagation($event)"
-                  placeholder="e.g. Bureau of Local Government Finance&#10;Local Treasury Operations Division"
+                  placeholder="e.g. Office of the Municipal Treasurer, LGU Ilagan, Isabela"
                   class="ep-modal-textarea ep-textarea-field"
                 ></textarea>
               </div>
@@ -861,7 +867,7 @@
                   [ngModel]="formData().address || ''"
                   (ngModelChange)="setForm('address', $event)"
                   (keydown)="stopPropagation($event)"
-                  placeholder="e.g. Regional Government Center, Carig Sur, Tuguegarao City, Cagayan"
+                  placeholder="e.g. Municipal Hall, City of Ilagan, Isabela"
                   class="ep-modal-textarea ep-textarea-field"
                 ></textarea>
               </div>
@@ -872,8 +878,12 @@
         <!-- Card 3: Contact & Communication Coordinates -->
         <section class="ep-form-section-card">
           <header class="ep-section-header">
-            <div>
-              <h4 class="ep-section-title">Contact Information</h4>
+            <div class="ep-section-icon-badge is-emerald">
+              <ion-icon name="call-outline"></ion-icon>
+            </div>
+            <div class="ep-section-header-titles">
+              <h4 class="ep-section-title">Contact & Communication</h4>
+              <p class="ep-section-desc">Official email address and contact telephone / mobile number</p>
             </div>
           </header>
 
@@ -884,7 +894,7 @@
               <div class="ep-input-wrapper">
                 <ion-input
                   type="email"
-                  placeholder="e.g. juan.delacruz@blgf.gov.ph"
+                  placeholder="e.g. municipal.treasurer@lgu.gov.ph"
                   [ngModel]="formData().email || ''"
                   (ngModelChange)="setForm('email', $event)"
                   class="ep-modal-input ep-input-field"
@@ -907,28 +917,32 @@
             </div>
           </div>
         </section>
-
       </div>
 
-        <!-- Modal Footer -->
-        <div class="ep-modal-footer ep-modal-footer-enhanced">
-          <div class="ep-footer-actions">
-            <ion-button
-              type="button"
-              (click)="closeForm()"
-              class="ep-btn-cancel-enhanced"
-            >
-              Cancel
-            </ion-button>
-            <ion-button
-              type="button"
-              (click)="handleSave()"
-              class="ep-btn-primary-enhanced"
-            >
-              <span>{{ editingEmp() ? 'Update' : 'Save' }}</span>
-            </ion-button>
-          </div>
+      <!-- Modal Footer -->
+      <div class="ep-modal-footer ep-modal-footer-enhanced">
+        <div class="ep-footer-note">
+          <ion-icon name="information-circle-outline"></ion-icon>
+          <span>Fields with (<span class="ep-req">*</span>) are required for directory listings</span>
         </div>
+        <div class="ep-footer-actions">
+          <ion-button
+            type="button"
+            (click)="closeForm()"
+            class="ep-btn-cancel-enhanced"
+          >
+            Cancel
+          </ion-button>
+          <ion-button
+            type="button"
+            (click)="handleSave()"
+            class="ep-btn-primary-enhanced"
+          >
+            <ion-icon [name]="editingEmp() ? 'checkmark-circle-outline' : 'save-outline'"></ion-icon>
+            <span>{{ editingEmp() ? 'Update Profile' : 'Save Personnel' }}</span>
+          </ion-button>
+        </div>
+      </div>
     </div>
   </app-modal-layer>
 

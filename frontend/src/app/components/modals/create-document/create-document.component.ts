@@ -141,6 +141,8 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
   submitting = signal(false);
 
   directoryProfiles = signal<EmployeeProfile[]>([]);
+  blgfSenderProfiles = signal<EmployeeProfile[]>([]);
+  selectedBlgfSenderId = signal<string>('');
   selectedDirectoryProfileId = signal<string>('');
   validationErrors = signal<string[]>([]);
   routeAssignmentWarning = signal<string>('');
@@ -719,14 +721,80 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
   private loadDirectoryProfiles(): void {
     firstValueFrom(this.api.getEmployees())
       .then((employees) => {
+        const activeEmployees = (employees || []).filter(
+          (employee) => employee.active !== false,
+        );
+        this.blgfSenderProfiles.set(
+          activeEmployees.filter(
+            (employee) =>
+              employee.officeType === 'BLGF' ||
+              /bureau of local government finance|\bblgf\b/i.test(employee.office || ''),
+          ),
+        );
         const nonBlgf = (employees || []).filter(
           (employee) =>
             employee.active !== false &&
             employee.officeType !== 'BLGF',
         );
         this.directoryProfiles.set(nonBlgf);
+        if (this.direction() === 'OUTGOING' && this.recipientType() === 'OUTSIDE') {
+          this.populateOutsideBlgfDirector();
+        }
       })
       .catch(() => {});
+  }
+
+  onSenderNameChange(name: string): void {
+    const previouslyAutoFilled = Boolean(this.selectedBlgfSenderId());
+    this.senderName.set(name);
+    if (this.direction() !== 'OUTGOING' || this.recipientType() !== 'OUTSIDE') {
+      this.selectedBlgfSenderId.set('');
+      return;
+    }
+    const normalized = this.normalizeRecipientName(name);
+    const profile = this.blgfSenderProfiles().find(
+      (employee) => this.normalizeRecipientName(employee.fullName || '') === normalized,
+    );
+    if (profile) {
+      this.populateSenderFromProfile(profile);
+    } else if (previouslyAutoFilled) {
+      this.selectedBlgfSenderId.set('');
+      this.senderPosition.set('');
+      this.originatingOffice.set('');
+      this.senderAddress.set('');
+    }
+  }
+
+  private populateOutsideBlgfDirector(): void {
+    if (this.senderName().trim()) return;
+    const profiles = this.blgfSenderProfiles();
+    const director =
+      profiles.find((employee) =>
+        /julaida(?:\s+t\.)?\s+caddawan-pancho/i.test(employee.fullName || ''),
+      ) ||
+      profiles.find(
+        (employee) =>
+          employee.officeType === 'BLGF' &&
+          /regional\s+(executive\s+)?director|director.*regional/i.test(employee.position || ''),
+      );
+    if (director) this.populateSenderFromProfile(director);
+  }
+
+  private populateSenderFromProfile(profile: EmployeeProfile): void {
+    this.selectedBlgfSenderId.set(profile.id);
+    this.senderName.set(profile.fullName || '');
+    this.senderPosition.set(profile.position || '');
+    this.originatingOffice.set(profile.office || 'Bureau of Local Government Finance Regional Office II');
+    this.senderAddress.set(profile.address || '');
+  }
+
+  private clearAutoFilledBlgfSender(): void {
+    if (!this.selectedBlgfSenderId()) return;
+    this.selectedBlgfSenderId.set('');
+    this.senderName.set('');
+    this.senderPosition.set('');
+    this.originatingOffice.set('');
+    this.senderAddress.set('');
   }
 
   clearValidationErrors(): void {
@@ -774,12 +842,14 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     if (dir === 'OUTGOING') {
       this.recipientType.set('OUTSIDE');
       this.priority.set('ROUTINE');
+      this.populateOutsideBlgfDirector();
       const recipients = this.outsideDepartmentRecipients();
       if (recipients.length > 0) {
         this.populateFieldsFromRecipient(recipients[0]);
       }
     } else {
       this.recipientType.set('INTERNAL');
+      this.clearAutoFilledBlgfSender();
     }
 
     this.validationErrors.set([]);
@@ -791,12 +861,15 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     this.resetRecipientAssignment();
     this.recipientType.set(type);
 
-    if (type === 'OUTSIDE') {
+    if (type === 'OUTSIDE' && this.direction() === 'OUTGOING') {
       this.priority.set('ROUTINE');
+      this.populateOutsideBlgfDirector();
       const recipients = this.outsideDepartmentRecipients();
       if (recipients.length > 0) {
         this.populateFieldsFromRecipient(recipients[0]);
       }
+    } else {
+      this.clearAutoFilledBlgfSender();
     }
 
     this.validationErrors.set([]);
@@ -845,6 +918,7 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     this.subject.set('');
     this.category.set(this.categoryOptions()[0]?.value || 'Treasury Circular');
     this.senderName.set('');
+    this.selectedBlgfSenderId.set('');
     this.senderPosition.set('');
     this.originatingOffice.set('');
     this.senderAddress.set('');
@@ -873,6 +947,10 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     this.customOutsideRecipients.set([]);
     this.validationErrors.set([]);
     this.loadEmployees();
+    // Refresh the directory every time the modal opens so newly added BLGF
+    // employees are immediately searchable and the current Regional Director
+    // can be auto-filled without restarting the application.
+    this.loadDirectoryProfiles();
     this.fetchServerRouteNo();
   }
 
@@ -996,9 +1074,14 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
   subjectSuggestions = computed(() =>
     this.existingDocuments.map((doc) => doc.subject),
   );
-  senderNameSuggestions = computed(() =>
-    this.existingDocuments.map((doc) => doc.senderName),
-  );
+  senderNameSuggestions = computed(() => [
+    ...new Set([
+      ...(this.direction() === 'OUTGOING' && this.recipientType() === 'OUTSIDE'
+        ? this.blgfSenderProfiles().map((profile) => profile.fullName)
+        : []),
+      ...this.existingDocuments.map((doc) => doc.senderName),
+    ].map((name) => (name || '').trim()).filter(Boolean)),
+  ]);
   senderPositionSuggestions = computed(() =>
     this.existingDocuments.map((doc) => doc.senderPosition || ''),
   );
