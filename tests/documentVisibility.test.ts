@@ -32,15 +32,17 @@ test('uninvolved user cannot track the document', () => {
   assert.equal(isDocumentParticipant(routed, user), false);
 });
 
-test('SYSTEM_ADMIN and ORD can track all documents without participating', () => {
+test('SYSTEM_ADMIN, ITMS, and ORD can track all documents without participating', () => {
   const routed = {
     ...document,
     routes: [{ fromUserId: 'sender', toUserId: 'recipient' }],
   } as DocumentRecord;
   const sysAdmin = { id: 'admin-1', role: 'SYSTEM_ADMIN' } as User;
+  const itmsUser = { id: 'itms-1', role: 'STAFF', divisionCode: 'ITMS' } as User;
   const ordUser = { id: 'ord-1', role: 'ORD' } as User;
   const privileged = { id: 'staff-1', role: 'STAFF', permissions: { canViewAllDocuments: true } } as unknown as User;
   assert.equal(isDocumentParticipant(routed, sysAdmin), true);
+  assert.equal(isDocumentParticipant(routed, itmsUser), true);
   assert.equal(isDocumentParticipant(routed, ordUser), true);
   assert.equal(isDocumentParticipant(routed, privileged), true);
 });

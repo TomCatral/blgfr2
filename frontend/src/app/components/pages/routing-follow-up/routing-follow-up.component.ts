@@ -70,6 +70,7 @@ export class RoutingFollowUpComponent implements DoCheck {
   get canSendReminder(): boolean {
     return (
       this.currentUser.role === 'SYSTEM_ADMIN' ||
+      this.currentUser.divisionCode === 'ITMS' ||
       (this.permissions.allowedActions || []).includes('ROUTING_REMINDER_SEND')
     );
   }

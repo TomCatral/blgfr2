@@ -1285,6 +1285,7 @@ var DEFAULT_ROLE_PERMISSIONS = {
     canDelete: true,
     canViewAllDocuments: true,
     canViewAllRoutes: true,
+    canViewConfidentialSteps: true,
     allowedActions: [
       "EMPLOYEE_CREATE",
       "EMPLOYEE_EDIT",
@@ -1316,7 +1317,9 @@ var DEFAULT_ROLE_PERMISSIONS = {
       "users",
       "settings",
       "qr",
-      "employees"
+      "employees",
+      "slip",
+      "routing-followup"
     ]
   },
   ADMIN: {
@@ -1325,6 +1328,7 @@ var DEFAULT_ROLE_PERMISSIONS = {
     canDelete: false,
     canViewAllDocuments: false,
     canViewAllRoutes: false,
+    canViewConfidentialSteps: false,
     allowedActions: [],
     allowedViews: [
       "dashboard",
@@ -1344,6 +1348,7 @@ var DEFAULT_ROLE_PERMISSIONS = {
     canDelete: false,
     canViewAllDocuments: true,
     canViewAllRoutes: true,
+    canViewConfidentialSteps: true,
     allowedActions: [
       "EMPLOYEE_CREATE",
       "EMPLOYEE_EDIT",
@@ -1375,6 +1380,7 @@ var DEFAULT_ROLE_PERMISSIONS = {
     canDelete: false,
     canViewAllDocuments: false,
     canViewAllRoutes: false,
+    canViewConfidentialSteps: false,
     allowedActions: [
       "ROUTING_MONITOR_VIEW",
       "ROUTING_REMINDER_SEND",
@@ -1408,6 +1414,7 @@ var DEFAULT_ROLE_PERMISSIONS = {
     canDelete: false,
     canViewAllDocuments: false,
     canViewAllRoutes: false,
+    canViewConfidentialSteps: false,
     allowedActions: [
       "ROUTING_MONITOR_VIEW",
       "ROUTING_REMINDER_SEND",
@@ -1436,6 +1443,7 @@ var DEFAULT_ROLE_PERMISSIONS = {
     canDelete: false,
     canViewAllDocuments: false,
     canViewAllRoutes: false,
+    canViewConfidentialSteps: false,
     allowedActions: ["DIRECTORY_LGU_VIEW", "DIRECTORY_OTHER_VIEW"],
     allowedViews: [
       "dashboard",
@@ -1458,6 +1466,7 @@ var DEFAULT_ROLE_PERMISSIONS = {
     canDelete: false,
     canViewAllDocuments: false,
     canViewAllRoutes: false,
+    canViewConfidentialSteps: false,
     allowedActions: ["DIRECTORY_LGU_VIEW", "DIRECTORY_OTHER_VIEW"],
     allowedViews: [
       "dashboard",
@@ -2001,7 +2010,7 @@ var auditNamesRecipient = (details, fullName) => {
 };
 var isDocumentParticipant = (document, user, auditLogs = []) => {
   if (!user || !document) return false;
-  if (user.role === "SYSTEM_ADMIN" || user.role === "ORD" || user.permissions?.canViewAllDocuments) {
+  if (user.role === "SYSTEM_ADMIN" || user.divisionCode === "ITMS" || user.role === "ORD" || user.permissions?.canViewAllDocuments) {
     return true;
   }
   if (matchesParticipant(user, document.createdByUserId, document.createdBy) || matchesParticipant(user, void 0, document.senderName)) {
@@ -2123,7 +2132,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       console.error("[healStaleReturnedStatus] MySQL write failed:", error);
     });
   };
-  const canViewDocument = (user, document) => user.role === "SYSTEM_ADMIN" || user.role === "ORD" || Boolean(user.permissions?.canViewAllDocuments) || isDocumentParticipant(document, user, getAuditLogsState());
+  const canViewDocument = (user, document) => user.role === "SYSTEM_ADMIN" || user.divisionCode === "ITMS" || user.role === "ORD" || Boolean(user.permissions?.canViewAllDocuments) || isDocumentParticipant(document, user, getAuditLogsState());
   const getPendingDecisionRoute = (user, document) => [...document.routes || []].reverse().find((assignedRoute) => {
     if (["APPROVED", "DISAPPROVED"].includes(assignedRoute.actionRequested.toUpperCase())) return false;
     const assignedToUser = assignedRoute.toUserId === user.id || !assignedRoute.toUserId && assignedRoute.toUser?.trim().toLowerCase() === user.fullName.trim().toLowerCase();
@@ -2576,11 +2585,11 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       fromDivision: actingUser.divisionCode,
       fromUserId: actingUser.id,
       fromUser: actingUser.fullName,
-      toDivision: decision === "DISAPPROVED" && sender ? sender.divisionCode : actingUser.divisionCode,
+      toDivision: sender ? sender.divisionCode : actingUser.divisionCode,
       toUser: sender?.fullName,
       toUserId: sender?.id,
       actionRequested: decision,
-      remarks: remarks || "Approved; proceed with routing.",
+      remarks: remarks || (decision === "APPROVED" ? "Approved; proceed with routing." : "Disapproved."),
       statusBefore: doc.currentStatus,
       statusAfter: decision === "DISAPPROVED" ? "RETURNED" : "IN_PROGRESS",
       receivedAt: now,
@@ -2589,11 +2598,11 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     doc.routes.push(decisionRoute);
     doc.currentStatus = decisionRoute.statusAfter;
     doc.updatedAt = now;
-    if (decision === "DISAPPROVED" && sender) {
+    if (sender) {
       doc.currentDivision = sender.divisionCode;
       doc.assignedUser = sender.fullName;
       doc.assignedUserId = sender.id;
-    } else if (decision === "APPROVED") {
+    } else {
       doc.currentDivision = actingUser.divisionCode;
       doc.assignedUser = actingUser.fullName;
       doc.assignedUserId = actingUser.id;
@@ -3708,12 +3717,36 @@ var notificationsState = [];
 var employeesState = [];
 var LOGIN_BACKGROUND_KEY = "login_background_url";
 var loginBackgroundUrlState = null;
+var normalizeDirectoryOfficeTypes = (types) => {
+  if (Array.isArray(types)) return types.map((t) => String(t));
+  if (typeof types === "string") {
+    try {
+      const parsed = JSON.parse(types);
+      if (Array.isArray(parsed)) return parsed.map((t) => String(t));
+    } catch {
+      return [types];
+    }
+  }
+  return [];
+};
 var DEFAULT_DIRECTORY_SECTIONS = [
   { id: "BLGF", label: "BLGF Personnel", officeTypes: ["BLGF"], color: "blue" },
   {
+    id: "MUNICIPAL_TREASURER",
+    label: "Municipal Treasurers",
+    officeTypes: ["MUNICIPAL_TREASURER"],
+    color: "purple"
+  },
+  {
+    id: "PROVINCIAL_TREASURER",
+    label: "Provincial Treasurers",
+    officeTypes: ["PROVINCIAL_TREASURER"],
+    color: "cyan"
+  },
+  {
     id: "LGU_STAFF",
     label: "LGU Staff",
-    officeTypes: ["PROVINCIAL_TREASURER", "MUNICIPAL_TREASURER", "LGU"],
+    officeTypes: ["LGU"],
     color: "emerald"
   },
   {
@@ -3723,6 +3756,68 @@ var DEFAULT_DIRECTORY_SECTIONS = [
     color: "amber"
   }
 ];
+function migrateDirectorySections(sections) {
+  if (!Array.isArray(sections) || sections.length === 0) {
+    return [...DEFAULT_DIRECTORY_SECTIONS];
+  }
+  let result = sections.map((s) => ({
+    ...s,
+    officeTypes: normalizeDirectoryOfficeTypes(s.officeTypes)
+  }));
+  const hasDedicatedMto = result.some(
+    (s) => s.officeTypes.length === 1 && s.officeTypes[0] === "MUNICIPAL_TREASURER"
+  );
+  if (!hasDedicatedMto) {
+    result = result.map((s) => {
+      if (s.officeTypes.includes("MUNICIPAL_TREASURER")) {
+        return {
+          ...s,
+          officeTypes: s.officeTypes.filter((t) => t !== "MUNICIPAL_TREASURER")
+        };
+      }
+      return s;
+    });
+    const mtoSection = {
+      id: "MUNICIPAL_TREASURER",
+      label: "Municipal Treasurers",
+      officeTypes: ["MUNICIPAL_TREASURER"],
+      color: "purple"
+    };
+    const blgfIdx = result.findIndex((s) => s.id === "BLGF");
+    if (blgfIdx >= 0) {
+      result.splice(blgfIdx + 1, 0, mtoSection);
+    } else {
+      result.unshift(mtoSection);
+    }
+  }
+  const hasDedicatedPto = result.some(
+    (s) => s.officeTypes.length === 1 && s.officeTypes[0] === "PROVINCIAL_TREASURER"
+  );
+  if (!hasDedicatedPto) {
+    result = result.map((s) => {
+      if (s.officeTypes.includes("PROVINCIAL_TREASURER")) {
+        return {
+          ...s,
+          officeTypes: s.officeTypes.filter((t) => t !== "PROVINCIAL_TREASURER")
+        };
+      }
+      return s;
+    });
+    const ptoSection = {
+      id: "PROVINCIAL_TREASURER",
+      label: "Provincial Treasurers",
+      officeTypes: ["PROVINCIAL_TREASURER"],
+      color: "cyan"
+    };
+    const mtoIdx = result.findIndex((s) => s.id === "MUNICIPAL_TREASURER");
+    if (mtoIdx >= 0) {
+      result.splice(mtoIdx + 1, 0, ptoSection);
+    } else {
+      result.push(ptoSection);
+    }
+  }
+  return result;
+}
 var directorySectionsState = DEFAULT_DIRECTORY_SECTIONS;
 var RESERVED_SYSTEM_ADMIN = {
   id: "USR-0008",
@@ -3846,8 +3941,8 @@ var storageUpload = multer({
   limits: { fileSize: 1024 * 1024 * 1024 }
 });
 function sanitizeUserPermissionsOnLoad(user) {
-  if (user.role === "SYSTEM_ADMIN") {
-    return { ...user, divisionCode: "ITMS" };
+  if (user.role === "SYSTEM_ADMIN" || user.divisionCode === "ITMS") {
+    return { ...user, role: "SYSTEM_ADMIN", divisionCode: "ITMS" };
   }
   const adminActions = [
     "USER_ACCOUNT_CREATE",
@@ -3927,7 +4022,7 @@ function initDatabaseStorage() {
       repairInitialRouteRecipients();
       purgeRecalledRecipientRoutes();
       employeesState = data.employees || [];
-      directorySectionsState = data.directorySections || DEFAULT_DIRECTORY_SECTIONS;
+      directorySectionsState = migrateDirectorySections(data.directorySections || DEFAULT_DIRECTORY_SECTIONS);
       if (typeof data.systemSettings?.login_background_url !== "undefined") {
         loginBackgroundUrlState = data.systemSettings.login_background_url || null;
       }
@@ -4401,7 +4496,7 @@ async function createApp() {
   });
   app.put("/api/settings/login-background", async (req, res) => {
     const actingUser = getRequestUser(req);
-    if (!actingUser || actingUser.role !== "SYSTEM_ADMIN") {
+    if (!actingUser || actingUser.role !== "SYSTEM_ADMIN" && actingUser.divisionCode !== "ITMS") {
       return res.status(403).json({ error: "SYSTEM_ADMIN access required." });
     }
     const rawUrl = typeof req.body?.url === "string" ? req.body.url.trim() : "";
@@ -5624,6 +5719,7 @@ async function createApp() {
     if (!directorySectionsState || directorySectionsState.length === 0) {
       directorySectionsState = [...DEFAULT_DIRECTORY_SECTIONS];
     }
+    directorySectionsState = migrateDirectorySections(directorySectionsState);
     const actingUser = getRequestUser(req);
     if (!actingUser) {
       return res.status(401).json({ error: "Active database user required." });

@@ -214,8 +214,14 @@ export class DocumentListComponent implements OnInit {
       this.currentUser.permissions ||
       DEFAULT_ROLE_PERMISSIONS[this.currentUser.role] ||
       DEFAULT_ROLE_PERMISSIONS.STAFF;
-    this.canAccessSlip = (this.perms.allowedViews || []).includes('slip');
-    this.canDeleteDoc = this.currentUser.role === 'SYSTEM_ADMIN' || Boolean(this.perms.canDelete);
+    this.canAccessSlip =
+      this.currentUser.role === 'SYSTEM_ADMIN' ||
+      this.currentUser.divisionCode === 'ITMS' ||
+      (this.perms.allowedViews || []).includes('slip');
+    this.canDeleteDoc =
+      this.currentUser.role === 'SYSTEM_ADMIN' ||
+      this.currentUser.divisionCode === 'ITMS' ||
+      Boolean(this.perms.canDelete);
   }
 
   setDirection(dir: DocumentDirection | 'ALL'): void {

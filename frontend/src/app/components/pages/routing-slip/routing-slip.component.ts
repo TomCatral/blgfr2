@@ -204,7 +204,11 @@ export class RoutingSlipComponent implements OnInit, OnChanges {
   });
   specialInstructionsText = signal('');
   isCustomizeOpen = signal(false);
-  canCustomizeSlip = computed(() => this.currentUser?.role === 'SYSTEM_ADMIN');
+  canCustomizeSlip = computed(
+    () =>
+      this.currentUser?.role === 'SYSTEM_ADMIN' ||
+      this.currentUser?.divisionCode === 'ITMS',
+  );
   signatoryFormats = signal<Array<{ id: string; name: string; signatoryName: string; position: string }>>([]);
   selectedSignatoryFormat = signal('regional-director');
   newSignatoryFormatName = signal('');
@@ -376,6 +380,7 @@ export class RoutingSlipComponent implements OnInit, OnChanges {
     if (!doc) return [];
     const isOriginalDispatcher =
       this.currentUser.role === 'SYSTEM_ADMIN' ||
+      this.currentUser.divisionCode === 'ITMS' ||
       this.currentUser.role === 'ORD' ||
       doc.createdByUserId === this.currentUser.id ||
       (Boolean(doc.createdBy) && doc.createdBy.trim().toLowerCase() === this.currentUser.fullName.trim().toLowerCase()) ||

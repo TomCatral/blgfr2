@@ -414,8 +414,8 @@ const storageUpload = multer({
 });
 
 function sanitizeUserPermissionsOnLoad(user: User): User {
-  if (user.role === 'SYSTEM_ADMIN') {
-    return { ...user, divisionCode: 'ITMS' as const };
+  if (user.role === 'SYSTEM_ADMIN' || user.divisionCode === 'ITMS') {
+    return { ...user, role: 'SYSTEM_ADMIN', divisionCode: 'ITMS' as const };
   }
   const adminActions = [
     'USER_ACCOUNT_CREATE',
@@ -1100,7 +1100,7 @@ export async function createApp() {
 
   app.put('/api/settings/login-background', async (req, res) => {
     const actingUser = getRequestUser(req);
-    if (!actingUser || actingUser.role !== 'SYSTEM_ADMIN') {
+    if (!actingUser || (actingUser.role !== 'SYSTEM_ADMIN' && actingUser.divisionCode !== 'ITMS')) {
       return res.status(403).json({ error: 'SYSTEM_ADMIN access required.' });
     }
     const rawUrl = typeof req.body?.url === 'string' ? req.body.url.trim() : '';

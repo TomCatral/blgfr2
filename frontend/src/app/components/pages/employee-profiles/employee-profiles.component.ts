@@ -468,10 +468,11 @@ export class EmployeeProfilesComponent implements OnInit {
         localStorage.setItem('blgf_directory_sections', JSON.stringify(sanitized));
       } catch {}
     }
-    const loadedUsers = this.currentUser.role === 'SYSTEM_ADMIN'
+    const isSysAdmin = this.currentUser.role === 'SYSTEM_ADMIN' || this.currentUser.divisionCode === 'ITMS';
+    const loadedUsers = isSysAdmin
       ? await firstValueFrom(this.api.getUsers()).catch(() => [] as User[])
       : ([] as User[]);
-    const accountUsers = this.currentUser.role === 'SYSTEM_ADMIN' ? loadedUsers : [this.currentUser];
+    const accountUsers = isSysAdmin ? loadedUsers : [this.currentUser];
     const mergedEmployees = [...loadedEmployees];
     for (const user of accountUsers) {
       if (!mergedEmployees.some((employee) => employee.userId === user.id)) {
@@ -484,7 +485,7 @@ export class EmployeeProfilesComponent implements OnInit {
         this.profileFromUser(user),
     );
     const manualEmployees = mergedEmployees.filter((employee) => !employee.userId);
-    const accessibleEmployees = this.currentUser.role === 'SYSTEM_ADMIN'
+    const accessibleEmployees = isSysAdmin
       ? [...linkedEmployees, ...manualEmployees]
       : mergedEmployees;
     this.employees.set(accessibleEmployees);
@@ -554,12 +555,12 @@ export class EmployeeProfilesComponent implements OnInit {
   }
 
   canViewAllPersonnel(): boolean {
-    if (this.currentUser.role === 'SYSTEM_ADMIN') return true;
+    if (this.currentUser.role === 'SYSTEM_ADMIN' || this.currentUser.divisionCode === 'ITMS') return true;
     return this.canManage('DIRECTORY_BLGF_VIEW');
   }
 
   canViewDirectorySection(section: DirectorySection): boolean {
-    if (this.currentUser.role === 'SYSTEM_ADMIN') return true;
+    if (this.currentUser.role === 'SYSTEM_ADMIN' || this.currentUser.divisionCode === 'ITMS') return true;
     const views = (this.currentUser.permissions || DEFAULT_ROLE_PERMISSIONS[this.currentUser.role])?.allowedViews || [];
     const hasDirectoryView = views.includes('employees') || Boolean(this.currentUser.permissions?.mainMenu);
     if (hasDirectoryView) return true;
@@ -582,7 +583,7 @@ export class EmployeeProfilesComponent implements OnInit {
   }
 
   canManage(action: string): boolean {
-    if (this.currentUser.role === 'SYSTEM_ADMIN') return true;
+    if (this.currentUser.role === 'SYSTEM_ADMIN' || this.currentUser.divisionCode === 'ITMS') return true;
     const perm = this.currentUser.permissions || DEFAULT_ROLE_PERMISSIONS[this.currentUser.role];
     if (action === 'EMPLOYEE_DELETE' && perm?.canDelete) return true;
     return perm.allowedActions?.includes(action) ?? false;

@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-16T10:07:12.940Z",
+  "updatedAt": "2026-10-16T10:47:20.604Z",
   "divisions": [
     {
       "id": "DIV-0001",
@@ -482,6 +482,69 @@
   ],
   "documents": [
     {
+      "id": "DOC-0005",
+      "trackingNumber": "BLGFR2-2026-10-IN-02",
+      "routeNo": "BLGFR2-2026-10-IN-02",
+      "direction": "INCOMING",
+      "title": "BLGF Memorandum Circular No. 008-2025 dated 20 February 2025",
+      "subject": "Extension of Deadline for the Submission of the Q4 FY2024 Statement of Receipts and Expenditures in the LIFT System",
+      "category": "Treasury Circular",
+      "originatingOffice": "Bureau of Local Government Finance - Central Office",
+      "destinationOffice": "BLGF Regional Office II",
+      "senderName": "Melcy M. Baluyan",
+      "senderPosition": "Executive Director",
+      "senderAddress": "Manila City",
+      "recipientName": "",
+      "recipientPosition": "",
+      "recipientOffice": "BLGF Regional Office II",
+      "recipientAddress": "",
+      "priority": "ROUTINE",
+      "currentStatus": "PENDING",
+      "currentDivision": "AD",
+      "assignedUser": "",
+      "dateReceived": "2026-10-16T10:25:02.322Z",
+      "targetCompletionDate": "2026-10-19T10:25:02.320Z",
+      "tags": [],
+      "attachments": [
+        {
+          "id": "ATT-0005",
+          "fileName": "BLGF-MC-No.-008.2025-Extension-of-Deadline-for-the-Submission-of-the-Q4-FY2024-Statement-of-Receipts-and-Expenditures-in-the-LIFT-System.pdf",
+          "fileSize": "0.74 MB",
+          "fileType": "application/pdf",
+          "uploadDate": "2026-10-16T10:24:54.121Z",
+          "url": "/api/storage/files/documentAttachments/1792146294072_BLGF-MC-No.-008.2025-Extension-of-Deadline-for-the-Submission-of-the-Q4-FY2024-Statement-of-Receipts-and-Expenditures-in-the-LIFT-System.pdf",
+          "attachmentScope": "DOCUMENT",
+          "uploadedByUserId": "USR-0002"
+        }
+      ],
+      "actionRequested": "Appropriate Action",
+      "routes": [
+        {
+          "id": "RTE-0020",
+          "documentId": "DOC-0005",
+          "stepNumber": 1,
+          "routeNo": "BLGFR2-2026-10-IN-02",
+          "fromDivision": "AD",
+          "fromUserId": "USR-0002",
+          "fromUser": "Jay ann M. Mangoba",
+          "toDivision": "FD",
+          "toUser": "Dominick Catral",
+          "toUserId": "USR-0005",
+          "actionRequested": "Appropriate Action",
+          "remarks": "For review",
+          "statusBefore": "PENDING",
+          "statusAfter": "PENDING",
+          "isMultiRoute": false,
+          "receivedAt": "2026-10-16T10:25:02.322Z",
+          "createdAt": "2026-10-16T10:25:02.322Z"
+        }
+      ],
+      "createdBy": "Jay ann M. Mangoba",
+      "createdByUserId": "USR-0002",
+      "createdAt": "2026-10-16T10:25:02.322Z",
+      "updatedAt": "2026-10-16T10:25:02.322Z"
+    },
+    {
       "id": "DOC-0004",
       "trackingNumber": "BLGFR2-2026-10-OUT-03",
       "routeNo": "BLGFR2-2026-10-OUT-03",
@@ -500,9 +563,9 @@
       "recipientAddress": "",
       "priority": "ROUTINE",
       "currentStatus": "IN_PROGRESS",
-      "currentDivision": "FD",
-      "assignedUser": "Dominick Catral",
-      "assignedUserId": "USR-0005",
+      "currentDivision": "AD",
+      "assignedUser": "Albert Sunchez",
+      "assignedUserId": "USR-0006",
       "dateReceived": "2026-10-16T09:25:11.910Z",
       "targetCompletionDate": "2026-10-19T09:25:11.908Z",
       "tags": [],
@@ -665,12 +728,30 @@
           "statusAfter": "IN_PROGRESS",
           "receivedAt": "2026-10-16T09:45:30.268Z",
           "createdAt": "2026-10-16T09:45:30.268Z"
+        },
+        {
+          "id": "RTE-0021",
+          "documentId": "DOC-0004",
+          "stepNumber": 8,
+          "routeNo": "BLGFR2-2026-10-OUT-03",
+          "fromDivision": "FD",
+          "fromUserId": "USR-0009",
+          "fromUser": "Robert Bermudez",
+          "toDivision": "AD",
+          "toUser": "Albert Sunchez",
+          "toUserId": "USR-0006",
+          "actionRequested": "Appropriate Action",
+          "remarks": "Kindly take the necessary action on this matter on my behalf. Thank you for your assistance.",
+          "statusBefore": "IN_PROGRESS",
+          "statusAfter": "IN_PROGRESS",
+          "receivedAt": "2026-10-16T10:25:32.915Z",
+          "createdAt": "2026-10-16T10:25:32.915Z"
         }
       ],
       "createdBy": "Tom tom G. Catral",
       "createdByUserId": "USR-0008",
       "createdAt": "2026-10-16T09:25:11.910Z",
-      "updatedAt": "2026-10-16T09:49:02.361Z"
+      "updatedAt": "2026-10-16T10:25:32.915Z"
     },
     {
       "id": "DOC-0003",
@@ -983,6 +1064,78 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "LOG-0089",
+      "timestamp": "2026-10-16T10:30:48.956Z",
+      "userId": "USR-0002",
+      "userName": "Jay ann M. Mangoba",
+      "userRole": "STAFF",
+      "action": "LOGIN",
+      "details": "User Jay ann M. Mangoba (STAFF) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0088",
+      "timestamp": "2026-10-16T10:26:34.343Z",
+      "userId": "USR-0008",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0087",
+      "timestamp": "2026-10-16T10:26:06.430Z",
+      "userId": "USR-0002",
+      "userName": "Jay ann M. Mangoba",
+      "userRole": "STAFF",
+      "action": "LOGIN",
+      "details": "User Jay ann M. Mangoba (STAFF) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0086",
+      "timestamp": "2026-10-16T10:25:32.915Z",
+      "userId": "USR-0009",
+      "userName": "Robert Bermudez",
+      "userRole": "STAFF",
+      "action": "ROUTE_DOC",
+      "documentTrackingNumber": "BLGFR2-2026-10-OUT-03",
+      "details": "Routed by: Robert Bermudez | Document: BLGF Memorandum Circular No. 017-2025 dated 01 October 2025 [BLGFR2-2026-10-OUT-03] | Subject: Recognition of Top-Performing Local Government Units (LGUs) in Strengthening Local Government Finance for FY2024 | From: FD | To: Albert Sunchez | Action: Appropriate Action | Remarks: Kindly take the necessary action on this matter on my behalf. Thank you for your assistance. | Status: IN_PROGRESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0085",
+      "timestamp": "2026-10-16T10:25:13.554Z",
+      "userId": "USR-0009",
+      "userName": "Robert Bermudez",
+      "userRole": "STAFF",
+      "action": "LOGIN",
+      "details": "User Robert Bermudez (STAFF) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0084",
+      "timestamp": "2026-10-16T10:25:02.323Z",
+      "userId": "USR-0002",
+      "userName": "Jay ann M. Mangoba",
+      "userRole": "STAFF",
+      "action": "CREATE_DOC",
+      "documentTrackingNumber": "BLGFR2-2026-10-IN-02",
+      "details": "Created by: Jay ann M. Mangoba | Document: BLGF Memorandum Circular No. 008-2025 dated 20 February 2025 [BLGFR2-2026-10-IN-02] | Direction: INCOMING | Status: PENDING | Subject: Extension of Deadline for the Submission of the Q4 FY2024 Statement of Receipts and Expenditures in the LIFT System | Sender: Melcy M. Baluyan | Position: Executive Director | Originating office: Bureau of Local Government Finance - Central Office | Address: Manila City | Action: Appropriate Action | Remarks: For review",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0083",
+      "timestamp": "2026-10-16T10:23:30.711Z",
+      "userId": "USR-0002",
+      "userName": "Jay ann M. Mangoba",
+      "userRole": "STAFF",
+      "action": "LOGIN",
+      "details": "User Jay ann M. Mangoba (STAFF) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
     {
       "id": "LOG-0082",
       "timestamp": "2026-10-16T10:07:12.778Z",
@@ -1826,6 +1979,56 @@
     }
   ],
   "notifications": [
+    {
+      "id": "NTF-0015",
+      "createdAt": "2026-10-16T10:25:32.915Z",
+      "userId": "USR-0006",
+      "title": "Document Routed to You",
+      "message": "Document BLGFR2-2026-10-OUT-03 (BLGF Memorandum Circular No. 017-2025 dated 01 October 2025) forwarded for: Appropriate Action",
+      "documentId": "DOC-0004",
+      "trackingNumber": "BLGFR2-2026-10-OUT-03",
+      "type": "INFO"
+    },
+    {
+      "id": "NTF-0011",
+      "createdAt": "2026-10-16T10:25:02.324Z",
+      "userId": "USR-0002",
+      "title": "New Document for AD",
+      "message": "Document BLGFR2-2026-10-IN-02 (BLGF Memorandum Circular No. 008-2025 dated 20 February 2025) was routed to your division.",
+      "documentId": "DOC-0005",
+      "trackingNumber": "BLGFR2-2026-10-IN-02",
+      "type": "ACTION_REQUIRED"
+    },
+    {
+      "id": "NTF-0012",
+      "createdAt": "2026-10-16T10:25:02.324Z",
+      "userId": "USR-0004",
+      "title": "New Document for AD",
+      "message": "Document BLGFR2-2026-10-IN-02 (BLGF Memorandum Circular No. 008-2025 dated 20 February 2025) was routed to your division.",
+      "documentId": "DOC-0005",
+      "trackingNumber": "BLGFR2-2026-10-IN-02",
+      "type": "ACTION_REQUIRED"
+    },
+    {
+      "id": "NTF-0013",
+      "createdAt": "2026-10-16T10:25:02.324Z",
+      "userId": "USR-0006",
+      "title": "New Document for AD",
+      "message": "Document BLGFR2-2026-10-IN-02 (BLGF Memorandum Circular No. 008-2025 dated 20 February 2025) was routed to your division.",
+      "documentId": "DOC-0005",
+      "trackingNumber": "BLGFR2-2026-10-IN-02",
+      "type": "ACTION_REQUIRED"
+    },
+    {
+      "id": "NTF-0014",
+      "createdAt": "2026-10-16T10:25:02.324Z",
+      "userId": "USR-0009",
+      "title": "New Document for AD",
+      "message": "Document BLGFR2-2026-10-IN-02 (BLGF Memorandum Circular No. 008-2025 dated 20 February 2025) was routed to your division.",
+      "documentId": "DOC-0005",
+      "trackingNumber": "BLGFR2-2026-10-IN-02",
+      "type": "ACTION_REQUIRED"
+    },
     {
       "id": "NTF-0010",
       "createdAt": "2026-10-16T09:38:16.016Z",

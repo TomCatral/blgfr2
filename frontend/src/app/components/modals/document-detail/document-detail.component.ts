@@ -466,8 +466,12 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
   hasConfidentialStepAccess = computed<boolean>(() => {
     if (!this.currentUser) return false;
 
-    // System Administrator and ORD have full executive oversight
-    if (this.currentUser.role === 'SYSTEM_ADMIN' || this.currentUser.role === 'ORD') {
+    // System Administrator, ITMS and ORD have full executive oversight
+    if (
+      this.currentUser.role === 'SYSTEM_ADMIN' ||
+      this.currentUser.divisionCode === 'ITMS' ||
+      this.currentUser.role === 'ORD'
+    ) {
       return true;
     }
 
@@ -489,7 +493,11 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
 
   canViewAllRoutes = computed<boolean>(() => {
     if (!this.currentUser) return false;
-    if (this.currentUser.role === 'SYSTEM_ADMIN' || this.currentUser.role === 'ORD') return true;
+    if (
+      this.currentUser.role === 'SYSTEM_ADMIN' ||
+      this.currentUser.divisionCode === 'ITMS' ||
+      this.currentUser.role === 'ORD'
+    ) return true;
     if (this.isOriginalDispatcher()) return true;
     const perms =
       this.currentUser.permissions ||
@@ -1194,7 +1202,10 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
     // 2. Scan audit logs for any completion logs that might have been recorded directly
     const auditLogs = this.docAuditLogs();
     for (const log of auditLogs) {
-      const canViewAuditInstruction = this.currentUser?.role === 'SYSTEM_ADMIN' ||
+      const canViewAuditInstruction =
+        this.currentUser?.role === 'SYSTEM_ADMIN' ||
+        this.currentUser?.divisionCode === 'ITMS' ||
+        this.currentUser?.role === 'ORD' ||
         this.matchesPerson(log.userId, log.userName, this.currentUser?.id, this.currentUser?.fullName);
       if (!canViewAuditInstruction) continue;
       if ((log.action === 'UPDATE_STATUS' || log.action === 'ROUTE_DOC') && /(?:Action:\s*|^)COMPLETED\b|Status:\s*COMPLETED\b/i.test(log.details)) {
@@ -1223,7 +1234,11 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
   });
 
   canEditPart(part: { isCurrentUser: boolean }): boolean {
-    return Boolean(this.currentUser?.role === 'SYSTEM_ADMIN' || part.isCurrentUser);
+    return Boolean(
+      this.currentUser?.role === 'SYSTEM_ADMIN' ||
+      this.currentUser?.divisionCode === 'ITMS' ||
+      part.isCurrentUser
+    );
   }
 
   startEditingPartInstruction(part: { id: string; routeId?: string; instruction: string; isCurrentUser?: boolean }): void {
@@ -2157,6 +2172,7 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
       DEFAULT_ROLE_PERMISSIONS.STAFF;
     return (
       this.currentUser.role === 'SYSTEM_ADMIN' ||
+      this.currentUser.divisionCode === 'ITMS' ||
       Boolean(perm.canDelete) ||
       this.isDocumentCreator() ||
       this.isOriginalDispatcher()

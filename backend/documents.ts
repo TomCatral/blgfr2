@@ -136,6 +136,7 @@ export function createDocumentsRouter(
   // it from participating in routing.
   const canViewDocument = (user: User, document: DocumentRecord) =>
     user.role === 'SYSTEM_ADMIN' ||
+    user.divisionCode === 'ITMS' ||
     user.role === 'ORD' ||
     Boolean(user.permissions?.canViewAllDocuments) ||
     isDocumentParticipant(document, user, getAuditLogsState());

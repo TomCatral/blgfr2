@@ -180,6 +180,14 @@ export class AppComponent implements OnInit, OnDestroy {
   readonly accessibleDocuments = computed(() => {
     const user = this.currentUser();
     if (!user) return [];
+    if (
+      user.role === 'SYSTEM_ADMIN' ||
+      user.divisionCode === 'ITMS' ||
+      user.role === 'ORD' ||
+      user.permissions?.canViewAllDocuments
+    ) {
+      return this.state.documents();
+    }
     return this.state.documents().filter((document) =>
       isDocumentParticipant(document, user, this.state.auditLogs()),
     );

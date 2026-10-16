@@ -94,6 +94,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, RolePermission> = {
       'settings',
       'qr',
       'employees',
+      'slip',
+      'routing-followup',
     ],
   },
   ADMIN: {

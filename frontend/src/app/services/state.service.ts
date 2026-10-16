@@ -109,6 +109,14 @@ private intervals: number[] = [];
   readonly accessibleDocuments = computed<DocumentRecord[]>(() => {
     const user = this.session.currentUser();
     if (!user) return [];
+    if (
+      user.role === 'SYSTEM_ADMIN' ||
+      user.divisionCode === 'ITMS' ||
+      user.role === 'ORD' ||
+      user.permissions?.canViewAllDocuments
+    ) {
+      return this.documents();
+    }
     return this.documents().filter((document) =>
       isDocumentParticipant(document, user, this.auditLogs()),
     );

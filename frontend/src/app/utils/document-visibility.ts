@@ -51,6 +51,7 @@ export const isDocumentParticipant = (
   if (!user || !document) return false;
   if (
     user.role === 'SYSTEM_ADMIN' ||
+    user.divisionCode === 'ITMS' ||
     user.role === 'ORD' ||
     user.permissions?.canViewAllDocuments
   ) {
