@@ -283,52 +283,81 @@
 
       <!-- Recipient / Destination Assignment Section -->
       @if (isOutsideOffice()) {
-        <!-- Manual Outside Office / External Recipient Assignment with Group, Per-Employee, and Manual -->
-        <div class="cd-panel cd-panel-outside">
-          <div class="cd-panel-title">
-            <ion-icon name="people"></ion-icon>
-            Initial Recipient Assignment (Outside Office)
-          </div>
+        <div class="cd-assignment-section" id="outside-assignment-section">
 
           <!-- 1. DEPARTMENT / OFFICE ASSIGNMENT -->
           <div>
-            <div class="cd-panel-header">
-              <label class="cd-field-label">Department / Office Assignment *</label>
-              <button
-                type="button"
-                class="cd-btn-text"
-                (click)="showAddOutsideDepartment.set(!showAddOutsideDepartment())"
-                title="Add another department or office filter"
-              >
-                + Add Department / Office
-              </button>
+            <label class="cd-field-label">Department / Office Assignment *</label>
+            <div
+              class="cd-searchable-select"
+              id="outside-dept-select"
+              [class.is-open]="isOutsideDeptDropdownOpen()"
+              (focusout)="onComboboxFocusOut($event, 'outsideDept')"
+            >
+              <div class="cd-searchable-trigger" (click)="openOutsideDeptDropdown()">
+                <ion-icon name="business-outline" class="cd-trigger-icon"></ion-icon>
+                <input
+                  type="text"
+                  class="cd-searchable-input"
+                  placeholder="Select or search department / office (PTO, MTO, Partner Agencies)..."
+                  [value]="outsideDeptSearch()"
+                  (input)="outsideDeptSearch.set($any($event.target).value); openOutsideDeptDropdown()"
+                  (focus)="openOutsideDeptDropdown()"
+                  (click)="openOutsideDeptDropdown()"
+                  (keydown.escape)="isOutsideDeptDropdownOpen.set(false)"
+                />
+                @if (outsideDeptSearch()) {
+                  <button
+                    type="button"
+                    class="cd-trigger-clear-btn"
+                    (click)="$event.stopPropagation(); outsideDeptSearch.set('')"
+                    title="Clear search"
+                  >
+                    <ion-icon name="close-circle"></ion-icon>
+                  </button>
+                }
+              </div>
+
+              @if (isOutsideDeptDropdownOpen()) {
+                <div class="cd-dropdown-menu" (mousedown)="$event.preventDefault()">
+                  <div class="cd-dropdown-header">
+                    <span>External Offices &amp; Stakeholders Directory</span>
+                    <span class="cd-dropdown-badge">{{ filteredOutsideDepartmentOptions().length }} available</span>
+                  </div>
+                  <div class="cd-dropdown-list">
+                    @if (filteredOutsideDepartmentOptions().length === 0) {
+                      <div class="cd-dropdown-empty">
+                        <ion-icon name="search-outline"></ion-icon>
+                        <p>No department matching "{{ outsideDeptSearch() }}"</p>
+                        <button type="button" class="cd-btn-link" (click)="outsideDeptSearch.set('')">Show all options</button>
+                      </div>
+                    } @else {
+                      @for (dept of filteredOutsideDepartmentOptions(); track dept.code) {
+                        <button
+                          type="button"
+                          class="cd-dropdown-item"
+                          (click)="selectAndAddOutsideDepartment(dept.code)"
+                        >
+                          <div class="cd-item-avatar is-icon">
+                            <ion-icon [name]="dept.icon"></ion-icon>
+                          </div>
+                          <div class="cd-item-info">
+                            <div class="cd-item-name">{{ dept.label }}</div>
+                            <div class="cd-item-meta">{{ dept.desc }}</div>
+                          </div>
+                          <span class="cd-item-add-tag">
+                            <ion-icon name="add"></ion-icon> Add
+                          </span>
+                        </button>
+                      }
+                    }
+                  </div>
+                </div>
+              }
             </div>
 
-            @if (showAddOutsideDepartment()) {
-              <select
-                class="cd-select"
-                (change)="onAddOutsideDepartment($event)"
-              >
-                <option value="">-- Select additional department / office --</option>
-                <option value="PTO">🏛️ Provincial Treasury Offices (PTO)</option>
-                <option value="MTO">🏢 Municipal Treasury Offices / LGUs (MTO)</option>
-                <option value="PARTNER">🌐 Partner Agencies &amp; External Stakeholders</option>
-              </select>
-            }
-
-            <select
-              class="cd-select"
-              [value]="outsideOfficeDepartment()"
-              (change)="onSelectOutsideDepartment($any($event.target).value)"
-            >
-              <option value="">-- Select External Department / Office (PTO, MTO, Partner Agencies) --</option>
-              <option value="PTO">🏛️ Provincial Treasury Offices (PTO)</option>
-              <option value="MTO">🏢 Municipal Treasury Offices / LGUs (MTO)</option>
-              <option value="PARTNER">🌐 Partner Agencies &amp; External Stakeholders</option>
-            </select>
-
             @if (selectedOutsideDepartments().length > 0) {
-              <div class="cd-chips-row">
+              <div class="cd-chips-row" style="margin-top: 0.5rem;">
                 @for (dept of selectedOutsideDepartments(); track dept) {
                   <span class="cd-chip">
                     {{ getDepartmentShortCode(dept) }}
@@ -349,28 +378,72 @@
           <!-- 2. PER EMPLOYEE / INDIVIDUAL RECIPIENT -->
           <div style="margin-top: 1rem;">
             <label class="cd-field-label">Assigned Handler / Individual Recipient *</label>
-            <div class="cd-recipient-input-row">
-              <select
-                class="cd-select"
-                [value]="selectedOutsideEmployeeId()"
-                (change)="onOutsideEmployeeSelect($any($event.target).value)"
-              >
-                <option value="">-- Select personnel from {{ outsideDepartmentLabel() }} directory --</option>
-                @for (emp of availableOutsideEmployees(); track emp.id) {
-                  <option [value]="emp.id">
-                    {{ emp.fullName }} &ndash; {{ emp.position || 'Official' }} ({{ emp.office }})
-                  </option>
+            <div
+              class="cd-searchable-select"
+              id="outside-handler-select"
+              [class.is-open]="isOutsideDropdownOpen()"
+              (focusout)="onComboboxFocusOut($event, 'outsideHandler')"
+            >
+              <div class="cd-searchable-trigger" (click)="openOutsideDropdown()">
+                <ion-icon name="person-outline" class="cd-trigger-icon"></ion-icon>
+                <input
+                  type="text"
+                  class="cd-searchable-input"
+                  placeholder="Select or search handler by name, position, office..."
+                  [value]="outsideEmployeeSearch()"
+                  (input)="outsideEmployeeSearch.set($any($event.target).value); openOutsideDropdown()"
+                  (focus)="openOutsideDropdown()"
+                  (click)="openOutsideDropdown()"
+                  (keydown.escape)="isOutsideDropdownOpen.set(false)"
+                />
+                @if (outsideEmployeeSearch()) {
+                  <button
+                    type="button"
+                    class="cd-trigger-clear-btn"
+                    (click)="$event.stopPropagation(); outsideEmployeeSearch.set('')"
+                    title="Clear search"
+                  >
+                    <ion-icon name="close-circle"></ion-icon>
+                  </button>
                 }
-              </select>
-              <button
-                type="button"
-                class="cd-btn-add-recipient"
-                [disabled]="!selectedOutsideEmployeeId()"
-                (click)="addOutsideRecipientFromDirectory()"
-              >
-                <ion-icon name="person-add"></ion-icon>
-                Add Recipient
-              </button>
+              </div>
+
+              @if (isOutsideDropdownOpen()) {
+                <div class="cd-dropdown-menu" (mousedown)="$event.preventDefault()">
+                  <div class="cd-dropdown-header">
+                    <span>{{ outsideDepartmentLabel() }} Directory</span>
+                    <span class="cd-dropdown-badge">{{ filteredAvailableOutsideEmployees().length }} available</span>
+                  </div>
+                  <div class="cd-dropdown-list">
+                    @if (filteredAvailableOutsideEmployees().length === 0) {
+                      <div class="cd-dropdown-empty">
+                        <ion-icon name="search-outline"></ion-icon>
+                        <p>No personnel matching "{{ outsideEmployeeSearch() }}"</p>
+                        <button type="button" class="cd-btn-link" (click)="outsideEmployeeSearch.set('')">Show all personnel</button>
+                      </div>
+                    } @else {
+                      @for (emp of filteredAvailableOutsideEmployees(); track emp.id) {
+                        <button
+                          type="button"
+                          class="cd-dropdown-item"
+                          (click)="selectAndAddOutsideEmployee(emp.id)"
+                        >
+                          <div class="cd-item-avatar">
+                            {{ getInitials(emp.fullName) }}
+                          </div>
+                          <div class="cd-item-info">
+                            <div class="cd-item-name">{{ emp.fullName }}</div>
+                            <div class="cd-item-meta">{{ emp.position || 'Official' }} &bull; {{ emp.office }}</div>
+                          </div>
+                          <span class="cd-item-add-tag">
+                            <ion-icon name="add"></ion-icon> Add
+                          </span>
+                        </button>
+                      }
+                    }
+                  </div>
+                </div>
+              }
             </div>
 
             <!-- Recipients Box identical to Picture 2 (.cd-division-members-box) -->
@@ -489,14 +562,7 @@
         </div>
       } @else {
         <!-- Original BLGF Internal Division / Recipient Assignment -->
-        <div class="cd-panel" id="initial-assignment-panel" [class.cd-panel-warn]="routeAssignmentWarning()">
-          <div class="cd-panel-title">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <ion-icon name="people"></ion-icon>
-              <span>Initial Division / Recipient Assignment</span>
-            </div>
-            <span class="cd-optional-indicator">Optional for Register Only &bull; Required to Route</span>
-          </div>
+        <div class="cd-assignment-section" id="initial-assignment-panel">
 
           @if (routeAssignmentWarning()) {
             <div class="cd-route-warning-banner">
@@ -519,48 +585,80 @@
           }
 
           <div>
-            <div class="cd-panel-header">
-              <label class="cd-field-label">
-                Division Assignment
-                <span class="cd-req-indicator">(Required if routing)</span>
-              </label>
-              <button
-                type="button"
-                class="cd-btn-text"
-                [disabled]="!currentDivision() || currentDivision() === 'ALL'"
-                [title]="currentDivision() ? 'Route to another division' : 'Select the first division before adding another'"
-                (click)="showAddDivision.set(!showAddDivision())"
-              >
-                + Add Division
-              </button>
+            <label class="cd-field-label">
+              Division Assignment
+              <span class="cd-req-indicator">(Required if routing)</span>
+            </label>
+            <div
+              class="cd-searchable-select"
+              id="inside-div-select"
+              [class.is-open]="isInsideDivDropdownOpen()"
+              (focusout)="onComboboxFocusOut($event, 'insideDiv')"
+            >
+              <div class="cd-searchable-trigger" (click)="openInsideDivDropdown()">
+                <ion-icon name="business-outline" class="cd-trigger-icon"></ion-icon>
+                <input
+                  type="text"
+                  class="cd-searchable-input"
+                  placeholder="Select or search division (e.g. ORD, LAOD, ITMS, LTOD, FD, LU, AD)..."
+                  [value]="insideDivSearch()"
+                  (input)="insideDivSearch.set($any($event.target).value); openInsideDivDropdown()"
+                  (focus)="openInsideDivDropdown()"
+                  (click)="openInsideDivDropdown()"
+                  (keydown.escape)="isInsideDivDropdownOpen.set(false)"
+                />
+                @if (insideDivSearch()) {
+                  <button
+                    type="button"
+                    class="cd-trigger-clear-btn"
+                    (click)="$event.stopPropagation(); insideDivSearch.set('')"
+                    title="Clear search"
+                  >
+                    <ion-icon name="close-circle"></ion-icon>
+                  </button>
+                }
+              </div>
+
+              @if (isInsideDivDropdownOpen()) {
+                <div class="cd-dropdown-menu" (mousedown)="$event.preventDefault()">
+                  <div class="cd-dropdown-header">
+                    <span>Regional Office Divisions Directory</span>
+                    <span class="cd-dropdown-badge">{{ filteredInsideDivisionOptions().length }} available</span>
+                  </div>
+                  <div class="cd-dropdown-list">
+                    @if (filteredInsideDivisionOptions().length === 0) {
+                      <div class="cd-dropdown-empty">
+                        <ion-icon name="search-outline"></ion-icon>
+                        <p>No division matching "{{ insideDivSearch() }}"</p>
+                        <button type="button" class="cd-btn-link" (click)="insideDivSearch.set('')">Show all divisions</button>
+                      </div>
+                    } @else {
+                      @for (div of filteredInsideDivisionOptions(); track div.code) {
+                        <button
+                          type="button"
+                          class="cd-dropdown-item"
+                          (click)="selectAndAddDivision(div.code)"
+                        >
+                          <div class="cd-item-avatar is-icon">
+                            <ion-icon name="business"></ion-icon>
+                          </div>
+                          <div class="cd-item-info">
+                            <div class="cd-item-name">{{ div.name }} ({{ div.code }})</div>
+                            <div class="cd-item-meta">{{ div.desc }}</div>
+                          </div>
+                          <span class="cd-item-add-tag">
+                            <ion-icon name="add"></ion-icon> Add
+                          </span>
+                        </button>
+                      }
+                    }
+                  </div>
+                </div>
+              }
             </div>
 
-            @if (showAddDivision()) {
-              <select
-                class="cd-select"
-                (change)="onAddDivision($event)"
-              >
-                <option value="">-- Select another division to route --</option>
-                @for (div of availableAdditionalDivisions(); track div[0]) {
-                  <option [value]="div[0]">{{ div[1] }} ({{ div[0] }})</option>
-                }
-              </select>
-            }
-
-            <select
-              class="cd-select"
-              [value]="recipientUserId() || selectedRecipientIds().length > 0 ? '' : currentDivision()"
-              (change)="onDivisionChange($event)"
-            >
-              <option value="">None - Individual Recipient</option>
-              <option value="ALL">All Divisions</option>
-              @for (div of DIVISION_OPTIONS; track div[0]) {
-                <option [value]="div[0]">{{ div[1] }} ({{ div[0] }})</option>
-              }
-            </select>
-
-            @if (currentDivision()) {
-              <div class="cd-chips-row">
+            @if (selectedDivisionCodes().length > 0) {
+              <div class="cd-chips-row" style="margin-top: 0.5rem;">
                 @for (div of selectedDivisionCodes(); track div; let idx = $index) {
                   <span class="cd-chip">
                     {{ div }}
@@ -583,28 +681,72 @@
               Assigned Handler / Individual Recipient
               <span class="cd-req-indicator">(Required if routing)</span>
             </label>
-            <div class="cd-recipient-input-row">
-              <select
-                class="cd-select"
-                [value]="recipientUserId()"
-                (change)="onRecipientSelect($event)"
-              >
-                <option value="">-- Select active BLGF user account --</option>
-                @for (user of availableRecipients(); track user.id) {
-                  <option [value]="user.id">
-                    {{ user.fullName }} - {{ user.designation || user.role }}
-                  </option>
+            <div
+              class="cd-searchable-select"
+              id="inside-handler-select"
+              [class.is-open]="isInsideDropdownOpen()"
+              (focusout)="onComboboxFocusOut($event, 'insideHandler')"
+            >
+              <div class="cd-searchable-trigger" (click)="openInsideDropdown()">
+                <ion-icon name="person-outline" class="cd-trigger-icon"></ion-icon>
+                <input
+                  type="text"
+                  class="cd-searchable-input"
+                  placeholder="Select or search handler by name, position, division..."
+                  [value]="internalRecipientSearch()"
+                  (input)="internalRecipientSearch.set($any($event.target).value); openInsideDropdown()"
+                  (focus)="openInsideDropdown()"
+                  (click)="openInsideDropdown()"
+                  (keydown.escape)="isInsideDropdownOpen.set(false)"
+                />
+                @if (internalRecipientSearch()) {
+                  <button
+                    type="button"
+                    class="cd-trigger-clear-btn"
+                    (click)="$event.stopPropagation(); internalRecipientSearch.set('')"
+                    title="Clear search"
+                  >
+                    <ion-icon name="close-circle"></ion-icon>
+                  </button>
                 }
-              </select>
-              <button
-                type="button"
-                class="cd-btn-add-recipient"
-                [disabled]="!recipientUserId()"
-                (click)="addRecipient()"
-              >
-                <ion-icon name="person-add"></ion-icon>
-                Add Recipient
-              </button>
+              </div>
+
+              @if (isInsideDropdownOpen()) {
+                <div class="cd-dropdown-menu" (mousedown)="$event.preventDefault()">
+                  <div class="cd-dropdown-header">
+                    <span>BLGF Regional Office Personnel</span>
+                    <span class="cd-dropdown-badge">{{ filteredAvailableRecipients().length }} available</span>
+                  </div>
+                  <div class="cd-dropdown-list">
+                    @if (filteredAvailableRecipients().length === 0) {
+                      <div class="cd-dropdown-empty">
+                        <ion-icon name="search-outline"></ion-icon>
+                        <p>No active BLGF users matching "{{ internalRecipientSearch() }}"</p>
+                        <button type="button" class="cd-btn-link" (click)="internalRecipientSearch.set('')">Show all personnel</button>
+                      </div>
+                    } @else {
+                      @for (user of filteredAvailableRecipients(); track user.id) {
+                        <button
+                          type="button"
+                          class="cd-dropdown-item"
+                          (click)="selectAndAddInsideRecipient(user.id)"
+                        >
+                          <div class="cd-item-avatar">
+                            {{ getInitials(user.fullName) }}
+                          </div>
+                          <div class="cd-item-info">
+                            <div class="cd-item-name">{{ user.fullName }}</div>
+                            <div class="cd-item-meta">{{ user.designation || user.role }} &bull; {{ user.divisionCode || 'BLGF' }}</div>
+                          </div>
+                          <span class="cd-item-add-tag">
+                            <ion-icon name="add"></ion-icon> Add
+                          </span>
+                        </button>
+                      }
+                    }
+                  </div>
+                </div>
+              }
             </div>
 
             @if (selectedRecipientIds().length > 0) {

@@ -51,7 +51,7 @@
       </div>
 
       <div class="settings-tabs">
-        <ion-button
+        <button
           type="button"
           (click)="setActiveTab('profile')"
           class="settings-tab"
@@ -59,8 +59,8 @@
         >
           <ion-icon name="person" class="settings-smallIcon"></ion-icon>
           <span>Profile Details</span>
-        </ion-button>
-        <ion-button
+        </button>
+        <button
           type="button"
           (click)="setActiveTab('security')"
           class="settings-tab"
@@ -68,8 +68,8 @@
         >
           <ion-icon name="lock-closed" class="settings-smallIcon"></ion-icon>
           <span>Change Password &amp; Security</span>
-        </ion-button>
-        <ion-button
+        </button>
+        <button
           type="button"
           (click)="setActiveTab('preferences')"
           class="settings-tab"
@@ -77,7 +77,7 @@
         >
           <ion-icon name="notifications" class="settings-smallIcon"></ion-icon>
           <span>System Preferences</span>
-        </ion-button>
+        </button>
       </div>
 
       @if (activeTab === 'profile') {

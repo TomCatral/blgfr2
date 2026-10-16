@@ -85,7 +85,7 @@
                     [onOpenMobileQr]="openMobileInstallGuide"
                   />
                 }
-                @if (activeView() === 'routing-followup') {
+                @if (activeView() === 'routing-followup' && canView('routing-followup')) {
                   <app-routing-follow-up
                     [documents]="accessibleDocuments()"
                     [auditLogs]="state.auditLogs()"
@@ -95,16 +95,16 @@
                     [onSendReminder]="sendRoutingReminder"
                   />
                 }
-                @if (activeView() === 'incoming-report') {
+                @if (activeView() === 'incoming-report' && canView('incoming-report')) {
                   <app-incoming-report [documents]="accessibleDocuments()" [envelopeLogs]="state.envelopeLogs()" [auditLogs]="state.auditLogs()" />
                 }
-                @if (activeView() === 'outgoing-report') {
+                @if (activeView() === 'outgoing-report' && canView('outgoing-report')) {
                   <app-outgoing-report [documents]="accessibleDocuments()" [envelopeLogs]="state.envelopeLogs()" [auditLogs]="state.auditLogs()" />
                 }
-                @if (activeView() === 'envelope-report') {
+                @if (activeView() === 'envelope-report' && canView('envelope-report')) {
                   <app-envelope-report [documents]="accessibleDocuments()" [envelopeLogs]="state.envelopeLogs()" [auditLogs]="state.auditLogs()" />
                 }
-                @if (activeView() === 'incoming' || activeView() === 'outgoing') {
+                @if ((activeView() === 'incoming' || activeView() === 'outgoing') && canView(activeView())) {
                   <app-document-list
                     [documents]="accessibleDocuments()"
                     [initialDirection]="activeView() === 'outgoing' ? 'OUTGOING' : 'INCOMING'"
@@ -129,7 +129,7 @@
                     [onBack]="backToIncoming"
                   />
                 }
-                @if (activeView() === 'envelope') {
+                @if (activeView() === 'envelope' && canView('envelope')) {
                   <app-outgoing-envelope
                     [document]="null"
                     [documents]="state.documents()"
@@ -138,23 +138,23 @@
                     [onLogDispatch]="logEnvelopeDispatch"
                   />
                 }
-                @if (activeView() === 'qr') {
+                @if (activeView() === 'qr' && canView('qr')) {
                   <app-qr-code-generator />
                 }
-                @if (activeView() === 'employees') {
+                @if (activeView() === 'employees' && canView('employees')) {
                   <app-employee-profiles [currentUser]="currentUser()!" />
                 }
-                @if (activeView() === 'audit') {
+                @if (activeView() === 'audit' && canView('audit')) {
                   <app-audit-logs [auditLogs]="state.auditLogs()" [title]="'Detailed Audit Logs'" [subtitle]="''" />
                 }
-                @if (activeView() === 'envelope-logs') {
+                @if (activeView() === 'envelope-logs' && canView('envelope-logs')) {
                   <app-audit-logs
                     [auditLogs]="state.envelopeLogs()"
                     [title]="'Outgoing Envelope Dispatch Logs'"
                     [subtitle]="'Separate record of every outgoing envelope dispatch, Document Route No., releasing user, and recipient details'"
                   />
                 }
-                @if (activeView() === 'settings') {
+                @if (activeView() === 'settings' && canView('settings')) {
                   <app-user-settings [currentUser]="currentUser()!" [onUpdateUser]="selfUpdateUser" />
                 }
                 @if (activeView() === 'users' && (currentUser()?.role === 'SYSTEM_ADMIN' || currentUser()?.divisionCode === 'ITMS')) {
@@ -688,7 +688,7 @@
           </div>
         }
 
-        <!-- Interactive Mobile Bottom Navigation Bar -->
+        <!-- Modern Interactive Mobile Bottom Navigation Dock (5-Action System) -->
         <nav class="mobile-bottom-nav" aria-label="Mobile Navigation">
           <button
             type="button"
@@ -696,6 +696,7 @@
             [class.active]="activeView() === 'dashboard'"
             (click)="navigateTo('dashboard')"
             id="mobileNavHome"
+            aria-label="Home Dashboard"
           >
             <div class="mobile-nav-icon-wrap">
               <ion-icon [name]="activeView() === 'dashboard' ? 'grid' : 'grid-outline'"></ion-icon>
@@ -709,6 +710,7 @@
             [class.active]="activeView() === 'incoming'"
             (click)="navigateTo('incoming')"
             id="mobileNavIncoming"
+            aria-label="Incoming Documents"
           >
             <div class="mobile-nav-icon-wrap">
               <ion-icon [name]="activeView() === 'incoming' ? 'file-tray-full' : 'file-tray-full-outline'"></ion-icon>
@@ -719,12 +721,29 @@
             <span class="mobile-nav-label">Incoming</span>
           </button>
 
+          <!-- Elevated Center Quick QR Scanner Action -->
+          <button
+            type="button"
+            class="mobile-nav-item mobile-nav-center-action"
+            (click)="openScannerFromMobile()"
+            id="mobileNavScan"
+            aria-label="Scan Document QR Code"
+            title="Scan Document QR Code"
+          >
+            <div class="mobile-scan-bubble">
+              <ion-icon name="qr-code"></ion-icon>
+              <div class="mobile-scan-pulse" aria-hidden="true"></div>
+            </div>
+            <span class="mobile-nav-label center-label">Scan QR</span>
+          </button>
+
           <button
             type="button"
             class="mobile-nav-item"
             [class.active]="activeView() === 'outgoing'"
             (click)="navigateTo('outgoing')"
             id="mobileNavOutgoing"
+            aria-label="Outgoing Documents"
           >
             <div class="mobile-nav-icon-wrap">
               <ion-icon [name]="activeView() === 'outgoing' ? 'paper-plane' : 'paper-plane-outline'"></ion-icon>
@@ -738,9 +757,10 @@
             [class.active]="isMobileSidebarOpen()"
             (click)="openMobileSidebar()"
             id="mobileNavMenu"
+            aria-label="Open Full Navigation Menu"
           >
             <div class="mobile-nav-icon-wrap">
-              <ion-icon name="menu-outline"></ion-icon>
+              <ion-icon [name]="isMobileSidebarOpen() ? 'apps' : 'apps-outline'"></ion-icon>
               @if (offlineSync.pendingCount() > 0) {
                 <span class="mobile-nav-sync-dot" [title]="offlineSync.pendingCount() + ' offline change(s) pending sync'"></span>
               }

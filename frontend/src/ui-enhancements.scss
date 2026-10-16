@@ -189,7 +189,6 @@ ion-textarea {
 
 /* Consistent, unmistakable search controls across pages, dialogs, and header. */
 :where(
-  .global-document-search,
   [class*='search-wrap' i],
   [class*='searchwrap' i],
   [class*='search-field' i],
@@ -200,7 +199,6 @@ ion-textarea {
 }
 
 :where(
-  .global-document-search,
   [class*='search-wrap' i],
   [class*='searchwrap' i],
   [class*='search-field' i],
@@ -317,6 +315,84 @@ ion-input[class*='search' i]::part(native),
   caret-color: #60a5fa !important;
 }
 
+/* Global visible text caret for every search control. Some screens use a
+   native input, others use ion-input, and a few use ion-searchbar; covering
+   each rendered input type keeps the blinking insertion cursor consistent. */
+input[type='search'],
+input[role='searchbox'],
+input[class*='search' i],
+ion-input[type='search'],
+ion-input[class*='search' i],
+ion-searchbar {
+  --caret-color: #1d4ed8 !important;
+  caret-color: #1d4ed8 !important;
+  cursor: text !important;
+  user-select: text !important;
+}
+
+/* Comfortable inner spacing for every native search field. The right side
+   reserves room for clear/search action buttons without crowding the text. */
+input[type='search'],
+input[role='searchbox'],
+input[class*='search' i] {
+  box-sizing: border-box !important;
+  min-height: 3rem;
+  padding: 0.75rem 2.75rem 0.75rem 1rem !important;
+  line-height: 1.35;
+}
+
+ion-input[type='search']::part(native),
+ion-input[class*='search' i]::part(native),
+ion-searchbar::part(input) {
+  padding: 0.75rem 2.75rem 0.75rem 1rem !important;
+  caret-color: #1d4ed8 !important;
+  cursor: text !important;
+  user-select: text !important;
+}
+
+input[type='search']:focus,
+input[role='searchbox']:focus,
+input[class*='search' i]:focus,
+ion-input[type='search']:focus-within,
+ion-input[class*='search' i]:focus-within,
+ion-searchbar:focus-within {
+  --caret-color: #1d4ed8 !important;
+  caret-color: #1d4ed8 !important;
+}
+
+.dark input[type='search'],
+.dark input[role='searchbox'],
+.dark input[class*='search' i],
+.dark ion-input[type='search'],
+.dark ion-input[class*='search' i],
+.dark ion-searchbar,
+.dark ion-input[type='search']::part(native),
+.dark ion-input[class*='search' i]::part(native),
+.dark ion-searchbar::part(input) {
+  --caret-color: #60a5fa !important;
+  caret-color: #60a5fa !important;
+}
+
+/* Final search-field normalization. The extra attribute selector gives this
+   rule enough priority to override component-level legacy padding values. */
+html body input[type][class*='search' i],
+html body input[type][role='searchbox'] {
+  box-sizing: border-box !important;
+  min-height: 3rem !important;
+  padding-top: 0.75rem !important;
+  padding-right: 2.75rem !important;
+  padding-bottom: 0.75rem !important;
+  padding-left: 1rem !important;
+  line-height: 1.35 !important;
+  caret-color: #1d4ed8 !important;
+  cursor: text !important;
+}
+
+html.dark body input[type][class*='search' i],
+html.dark body input[type][role='searchbox'] {
+  caret-color: #60a5fa !important;
+}
+
 /* Global dialog priority ensuring warning toasts and error alerts are ALWAYS on top of modals */
 app-dialog-host {
   position: relative;
@@ -327,4 +403,3 @@ app-dialog-host {
 .dialog4 {
   z-index: 100000 !important;
 }
-

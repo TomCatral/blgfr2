@@ -177,6 +177,27 @@
                     Assigned Handler / Recipient <span class="required-star">*</span>
                   </label>
                 </div>
+                <div class="route-search-input-wrap" style="position: relative; margin-bottom: 0.5rem;">
+                  <input
+                    type="text"
+                    class="route-text-input"
+                    placeholder="Search personnel by name, position, or office..."
+                    [value]="handlerSearch"
+                    (input)="handlerSearch = $any($event.target).value"
+                    style="padding-left: 2.1rem; font-size: 0.8125rem; height: 2.25rem;"
+                  />
+                  <ion-icon name="search-outline" style="position: absolute; left: 0.65rem; top: 50%; transform: translateY(-50%); font-size: 0.95rem; color: #94a3b8; pointer-events: none;"></ion-icon>
+                  @if (handlerSearch) {
+                    <button
+                      type="button"
+                      (click)="handlerSearch = ''"
+                      style="position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); background: none; border: none; padding: 0.2rem; cursor: pointer; color: #94a3b8;"
+                      title="Clear search"
+                    >
+                      <ion-icon name="close-circle" style="font-size: 1rem;"></ion-icon>
+                    </button>
+                  }
+                </div>
                 <select
                   id="route-handler-select"
                   value=""
@@ -184,27 +205,27 @@
                   class="route-native-select"
                 >
                   <option value="">-- Add Employee Recipient --</option>
-                  @if (blgfEmployees.length > 0) {
+                  @if (filteredBlgfEmployees.length > 0) {
                     <optgroup label="BLGF Personnel">
-                      @for (emp of blgfEmployees; track emp.id) {
+                      @for (emp of filteredBlgfEmployees; track emp.id) {
                         <option [value]="emp.id" [disabled]="alreadyRouted(emp) || selectedUserIds.includes(emp.id)">
                           {{ emp.fullName }} - {{ emp.position }}{{ alreadyRouted(emp) ? ' - [Already Routed]' : selectedUserIds.includes(emp.id) ? ' - [Selected]' : '' }}
                         </option>
                       }
                     </optgroup>
                   }
-                  @if (lguEmployees.length > 0) {
+                  @if (filteredLguEmployees.length > 0) {
                     <optgroup label="LGU Staff">
-                      @for (emp of lguEmployees; track emp.id) {
+                      @for (emp of filteredLguEmployees; track emp.id) {
                         <option [value]="emp.id" [disabled]="alreadyRouted(emp) || selectedUserIds.includes(emp.id)">
                           {{ emp.fullName }} - {{ emp.position }}{{ alreadyRouted(emp) ? ' - [Already Routed]' : selectedUserIds.includes(emp.id) ? ' - [Selected]' : '' }}
                         </option>
                       }
                     </optgroup>
                   }
-                  @if (otherAgencyEmployees.length > 0) {
+                  @if (filteredOtherAgencyEmployees.length > 0) {
                     <optgroup label="Other Agencies">
-                      @for (emp of otherAgencyEmployees; track emp.id) {
+                      @for (emp of filteredOtherAgencyEmployees; track emp.id) {
                         <option [value]="emp.id" [disabled]="alreadyRouted(emp) || selectedUserIds.includes(emp.id)">
                           {{ emp.fullName }} - {{ emp.position }}{{ alreadyRouted(emp) ? ' - [Already Routed]' : selectedUserIds.includes(emp.id) ? ' - [Selected]' : '' }}
                         </option>

@@ -294,12 +294,61 @@ export class RoutingSlipComponent implements OnInit, OnChanges {
     return this.resolveCurrentUserName(first?.fromUserId, first?.fromUser) || doc.createdBy || doc.senderName || '________________';
   });
 
+  allRecipientsList = computed<string[]>(() => {
+    const doc = this.activeDoc();
+    if (!doc) return [];
+
+    const creatorId = (doc.createdByUserId || '').trim().toLowerCase();
+    const creatorName = (doc.createdBy || '').trim().toLowerCase();
+    const senderName = (doc.senderName || '').trim().toLowerCase();
+
+    const names: string[] = [];
+    const seen = new Set<string>();
+
+    const addName = (name?: string, id?: string) => {
+      if (!name) return;
+      const resolved = this.resolveCurrentUserName(id, name) || name.trim();
+      const lower = resolved.toLowerCase();
+      // Skip if it's the document creator or originating sender (they are the By / Sender, not the Recipient)
+      if (
+        (creatorId && id && id.toLowerCase() === creatorId) ||
+        (creatorName && lower === creatorName) ||
+        (senderName && lower === senderName)
+      ) {
+        return;
+      }
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        names.push(resolved);
+      }
+    };
+
+    // 1. Initial recipient on document record
+    if (doc.recipientName) {
+      addName(doc.recipientName);
+    }
+
+    // 2. All recipients from document.routes
+    for (const r of (doc.routes || [])) {
+      addName(r.toUser, r.toUserId);
+    }
+
+    // 3. Fallback to assignedUser if not creator/sender
+    if (doc.assignedUser) {
+      addName(doc.assignedUser, doc.assignedUserId);
+    }
+
+    return names;
+  });
+
   recipientDisplayName = computed(() => {
+    const names = this.allRecipientsList();
+    if (names.length > 0) {
+      return names[0];
+    }
     const doc = this.activeDoc();
     if (!doc) return '________________';
-    const routes = doc.routes || [];
-    const last = routes[routes.length - 1];
-    return this.resolveCurrentUserName(last?.toUserId || doc.assignedUserId, last?.toUser || doc.assignedUser) || doc.recipientName || '________________';
+    return doc.recipientName || doc.assignedUser || '________________';
   });
 
   latestTransactionDateDisplay = computed(() => {
@@ -315,22 +364,11 @@ export class RoutingSlipComponent implements OnInit, OnChanges {
   });
 
   recipientListDisplay = computed(() => {
-    const doc = this.activeDoc();
-    if (!doc) return this.recipientDisplayName();
-    const routes = doc.routes || [];
-    const sorted = [...routes].sort((a, b) => {
-      if (b.stepNumber !== a.stepNumber) return b.stepNumber - a.stepNumber;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
-    const latest = sorted[0];
-    if (!latest) return this.recipientDisplayName();
-    const names = Array.from(new Set(
-      routes
-        .filter(r => r.fromUserId === latest.fromUserId && r.actionRequested === latest.actionRequested && r.createdAt === latest.createdAt)
-        .map(r => this.resolveCurrentUserName(r.toUserId, r.toUser))
-        .filter((n): n is string => Boolean(n))
-    ));
-    return names.length > 0 ? names.join(', ') : this.recipientDisplayName();
+    const names = this.allRecipientsList();
+    if (names.length > 0) {
+      return names.join(', ');
+    }
+    return this.recipientDisplayName();
   });
 
   sortedVisibleRoutes = computed(() => {
@@ -431,6 +469,31 @@ export class RoutingSlipComponent implements OnInit, OnChanges {
     const doc = this.activeDoc();
     if (!doc) return;
     void this.updateSlipQr(doc.routeNo || doc.trackingNumber || '');
+
+    const creatorId = (doc.createdByUserId || '').trim().toLowerCase();
+    const creatorName = (doc.createdBy || '').trim().toLowerCase();
+    const senderName = (doc.senderName || '').trim().toLowerCase();
+
+    // Determine divisions of all forward recipients / routes
+    const routedDivisions = new Set<string>();
+    if (doc.currentDivision) routedDivisions.add(doc.currentDivision);
+
+    for (const r of (doc.routes || [])) {
+      const toId = (r.toUserId || '').trim().toLowerCase();
+      const toName = (r.toUser || '').trim().toLowerCase();
+      const isCreator =
+        (creatorId && toId === creatorId) ||
+        (creatorName && toName === creatorName) ||
+        (senderName && toName === senderName);
+      if (!isCreator) {
+        if (r.toDivision) routedDivisions.add(r.toDivision);
+        const account = this.users.find(
+          (u) => (r.toUserId && u.id === r.toUserId) || u.fullName.trim().toLowerCase() === toName,
+        );
+        if (account?.divisionCode) routedDivisions.add(account.divisionCode);
+      }
+    }
+
     if (this.slipLayout() === 'simplified') {
       this.docNo.set(doc.routeNo || '');
       this.docClass.set(doc.direction || '');
@@ -440,10 +503,18 @@ export class RoutingSlipComponent implements OnInit, OnChanges {
       this.subjectMatter.set(doc.subject || doc.title || '');
       this.routingHistoryText.set('');
       this.specialInstructionsText.set('');
-      this.assignedTo.set(Object.fromEntries(ROUTING_SLIP_DIVISIONS.map(d => [d.label, false])));
+      this.assignedTo.set(
+        Object.fromEntries(
+          ROUTING_SLIP_DIVISIONS.map((d) => [
+            d.label,
+            routedDivisions.has(d.code) || routedDivisions.has(d.label),
+          ]),
+        ),
+      );
       this.forActions.set(Object.fromEntries(ROUTING_SLIP_ACTIONS.map(a => [a, false])));
       return;
     }
+
     this.docClass.set(doc.direction || '');
     this.senderName.set(doc.senderName || doc.originatingOffice || 'ATTY. VERNON S. TALATTAG');
     this.senderOffice.set(doc.originatingOffice || 'BLGF RO2');
@@ -456,23 +527,15 @@ export class RoutingSlipComponent implements OnInit, OnChanges {
         .map((route, i) => `${i + 1}. ${route.fromUser} to ${route.recipientNames.join(', ')}\nAction: ${route.actionRequested || 'Appropriate Action'}\n${formatDate(route.createdAt)}`)
         .join('\n\n')
     );
-    const routes = doc.routes || [];
-    const latest = [...routes].sort((a, b) => {
-      if (b.stepNumber !== a.stepNumber) return b.stepNumber - a.stepNumber;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    })[0];
-    const txRoutes = latest ? routes.filter(r =>
-      r.fromUserId === latest.fromUserId && r.actionRequested === latest.actionRequested && r.createdAt === latest.createdAt
-    ) : [];
-    const routedDivisions = new Set(
-      txRoutes.length > 0
-        ? txRoutes.map(r => {
-            const account = this.users.find(u => r.toUserId && u.id === r.toUserId);
-            return account?.divisionCode || r.toDivision;
-          })
-        : [doc.currentDivision]
+
+    this.assignedTo.set(
+      Object.fromEntries(
+        ROUTING_SLIP_DIVISIONS.map((d) => [
+          d.label,
+          routedDivisions.has(d.code) || routedDivisions.has(d.label),
+        ]),
+      ),
     );
-    this.assignedTo.set(Object.fromEntries(ROUTING_SLIP_DIVISIONS.map(d => [d.label, routedDivisions.has(d.code)])));
     this.forActions.set(Object.fromEntries(ROUTING_SLIP_ACTIONS.map(a => [a, false])));
     if (doc.remarks) {
       this.specialInstructionsText.set(doc.remarks);
@@ -506,12 +569,10 @@ export class RoutingSlipComponent implements OnInit, OnChanges {
   }
 
   toggleAssigned(key: string): void {
-    if (this.slipLayout() !== 'full') return;
     this.assignedTo.set({ ...this.assignedTo(), [key]: !this.assignedTo()[key] });
   }
 
   toggleForAction(key: string): void {
-    if (this.slipLayout() !== 'full') return;
     this.forActions.set({ ...this.forActions(), [key]: !this.forActions()[key] });
   }
 
@@ -525,14 +586,11 @@ export class RoutingSlipComponent implements OnInit, OnChanges {
   }
 
   recipientCell(): string {
-    return this.slipLayout() === 'full' ? this.recipientListDisplay() : '\u00A0';
+    return this.recipientListDisplay() || '\u00A0';
   }
 
   toggleRowClass(): string {
-    return cx(
-      'flex items-center space-x-1.5 select-none py-0.5',
-      this.slipLayout() === 'full' ? 'cursor-pointer hover:text-slate-700' : 'cursor-default',
-    );
+    return 'flex items-center space-x-1.5 select-none py-0.5 cursor-pointer hover:text-slate-700 transition-colors';
   }
 
   labelClass(checked: boolean): string {

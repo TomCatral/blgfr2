@@ -137,12 +137,30 @@ export class RouteDocumentComponent implements OnChanges {
       }));
   }
 
+  handlerSearch = '';
+
   get selectableEmployees(): EmployeeProfile[] {
     return this.allEmployees.filter((emp) => !this.alreadyRouted(emp));
   }
 
+  filterBySearch(employees: EmployeeProfile[]): EmployeeProfile[] {
+    const q = (this.handlerSearch || '').trim().toLowerCase();
+    if (!q) return employees;
+    return employees.filter(
+      (emp) =>
+        (emp.fullName || '').toLowerCase().includes(q) ||
+        (emp.position || '').toLowerCase().includes(q) ||
+        (emp.office || '').toLowerCase().includes(q) ||
+        (emp.divisionCode || '').toLowerCase().includes(q),
+    );
+  }
+
   get blgfEmployees(): EmployeeProfile[] {
     return this.allEmployees.filter((e) => e.officeType === 'BLGF' && e.active !== false);
+  }
+
+  get filteredBlgfEmployees(): EmployeeProfile[] {
+    return this.filterBySearch(this.blgfEmployees);
   }
 
   get lguEmployees(): EmployeeProfile[] {
@@ -151,8 +169,16 @@ export class RouteDocumentComponent implements OnChanges {
     );
   }
 
+  get filteredLguEmployees(): EmployeeProfile[] {
+    return this.filterBySearch(this.lguEmployees);
+  }
+
   get otherAgencyEmployees(): EmployeeProfile[] {
     return this.allEmployees.filter((e) => e.officeType === 'OTHER_AGENCIES' && e.active !== false);
+  }
+
+  get filteredOtherAgencyEmployees(): EmployeeProfile[] {
+    return this.filterBySearch(this.otherAgencyEmployees);
   }
 
   get alreadyRoutedEmployees(): EmployeeProfile[] {

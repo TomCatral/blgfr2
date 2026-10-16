@@ -135,7 +135,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   get isLocalDomainOnDesktop(): boolean {
     return (
-      (window.location.hostname === 'blgf.local' || window.location.hostname.includes('192.168.') || window.location.hostname.includes('10.')) &&
+      window.location.hostname !== 'localhost' &&
+      window.location.hostname !== '127.0.0.1' &&
       !/Android|iPhone|iPad|Mobile/i.test(window.navigator.userAgent)
     );
   }
@@ -150,18 +151,32 @@ export class HeaderComponent implements OnInit, OnDestroy {
   isUserStatusOpen = false;
   userDirectorySearch = '';
   userDirectoryFilter = 'ALL';
+  onlineUserIds = new Set<string>();
+  private presenceTimer: number | null = null;
   isAppInstalled =
     window.matchMedia('(display-mode: standalone)').matches ||
     (window.navigator as unknown as { standalone?: boolean }).standalone === true;
   showInstallGuide = false;
   activeInstallTab: 'android' | 'ios' | 'desktop' = 'android';
   mobileQrDataUrl = '';
-  activeMobileUrlType: 'domain' | 'ip' | 'vercel' = 'domain';
-  localDomainUrl = 'http://blgf.local:3001/login';
+  activeMobileUrlType: 'local' | 'public' = 'public';
+  localDomainUrl = '';
   directIpUrl = '';
   lanUrl = '';
-  vercelUrl = 'https://blgf-region2.vercel.app';
+  publicUrl = 'https://blgfdts.duckdns.org/login';
+  publicIp = '124.6.177.158';
   isGeneratingQr = false;
+  desktopInstallMessage = '';
+  desktopInstallWarning = false;
+
+  get isHttpsContext(): boolean {
+    if (typeof window === 'undefined') return true;
+    return (
+      window.location.protocol === 'https:' ||
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1'
+    );
+  }
 
   window = window;
 
@@ -350,6 +365,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as unknown as { standalone?: boolean }).standalone === true;
     this.detectInstallPlatform();
+    this.refreshPresence();
+    this.presenceTimer = window.setInterval(() => this.refreshPresence(), 20_000);
   }
 
   ngOnDestroy(): void {
@@ -363,6 +380,26 @@ export class HeaderComponent implements OnInit, OnDestroy {
     document.body.classList.remove('personnel-directory-open');
     document.body.classList.remove('pwa-guide-open');
     this.closeScanner();
+    if (this.presenceTimer !== null) {
+      window.clearInterval(this.presenceTimer);
+      this.presenceTimer = null;
+    }
+  }
+
+  private refreshPresence(): void {
+    const userId = this.currentUser?.id;
+    if (!userId) return;
+    this.http
+      .post<{ onlineUserIds: string[] }>('/api/presence/heartbeat', { userId })
+      .subscribe({
+        next: ({ onlineUserIds }) => {
+          this.onlineUserIds = new Set(onlineUserIds || []);
+        },
+        error: () => {
+          // Keep the current user visible while a transient network retry is pending.
+          this.onlineUserIds = new Set([userId]);
+        },
+      });
   }
 
   highlightSegments(result: SearchResult, field: 'routeNo' | 'title' | 'subject'): HighlightSegment[] {
@@ -546,22 +583,10 @@ export class HeaderComponent implements OnInit, OnDestroy {
   copiedLink = false;
 
   get activeMobileQrUrl(): string {
-    // If accessed directly from phone or another device, use current origin
-    if (
-      typeof window !== 'undefined' &&
-      window.location.hostname !== 'localhost' &&
-      window.location.hostname !== '127.0.0.1' &&
-      !window.location.hostname.includes('vercel.app')
-    ) {
-      return window.location.origin;
+    if (this.activeMobileUrlType === 'public') {
+      return this.publicUrl || 'https://blgfdts.duckdns.org/login';
     }
-    if (this.activeMobileUrlType === 'domain') {
-      return this.localDomainUrl || 'http://blgf.local:3001/login';
-    }
-    if (this.activeMobileUrlType === 'ip') {
-      return this.directIpUrl || this.lanUrl || this.localDomainUrl || 'http://blgf.local:3001/login';
-    }
-    return this.vercelUrl;
+    return this.directIpUrl || this.lanUrl || this.localDomainUrl || 'http://172.16.30.250:3001/login';
   }
 
   async updateMobileQr(): Promise<void> {
@@ -594,8 +619,14 @@ export class HeaderComponent implements OnInit, OnDestroy {
         this.directIpUrl = res.ipUrl;
         this.lanUrl = res.ipUrl;
       } else if (res?.localIp && res.localIp !== 'localhost') {
-        this.directIpUrl = `http://${res.localIp}:${res.port || 3001}`;
+        this.directIpUrl = `http://${res.localIp}:${res.port || 3001}/login`;
         this.lanUrl = this.directIpUrl;
+      }
+      if (res?.publicUrl) {
+        this.publicUrl = res.publicUrl;
+      }
+      if (res?.publicIp) {
+        this.publicIp = res.publicIp;
       }
     } catch {
       if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
@@ -606,7 +637,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     await this.updateMobileQr();
   }
 
-  setMobileUrlType(type: 'domain' | 'ip' | 'vercel'): void {
+  setMobileUrlType(type: 'local' | 'public'): void {
     this.activeMobileUrlType = type;
     void this.updateMobileQr();
   }
@@ -680,14 +711,27 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   handleInstallApp(): void {
+    if (this.isAppInstalled) {
+      this.desktopInstallMessage = 'BLGF DTS is already installed on this computer! Check your Desktop or Start Menu.';
+      this.desktopInstallWarning = false;
+      this.openInstallGuide();
+      this.activeInstallTab = 'desktop';
+      return;
+    }
+
     const prompt = this.installPrompt || (window as any).__blgfInstallPrompt;
     if (prompt) {
       prompt.prompt();
       void prompt.userChoice.then((choice: { outcome: 'accepted' | 'dismissed'; platform: string }) => {
         if (choice?.outcome === 'accepted') {
           this.isAppInstalled = true;
+          this.desktopInstallMessage = 'BLGF DTS Desktop App installed successfully!';
+          this.desktopInstallWarning = false;
           this.showUserMenu = false;
-          this.closeInstallGuide();
+          window.setTimeout(() => this.closeInstallGuide(), 1600);
+        } else {
+          this.desktopInstallMessage = 'Installation prompt was closed. You can install anytime using the browser address bar icon (⊕).';
+          this.desktopInstallWarning = true;
         }
       });
       this.installPrompt = null;
@@ -695,7 +739,19 @@ export class HeaderComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // In Chrome/Edge, if prompt is not immediately available:
+    if (!this.isHttpsContext) {
+      this.desktopInstallMessage = 'Desktop PWA requires HTTPS. Click below to open via Secure HTTPS URL (DuckDNS / Caddy) to install with 1-click.';
+      this.desktopInstallWarning = true;
+      this.openInstallGuide();
+      this.activeInstallTab = 'desktop';
+      return;
+    }
+
+    this.desktopInstallMessage = 'To install: Click the (⊕ / ⬇) Install icon on the right side of the browser address bar, or open Chrome Menu (⋮) → "Install BLGF DTS".';
+    this.desktopInstallWarning = false;
     this.openInstallGuide();
+    this.activeInstallTab = 'desktop';
   }
 
   async openScanner(): Promise<void> {
@@ -907,7 +963,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   get activeUsersCount(): number {
-    return (this.users || []).filter((u) => u.active).length;
+    return (this.users || []).filter((u) => this.onlineUserIds.has(u.id)).length;
   }
 
   get availableDivisions(): string[] {
@@ -923,15 +979,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
   get filteredDirectoryUsers(): User[] {
     let list = [...(this.users || [])];
 
-    if (this.userDirectoryFilter === 'ACTIVE') {
-      list = list.filter((u) => u.active);
-    } else if (this.userDirectoryFilter === 'MY_DIVISION' && this.currentUser?.divisionCode) {
+    if (this.userDirectoryFilter !== 'ALL') {
       list = list.filter(
-        (u) => u.divisionCode?.toUpperCase() === this.currentUser.divisionCode?.toUpperCase(),
-      );
-    } else if (this.userDirectoryFilter !== 'ALL') {
-      list = list.filter(
-        (u) => u.divisionCode?.toUpperCase() === this.userDirectoryFilter.toUpperCase(),
+        (u) => u.divisionCode?.trim().toUpperCase() === this.userDirectoryFilter.toUpperCase(),
       );
     }
 
@@ -958,7 +1008,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
     return list.sort((a, b) => {
       if (a.id === this.currentUser?.id) return -1;
       if (b.id === this.currentUser?.id) return 1;
-      if (a.active !== b.active) return a.active ? -1 : 1;
+      const aOnline = this.onlineUserIds.has(a.id);
+      const bOnline = this.onlineUserIds.has(b.id);
+      if (aOnline !== bOnline) return aOnline ? -1 : 1;
       return (a.fullName || '').localeCompare(b.fullName || '');
     });
   }

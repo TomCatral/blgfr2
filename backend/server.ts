@@ -1,8 +1,8 @@
-import { startMdnsBroadcaster } from './mdns.js';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
+import zlib from 'zlib';
 import { createUsersRouter } from './users.js';
 import { createDocumentsRouter } from './documents.js';
 import { isDocumentParticipant } from '../frontend/src/app/utils/document-visibility.js';
@@ -144,6 +144,8 @@ let auditLogsState: AuditLog[] = [];
 let envelopeLogsState: AuditLog[] = [];
 let notificationsState: NotificationItem[] = [];
 let employeesState: EmployeeProfile[] = [];
+const LOGIN_BACKGROUND_KEY = 'login_background_url';
+let loginBackgroundUrlState: string | null = null;
 
 export interface DirectorySectionRecord {
   id: string;
@@ -412,8 +414,24 @@ function initDatabaseStorage() {
         return true;
       });
       repairInitialRouteRecipients();
+      purgeRecalledRecipientRoutes();
       employeesState = data.employees || [];
       directorySectionsState = data.directorySections || DEFAULT_DIRECTORY_SECTIONS;
+      if (typeof data.systemSettings?.login_background_url !== 'undefined') {
+        loginBackgroundUrlState = data.systemSettings.login_background_url || null;
+      }
+      if (!loginBackgroundUrlState && data.systemSettings?.explicitRemoved !== true) {
+        const bgDir = STORAGE_DIRECTORIES.loginBackground;
+        if (fs.existsSync(bgDir)) {
+          const files = fs.readdirSync(bgDir)
+            .filter(f => /\.(jpe?g|png|webp|gif)$/i.test(f))
+            .map(f => ({ name: f, time: fs.statSync(path.join(bgDir, f)).mtimeMs }))
+            .sort((a, b) => b.time - a.time);
+          if (files.length > 0) {
+            loginBackgroundUrlState = storageFileUrl('loginBackground', files[0].name);
+          }
+        }
+      }
       console.log('Loaded local recovery snapshot before MySQL initialization:', DB_FILE);
     } catch (err) {
       console.error(
@@ -640,6 +658,48 @@ function repairInitialRouteRecipients() {
   if (repaired) saveDatabaseToFile();
 }
 
+function purgeRecalledRecipientRoutes() {
+  let changed = false;
+  for (const doc of documentsState) {
+    if (!doc.routes || doc.routes.length === 0) continue;
+    const removalLogs = auditLogsState.filter((log) => {
+      const isThisDoc =
+        log.documentTrackingNumber === doc.trackingNumber ||
+        (Boolean(doc.routeNo) && log.documentTrackingNumber === doc.routeNo) ||
+        (Boolean(doc.id) && log.documentTrackingNumber === doc.id);
+      return isThisDoc && (log.details || '').toLowerCase().includes('removed recipient');
+    });
+    if (removalLogs.length === 0) continue;
+
+    for (const remLog of removalLogs) {
+      const match = remLog.details.match(/removed recipient\s+([^|(]+?)(?:\s*\(([^)]+)\))?\s+from transaction/i);
+      if (!match) continue;
+      const removedName = match[1].trim().toLowerCase();
+      const removalTime = new Date(remLog.timestamp).getTime();
+
+      const initialCount = doc.routes.length;
+      doc.routes = doc.routes.filter((route) => {
+        const matchesRoute =
+          (route.toUser && route.toUser.trim().toLowerCase() === removedName) ||
+          (route.fromUser && route.fromUser.trim().toLowerCase() === removedName);
+        if (!matchesRoute) return true;
+        const routeTime = new Date(route.createdAt).getTime();
+        return routeTime > removalTime;
+      });
+
+      if (doc.routes.length !== initialCount) {
+        changed = true;
+        doc.routes.forEach((r, idx) => {
+          if (r.stepNumber !== 0) {
+            r.stepNumber = idx + 1;
+          }
+        });
+      }
+    }
+  }
+  if (changed) saveDatabaseToFile();
+}
+
 function resetDatabaseToDefault() {
   divisionsState = [];
   usersState = [];
@@ -653,9 +713,21 @@ function resetDatabaseToDefault() {
 }
 
 function writeJsonFileAtomic(target: string, contents: string) {
-  const tempFile = `${target}.${process.pid}.tmp`;
-  fs.writeFileSync(tempFile, contents, 'utf-8');
-  fs.renameSync(tempFile, target);
+  try {
+    fs.writeFileSync(target, contents, 'utf-8');
+  } catch (err: any) {
+    if (err?.code === 'EBUSY' || err?.code === 'EPERM') {
+      try {
+        const tempFile = `${target}.${process.pid}.${Date.now()}.tmp`;
+        fs.writeFileSync(tempFile, contents, 'utf-8');
+        fs.renameSync(tempFile, target);
+      } catch {
+        // In-memory data is intact, safe fallback on Windows lock contention
+      }
+    } else {
+      console.error('[ERROR] Error saving database file:', err);
+    }
+  }
 }
 
 const DATABASE_FILE_WRITE_DEBOUNCE_MS = 150;
@@ -674,6 +746,10 @@ function writeDatabaseFileNow(queueSync: boolean) {
       notifications: notificationsState,
       employees: employeesState,
       directorySections: directorySectionsState,
+      systemSettings: {
+        login_background_url: loginBackgroundUrlState,
+        explicitRemoved: loginBackgroundUrlState === null,
+      },
     };
     const serialized = JSON.stringify(payload, null, 2)
       .replace(/\u0410/g, 'A')
@@ -777,7 +853,46 @@ export async function createApp() {
   }
 
   const app = express();
+  app.set('trust proxy', true);
   app.use(cors());
+
+  // High-performance gzip compression for API JSON and text payloads > 1KB
+  app.use((req, res, next) => {
+    const acceptEncoding = req.headers['accept-encoding'] || '';
+    if (!acceptEncoding.includes('gzip')) {
+      return next();
+    }
+    const originalSend = res.send.bind(res);
+    res.send = (body: any): any => {
+      if (
+        res.getHeader('Content-Encoding') ||
+        res.statusCode < 200 ||
+        res.statusCode === 204 ||
+        res.statusCode === 304
+      ) {
+        return originalSend(body);
+      }
+      const rawBuffer = Buffer.isBuffer(body)
+        ? body
+        : Buffer.from(typeof body === 'object' ? JSON.stringify(body) : String(body ?? ''));
+
+      if (rawBuffer.length < 1024) {
+        return originalSend(body);
+      }
+
+      try {
+        const gzipped = zlib.gzipSync(rawBuffer, { level: 6 });
+        res.setHeader('Content-Encoding', 'gzip');
+        res.setHeader('Vary', 'Accept-Encoding');
+        res.removeHeader('Content-Length');
+        return originalSend(gzipped);
+      } catch {
+        return originalSend(body);
+      }
+    };
+    next();
+  });
+
   app.use(express.json({ limit: '50mb' }));
   const getRequestUser = (req: express.Request) =>
     usersState.find(
@@ -785,11 +900,12 @@ export async function createApp() {
     );
 
   // Login background is a single global setting managed from User Accounts.
-  // It is cached in memory and mirrored to the system_settings table.
-  const LOGIN_BACKGROUND_KEY = 'login_background_url';
-  let loginBackgroundUrl: string | null = null;
+  // It is cached in memory, saved in db.json, and mirrored to the system_settings table.
   try {
-    loginBackgroundUrl = await readSystemSetting(LOGIN_BACKGROUND_KEY);
+    const dbBackground = await readSystemSetting(LOGIN_BACKGROUND_KEY);
+    if (dbBackground) {
+      loginBackgroundUrlState = dbBackground;
+    }
   } catch (error) {
     console.warn('[SETTINGS] Login background load warning:', error);
   }
@@ -885,7 +1001,7 @@ export async function createApp() {
 
   // Unauthenticated: the login page renders before anyone signs in.
   app.get('/api/settings/login-background', (_req, res) => {
-    res.json({ url: loginBackgroundUrl });
+    res.json({ url: loginBackgroundUrlState });
   });
 
   app.put('/api/settings/login-background', async (req, res) => {
@@ -900,8 +1016,9 @@ export async function createApp() {
     }
     try {
       await saveSystemSetting(LOGIN_BACKGROUND_KEY, nextUrl);
-      loginBackgroundUrl = nextUrl;
-      res.json({ url: loginBackgroundUrl });
+      loginBackgroundUrlState = nextUrl;
+      saveDatabaseToFile(false);
+      res.json({ url: loginBackgroundUrlState });
     } catch (error: any) {
       console.error('Failed to save login background:', error);
       res.status(500).json({ error: 'Failed to save login background.' });
@@ -1046,6 +1163,30 @@ export async function createApp() {
     });
   });
 
+  // Lightweight in-process presence tracking for the local/public-IP server.
+  // A user is considered online while heartbeats arrive within 45 seconds.
+  const presenceByUserId = new Map<string, number>();
+  const presenceTtlMs = 45_000;
+  const onlineUserIds = (): string[] => {
+    const cutoff = Date.now() - presenceTtlMs;
+    for (const [userId, lastSeen] of presenceByUserId) {
+      if (lastSeen < cutoff) presenceByUserId.delete(userId);
+    }
+    return [...presenceByUserId.keys()];
+  };
+
+  app.post('/api/presence/heartbeat', (req, res) => {
+    const userId = String(req.body?.userId || '').trim();
+    const user = usersState.find((entry) => entry.id === userId && entry.active);
+    if (!user) return res.status(400).json({ error: 'Valid active user is required.' });
+    presenceByUserId.set(userId, Date.now());
+    return res.json({ onlineUserIds: onlineUserIds() });
+  });
+
+  app.get('/api/presence', (_req, res) => {
+    res.json({ onlineUserIds: onlineUserIds() });
+  });
+
   app.get('/api/system/network-info', (req, res) => {
     try {
       const interfaces = os.networkInterfaces();
@@ -1062,16 +1203,20 @@ export async function createApp() {
         addresses[0] ||
         'localhost';
 
-      const hostname = os.hostname().toLowerCase();
-      const localDomain = 'blgf.local';
       const domainPort = PORT === 80 ? '' : `:${PORT}`;
-      const domainUrl = `http://blgf.local${domainPort}/login`;
-      const fallbackDomainUrl = `http://${hostname}.local${domainPort}/login`;
       const ipUrl = preferredIp !== 'localhost' ? `http://${preferredIp}${domainPort}/login` : `http://localhost${domainPort}/login`;
+      const domainUrl = ipUrl;
+      const fallbackDomainUrl = ipUrl;
+      const localDomain = preferredIp;
 
       const hostHeader = req.get('host') || `${preferredIp}:${PORT}`;
       const protocol = (req.headers['x-forwarded-proto'] as string) || req.protocol || (IS_VERCEL ? 'https' : 'http');
       const currentOrigin = `${protocol}://${hostHeader}`;
+
+      const publicDomain = process.env.PUBLIC_DOMAIN || 'blgfdts.duckdns.org';
+      const publicUrl = process.env.PUBLIC_URL || `https://${publicDomain}/login`;
+      const publicIp = process.env.PUBLIC_IP || '124.6.177.154';
+      const hostname = os.hostname().toLowerCase();
 
       res.json({
         localIp: preferredIp,
@@ -1081,7 +1226,10 @@ export async function createApp() {
         domainUrl,
         fallbackDomainUrl,
         ipUrl,
-        lanUrl: domainUrl,
+        lanUrl: ipUrl,
+        publicUrl,
+        publicIp,
+        publicDomain,
         currentOrigin,
         isVercel: IS_VERCEL,
         allIps: addresses,
@@ -1092,10 +1240,13 @@ export async function createApp() {
         localIp: 'localhost',
         port: PORT,
         hostname: 'server',
-        localDomain: 'server.local',
-        domainUrl: `http://server.local:${PORT}`,
-        ipUrl: `http://localhost:${PORT}`,
-        lanUrl: `http://server.local:${PORT}`,
+        localDomain: 'localhost',
+        domainUrl: `http://localhost:${PORT}/login`,
+        ipUrl: `http://localhost:${PORT}/login`,
+        lanUrl: `http://localhost:${PORT}/login`,
+        publicUrl: 'https://blgfdts.duckdns.org/login',
+        publicIp: '124.6.177.154',
+        publicDomain: 'blgfdts.duckdns.org',
         currentOrigin: IS_VERCEL ? `https://${hostHeader}` : `http://localhost:${PORT}`,
         isVercel: IS_VERCEL,
         allIps: [],
@@ -1726,23 +1877,29 @@ export async function createApp() {
       (d) => d.currentStatus === 'RETURNED',
     ).length;
 
-    // Division breakdown: active workload per division. Each active document
-    // counts once for every division still holding it (pending recipient), so a
-    // document awaiting action in LU and AD counts for both. Completed documents
-    // are not workload.
+    // Division breakdown: active workload per division. Every functional division
+    // involved in an active document (originating division, current division, and
+    // routing participants) is included in the workload count.
     const divMap: Record<string, number> = {};
     divisionsState.forEach((d) => {
       divMap[d.code] = 0;
     });
     documentsState.forEach((doc) => {
       if (doc.currentStatus === 'COMPLETED') return;
-      const heldBy = new Set<string>();
-      getPendingRecipients(doc).forEach((route) => {
-        if (route.toDivision) heldBy.add(route.toDivision);
+      const involvedDivisions = new Set<string>();
+      if (doc.currentDivision) involvedDivisions.add(doc.currentDivision);
+      const creatorUser = doc.createdByUserId
+        ? usersState.find((u) => u.id === doc.createdByUserId)
+        : null;
+      if (creatorUser?.divisionCode) involvedDivisions.add(creatorUser.divisionCode);
+      (doc.routes || []).forEach((route) => {
+        if (route.toDivision) involvedDivisions.add(route.toDivision);
+        if (route.fromDivision) involvedDivisions.add(route.fromDivision);
       });
-      if (!heldBy.size && doc.currentDivision) heldBy.add(doc.currentDivision);
-      heldBy.forEach((code) => {
-        divMap[code] = (divMap[code] || 0) + 1;
+      involvedDivisions.forEach((code) => {
+        if (divMap[code] !== undefined) {
+          divMap[code] = (divMap[code] || 0) + 1;
+        }
       });
     });
 
@@ -2558,19 +2715,19 @@ export async function createApp() {
   if (IS_VERCEL) return app;
 
   const distPath = path.join(process.cwd(), 'dist', 'frontend');
-  app.use((_req, res, next) => {
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    next();
-  });
   app.use(express.static(distPath, {
-    etag: false,
-    maxAge: 0,
+    etag: true,
+    maxAge: '1h',
     setHeaders: (res, filePath) => {
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
+      if (filePath.endsWith('index.html') || filePath.endsWith('service-worker.js') || filePath.endsWith('offline-assets.json') || filePath.endsWith('manifest.webmanifest')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+      } else if (/\.(js|css)$/i.test(filePath)) {
+        res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+      } else if (/\.(png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot)$/i.test(filePath)) {
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+      }
       if (filePath.endsWith('manifest.webmanifest')) {
         res.setHeader('Content-Type', 'application/manifest+json');
       }
@@ -2580,10 +2737,11 @@ export async function createApp() {
       }
     },
   }));
-  app.get('*', (_req, res) => {
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+  app.get('*', (req, res) => {
+    if (/\.(js|css|map|png|jpg|jpeg|gif|svg|ico|json|woff2?|ttf|eot)$/i.test(req.path)) {
+      return res.status(404).send('Not found');
+    }
+    res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(path.join(distPath, 'index.html'));
   });
 
@@ -2616,17 +2774,10 @@ export async function createApp() {
     addresses.find((ip) => ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) ||
     addresses[0] ||
     'localhost';
-  const hostname = os.hostname().toLowerCase();
-
-  startMdnsBroadcaster(() => preferredIp, ['blgf.local', 'blgfdts.local', `${hostname}.local`, 'server.local']);
-
-  const domainPort = PORT === 80 ? '' : `:${PORT}`;
   console.log(`=======================================================`);
   console.log(`BLGF REGION II DOCUMENT TRACKING SYSTEM SERVER RUNNING`);
-  console.log(`Custom Domain  : http://blgf.local${domainPort}/login`);
-  console.log(`Local Hostname : http://${hostname}.local${domainPort}/login`);
-  console.log(`Direct Wi-Fi IP: http://${preferredIp}${domainPort}/login`);
   console.log(`Desktop Local  : http://localhost:${PORT}/login`);
+  console.log(`Public Online  : ${process.env.PUBLIC_URL || 'https://blgfdts.duckdns.org/login'}`);
   console.log(`=======================================================`);
   return app;
 }

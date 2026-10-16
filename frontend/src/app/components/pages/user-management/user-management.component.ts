@@ -763,7 +763,7 @@ export class UserManagementComponent implements OnInit {
     this.avatarUrl.set(sanitizeAssetUrl(user.avatarUrl || ''));
     const divCode = (user.divisionCode || (user.role === 'SYSTEM_ADMIN' ? 'ITMS' : 'AD')) as DivisionCode;
     this.divisionCode.set(divCode);
-    const computedRole: Role = divCode === 'ITMS' ? 'SYSTEM_ADMIN' : (divCode === 'ORD' ? 'ORD' : 'STAFF');
+    const computedRole: Role = divCode === 'ITMS' ? 'SYSTEM_ADMIN' : (divCode === 'ORD' ? 'ORD' : (user.role || 'STAFF'));
     this.role.set(computedRole);
     this.designation.set(user.designation || (divCode === 'ITMS' ? 'IT Officer / System Administrator' : 'Staff Officer'));
     this.contactNo.set(user.contactNo || '');
@@ -780,7 +780,7 @@ export class UserManagementComponent implements OnInit {
     const user = this.editingUser();
     if (!user) return;
     const isITMS = this.divisionCode() === 'ITMS';
-    const computedRole: Role = isITMS ? 'SYSTEM_ADMIN' : (this.divisionCode() === 'ORD' ? 'ORD' : 'STAFF');
+    const computedRole: Role = isITMS ? 'SYSTEM_ADMIN' : (this.divisionCode() === 'ORD' ? 'ORD' : (user.role || this.role() || 'STAFF'));
     this.role.set(computedRole);
 
     if (
@@ -916,9 +916,16 @@ canDeleteUsers(): boolean {
     if (!this.canManageLoginBackground()) return;
     try {
       const result = await firstValueFrom(this.api.getLoginBackground());
-      this.loginBackgroundUrl.set(result?.url || null);
+      const url = result?.url || null;
+      this.loginBackgroundUrl.set(url);
+      if (url) {
+        localStorage.setItem('blgf_login_background_url', url);
+      } else {
+        localStorage.removeItem('blgf_login_background_url');
+      }
     } catch {
-      this.loginBackgroundUrl.set(null);
+      const cached = localStorage.getItem('blgf_login_background_url');
+      this.loginBackgroundUrl.set(cached || null);
     }
   }
 
@@ -947,7 +954,11 @@ canDeleteUsers(): boolean {
       this.isSavingLoginBackground.set(true);
       const stored = await firstValueFrom(this.api.uploadToStorage('loginBackground', file));
       const result = await firstValueFrom(this.api.saveLoginBackground(stored.url));
-      this.loginBackgroundUrl.set(result?.url || stored.url);
+      const finalUrl = result?.url || stored.url;
+      this.loginBackgroundUrl.set(finalUrl);
+      if (finalUrl) {
+        localStorage.setItem('blgf_login_background_url', finalUrl);
+      }
       this.ui.showSuccess('Login page background updated.');
     } catch (err: unknown) {
       this.ui.showError(String((err as Error)?.message || 'Failed to update the login background.'));
@@ -962,6 +973,7 @@ canDeleteUsers(): boolean {
       this.isSavingLoginBackground.set(true);
       const result = await firstValueFrom(this.api.saveLoginBackground(null));
       this.loginBackgroundUrl.set(result?.url ?? null);
+      localStorage.removeItem('blgf_login_background_url');
       this.ui.showSuccess('Login page background removed.');
     } catch (err: unknown) {
       this.ui.showError(String((err as Error)?.message || 'Failed to remove the login background.'));
@@ -1242,6 +1254,13 @@ canDeleteUsers(): boolean {
     if (!user.permissions) return false;
     const defaultPerm = this.rolePermissions()[user.role] || DEFAULT_ROLE_PERMISSIONS[user.role];
     return JSON.stringify(user.permissions) !== JSON.stringify(defaultPerm);
+  }
+
+  openRolesTab(): void {
+    this.activeTab.set('roles');
+    if (!this.selectedPermUser() && this.permFilteredUsers.length > 0) {
+      this.selectUserForPerm(this.permFilteredUsers[0]);
+    }
   }
 
   openUserPermissions(user: User): void {

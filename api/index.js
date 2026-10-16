@@ -1,43 +1,9 @@
-// backend/mdns.ts
-import mdns from "multicast-dns";
-function startMdnsBroadcaster(getIp, hostnames = ["blgf.local", "blgfdts.local", "server.local"]) {
-  try {
-    const responder = mdns();
-    responder.on("query", (query) => {
-      const answers = [];
-      const currentIp = getIp();
-      if (!currentIp || currentIp === "localhost" || currentIp === "127.0.0.1") return;
-      for (const q of query?.questions || []) {
-        const name = String(q.name || "").toLowerCase();
-        if (hostnames.includes(name) && (q.type === "A" || q.type === "ANY")) {
-          answers.push({
-            name: q.name,
-            type: "A",
-            ttl: 120,
-            data: currentIp
-          });
-        }
-      }
-      if (answers.length > 0) {
-        responder.respond({ answers });
-      }
-    });
-    responder.on("error", (err) => {
-      if (err?.code !== "EADDRINUSE") {
-      }
-    });
-    return responder;
-  } catch (err) {
-    console.warn("[mDNS] Could not initialize mDNS responder for custom domains:", err?.message || err);
-    return null;
-  }
-}
-
 // backend/server.ts
 import express3 from "express";
 import path from "path";
 import fs from "fs";
 import os from "os";
+import zlib from "zlib";
 
 // backend/users.ts
 import express from "express";
@@ -2004,7 +1970,7 @@ function recalculateDocumentStatus(document) {
 }
 
 // frontend/src/app/utils/document-visibility.ts
-var normalizeName = (value) => value?.trim().toLowerCase() || "";
+var normalizeName = (value) => value?.trim().toLowerCase().replace(/\s+/g, " ") || "";
 var matchesParticipant = (user, participantId, participantName) => {
   if (!user) return false;
   const targetId = normalizeName(participantId);
@@ -2033,11 +1999,58 @@ var auditNamesRecipient = (details, fullName) => {
   }
   return pattern.test(details);
 };
-var isDocumentParticipant = (document, user, auditLogs = []) => user.role === "SYSTEM_ADMIN" || matchesParticipant(user, document.assignedUserId, document.assignedUser) || matchesParticipant(user, document.createdByUserId, document.createdBy) || matchesParticipant(user, void 0, document.recipientName) || matchesParticipant(user, void 0, document.senderName) || (document.routes || []).some(
-  (route) => matchesParticipant(user, route.fromUserId, route.fromUser) || matchesParticipant(user, route.toUserId, route.toUser)
-) || auditLogs.some(
-  (log) => (log.documentTrackingNumber === document.trackingNumber || Boolean(document.routeNo) && log.documentTrackingNumber === document.routeNo) && (matchesParticipant(user, log.userId, log.userName) || auditNamesRecipient(log.details, user.fullName))
-);
+var isDocumentParticipant = (document, user, auditLogs = []) => {
+  if (!user || !document) return false;
+  if (user.role === "SYSTEM_ADMIN" || user.role === "ORD" || user.permissions?.canViewAllDocuments) {
+    return true;
+  }
+  if (matchesParticipant(user, document.createdByUserId, document.createdBy) || matchesParticipant(user, void 0, document.senderName)) {
+    return true;
+  }
+  const normFullName = normalizeName(user.fullName);
+  const normUsername = normalizeName(user.username);
+  const nameWithoutMiddle = normFullName.replace(/\s+[a-z]\.?\s+/i, " ");
+  const removalLogs = auditLogs.filter((log) => {
+    const isThisDoc = log.documentTrackingNumber === document.trackingNumber || Boolean(document.routeNo) && log.documentTrackingNumber === document.routeNo || Boolean(document.id) && log.documentTrackingNumber === document.id;
+    if (!isThisDoc) return false;
+    const details = (log.details || "").toLowerCase();
+    if (!details.includes("removed recipient")) return false;
+    return Boolean(normFullName) && details.includes(normFullName) || Boolean(normUsername) && details.includes(normUsername) || Boolean(nameWithoutMiddle) && nameWithoutMiddle !== normFullName && details.includes(nameWithoutMiddle);
+  });
+  if (removalLogs.length > 0) {
+    const latestRemovalTime = removalLogs.reduce((max, log) => {
+      const t = new Date(log.timestamp).getTime();
+      return t > max ? t : max;
+    }, 0);
+    const hasSubsequentActiveRoute = (document.routes || []).some((route) => {
+      const isUser = matchesParticipant(user, route.fromUserId, route.fromUser) || matchesParticipant(user, route.toUserId, route.toUser);
+      if (!isUser) return false;
+      const routeTime = new Date(route.createdAt).getTime();
+      return routeTime > latestRemovalTime;
+    });
+    if (!hasSubsequentActiveRoute) {
+      return false;
+    }
+  }
+  const hasActiveRoute = (document.routes || []).some(
+    (route) => matchesParticipant(user, route.fromUserId, route.fromUser) || matchesParticipant(user, route.toUserId, route.toUser)
+  );
+  if (hasActiveRoute) {
+    return true;
+  }
+  if (matchesParticipant(user, document.assignedUserId, document.assignedUser)) {
+    return true;
+  }
+  if (matchesParticipant(user, void 0, document.recipientName)) {
+    return true;
+  }
+  if (!document.routes || document.routes.length === 0) {
+    return auditLogs.some(
+      (log) => (log.documentTrackingNumber === document.trackingNumber || Boolean(document.routeNo) && log.documentTrackingNumber === document.routeNo) && (matchesParticipant(user, log.userId, log.userName) || auditNamesRecipient(log.details, user.fullName))
+    );
+  }
+  return false;
+};
 
 // backend/documents.ts
 function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsState, getNotificationsState, getAuditLogsState, setNotificationsState) {
@@ -2110,7 +2123,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       console.error("[healStaleReturnedStatus] MySQL write failed:", error);
     });
   };
-  const canViewDocument = (user, document) => isDocumentParticipant(document, user, getAuditLogsState());
+  const canViewDocument = (user, document) => user.role === "SYSTEM_ADMIN" || user.role === "ORD" || Boolean(user.permissions?.canViewAllDocuments) || isDocumentParticipant(document, user, getAuditLogsState());
   const getPendingDecisionRoute = (user, document) => [...document.routes || []].reverse().find((assignedRoute) => {
     if (["APPROVED", "DISAPPROVED"].includes(assignedRoute.actionRequested.toUpperCase())) return false;
     const assignedToUser = assignedRoute.toUserId === user.id || !assignedRoute.toUserId && assignedRoute.toUser?.trim().toLowerCase() === user.fullName.trim().toLowerCase();
@@ -2120,7 +2133,22 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     return !actedInRoutes && !actedInAudit;
   });
   const withRecoveredAuditRoutes = (document) => {
-    const storedRoutes = document.routes || [];
+    let storedRoutes = document.routes || [];
+    const removalLogs = getAuditLogsState().filter(
+      (l) => (l.documentTrackingNumber === document.trackingNumber || Boolean(document.routeNo) && l.documentTrackingNumber === document.routeNo) && (l.details || "").toLowerCase().includes("removed recipient")
+    );
+    if (removalLogs.length > 0) {
+      storedRoutes = storedRoutes.filter((route) => {
+        return !removalLogs.some((remLog) => {
+          const match = remLog.details.match(/removed recipient\s+([^|(]+?)(?:\s*\(([^)]+)\))?\s+from transaction/i);
+          if (!match) return false;
+          const removedName = match[1].trim().toLowerCase();
+          const matches = route.toUser && route.toUser.trim().toLowerCase() === removedName || route.fromUser && route.fromUser.trim().toLowerCase() === removedName;
+          if (!matches) return false;
+          return new Date(route.createdAt).getTime() <= new Date(remLog.timestamp).getTime();
+        });
+      });
+    }
     const recovered = getAuditLogsState().filter(
       (log) => log.documentTrackingNumber === document.trackingNumber && log.action === "ROUTE_DOC"
     ).flatMap((log, index) => {
@@ -2164,7 +2192,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
         createdAt: log.timestamp
       }];
     });
-    return recovered.length ? { ...document, routes: [...storedRoutes, ...recovered] } : document;
+    return recovered.length || storedRoutes.length !== (document.routes || []).length ? { ...document, routes: [...storedRoutes, ...recovered] } : document;
   };
   const hideSystemAdministratorFromTransactions = (document) => document;
   router.get("/", async (req, res) => {
@@ -2180,7 +2208,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     if (!actingUser) {
       return res.status(401).json({ error: "Active database user required." });
     }
-    list = list.filter((document) => canViewDocument(actingUser, document)).map(withRecoveredAuditRoutes).map(hideSystemAdministratorFromTransactions);
+    list = list.map(withRecoveredAuditRoutes).filter((document) => canViewDocument(actingUser, document)).map(hideSystemAdministratorFromTransactions);
     const { search, direction, status: status2, division, priority } = req.query;
     if (direction) {
       list = list.filter((d) => d.direction === direction);
@@ -2229,10 +2257,11 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     const doc = getDocumentsState().find(
       (d) => d.id === req.params.id || d.routeNo === req.params.id
     );
-    if (!doc || !canViewDocument(actingUser, doc)) {
+    const sanitizedDoc = doc ? withRecoveredAuditRoutes(doc) : null;
+    if (!sanitizedDoc || !canViewDocument(actingUser, sanitizedDoc)) {
       return res.status(404).json({ error: "Document not found" });
     }
-    res.json(hideSystemAdministratorFromTransactions(withRecoveredAuditRoutes(doc)));
+    res.json(hideSystemAdministratorFromTransactions(sanitizedDoc));
   });
   router.post("/", async (req, res) => {
     const body = req.body;
@@ -2824,7 +2853,21 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
     const removedRecipientName = targetRoute.toUser || "Recipient";
     const removedRecipientId = targetRoute.toUserId;
     const routeIdsToRemove = /* @__PURE__ */ new Set([targetRoute.id]);
+    if (removedRecipientId || removedRecipientName) {
+      doc.routes.forEach((r) => {
+        const matchesRemoved = removedRecipientId && (r.toUserId === removedRecipientId || r.fromUserId === removedRecipientId) || removedRecipientName && (r.toUser?.trim().toLowerCase() === removedRecipientName.trim().toLowerCase() || r.fromUser?.trim().toLowerCase() === removedRecipientName.trim().toLowerCase());
+        if (matchesRemoved) {
+          routeIdsToRemove.add(r.id);
+        }
+      });
+    }
     doc.routes = doc.routes.filter((r) => !routeIdsToRemove.has(r.id));
+    if (removedRecipientName && doc.recipientName?.trim().toLowerCase() === removedRecipientName.trim().toLowerCase()) {
+      const remainingForward = doc.routes.find(
+        (r) => r.toUser && r.toUser.trim().toLowerCase() !== (doc.createdBy || "").trim().toLowerCase() && r.toUser.trim().toLowerCase() !== (doc.senderName || "").trim().toLowerCase()
+      );
+      doc.recipientName = remainingForward?.toUser || "Not recorded";
+    }
     doc.routes.forEach((r, idx) => {
       if (r.stepNumber !== 0) {
         r.stepNumber = idx + 1;
@@ -3663,6 +3706,8 @@ var auditLogsState = [];
 var envelopeLogsState = [];
 var notificationsState = [];
 var employeesState = [];
+var LOGIN_BACKGROUND_KEY = "login_background_url";
+var loginBackgroundUrlState = null;
 var DEFAULT_DIRECTORY_SECTIONS = [
   { id: "BLGF", label: "BLGF Personnel", officeTypes: ["BLGF"], color: "blue" },
   {
@@ -3880,8 +3925,21 @@ function initDatabaseStorage() {
         return true;
       });
       repairInitialRouteRecipients();
+      purgeRecalledRecipientRoutes();
       employeesState = data.employees || [];
       directorySectionsState = data.directorySections || DEFAULT_DIRECTORY_SECTIONS;
+      if (typeof data.systemSettings?.login_background_url !== "undefined") {
+        loginBackgroundUrlState = data.systemSettings.login_background_url || null;
+      }
+      if (!loginBackgroundUrlState && data.systemSettings?.explicitRemoved !== true) {
+        const bgDir = STORAGE_DIRECTORIES.loginBackground;
+        if (fs.existsSync(bgDir)) {
+          const files = fs.readdirSync(bgDir).filter((f) => /\.(jpe?g|png|webp|gif)$/i.test(f)).map((f) => ({ name: f, time: fs.statSync(path.join(bgDir, f)).mtimeMs })).sort((a, b) => b.time - a.time);
+          if (files.length > 0) {
+            loginBackgroundUrlState = storageFileUrl("loginBackground", files[0].name);
+          }
+        }
+      }
       console.log("Loaded local recovery snapshot before MySQL initialization:", DB_FILE);
     } catch (err) {
       console.error(
@@ -4066,6 +4124,39 @@ function repairInitialRouteRecipients() {
   }
   if (repaired) saveDatabaseToFile();
 }
+function purgeRecalledRecipientRoutes() {
+  let changed = false;
+  for (const doc of documentsState) {
+    if (!doc.routes || doc.routes.length === 0) continue;
+    const removalLogs = auditLogsState.filter((log) => {
+      const isThisDoc = log.documentTrackingNumber === doc.trackingNumber || Boolean(doc.routeNo) && log.documentTrackingNumber === doc.routeNo || Boolean(doc.id) && log.documentTrackingNumber === doc.id;
+      return isThisDoc && (log.details || "").toLowerCase().includes("removed recipient");
+    });
+    if (removalLogs.length === 0) continue;
+    for (const remLog of removalLogs) {
+      const match = remLog.details.match(/removed recipient\s+([^|(]+?)(?:\s*\(([^)]+)\))?\s+from transaction/i);
+      if (!match) continue;
+      const removedName = match[1].trim().toLowerCase();
+      const removalTime = new Date(remLog.timestamp).getTime();
+      const initialCount = doc.routes.length;
+      doc.routes = doc.routes.filter((route) => {
+        const matchesRoute = route.toUser && route.toUser.trim().toLowerCase() === removedName || route.fromUser && route.fromUser.trim().toLowerCase() === removedName;
+        if (!matchesRoute) return true;
+        const routeTime = new Date(route.createdAt).getTime();
+        return routeTime > removalTime;
+      });
+      if (doc.routes.length !== initialCount) {
+        changed = true;
+        doc.routes.forEach((r, idx) => {
+          if (r.stepNumber !== 0) {
+            r.stepNumber = idx + 1;
+          }
+        });
+      }
+    }
+  }
+  if (changed) saveDatabaseToFile();
+}
 function resetDatabaseToDefault() {
   divisionsState = [];
   usersState = [];
@@ -4078,9 +4169,20 @@ function resetDatabaseToDefault() {
   saveDatabaseToFile();
 }
 function writeJsonFileAtomic(target, contents) {
-  const tempFile = `${target}.${process.pid}.tmp`;
-  fs.writeFileSync(tempFile, contents, "utf-8");
-  fs.renameSync(tempFile, target);
+  try {
+    fs.writeFileSync(target, contents, "utf-8");
+  } catch (err) {
+    if (err?.code === "EBUSY" || err?.code === "EPERM") {
+      try {
+        const tempFile = `${target}.${process.pid}.${Date.now()}.tmp`;
+        fs.writeFileSync(tempFile, contents, "utf-8");
+        fs.renameSync(tempFile, target);
+      } catch {
+      }
+    } else {
+      console.error("[ERROR] Error saving database file:", err);
+    }
+  }
 }
 var DATABASE_FILE_WRITE_DEBOUNCE_MS = 150;
 var databaseFileDirty = false;
@@ -4096,7 +4198,11 @@ function writeDatabaseFileNow(queueSync) {
       auditLogs: auditLogsState,
       notifications: notificationsState,
       employees: employeesState,
-      directorySections: directorySectionsState
+      directorySections: directorySectionsState,
+      systemSettings: {
+        login_background_url: loginBackgroundUrlState,
+        explicitRemoved: loginBackgroundUrlState === null
+      }
     };
     const serialized = JSON.stringify(payload, null, 2).replace(/\u0410/g, "A").replace(/\u2014/g, "-");
     writeJsonFileAtomic(DB_FILE, serialized);
@@ -4184,15 +4290,43 @@ async function createApp() {
     return;
   }
   const app = express3();
+  app.set("trust proxy", true);
   app.use(cors());
+  app.use((req, res, next) => {
+    const acceptEncoding = req.headers["accept-encoding"] || "";
+    if (!acceptEncoding.includes("gzip")) {
+      return next();
+    }
+    const originalSend = res.send.bind(res);
+    res.send = (body) => {
+      if (res.getHeader("Content-Encoding") || res.statusCode < 200 || res.statusCode === 204 || res.statusCode === 304) {
+        return originalSend(body);
+      }
+      const rawBuffer = Buffer.isBuffer(body) ? body : Buffer.from(typeof body === "object" ? JSON.stringify(body) : String(body ?? ""));
+      if (rawBuffer.length < 1024) {
+        return originalSend(body);
+      }
+      try {
+        const gzipped = zlib.gzipSync(rawBuffer, { level: 6 });
+        res.setHeader("Content-Encoding", "gzip");
+        res.setHeader("Vary", "Accept-Encoding");
+        res.removeHeader("Content-Length");
+        return originalSend(gzipped);
+      } catch {
+        return originalSend(body);
+      }
+    };
+    next();
+  });
   app.use(express3.json({ limit: "50mb" }));
   const getRequestUser = (req) => usersState.find(
     (user) => user.id === String(req.get("X-User-Id") || "") && user.active !== false
   );
-  const LOGIN_BACKGROUND_KEY = "login_background_url";
-  let loginBackgroundUrl = null;
   try {
-    loginBackgroundUrl = await readSystemSetting(LOGIN_BACKGROUND_KEY);
+    const dbBackground = await readSystemSetting(LOGIN_BACKGROUND_KEY);
+    if (dbBackground) {
+      loginBackgroundUrlState = dbBackground;
+    }
   } catch (error) {
     console.warn("[SETTINGS] Login background load warning:", error);
   }
@@ -4263,7 +4397,7 @@ async function createApp() {
     }
   );
   app.get("/api/settings/login-background", (_req, res) => {
-    res.json({ url: loginBackgroundUrl });
+    res.json({ url: loginBackgroundUrlState });
   });
   app.put("/api/settings/login-background", async (req, res) => {
     const actingUser = getRequestUser(req);
@@ -4277,8 +4411,9 @@ async function createApp() {
     }
     try {
       await saveSystemSetting(LOGIN_BACKGROUND_KEY, nextUrl);
-      loginBackgroundUrl = nextUrl;
-      res.json({ url: loginBackgroundUrl });
+      loginBackgroundUrlState = nextUrl;
+      saveDatabaseToFile(false);
+      res.json({ url: loginBackgroundUrlState });
     } catch (error) {
       console.error("Failed to save login background:", error);
       res.status(500).json({ error: "Failed to save login background." });
@@ -4381,6 +4516,25 @@ async function createApp() {
       }
     });
   });
+  const presenceByUserId = /* @__PURE__ */ new Map();
+  const presenceTtlMs = 45e3;
+  const onlineUserIds = () => {
+    const cutoff = Date.now() - presenceTtlMs;
+    for (const [userId, lastSeen] of presenceByUserId) {
+      if (lastSeen < cutoff) presenceByUserId.delete(userId);
+    }
+    return [...presenceByUserId.keys()];
+  };
+  app.post("/api/presence/heartbeat", (req, res) => {
+    const userId = String(req.body?.userId || "").trim();
+    const user = usersState.find((entry) => entry.id === userId && entry.active);
+    if (!user) return res.status(400).json({ error: "Valid active user is required." });
+    presenceByUserId.set(userId, Date.now());
+    return res.json({ onlineUserIds: onlineUserIds() });
+  });
+  app.get("/api/presence", (_req, res) => {
+    res.json({ onlineUserIds: onlineUserIds() });
+  });
   app.get("/api/system/network-info", (req, res) => {
     try {
       const interfaces2 = os.networkInterfaces();
@@ -4393,24 +4547,30 @@ async function createApp() {
         }
       }
       const preferredIp2 = addresses2.find((ip) => ip.startsWith("192.168.") || ip.startsWith("10.") || ip.startsWith("172.")) || addresses2[0] || "localhost";
-      const hostname2 = os.hostname().toLowerCase();
-      const localDomain = "blgf.local";
-      const domainPort2 = PORT === 80 ? "" : `:${PORT}`;
-      const domainUrl = `http://blgf.local${domainPort2}/login`;
-      const fallbackDomainUrl = `http://${hostname2}.local${domainPort2}/login`;
-      const ipUrl = preferredIp2 !== "localhost" ? `http://${preferredIp2}${domainPort2}/login` : `http://localhost${domainPort2}/login`;
+      const domainPort = PORT === 80 ? "" : `:${PORT}`;
+      const ipUrl = preferredIp2 !== "localhost" ? `http://${preferredIp2}${domainPort}/login` : `http://localhost${domainPort}/login`;
+      const domainUrl = ipUrl;
+      const fallbackDomainUrl = ipUrl;
+      const localDomain = preferredIp2;
       const hostHeader = req.get("host") || `${preferredIp2}:${PORT}`;
       const protocol = req.headers["x-forwarded-proto"] || req.protocol || (IS_VERCEL ? "https" : "http");
       const currentOrigin = `${protocol}://${hostHeader}`;
+      const publicDomain = process.env.PUBLIC_DOMAIN || "blgfdts.duckdns.org";
+      const publicUrl = process.env.PUBLIC_URL || `https://${publicDomain}/login`;
+      const publicIp = process.env.PUBLIC_IP || "124.6.177.154";
+      const hostname = os.hostname().toLowerCase();
       res.json({
         localIp: preferredIp2,
         port: PORT,
-        hostname: hostname2,
+        hostname,
         localDomain,
         domainUrl,
         fallbackDomainUrl,
         ipUrl,
-        lanUrl: domainUrl,
+        lanUrl: ipUrl,
+        publicUrl,
+        publicIp,
+        publicDomain,
         currentOrigin,
         isVercel: IS_VERCEL,
         allIps: addresses2
@@ -4421,10 +4581,13 @@ async function createApp() {
         localIp: "localhost",
         port: PORT,
         hostname: "server",
-        localDomain: "server.local",
-        domainUrl: `http://server.local:${PORT}`,
-        ipUrl: `http://localhost:${PORT}`,
-        lanUrl: `http://server.local:${PORT}`,
+        localDomain: "localhost",
+        domainUrl: `http://localhost:${PORT}/login`,
+        ipUrl: `http://localhost:${PORT}/login`,
+        lanUrl: `http://localhost:${PORT}/login`,
+        publicUrl: "https://blgfdts.duckdns.org/login",
+        publicIp: "124.6.177.154",
+        publicDomain: "blgfdts.duckdns.org",
         currentOrigin: IS_VERCEL ? `https://${hostHeader}` : `http://localhost:${PORT}`,
         isVercel: IS_VERCEL,
         allIps: []
@@ -4881,13 +5044,18 @@ async function createApp() {
     });
     documentsState.forEach((doc) => {
       if (doc.currentStatus === "COMPLETED") return;
-      const heldBy = /* @__PURE__ */ new Set();
-      getPendingRecipients(doc).forEach((route) => {
-        if (route.toDivision) heldBy.add(route.toDivision);
+      const involvedDivisions = /* @__PURE__ */ new Set();
+      if (doc.currentDivision) involvedDivisions.add(doc.currentDivision);
+      const creatorUser = doc.createdByUserId ? usersState.find((u) => u.id === doc.createdByUserId) : null;
+      if (creatorUser?.divisionCode) involvedDivisions.add(creatorUser.divisionCode);
+      (doc.routes || []).forEach((route) => {
+        if (route.toDivision) involvedDivisions.add(route.toDivision);
+        if (route.fromDivision) involvedDivisions.add(route.fromDivision);
       });
-      if (!heldBy.size && doc.currentDivision) heldBy.add(doc.currentDivision);
-      heldBy.forEach((code) => {
-        divMap[code] = (divMap[code] || 0) + 1;
+      involvedDivisions.forEach((code) => {
+        if (divMap[code] !== void 0) {
+          divMap[code] = (divMap[code] || 0) + 1;
+        }
       });
     });
     const divisionBreakdown = Object.entries(divMap).map(([code, count]) => ({
@@ -5503,19 +5671,19 @@ async function createApp() {
   });
   if (IS_VERCEL) return app;
   const distPath = path.join(process.cwd(), "dist", "frontend");
-  app.use((_req, res, next) => {
-    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-    res.setHeader("Pragma", "no-cache");
-    res.setHeader("Expires", "0");
-    next();
-  });
   app.use(express3.static(distPath, {
-    etag: false,
-    maxAge: 0,
+    etag: true,
+    maxAge: "1h",
     setHeaders: (res, filePath) => {
-      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-      res.setHeader("Pragma", "no-cache");
-      res.setHeader("Expires", "0");
+      if (filePath.endsWith("index.html") || filePath.endsWith("service-worker.js") || filePath.endsWith("offline-assets.json") || filePath.endsWith("manifest.webmanifest")) {
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
+      } else if (/\.(js|css)$/i.test(filePath)) {
+        res.setHeader("Cache-Control", "no-cache, must-revalidate");
+      } else if (/\.(png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot)$/i.test(filePath)) {
+        res.setHeader("Cache-Control", "public, max-age=3600");
+      }
       if (filePath.endsWith("manifest.webmanifest")) {
         res.setHeader("Content-Type", "application/manifest+json");
       }
@@ -5525,10 +5693,11 @@ async function createApp() {
       }
     }
   }));
-  app.get("*", (_req, res) => {
-    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-    res.setHeader("Pragma", "no-cache");
-    res.setHeader("Expires", "0");
+  app.get("*", (req, res) => {
+    if (/\.(js|css|map|png|jpg|jpeg|gif|svg|ico|json|woff2?|ttf|eot)$/i.test(req.path)) {
+      return res.status(404).send("Not found");
+    }
+    res.setHeader("Cache-Control", "no-cache");
     res.sendFile(path.join(distPath, "index.html"));
   });
   await new Promise((resolve, reject) => {
@@ -5556,15 +5725,10 @@ async function createApp() {
     }
   }
   const preferredIp = addresses.find((ip) => ip.startsWith("192.168.") || ip.startsWith("10.") || ip.startsWith("172.")) || addresses[0] || "localhost";
-  const hostname = os.hostname().toLowerCase();
-  startMdnsBroadcaster(() => preferredIp, ["blgf.local", "blgfdts.local", `${hostname}.local`, "server.local"]);
-  const domainPort = PORT === 80 ? "" : `:${PORT}`;
   console.log(`=======================================================`);
   console.log(`BLGF REGION II DOCUMENT TRACKING SYSTEM SERVER RUNNING`);
-  console.log(`Custom Domain  : http://blgf.local${domainPort}/login`);
-  console.log(`Local Hostname : http://${hostname}.local${domainPort}/login`);
-  console.log(`Direct Wi-Fi IP: http://${preferredIp}${domainPort}/login`);
   console.log(`Desktop Local  : http://localhost:${PORT}/login`);
+  console.log(`Public Online  : ${process.env.PUBLIC_URL || "https://blgfdts.duckdns.org/login"}`);
   console.log(`=======================================================`);
   return app;
 }

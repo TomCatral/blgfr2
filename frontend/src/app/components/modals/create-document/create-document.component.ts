@@ -8,6 +8,7 @@ import {
   OnChanges,
   SimpleChanges,
   OnDestroy,
+  HostListener,
   CUSTOM_ELEMENTS_SCHEMA,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -150,6 +151,218 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
   showAddOutsideDepartment = signal(false);
   excludedOutsideRecipientIds = signal<string[]>([]);
   customOutsideRecipients = signal<OutsideRecipientEntry[]>([]);
+  outsideEmployeeSearch = signal<string>('');
+  isOutsideDropdownOpen = signal<boolean>(false);
+  isInsideDropdownOpen = signal<boolean>(false);
+  isOutsideDeptDropdownOpen = signal<boolean>(false);
+  outsideDeptSearch = signal<string>('');
+  isInsideDivDropdownOpen = signal<boolean>(false);
+  insideDivSearch = signal<string>('');
+
+  readonly outsideDepartmentOptions = [
+    { code: 'PTO', label: 'Provincial Treasury Offices (PTO)', icon: 'business', desc: 'Provincial treasury administration & local finance' },
+    { code: 'MTO', label: 'Municipal Treasury Offices / LGUs (MTO)', icon: 'business-outline', desc: 'Municipal treasuries and local government units' },
+    { code: 'PARTNER', label: 'Partner Agencies & External Stakeholders', icon: 'globe-outline', desc: 'Regional & national government agencies and partners' }
+  ];
+
+  readonly filteredOutsideDepartmentOptions = computed(() => {
+    const q = this.outsideDeptSearch().trim().toLowerCase();
+    if (!q) return this.outsideDepartmentOptions;
+    return this.outsideDepartmentOptions.filter(d =>
+      d.code.toLowerCase().includes(q) ||
+      d.label.toLowerCase().includes(q) ||
+      d.desc.toLowerCase().includes(q)
+    );
+  });
+
+  readonly insideDivisionOptions = computed(() => [
+    { code: 'ALL', name: 'All Divisions', desc: 'Broadcast to all functional divisions' },
+    ...this.DIVISION_OPTIONS.map(([code, name]) => ({
+      code,
+      name,
+      desc: `${name} (${code})`
+    }))
+  ]);
+
+  readonly filteredInsideDivisionOptions = computed(() => {
+    const q = this.insideDivSearch().trim().toLowerCase();
+    const list = this.insideDivisionOptions();
+    if (!q) return list;
+    return list.filter(d =>
+      d.code.toLowerCase().includes(q) ||
+      d.name.toLowerCase().includes(q) ||
+      d.desc.toLowerCase().includes(q)
+    );
+  });
+
+  openOutsideDropdown(): void {
+    this.isOutsideDropdownOpen.set(true);
+    this.isInsideDropdownOpen.set(false);
+    this.isOutsideDeptDropdownOpen.set(false);
+    this.isInsideDivDropdownOpen.set(false);
+  }
+
+  openInsideDropdown(): void {
+    this.isInsideDropdownOpen.set(true);
+    this.isOutsideDropdownOpen.set(false);
+    this.isOutsideDeptDropdownOpen.set(false);
+    this.isInsideDivDropdownOpen.set(false);
+  }
+
+  openOutsideDeptDropdown(): void {
+    this.isOutsideDeptDropdownOpen.set(true);
+    this.isOutsideDropdownOpen.set(false);
+    this.isInsideDropdownOpen.set(false);
+    this.isInsideDivDropdownOpen.set(false);
+  }
+
+  openInsideDivDropdown(): void {
+    this.isInsideDivDropdownOpen.set(true);
+    this.isOutsideDropdownOpen.set(false);
+    this.isInsideDropdownOpen.set(false);
+    this.isOutsideDeptDropdownOpen.set(false);
+  }
+
+  toggleOutsideDropdown(open?: boolean): void {
+    if (open === false) {
+      this.isOutsideDropdownOpen.set(false);
+    } else {
+      this.openOutsideDropdown();
+    }
+  }
+
+  toggleInsideDropdown(open?: boolean): void {
+    if (open === false) {
+      this.isInsideDropdownOpen.set(false);
+    } else {
+      this.openInsideDropdown();
+    }
+  }
+
+  toggleOutsideDeptDropdown(open?: boolean): void {
+    if (open === false) {
+      this.isOutsideDeptDropdownOpen.set(false);
+    } else {
+      this.openOutsideDeptDropdown();
+    }
+  }
+
+  toggleInsideDivDropdown(open?: boolean): void {
+    if (open === false) {
+      this.isInsideDivDropdownOpen.set(false);
+    } else {
+      this.openInsideDivDropdown();
+    }
+  }
+
+  selectAndAddOutsideDepartment(deptCode: string): void {
+    if (!this.selectedOutsideDepartments().includes(deptCode)) {
+      this.selectedOutsideDepartments.set([...this.selectedOutsideDepartments(), deptCode]);
+    }
+    this.outsideOfficeDepartment.set(deptCode);
+    this.isOutsideDeptDropdownOpen.set(false);
+    this.outsideDeptSearch.set('');
+
+    const recipients = this.getEmployeesForDept(deptCode).map((employee) => ({
+      id: employee.id,
+      name: employee.fullName || '',
+      position: employee.position || '',
+      office: employee.office || '',
+      address: employee.address || '',
+    }));
+
+    if (recipients.length > 0) {
+      this.populateFieldsFromRecipient(recipients[0]);
+    }
+  }
+
+  selectAndAddDivision(divCode: string): void {
+    if (divCode === 'ALL') {
+      this.currentDivision.set('ALL');
+      this.additionalDivisions.set([]);
+    } else {
+      const code = divCode as DivisionCode;
+      if (!this.currentDivision() || this.currentDivision() === 'ALL') {
+        this.currentDivision.set(code);
+      } else if (this.currentDivision() !== code && !this.additionalDivisions().includes(code)) {
+        this.additionalDivisions.set([...this.additionalDivisions(), code]);
+      }
+    }
+    this.isInsideDivDropdownOpen.set(false);
+    this.insideDivSearch.set('');
+  }
+
+  selectAndAddOutsideEmployee(empId: string): void {
+    this.selectedOutsideEmployeeId.set(empId);
+    this.addOutsideRecipientFromDirectory();
+    this.isOutsideDropdownOpen.set(false);
+    this.outsideEmployeeSearch.set('');
+  }
+
+  selectAndAddInsideRecipient(userId: string): void {
+    this.recipientUserId.set(userId);
+    this.addRecipient();
+    this.isInsideDropdownOpen.set(false);
+    this.internalRecipientSearch.set('');
+  }
+
+  getInitials(name?: string): string {
+    if (!name) return 'U';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+
+  closeAllDropdowns(): void {
+    this.isOutsideDropdownOpen.set(false);
+    this.isInsideDropdownOpen.set(false);
+    this.isOutsideDeptDropdownOpen.set(false);
+    this.isInsideDivDropdownOpen.set(false);
+  }
+
+  onComboboxFocusOut(event: FocusEvent, type: 'insideDiv' | 'insideHandler' | 'outsideDept' | 'outsideHandler'): void {
+    const currentTarget = event.currentTarget as HTMLElement | null;
+    const relatedTarget = event.relatedTarget as HTMLElement | null;
+    if (relatedTarget && currentTarget && currentTarget.contains(relatedTarget)) {
+      return;
+    }
+    switch (type) {
+      case 'insideDiv':
+        this.isInsideDivDropdownOpen.set(false);
+        break;
+      case 'insideHandler':
+        this.isInsideDropdownOpen.set(false);
+        break;
+      case 'outsideDept':
+        this.isOutsideDeptDropdownOpen.set(false);
+        break;
+      case 'outsideHandler':
+        this.isOutsideDropdownOpen.set(false);
+        break;
+    }
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    if (!target.closest('#outside-dept-select')) {
+      this.isOutsideDeptDropdownOpen.set(false);
+    }
+    if (!target.closest('#outside-handler-select')) {
+      this.isOutsideDropdownOpen.set(false);
+    }
+    if (!target.closest('#inside-div-select')) {
+      this.isInsideDivDropdownOpen.set(false);
+    }
+    if (!target.closest('#inside-handler-select')) {
+      this.isInsideDropdownOpen.set(false);
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.closeAllDropdowns();
+  }
 
   readonly availableOutsideEmployees = computed(() => {
     const dept = this.outsideOfficeDepartment();
@@ -157,6 +370,17 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     if (dept === 'MTO') return this.municipalTreasuryProfiles();
     if (dept === 'PARTNER') return this.partnerAgencyProfiles();
     return this.directoryProfiles();
+  });
+
+  readonly filteredAvailableOutsideEmployees = computed(() => {
+    const q = this.outsideEmployeeSearch().trim().toLowerCase();
+    const list = this.availableOutsideEmployees();
+    if (!q) return list;
+    return list.filter((emp) =>
+      (emp.fullName || '').toLowerCase().includes(q) ||
+      (emp.position || '').toLowerCase().includes(q) ||
+      (emp.office || '').toLowerCase().includes(q),
+    );
   });
 
   readonly provincialTreasuryProfiles = computed(() =>
@@ -550,14 +774,12 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     if (dir === 'OUTGOING') {
       this.recipientType.set('OUTSIDE');
       this.priority.set('ROUTINE');
-      this.populateDefaultOutgoingSender();
       const recipients = this.outsideDepartmentRecipients();
       if (recipients.length > 0) {
         this.populateFieldsFromRecipient(recipients[0]);
       }
     } else {
       this.recipientType.set('INTERNAL');
-      this.populateDefaultIncomingSender();
     }
 
     this.validationErrors.set([]);
@@ -571,7 +793,6 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
 
     if (type === 'OUTSIDE') {
       this.priority.set('ROUTINE');
-      this.populateDefaultOutgoingSender();
       const recipients = this.outsideDepartmentRecipients();
       if (recipients.length > 0) {
         this.populateFieldsFromRecipient(recipients[0]);
@@ -653,37 +874,6 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     this.validationErrors.set([]);
     this.loadEmployees();
     this.fetchServerRouteNo();
-  }
-
-  populateDefaultOutgoingSender(): void {
-    if (!this.senderName()) {
-      this.senderName.set(this.currentUser?.fullName || '');
-    }
-    if (!this.senderPosition()) {
-      this.senderPosition.set(
-        this.currentUser?.designation || this.currentUser?.role?.replaceAll('_', ' ') || '',
-      );
-    }
-    if (!this.originatingOffice()) {
-      this.originatingOffice.set('Bureau of Local Government Finance Regional Office II');
-    }
-    if (!this.senderAddress()) {
-      this.senderAddress.set(
-        'Regional Government Center, Carig Sur, Tuguegarao City, Cagayan',
-      );
-    }
-    this.initialAction.set('Appropriate Action');
-  }
-
-  populateDefaultIncomingSender(): void {
-    if (this.originatingOffice() === 'Bureau of Local Government Finance Regional Office II') {
-      this.originatingOffice.set('');
-      this.senderAddress.set('');
-      if (this.senderName() === this.currentUser?.fullName) {
-        this.senderName.set('');
-        this.senderPosition.set('');
-      }
-    }
   }
 
   ngOnDestroy(): void {}
@@ -779,10 +969,24 @@ export class CreateDocumentComponent implements OnInit, OnChanges, OnDestroy {
     );
   });
 
+  internalRecipientSearch = signal<string>('');
+
   availableRecipients = computed(() => {
     const selIds = this.selectedRecipientIds();
     return this.allEmployees().filter(
       (user) => !selIds.includes(user.id),
+    );
+  });
+
+  filteredAvailableRecipients = computed(() => {
+    const q = this.internalRecipientSearch().trim().toLowerCase();
+    const list = this.availableRecipients();
+    if (!q) return list;
+    return list.filter((user) =>
+      (user.fullName || '').toLowerCase().includes(q) ||
+      (user.designation || '').toLowerCase().includes(q) ||
+      (user.role || '').toLowerCase().includes(q) ||
+      (user.divisionCode || '').toLowerCase().includes(q),
     );
   });
 

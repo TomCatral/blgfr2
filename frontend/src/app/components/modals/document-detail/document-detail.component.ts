@@ -276,18 +276,57 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
     }
   }
 
-  documentFields = computed(() =>
-    [
-      { label: 'Tracking #', value: this.document.routeNo || this.document.trackingNumber },
+  documentFields = computed(() => {
+    this.docVersion();
+    const routedRecipients = (this.document.routes || [])
+      .filter((route) => !getRouteDecision(route) && Boolean(route.toUserId || route.toUser?.trim()))
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    const latestRoute = routedRecipients.at(-1);
+    const latestUser = latestRoute
+      ? this.users.find((user) =>
+          (latestRoute.toUserId && user.id === latestRoute.toUserId) ||
+          user.fullName.trim().toLowerCase() === latestRoute.toUser?.trim().toLowerCase(),
+        )
+      : undefined;
+    const latestReceiverName = latestUser?.fullName || latestRoute?.toUser?.trim() || this.document.recipientName || 'Not recorded';
+    const isOriginalRecipient = latestReceiverName.trim().toLowerCase() === this.document.recipientName?.trim().toLowerCase();
+    const latestReceiverPosition = latestUser?.designation?.trim() || (isOriginalRecipient ? this.document.recipientPosition?.trim() : '') || 'Not recorded';
+    const latestReceiverOffice = latestRoute?.toDivision
+      ? (DIVISION_OFFICE_NAMES[latestRoute.toDivision] || latestRoute.toDivision)
+      : this.document.recipientOffice?.trim() || this.document.destinationOffice?.trim() || 'Not recorded';
+    const latestReceiverAddress = isOriginalRecipient ? this.document.recipientAddress?.trim() || 'Not recorded' : 'Not recorded';
+
+    return [
       { label: 'Category', value: this.document.category },
-      { label: 'Originating office', value: this.document.originatingOffice },
-      { label: 'Destination office', value: this.document.destinationOffice },
-      { label: 'Assigned handler', value: this.resolveUserName(this.document.assignedUserId, this.document.assignedUser) || this.document.assignedUser },
+      {
+        label: 'Originating Office / Sender',
+        value: this.document.senderName || 'Not recorded',
+        details: [
+          { label: 'Name', value: this.document.senderName || 'Not recorded' },
+          { label: 'Position', value: this.document.senderPosition?.trim() || 'Not recorded' },
+          { label: 'Office', value: this.document.originatingOffice?.trim() || 'Not recorded' },
+          { label: 'Address', value: this.document.senderAddress?.trim() || 'Not recorded' },
+        ],
+      },
+      {
+        label: 'Receiver / Addressee',
+        value: latestReceiverName,
+        details: [
+          { label: 'Name', value: latestReceiverName },
+          { label: 'Position', value: latestReceiverPosition },
+          { label: 'Office', value: latestReceiverOffice },
+          { label: 'Address', value: latestReceiverAddress },
+        ],
+      },
       { label: 'Target due date', value: this.document.targetCompletionDate ? formatDate(this.document.targetCompletionDate) : 'Not set' },
       { label: 'Priority', value: this.document.priority },
       { label: 'Direction', value: this.document.direction },
-    ].map((field) => ({ label: field.label, value: field.value || '' })),
-  );
+    ].map((field) => ({ ...field, value: field.value || '' }));
+  });
+
+  documentPartyFields = computed(() => this.documentFields().filter((field) => field.details?.length));
+
+  documentSummaryFields = computed(() => this.documentFields().filter((field) => !field.details?.length));
 
   nextActionText = computed(() => NEXT_ACTION[this.document.currentStatus]);
 
@@ -433,7 +472,29 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
 
   rawHistoryRoutes = computed<DocumentRouteStep[]>(() => {
     this.docVersion();
+    const removalLogs = (this.docAuditLogs() || []).filter((log) => {
+      const isThisDoc =
+        log.documentTrackingNumber === this.document.trackingNumber ||
+        (Boolean(this.document.routeNo) && log.documentTrackingNumber === this.document.routeNo) ||
+        (Boolean(this.document.id) && log.documentTrackingNumber === this.document.id);
+      return isThisDoc && (log.details || '').toLowerCase().includes('removed recipient');
+    });
+
     const routes = (this.document.routes || []).filter((r) => {
+      if (removalLogs.length > 0) {
+        const isRecalled = removalLogs.some((remLog) => {
+          const match = remLog.details.match(/removed recipient\s+([^|(]+?)(?:\s*\(([^)]+)\))?\s+from transaction/i);
+          if (!match) return false;
+          const removedName = match[1].trim().toLowerCase();
+          const matches =
+            (r.toUser && r.toUser.trim().toLowerCase() === removedName) ||
+            (r.fromUser && r.fromUser.trim().toLowerCase() === removedName);
+          if (!matches) return false;
+          return new Date(r.createdAt).getTime() <= new Date(remLog.timestamp).getTime();
+        });
+        if (isRecalled) return false;
+      }
+
       if (getRouteDecision(r)) return false;
       const hasRecipient = Boolean(r.toUserId || (r.toUser && r.toUser.trim() && r.toUser.trim() !== 'N/A'));
       if (!hasRecipient) return false;
@@ -456,12 +517,7 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
   }
 
   visibleRoutes = computed<DocumentRouteStep[]>(() => {
-    const all = this.rawHistoryRoutes();
-    const connected = all.filter((r) => this.isRouteConnectedToUser(r, all));
-    if (connected.length > 0) {
-      return connected;
-    }
-    return all;
+    return this.rawHistoryRoutes();
   });
 
   historyRoutes = this.visibleRoutes;
@@ -1041,7 +1097,7 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
   });
 
   canEditPart(part: { isCurrentUser: boolean }): boolean {
-    return Boolean(part.isCurrentUser);
+    return Boolean(this.currentUser?.role === 'SYSTEM_ADMIN' || part.isCurrentUser);
   }
 
   startEditingPartInstruction(part: { id: string; routeId?: string; instruction: string; isCurrentUser?: boolean }): void {

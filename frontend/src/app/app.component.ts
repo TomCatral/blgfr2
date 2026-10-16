@@ -291,20 +291,35 @@ export class AppComponent implements OnInit, OnDestroy {
 
   constructor() {
     effect(() => {
+      const user = this.session.currentUser();
+      const current = this.activeView();
+      if (user && current && current !== 'dashboard' && !this.canView(current)) {
+        this.activeView.set('dashboard');
+      }
+    });
+    effect(() => {
       if (this.session.currentUser()) {
         this.checkTargetDates();
         this.syncRoutingPopup();
       }
     });
+    let lastLoadedUserId: string | null = null;
     effect(() => {
-      const userId = this.currentUser()?.id ?? null;
-      if (!userId) {
+      const user = this.currentUser();
+      const currentUserId = user?.id ?? null;
+      if (!currentUserId) {
+        lastLoadedUserId = null;
         this.state.stopPolling();
         return;
       }
+      if (lastLoadedUserId === currentUserId) {
+        return;
+      }
+      lastLoadedUserId = currentUserId;
       this.session.markDataLoading();
       void this.loadBackendData().finally(() => {
-        if (this.currentUser()?.id === userId) {
+        this.session.markDataLoaded();
+        if (this.currentUser()?.id === currentUserId) {
           this.state.startPolling();
         }
       });
@@ -436,8 +451,28 @@ export class AppComponent implements OnInit, OnDestroy {
     );
   }
 
+  canView(view: string): boolean {
+    const user = this.currentUser();
+    if (!user) return false;
+    if (user.role === 'SYSTEM_ADMIN' || user.divisionCode === 'ITMS') return true;
+    if (view === 'dashboard') return true;
+    if (view === 'users') return false;
+
+    const perms = this.effectivePermissions();
+    if (view === 'routing-followup') {
+      return Boolean(perms.allowedActions?.includes('ROUTING_MONITOR_VIEW'));
+    }
+    if ((view === 'settings' || view === 'audit' || view === 'envelope-logs') && !perms.management) {
+      return false;
+    }
+    if (['incoming', 'outgoing', 'slip', 'envelope', 'employees', 'qr', 'incoming-report', 'outgoing-report', 'envelope-report', 'division-workload'].includes(view)) {
+      if (!perms.mainMenu) return false;
+    }
+    return Boolean((perms.allowedViews || []).includes(view));
+  }
+
   canViewSlip(): boolean {
-    return this.effectivePermissions().allowedViews.includes('slip');
+    return this.canView('slip');
   }
 
   handleSearchDoc(query: string): void {
@@ -598,7 +633,8 @@ export class AppComponent implements OnInit, OnDestroy {
   backToOutgoing = (): void => this.activeView.set('outgoing');
 
   navigateTo = (view: string): void => {
-    if (view === 'users' && this.currentUser()?.role !== 'SYSTEM_ADMIN') {
+    if (!this.canView(view)) {
+      this.ui.showError('Access Restricted: Your account does not have permission to view this module.');
       this.activeView.set('dashboard');
       return;
     }

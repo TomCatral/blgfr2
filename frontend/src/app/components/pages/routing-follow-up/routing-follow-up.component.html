@@ -23,10 +23,10 @@
       <section [ngClass]="'routing-followup-panel' | cls">
         <div [ngClass]="'routing-followup-toolbar' | cls">
           <div [ngClass]="'routing-followup-searchWrap' | cls">
-            <ion-input
+            <input
               type="text"
               [value]="searchQuery()"
-              (ionInput)="onSearchInput($event)"
+              (input)="onSearchInput($event)"
               placeholder="Search route number, document, handler, status..."
               aria-label="Search routing follow-up records"
               [ngClass]="'routing-followup-searchInput' | cls"

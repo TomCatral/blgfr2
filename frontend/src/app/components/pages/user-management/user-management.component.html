@@ -137,7 +137,7 @@
 
     <ion-button
       type="button"
-      (click)="activeTab.set('roles')"
+      (click)="openRolesTab()"
       class="ua-tab-btn"
       [class.active]="activeTab() === 'roles'"
     >
@@ -170,7 +170,7 @@
       <!-- Search & Filters Toolbar -->
       <div class="ua-toolbar">
         <div class="ua-search-wrap">
-          <ion-input
+          <input
             type="text"
             [ngModel]="searchTerm()"
             (ngModelChange)="searchTerm.set($event)"

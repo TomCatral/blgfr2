@@ -1,12 +1,16 @@
 <div
   class="login-page"
   [class.has-background-image]="hasBackgroundImage"
-  [style.background-image]="hasBackgroundImage
-    ? 'linear-gradient(rgba(2, 6, 23, 0.62), rgba(2, 6, 23, 0.82)), url(' + backgroundImageUrl + ')'
-    : ''"
+  [style.background-image]="safeBackgroundStyle"
   [style.background-size]="hasBackgroundImage ? 'cover' : ''"
   [style.background-position]="hasBackgroundImage ? 'center' : ''"
 >
+  @if (hasBackgroundImage && backgroundImageUrl) {
+    <div class="login-bg-backdrop" aria-hidden="true">
+      <img [src]="backgroundImageUrl" alt="" class="login-bg-img" />
+      <div class="login-bg-overlay"></div>
+    </div>
+  }
   <ion-button
     type="button"
     class="login-theme-toggle"
@@ -233,10 +237,10 @@
             <span class="login-input-icon">
               <ion-icon name="person"></ion-icon>
             </span>
-            <ion-input
+            <input
               type="text"
               required
-              autoFocus
+              autofocus
               autocomplete="username"
               [(ngModel)]="username"
               name="username"
@@ -252,7 +256,7 @@
             <span class="login-input-icon">
               <ion-icon name="lock-closed"></ion-icon>
             </span>
-            <ion-input
+            <input
               [type]="showPassword ? 'text' : 'password'"
               required
               autocomplete="current-password"
@@ -292,6 +296,15 @@
         <ion-button type="button" class="login-btn-link" (click)="openForgotPassword()">
           Forgot password?
         </ion-button>
+
+        @if (canInstallPwa) {
+          <div class="login-pwa-install-wrap">
+            <button type="button" class="login-pwa-install-btn" (click)="installPwa()">
+              <ion-icon name="download-outline"></ion-icon>
+              <span>Install BLGF DTS Mobile App</span>
+            </button>
+          </div>
+        }
       </form>
     }
 

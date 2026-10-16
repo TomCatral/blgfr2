@@ -40,15 +40,30 @@ function spawnNpmSync(args, env) {
   });
 }
 
+const fs = require('node:fs');
+
 function runDevProcesses(env) {
   return new Promise((resolve, reject) => {
-    // Spawn both services here instead of nesting them under `concurrently`.
-    // On Windows the extra shell layer can drop runtime environment overrides,
-    // making the API bind to 3001 even after the launcher selected another port.
     const children = [
       spawnNpm(['run', 'dev:backend', '--', '--port', env.PORT], env),
       spawnNpm(['run', 'dev:frontend'], env),
     ];
+
+    const caddyExe = path.join(projectRoot, 'caddy.exe');
+    const caddyfile = path.join(projectRoot, 'Caddyfile');
+    if (fs.existsSync(caddyExe) && fs.existsSync(caddyfile)) {
+      try {
+        if (process.platform === 'win32') {
+          execSync('taskkill /F /IM caddy.exe', { stdio: 'ignore' });
+        }
+      } catch {}
+      const caddy = spawn(caddyExe, ['run', '--config', caddyfile], {
+        cwd: projectRoot,
+        stdio: 'ignore',
+        shell: false,
+      });
+      children.push(caddy);
+    }
 
     let settled = false;
     const cleanup = (except) => {
@@ -56,6 +71,11 @@ function runDevProcesses(env) {
         if (child === except) continue;
         killProcessTree(child.pid);
       }
+      try {
+        if (process.platform === 'win32') {
+          execSync('taskkill /F /IM caddy.exe', { stdio: 'ignore' });
+        }
+      } catch {}
     };
 
     const finish = (code, child) => {
@@ -155,15 +175,12 @@ async function main() {
     addresses.find((ip) => ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) ||
     addresses[0] ||
     'localhost';
-  const hostname = os.hostname().toLowerCase();
-
   const portSuffix = port === 80 ? '' : `:${port}`;
+  const publicUrl = process.env.PUBLIC_URL || 'https://blgfdts.duckdns.org/login';
   console.log(`=======================================================`);
-  console.log(`Starting the BLGF API and Frontend...`);
-  console.log(`Desktop Local  : http://localhost${portSuffix}/login (Webcam Ready)`);
-  console.log(`Custom Domain  : http://blgf.local${portSuffix}/login`);
-  console.log(`Local Hostname : http://${hostname}.local${portSuffix}/login`);
-  console.log(`Direct Wi-Fi IP: http://${preferredIp}${portSuffix}/login`);
+  console.log(`BLGF REGION II DOCUMENT TRACKING SYSTEM`);
+  console.log(`Desktop Local  : http://localhost${portSuffix}/login`);
+  console.log(`Public Online  : ${publicUrl}`);
   console.log(`=======================================================`);
 
   const build = spawnNpmSync(['run', 'build:frontend:dev'], env);

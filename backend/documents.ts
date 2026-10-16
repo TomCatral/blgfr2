@@ -135,6 +135,9 @@ export function createDocumentsRouter(
   // global monitoring view, while mutation endpoints below explicitly prevent
   // it from participating in routing.
   const canViewDocument = (user: User, document: DocumentRecord) =>
+    user.role === 'SYSTEM_ADMIN' ||
+    user.role === 'ORD' ||
+    Boolean(user.permissions?.canViewAllDocuments) ||
     isDocumentParticipant(document, user, getAuditLogsState());
   const getPendingDecisionRoute = (user: User, document: DocumentRecord) =>
     [...(document.routes || [])].reverse().find((assignedRoute) => {
@@ -155,7 +158,27 @@ export function createDocumentsRouter(
       return !actedInRoutes && !actedInAudit;
     });
   const withRecoveredAuditRoutes = (document: DocumentRecord) => {
-    const storedRoutes = document.routes || [];
+    let storedRoutes = document.routes || [];
+    const removalLogs = getAuditLogsState().filter(
+      (l) =>
+        (l.documentTrackingNumber === document.trackingNumber ||
+          (Boolean(document.routeNo) && l.documentTrackingNumber === document.routeNo)) &&
+        (l.details || '').toLowerCase().includes('removed recipient'),
+    );
+    if (removalLogs.length > 0) {
+      storedRoutes = storedRoutes.filter((route) => {
+        return !removalLogs.some((remLog) => {
+          const match = remLog.details.match(/removed recipient\s+([^|(]+?)(?:\s*\(([^)]+)\))?\s+from transaction/i);
+          if (!match) return false;
+          const removedName = match[1].trim().toLowerCase();
+          const matches =
+            (route.toUser && route.toUser.trim().toLowerCase() === removedName) ||
+            (route.fromUser && route.fromUser.trim().toLowerCase() === removedName);
+          if (!matches) return false;
+          return new Date(route.createdAt).getTime() <= new Date(remLog.timestamp).getTime();
+        });
+      });
+    }
     const recovered = getAuditLogsState()
       .filter(
         (log) =>
@@ -227,7 +250,7 @@ export function createDocumentsRouter(
           createdAt: log.timestamp,
         } satisfies DocumentRouteStep];
       });
-    return recovered.length
+    return recovered.length || storedRoutes.length !== (document.routes || []).length
       ? { ...document, routes: [...storedRoutes, ...recovered] }
       : document;
   };
@@ -251,8 +274,8 @@ export function createDocumentsRouter(
       return res.status(401).json({ error: 'Active database user required.' });
     }
     list = list
-      .filter((document) => canViewDocument(actingUser, document))
       .map(withRecoveredAuditRoutes)
+      .filter((document) => canViewDocument(actingUser, document))
       .map(hideSystemAdministratorFromTransactions);
     const { search, direction, status, division, priority } = req.query;
 
@@ -313,10 +336,11 @@ export function createDocumentsRouter(
     const doc = getDocumentsState().find(
       (d) => d.id === req.params.id || d.routeNo === req.params.id,
     );
-    if (!doc || !canViewDocument(actingUser, doc)) {
+    const sanitizedDoc = doc ? withRecoveredAuditRoutes(doc) : null;
+    if (!sanitizedDoc || !canViewDocument(actingUser, sanitizedDoc)) {
       return res.status(404).json({ error: 'Document not found' });
     }
-    res.json(hideSystemAdministratorFromTransactions(withRecoveredAuditRoutes(doc)));
+    res.json(hideSystemAdministratorFromTransactions(sanitizedDoc));
   });
 
   // POST Create Document
@@ -1127,12 +1151,39 @@ export function createDocumentsRouter(
     const removedRecipientName = targetRoute.toUser || 'Recipient';
     const removedRecipientId = targetRoute.toUserId;
 
-    // Step 2 and later are individual routing transactions. Remove only the
-    // selected transaction; the document, route number, and other steps stay.
+    // Step 2 and later are individual routing transactions. Remove all
+    // routing records tied to the removed recipient so it is totally removed from their records.
     const routeIdsToRemove = new Set<string>([targetRoute.id]);
+    if (removedRecipientId || removedRecipientName) {
+      doc.routes.forEach((r) => {
+        const matchesRemoved =
+          (removedRecipientId && (r.toUserId === removedRecipientId || r.fromUserId === removedRecipientId)) ||
+          (removedRecipientName && (
+            r.toUser?.trim().toLowerCase() === removedRecipientName.trim().toLowerCase() ||
+            r.fromUser?.trim().toLowerCase() === removedRecipientName.trim().toLowerCase()
+          ));
+        if (matchesRemoved) {
+          routeIdsToRemove.add(r.id);
+        }
+      });
+    }
 
     // Filter routes
     doc.routes = doc.routes.filter((r) => !routeIdsToRemove.has(r.id));
+
+    // If recipientName was the removed recipient, fallback to remaining recipient
+    if (
+      removedRecipientName &&
+      doc.recipientName?.trim().toLowerCase() === removedRecipientName.trim().toLowerCase()
+    ) {
+      const remainingForward = doc.routes.find(
+        (r) =>
+          r.toUser &&
+          r.toUser.trim().toLowerCase() !== (doc.createdBy || '').trim().toLowerCase() &&
+          r.toUser.trim().toLowerCase() !== (doc.senderName || '').trim().toLowerCase(),
+      );
+      doc.recipientName = remainingForward?.toUser || 'Not recorded';
+    }
 
     // Re-index remaining routes stepNumber
     doc.routes.forEach((r, idx) => {

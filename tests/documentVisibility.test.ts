@@ -31,3 +31,80 @@ test('uninvolved user cannot track the document', () => {
   } as DocumentRecord;
   assert.equal(isDocumentParticipant(routed, user), false);
 });
+
+test('SYSTEM_ADMIN and ORD can track all documents without participating', () => {
+  const routed = {
+    ...document,
+    routes: [{ fromUserId: 'sender', toUserId: 'recipient' }],
+  } as DocumentRecord;
+  const sysAdmin = { id: 'admin-1', role: 'SYSTEM_ADMIN' } as User;
+  const ordUser = { id: 'ord-1', role: 'ORD' } as User;
+  const privileged = { id: 'staff-1', role: 'STAFF', permissions: { canViewAllDocuments: true } } as unknown as User;
+  assert.equal(isDocumentParticipant(routed, sysAdmin), true);
+  assert.equal(isDocumentParticipant(routed, ordUser), true);
+  assert.equal(isDocumentParticipant(routed, privileged), true);
+});
+
+test('removed recipient cannot track document even if lingering prior route exists', () => {
+  const routedWithLingeringRoute = {
+    ...document,
+    routes: [
+      {
+        id: 'RTE-1',
+        fromUserId: 'sender',
+        toUserId: 'other-user',
+        createdAt: '2026-10-16T01:00:00.000Z',
+      },
+      {
+        id: 'RTE-2',
+        fromUserId: user.id,
+        fromUser: user.fullName,
+        toUserId: 'sender',
+        createdAt: '2026-10-16T01:10:00.000Z',
+      },
+    ],
+  } as unknown as DocumentRecord;
+  const auditLogs = [
+    {
+      documentTrackingNumber: document.trackingNumber,
+      userId: 'admin-1',
+      userName: 'Admin',
+      timestamp: '2026-10-16T01:30:00.000Z',
+      details: 'Removed recipient Juan Router (LU) from transaction by Admin. Reason: Routing mistake / recalled',
+    },
+  ] as any[];
+  assert.equal(isDocumentParticipant(routedWithLingeringRoute, user, auditLogs), false);
+});
+
+test('removed recipient regains tracking if re-routed after the removal timestamp', () => {
+  const reRoutedDocument = {
+    ...document,
+    routes: [
+      {
+        id: 'RTE-1',
+        fromUserId: 'sender',
+        toUserId: 'other-user',
+        createdAt: '2026-10-16T01:00:00.000Z',
+      },
+      {
+        id: 'RTE-3',
+        fromUserId: 'sender',
+        toUserId: user.id,
+        toUser: user.fullName,
+        createdAt: '2026-10-16T02:00:00.000Z', // After removal at 01:30
+      },
+    ],
+  } as unknown as DocumentRecord;
+  const auditLogs = [
+    {
+      documentTrackingNumber: document.trackingNumber,
+      userId: 'admin-1',
+      userName: 'Admin',
+      timestamp: '2026-10-16T01:30:00.000Z',
+      details: 'Removed recipient Juan Router (LU) from transaction by Admin. Reason: Routing mistake / recalled',
+    },
+  ] as any[];
+  assert.equal(isDocumentParticipant(reRoutedDocument, user, auditLogs), true);
+});
+
+

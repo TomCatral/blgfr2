@@ -31,3 +31,4 @@ frontend/.angular/
 .tempmediaStorage/
 scratch/
 *.bak
+*.exe

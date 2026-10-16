@@ -185,6 +185,22 @@ private intervals: number[] = [];
         if (u.avatarUrl) u.avatarUrl = sanitizeAssetUrl(u.avatarUrl);
       });
       this.users.set(usersData);
+      const activeUser = this.session.currentUser();
+      if (activeUser) {
+        const refreshed = usersData.find((u) => u.id === activeUser.id);
+        if (
+          refreshed &&
+          (activeUser.role !== refreshed.role ||
+            activeUser.fullName !== refreshed.fullName ||
+            activeUser.divisionCode !== refreshed.divisionCode ||
+            activeUser.active !== refreshed.active ||
+            activeUser.designation !== refreshed.designation ||
+            activeUser.avatarUrl !== refreshed.avatarUrl ||
+            JSON.stringify(activeUser.permissions || null) !== JSON.stringify(refreshed.permissions || null))
+        ) {
+          this.session.currentUser.set(refreshed);
+        }
+      }
     }
     if (divisionsData) this.divisions.set(divisionsData);
     if (logs) this.auditLogs.set(logs);
@@ -258,8 +274,7 @@ private intervals: number[] = [];
     } catch {
       // Existing in-memory state remains usable when the API is unreachable.
     } finally {
-      const token = this.snapshotToken();
-      if (this.canCommit(token)) this.session.markDataLoaded();
+      this.session.markDataLoaded();
     }
   }
 
@@ -276,25 +291,26 @@ private intervals: number[] = [];
     // A background tab has nobody watching it, so polling there only burns CPU
     // and keeps the API busy for the users who are actually waiting.
     const isVisible = () => document.visibilityState !== 'hidden';
+    let pollCount = 0;
     this.intervals.push(
       window.setInterval(() => {
-        if (!this.session.isOnline()) {
+        if (!this.session.isOnline() || !this.session.currentUser() || !isVisible()) {
           return;
         }
-        if (!this.session.currentUser()) {
-          return;
+        if (this.snapshotInFlight) {
+          return; // Skip poll if previous request is still in flight (prevents connection choking)
         }
-        if (!isVisible()) {
-          return;
-        }
-        void this.refreshDashboard().catch(() => undefined);
-      }, 2000),
+        pollCount++;
+        // Periodically refresh reference data (users, permissions) every 4 ticks (14s)
+        const refreshRef = pollCount % 4 === 0;
+        void this.enqueueSnapshot(false, refreshRef).catch(() => undefined);
+      }, 3500),
       window.setInterval(() => {
         if (!this.session.isOnline() || !this.session.currentUser() || !isVisible()) {
           return;
         }
         void this.refreshNotifications().catch(() => undefined);
-      }, 2500),
+      }, 4500),
     );
   }
 

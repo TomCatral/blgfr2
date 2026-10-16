@@ -1,6 +1,7 @@
-import { Component, inject, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeStyle } from '@angular/platform-browser';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../services/api.service';
 import { SessionService } from '../../services/session.service';
@@ -14,9 +15,14 @@ import { IonicModule } from '@ionic/angular';
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   readonly session = inject(SessionService);
+  private sanitizer = inject(DomSanitizer);
+
+  canInstallPwa = false;
+  private pwaInstallListener: (() => void) | null = null;
+  private pwaInstalledListener: (() => void) | null = null;
 
   username = '';
   password = '';
@@ -31,23 +37,73 @@ export class LoginComponent {
   recoveredEmail = '';
 
   // Background image managed from User Accounts. Falls back to the themed
-  // gradient when no image has been uploaded yet.
-  backgroundImageUrl = '';
-  hasBackgroundImage = false;
+  // gradient when no image has been uploaded yet. Cached in localStorage so
+  // logging out or reloading displays the chosen background immediately.
+  backgroundImageUrl = localStorage.getItem('blgf_login_background_url') || '';
+  hasBackgroundImage = Boolean(this.backgroundImageUrl);
+
+  get safeBackgroundStyle(): SafeStyle | string {
+    if (!this.hasBackgroundImage || !this.backgroundImageUrl) return '';
+    return this.sanitizer.bypassSecurityTrustStyle(
+      `linear-gradient(rgba(2, 6, 23, 0.62), rgba(2, 6, 23, 0.82)), url('${this.backgroundImageUrl}')`
+    );
+  }
 
   constructor() {
     void this.loadBackgroundImage();
+  }
+
+  ngOnInit(): void {
+    if (typeof window !== 'undefined') {
+      const updatePwaState = () => {
+        this.canInstallPwa = Boolean((window as any).__blgfInstallPrompt);
+      };
+      updatePwaState();
+      this.pwaInstallListener = () => updatePwaState();
+      this.pwaInstalledListener = () => { this.canInstallPwa = false; };
+      window.addEventListener('blgf-pwa-installable', this.pwaInstallListener);
+      window.addEventListener('blgf-pwa-installed', this.pwaInstalledListener);
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (typeof window !== 'undefined') {
+      if (this.pwaInstallListener) window.removeEventListener('blgf-pwa-installable', this.pwaInstallListener);
+      if (this.pwaInstalledListener) window.removeEventListener('blgf-pwa-installed', this.pwaInstalledListener);
+    }
+  }
+
+  installPwa(): void {
+    const prompt = (window as any).__blgfInstallPrompt;
+    if (prompt) {
+      prompt.prompt();
+      void prompt.userChoice.then((choice: any) => {
+        if (choice?.outcome === 'accepted') {
+          this.canInstallPwa = false;
+        }
+      });
+    }
   }
 
   private async loadBackgroundImage(): Promise<void> {
     try {
       const result = await firstValueFrom(this.api.getLoginBackground());
       const url = result?.url || '';
-      if (!url) return;
-      this.backgroundImageUrl = url;
-      this.hasBackgroundImage = true;
+      if (url) {
+        this.backgroundImageUrl = url;
+        this.hasBackgroundImage = true;
+        localStorage.setItem('blgf_login_background_url', url);
+      } else {
+        this.backgroundImageUrl = '';
+        this.hasBackgroundImage = false;
+        localStorage.removeItem('blgf_login_background_url');
+      }
     } catch {
-      // A missing or unreachable setting simply keeps the default background.
+      const cached = localStorage.getItem('blgf_login_background_url') || '';
+      if (cached) {
+        this.backgroundImageUrl = cached;
+        this.hasBackgroundImage = true;
+      }
     }
   }
 

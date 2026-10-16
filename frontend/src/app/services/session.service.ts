@@ -5,7 +5,22 @@ import { sanitizeAssetUrl } from '../utils/asset-url';
 
 @Injectable({ providedIn: 'root' })
 export class SessionService {
-  readonly currentUser = signal<User | null>(null);
+  readonly currentUser = signal<User | null>(null, {
+    equal: (a, b) => {
+      if (a === b) return true;
+      if (!a || !b) return false;
+      return (
+        a.id === b.id &&
+        a.role === b.role &&
+        a.fullName === b.fullName &&
+        a.divisionCode === b.divisionCode &&
+        a.active === b.active &&
+        a.designation === b.designation &&
+        a.avatarUrl === b.avatarUrl &&
+        JSON.stringify(a.permissions || null) === JSON.stringify(b.permissions || null)
+      );
+    },
+  });
   readonly isDarkMode = signal<boolean>(
     localStorage.getItem('blgf_theme') === 'dark',
   );

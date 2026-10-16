@@ -18,6 +18,28 @@
 
 /* When an image is uploaded from User Accounts the ambient glows are muted
    so they do not tint the uploaded artwork. */
+.login-bg-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+
+  .login-bg-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    filter: brightness(0.85);
+  }
+
+  .login-bg-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(rgba(2, 6, 23, 0.55), rgba(2, 6, 23, 0.78));
+  }
+}
+
 .login-page.has-background-image .login-glow-1,
 .login-page.has-background-image .login-glow-2,
 .login-page.has-background-image .login-glow-3 {
@@ -65,6 +87,7 @@
 /* Glass Card */
 .login-card {
   position: relative;
+  z-index: 10;
   width: 100%;
   max-width: 27rem;
   overflow: hidden;
@@ -212,6 +235,27 @@
   position: relative;
   display: flex;
   align-items: center;
+  min-height: 3rem;
+  border: 2px solid #94a3b8;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  cursor: text;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease,
+    background-color 0.15s ease;
+
+  &:hover {
+    border-color: #64748b;
+  }
+
+  &:focus-within {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+    background: #ffffff;
+  }
+
+  &:focus-within .login-input-icon {
+    color: #2563eb;
+  }
 }
 
 .login-input-icon {
@@ -224,24 +268,54 @@
 
 .login-input {
   width: 100%;
-  padding: 0.625rem 0.875rem 0.625rem 2.5rem;
+  min-height: 2.875rem;
   border-radius: 0.75rem;
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
+  border: 0;
+  background: transparent;
   font-size: 0.8125rem;
   color: #0f172a;
   outline: none;
   transition: all 0.15s ease;
-
-  &:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-  }
+  --padding-start: 2.5rem;
+  --padding-end: 0.875rem;
+  --padding-top: 0.75rem;
+  --padding-bottom: 0.75rem;
+  --color: #0f172a;
+  --placeholder-color: #64748b;
+  --placeholder-opacity: 1;
+  caret-color: #1d4ed8 !important;
 
   &.has-toggle {
-    padding-right: 2.75rem;
     --padding-end: 2.75rem;
   }
+}
+
+input.login-input {
+  box-sizing: border-box;
+  padding: 0.75rem 0.875rem 0.75rem 2.5rem;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: text;
+
+  &.has-toggle {
+    padding-right: 3rem;
+  }
+
+  &:focus {
+    outline: none;
+    caret-color: #1d4ed8 !important;
+  }
+}
+
+/* Ionic renders the editable input inside its shadow DOM. Explicit caret and
+   text colors keep the insertion cursor visible in both browser themes. */
+ion-input.login-input::part(native) {
+  min-height: 2.875rem;
+  padding-block: 0.75rem !important;
+  color: #0f172a !important;
+  caret-color: #1d4ed8 !important;
+  cursor: text;
+  font-weight: 600;
 }
 
 /* Vertically centred with top/bottom + auto margins so no transform is needed.
@@ -577,14 +651,43 @@
   }
 
   .login-input {
-    background: #0f172a;
-    border-color: #334155;
     color: #f1f5f9;
+    --color: #f1f5f9;
+    --placeholder-color: #94a3b8;
 
     &:focus {
+      color: #ffffff;
+    }
+  }
+
+  input.login-input {
+    background: transparent !important;
+    color: #f8fafc !important;
+    caret-color: #60a5fa !important;
+
+    &:focus {
+      caret-color: #60a5fa !important;
+    }
+  }
+
+  .login-input-wrap {
+    background: #0f172a;
+    border-color: #64748b;
+
+    &:hover {
+      border-color: #94a3b8;
+    }
+
+    &:focus-within {
       background: #1e293b;
       border-color: #60a5fa;
+      box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.24);
     }
+  }
+
+  ion-input.login-input::part(native) {
+    color: #f8fafc !important;
+    caret-color: #60a5fa !important;
   }
 
   .login-toggle-pw {
@@ -691,4 +794,99 @@ ion-input.login-input {
   --border-style: none !important;
   --box-shadow: none !important;
   --highlight-height: 0 !important;
+}
+
+.login-pwa-install-wrap {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px dashed rgba(226, 232, 240, 0.8);
+  display: flex;
+  justify-content: center;
+
+  .login-pwa-install-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 42px;
+    padding: 0.5rem 1rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(37, 99, 235, 0.3);
+    background: rgba(37, 99, 235, 0.08);
+    color: #1d4ed8;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 180ms ease;
+
+    ion-icon {
+      font-size: 1.15rem;
+    }
+
+    &:hover {
+      background: rgba(37, 99, 235, 0.16);
+      border-color: rgba(37, 99, 235, 0.5);
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: scale(0.98);
+    }
+  }
+}
+
+:host-context(.dark) {
+  .login-pwa-install-wrap {
+    border-top-color: rgba(255, 255, 255, 0.1);
+
+    .login-pwa-install-btn {
+      border-color: rgba(56, 189, 248, 0.35);
+      background: rgba(56, 189, 248, 0.1);
+      color: #38bdf8;
+
+      &:hover {
+        background: rgba(56, 189, 248, 0.2);
+        border-color: rgba(56, 189, 248, 0.6);
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .login-page {
+    padding: 0.75rem;
+  }
+
+  .login-card {
+    border-radius: 1.25rem;
+  }
+
+  .login-header {
+    padding: 1.35rem 1rem 1.15rem;
+
+    .login-seal-container {
+      width: 4.25rem;
+      height: 4.25rem;
+      margin-bottom: 0.65rem;
+    }
+
+    .login-title {
+      font-size: 0.9rem;
+      line-height: 1.3;
+    }
+
+    .login-subtitle {
+      font-size: 0.75rem;
+    }
+  }
+
+  .login-form {
+    padding: 1.25rem 1rem;
+    gap: 1rem;
+  }
+
+  .login-input {
+    font-size: 0.875rem;
+  }
 }

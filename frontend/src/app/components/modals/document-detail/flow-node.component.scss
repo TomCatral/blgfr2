@@ -615,3 +615,221 @@
     border-color: #475569;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Mobile Responsive Layout (max-width: 767px)
+   Compact, clean, and tactile interactive routing nodes
+   -------------------------------------------------------------------------- */
+@media (max-width: 767px) {
+  .flow-node-item {
+    margin-bottom: 0.45rem;
+  }
+
+  .flow-branch-line {
+    left: -12px;
+    top: 1.15rem;
+    width: 0.625rem;
+    border-top-width: 1.5px;
+  }
+
+  .flow-branch-arrow {
+    left: -5px;
+    top: 0.95rem;
+    width: 0.375rem;
+    height: 0.375rem;
+    border-top-width: 1.5px;
+    border-right-width: 1.5px;
+  }
+
+  .flow-node-btn {
+    padding: 0.65rem 0.75rem !important;
+    border-radius: 0.8125rem !important;
+    border-width: 1.5px !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+    -webkit-tap-highlight-color: transparent;
+
+    &:active {
+      transform: scale(0.99);
+    }
+
+    &[aria-pressed="true"] {
+      border-color: #2563eb !important;
+      background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%) !important;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25), 0 4px 12px rgba(37, 99, 235, 0.12) !important;
+    }
+  }
+
+  .flow-node-header {
+    gap: 0.375rem;
+    align-items: center;
+  }
+
+  .flow-node-identity {
+    gap: 0.25rem;
+    align-items: center;
+  }
+
+  .flow-step-tag {
+    font-size: 0.575rem !important;
+    padding: 0.1rem 0.35rem !important;
+    border-radius: 0.25rem !important;
+    font-weight: 800 !important;
+  }
+
+  .flow-user-name {
+    font-size: 0.8125rem !important;
+    line-height: 1.25 !important;
+    font-weight: 800 !important;
+  }
+
+  .flow-division-tag {
+    font-size: 0.6rem !important;
+    padding: 0.1rem 0.35rem !important;
+    border-radius: 0.25rem !important;
+  }
+
+  .flow-you-badge {
+    font-size: 0.575rem !important;
+    padding: 0.1rem 0.35rem !important;
+    gap: 0.15rem !important;
+
+    ion-icon {
+      font-size: 0.65rem !important;
+    }
+  }
+
+  .flow-status-chip {
+    font-size: 0.625rem !important;
+    padding: 0.15rem 0.45rem !important;
+    font-weight: 800 !important;
+  }
+
+  .flow-remove-btn {
+    width: 1.45rem !important;
+    height: 1.45rem !important;
+
+    ion-icon {
+      font-size: 0.75rem !important;
+    }
+  }
+
+  .flow-stages-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 0.25rem !important;
+    margin-top: 0.45rem !important;
+  }
+
+  .flow-stage-pill {
+    padding: 0.22rem 0.2rem !important;
+    font-size: 0.58rem !important;
+    border-radius: 0.35rem !important;
+    gap: 0.15rem !important;
+    min-height: 20px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    justify-content: center !important;
+
+    span {
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      font-size: 0.58rem !important;
+    }
+
+    ion-icon {
+      font-size: 0.65rem !important;
+      flex-shrink: 0 !important;
+    }
+  }
+
+  .flow-disapproval-box {
+    margin-top: 0.35rem !important;
+    padding: 0.45rem 0.6rem !important;
+    font-size: 0.7rem !important;
+    border-radius: 0.5rem !important;
+  }
+
+  .flow-connector {
+    padding: 0.1rem 0 !important;
+  }
+
+  .flow-connector-stem {
+    height: 10px !important;
+    width: 2px !important;
+  }
+
+  .flow-connector-arrow {
+    border-left-width: 4px !important;
+    border-right-width: 4px !important;
+    border-top-width: 5px !important;
+  }
+
+  .flow-ended-container {
+    margin-top: 0.15rem !important;
+  }
+
+  .flow-ended-badge {
+    padding: 0.25rem 0.55rem !important;
+    font-size: 0.6875rem !important;
+    gap: 0.25rem !important;
+    border-radius: 9999px !important;
+
+    ion-icon {
+      font-size: 0.8rem !important;
+    }
+  }
+
+  .flow-dispatch-note-card {
+    padding: 0.5rem 0.65rem !important;
+    margin-bottom: 0.4rem !important;
+    border-radius: 0.65rem !important;
+
+    p {
+      font-size: 0.75rem !important;
+      margin-top: 0.2rem !important;
+    }
+
+    .flow-dispatch-note-header {
+      font-size: 0.625rem !important;
+    }
+
+    .flow-dispatch-note-target {
+      font-size: 0.6rem !important;
+    }
+  }
+
+  .flow-handoff-instruction-card {
+    padding: 0.5rem 0.65rem !important;
+    border-radius: 0.65rem !important;
+    margin-top: 0.4rem !important;
+
+    .flow-handoff-header {
+      font-size: 0.625rem !important;
+    }
+
+    .flow-handoff-body {
+      font-size: 0.75rem !important;
+    }
+
+    .flow-handoff-user {
+      font-size: 0.6rem !important;
+    }
+  }
+
+  .flow-children-list {
+    margin: 0.15rem 0 0 0.35rem !important;
+    padding-left: 0.55rem !important;
+    border-left-width: 1.5px !important;
+  }
+}
+
+:host-context(.dark) {
+  @media (max-width: 767px) {
+    .flow-node-btn[aria-pressed="true"] {
+      border-color: #3b82f6 !important;
+      background: linear-gradient(180deg, #172554 0%, #1e3a8a 100%) !important;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35), 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+    }
+  }
+}

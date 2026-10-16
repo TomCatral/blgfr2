@@ -36,7 +36,7 @@
 
     <div [ngClass]="'filterGrid' | cls">
       <div class="doc-search-wrap">
-        <ion-input
+        <input
           type="text"
           class="doc-search-input"
           aria-label="Search documents"
@@ -94,7 +94,7 @@
         <p [ngClass]="'emptyText' | cls">Try resetting search query or adjusting filters.</p>
       </div>
     } @else {
-      <div [ngClass]="'tableScroll' | cls" tabindex="0" role="region" aria-label="Document records. Scroll horizontally to view all columns.">
+      <div [ngClass]="'tableScroll' | cls" class="docs-desktop-table" tabindex="0" role="region" aria-label="Document records. Scroll horizontally to view all columns.">
         <table [ngClass]="'docsTable' | cls">
           <thead>
             <tr [ngClass]="'tableHeadRow' | cls">
@@ -212,6 +212,118 @@
             }
           </tbody>
         </table>
+      </div>
+
+      <!-- Modern Mobile Document Cards View (Clean, Native App Experience) -->
+      <div class="docs-mobile-cards" role="feed" aria-label="Document records mobile card feed">
+        @for (doc of filteredDocs(); track doc.id) {
+          <article class="mobile-doc-card" (click)="onSelectDoc(doc)" tabindex="0">
+            <!-- Header: Route + Direction & Priority -->
+            <div class="mobile-doc-card-header">
+              <div class="mobile-doc-route">
+                <ion-icon name="qr-code" class="mobile-doc-qr-icon"></ion-icon>
+                <strong [innerHTML]="highlightText(doc.routeNo, normalizedQuery())"></strong>
+              </div>
+              <div class="mobile-doc-header-badges">
+                <span [ngClass]="cx('directionBadge', doc.direction === 'INCOMING' ? 'incomingBadge' : 'outgoingBadge')">
+                  {{ doc.direction }}
+                </span>
+                <span [ngClass]="priorityClass(doc)">{{ prioLabel(doc) }}</span>
+              </div>
+            </div>
+
+            <!-- Title & Subject Content -->
+            <div class="mobile-doc-body">
+              <h4 class="mobile-doc-title" [innerHTML]="highlightText(doc.title, normalizedQuery())"></h4>
+              @if (doc.subject) {
+                <p class="mobile-doc-subject" [innerHTML]="highlightText(doc.subject, normalizedQuery())"></p>
+              }
+              <div class="mobile-doc-meta-row">
+                <span class="mobile-doc-category">
+                  <ion-icon name="pricetag"></ion-icon>
+                  <span [innerHTML]="highlightText(doc.category, normalizedQuery())"></span>
+                </span>
+                @if ((doc.attachments || []).length > 0) {
+                  <span class="mobile-doc-att-badge">
+                    <ion-icon name="attach"></ion-icon>
+                    <span>{{ doc.attachments.length }}</span>
+                  </span>
+                }
+              </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="mobile-doc-progress">
+              <div class="mobile-doc-progress-labels">
+                <span class="mobile-doc-stage">{{ getProgress(doc).stageName }}</span>
+                <span [ngClass]="cx('mobile-doc-pct', 'progress_' + doc.currentStatus)">
+                  {{ getProgress(doc).percentage }}%
+                </span>
+              </div>
+              <div class="mobile-doc-progress-track">
+                <div [ngClass]="cx('mobile-doc-progress-bar', 'progress_' + doc.currentStatus)" [style.width.%]="getProgress(doc).percentage"></div>
+              </div>
+            </div>
+
+            <!-- Status & Division -->
+            <div class="mobile-doc-status-row">
+              <span [ngClass]="cx('statusBadge', 'status_' + doc.currentStatus)">
+                <span [ngClass]="'statusDot' | cls"></span>
+                <span>{{ statusLabel(doc) }}</span>
+              </span>
+              <div class="mobile-doc-division-info">
+                <span class="m-div-name" [innerHTML]="highlightText(doc.currentDivision, normalizedQuery())"></span>
+                @if (doc.currentStatus === 'NOT_YET_ROUTED') {
+                  <span class="unrouted-custodian-pill">Not Routed</span>
+                } @else if (doc.assignedUser) {
+                  <span class="m-assignee">&bull; {{ doc.assignedUser }}</span>
+                }
+              </div>
+            </div>
+
+            <!-- Footer: Dates & Actions -->
+            <div class="mobile-doc-footer">
+              <div class="mobile-doc-dates">
+                <span class="m-date-received">
+                  <ion-icon name="calendar-outline"></ion-icon>
+                  <span>{{ formatShortDate(doc.dateReceived) }}</span>
+                </span>
+                @if (doc.targetCompletionDate) {
+                  <span class="m-date-due">Due: {{ formatShortDate(doc.targetCompletionDate) }}</span>
+                }
+              </div>
+              <div class="mobile-doc-actions" (click)="$event.stopPropagation()">
+                <button type="button" class="mobile-action-btn mobile-action-view" (click)="onSelectDoc(doc)" aria-label="View document details">
+                  <ion-icon name="eye"></ion-icon>
+                  <span>Details</span>
+                </button>
+                @if (currentUser.role !== 'SYSTEM_ADMIN' && doc.currentStatus !== 'COMPLETED' && doc.currentStatus !== 'RETURNED') {
+                  <button
+                    type="button"
+                    [disabled]="!canRoute(doc)"
+                    class="mobile-action-btn mobile-action-route"
+                    [class.highlight-route]="doc.currentStatus === 'NOT_YET_ROUTED'"
+                    (click)="onOpenRouteDoc(doc)"
+                    [attr.aria-label]="routeButtonTitle(doc)"
+                  >
+                    <ion-icon name="paper-plane"></ion-icon>
+                    <span>Route</span>
+                  </button>
+                }
+                @if (canAccessSlip) {
+                  <button type="button" class="mobile-action-btn mobile-action-icon" (click)="onPrintSlip(doc)" title="Print Slip" aria-label="Print routing slip">
+                    <ion-icon name="print"></ion-icon>
+                  </button>
+                }
+                @if (canDeleteDoc) {
+                  <button type="button" class="mobile-action-btn mobile-action-icon mobile-action-delete" (click)="onDeleteDoc(doc)" title="Delete" aria-label="Delete document">
+                    <ion-icon name="trash"></ion-icon>
+                  </button>
+                }
+              </div>
+            </div>
+          </article>
+        }
       </div>
     }
   </div>

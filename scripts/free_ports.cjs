@@ -31,14 +31,6 @@ async function isBlgfServer(port) {
 }
 
 async function resolveDevPort(startPort = Number(process.env.PORT || DEFAULT_PORT)) {
-  // If port 80 is completely free (e.g. Apache stopped), prefer port 80 so URLs
-  // look like clean domains (http://blgf.local/login) without needing :3001.
-  if (startPort === 80 || !process.env.PORT || process.env.PORT === String(DEFAULT_PORT)) {
-    if (await isPortFree(80)) {
-      return { port: 80 };
-    }
-  }
-
   const firstPort =
     Number.isInteger(startPort) && startPort > 0 ? startPort : DEFAULT_PORT;
 
@@ -46,13 +38,7 @@ async function resolveDevPort(startPort = Number(process.env.PORT || DEFAULT_POR
     return { port: firstPort };
   }
 
-  // If port 80 was attempted and busy, try default port 3001 first before searching higher
-  if (firstPort === 80 && (await isPortFree(DEFAULT_PORT))) {
-    return { port: DEFAULT_PORT };
-  }
-
-  const searchBase = firstPort === 80 ? DEFAULT_PORT : firstPort;
-  for (let port = searchBase + 1; port < searchBase + MAX_ATTEMPTS; port += 1) {
+  for (let port = firstPort + 1; port < firstPort + MAX_ATTEMPTS; port += 1) {
     if (await isPortFree(port)) {
       return { port };
     }

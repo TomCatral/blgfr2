@@ -93,18 +93,7 @@ export class SidebarComponent {
     if (item.actionPermission) {
       return (permissions.allowedActions || []).includes(item.actionPermission);
     }
-    if (allowedViews.includes(item.id)) return true;
-    if (item.id === 'incoming-report')
-      return allowedViews.includes('reports') || allowedViews.includes('incoming');
-    if (item.id === 'outgoing-report')
-      return allowedViews.includes('reports') || allowedViews.includes('outgoing');
-    if (item.id === 'envelope-report' || item.id === 'envelope-logs')
-      return (
-        allowedViews.includes('reports') ||
-        allowedViews.includes('envelope-logs') ||
-        allowedViews.includes('envelope')
-      );
-    return false;
+    return allowedViews.includes(item.id);
   }
 
   visibleSections(): string[] {

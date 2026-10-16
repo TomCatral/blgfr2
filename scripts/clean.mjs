@@ -2,7 +2,7 @@ import { readdir, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const projectRoot = resolve(import.meta.dirname, '..');
-const generatedDirectories = ['dist'];
+const generatedDirectories = ['dist', '.chrome-ui-check', '.recovery'];
 const generatedFiles = ['server.cjs'];
 
 for (const directory of generatedDirectories) {
@@ -14,12 +14,18 @@ for (const file of generatedFiles) {
 }
 
 for (const entry of await readdir(projectRoot, { withFileTypes: true })) {
-  if (entry.isFile() && entry.name.endsWith('.log')) {
+  if (
+    entry.isFile() &&
+    (entry.name.endsWith('.log') ||
+      entry.name.startsWith('~$') ||
+      entry.name.startsWith('~WRD') ||
+      entry.name.endsWith('.tmp'))
+  ) {
     try {
       await rm(resolve(projectRoot, entry.name), { force: true });
     } catch (error) {
       if (error?.code !== 'EBUSY' && error?.code !== 'EPERM') throw error;
-      console.warn(`Skipped locked runtime log: ${entry.name}`);
+      console.warn(`Skipped locked file: ${entry.name}`);
     }
   }
 }

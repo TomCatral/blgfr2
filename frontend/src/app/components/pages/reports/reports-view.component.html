@@ -1,208 +1,360 @@
-
-    <div [ngClass]="'reports-page' | cls">
-      <div [ngClass]="'reports-hero' | cls">
-        <div [ngClass]="'reports-heroContent' | cls">
-          <div>
-            <h2 [ngClass]="'reports-title' | cls">
-              <ion-icon name="file-tray" [ngClass]="'reports-titleIcon' | cls"></ion-icon>
-              {{ pageTitle() }}
-            </h2>
-            <p [ngClass]="'reports-subtitle' | cls">{{ pageSubtitle() }}</p>
-          </div>
-          <div [ngClass]="'reports-heroActions' | cls">
-            <ion-button type="button" [ngClass]="'reports-printButton' | cls" (click)="printActiveReport()">
-              <ion-icon name="print" [ngClass]="'reports-buttonIcon' | cls"></ion-icon>
-              Print Report
-            </ion-button>
-            <ion-button type="button" [ngClass]="'reports-exportButton' | cls" (click)="exportActiveReport()">
-              <ion-icon name="download" [ngClass]="'reports-buttonIcon' | cls"></ion-icon>
-              Export Current Report
-            </ion-button>
-            <ion-button type="button" [ngClass]="'reports-folderButton' | cls" (click)="chooseAutoSaveDirectory()">
-              <ion-icon name="folder-open" [ngClass]="'reports-buttonIcon' | cls"></ion-icon>
-              {{ folderButtonLabel() }}
-            </ion-button>
-          </div>
-        </div>
+<div [ngClass]="'reports-page' | cls">
+  <div [ngClass]="'reports-hero' | cls">
+    <div [ngClass]="'reports-heroContent' | cls">
+      <div>
+        <h2 [ngClass]="'reports-title' | cls">
+          <ion-icon name="file-tray" [ngClass]="'reports-titleIcon' | cls"></ion-icon>
+          {{ pageTitle() }}
+        </h2>
+        <p [ngClass]="'reports-subtitle' | cls">{{ pageSubtitle() }}</p>
       </div>
-
-      @if (statusMessage()) {
-        <div [ngClass]="'reports-statusMessage' | cls">{{ statusMessage() }}</div>
-      }
-
-      @if (!reportType) {
-        <div [ngClass]="'reports-reportTabs' | cls">
-          @for (tab of reportTabs(); track tab.type) {
-            <ion-button type="button" [ngClass]="tabClass(tab.type)" (click)="selectReport(tab.type)">
-              <div [ngClass]="'reports-tabHeader' | cls">
-                <ion-icon [name]="tab.icon" [ngClass]="'reports-tabIcon' | cls"></ion-icon>
-                <span [ngClass]="'reports-tabCount' | cls">{{ tab.count }}</span>
-              </div>
-              <div [ngClass]="'reports-tabLabel' | cls">{{ reportLabel(tab.type) }} Report</div>
-            </ion-button>
-          }
-        </div>
-      }
-
-      <div [ngClass]="'reports-filters' | cls">
-        <div [ngClass]="'reports-searchField' | cls">
-          <ion-input
-            [ngClass]="'reports-searchInput' | cls"
-            [ngModel]="searchQuery()"
-            (ngModelChange)="searchQuery.set($event)"
-            placeholder="Search route number, title, sender, recipient, or details..."
-          />
-        </div>
-        <ion-select interface="popover" [ngClass]="'reports-monthSelect' | cls" [ngModel]="monthFilter()" (ngModelChange)="monthFilter.set($event)">
-          <ion-select-option value="ALL">All Months</ion-select-option>
-          @for (month of availableMonths(); track month) {
-            <ion-select-option [value]="month">{{ monthLabel(month) }}</ion-select-option>
-          }
-        </ion-select>
-      </div>
-
-      <div [ngClass]="'reports-tableCard' | cls">
-        <div [ngClass]="'reports-tableTitle' | cls">
-          {{ reportLabel(activeReport()) }} &bull; {{ visibleCount() }} record(s)
-        </div>
-        <div [ngClass]="'reports-tableScroll' | cls">
-          @if (activeReport() === 'ENVELOPE') {
-            <table [ngClass]="'reports-envelopeTable' | cls">
-              <thead [ngClass]="'reports-tableHead' | cls">
-                <tr>
-                  <th [ngClass]="'reports-cell' | cls">Timestamp</th>
-                  <th [ngClass]="'reports-cell' | cls">Route No.</th>
-                  <th [ngClass]="'reports-cell' | cls">Released By</th>
-                  <th [ngClass]="'reports-cell' | cls">Dispatch Details</th>
-                </tr>
-              </thead>
-              <tbody [ngClass]="'reports-tableBody' | cls">
-                @for (log of filteredEnvelopeLogs(); track log.id) {
-                  <tr [ngClass]="'reports-row' | cls">
-                    <td [ngClass]="'reports-nowrapCell' | cls">{{ formatDate(log.timestamp) }}</td>
-                    <td [ngClass]="'reports-routeCell' | cls">{{ log.documentTrackingNumber || 'N/A' }}</td>
-                    <td [ngClass]="'reports-strongCell' | cls">{{ log.userName }}</td>
-                    <td [ngClass]="'reports-detailsCell' | cls">
-                      @if (getDispatchDetailItems(log.details).length > 1) {
-                        <ul class="reports-detailBulletList">
-                          @for (detail of getDispatchDetailItems(log.details); track $index) {
-                            <li class="reports-detailBulletItem">{{ detail }}</li>
-                          }
-                        </ul>
-                      } @else {
-                        {{ log.details }}
-                      }
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          } @else {
-            <table [ngClass]="'reports-documentTable' | cls">
-              <thead [ngClass]="'reports-tableHead' | cls">
-                <tr>
-                  <th [ngClass]="'reports-cell' | cls">Route No.</th>
-                  <th [ngClass]="'reports-cell' | cls">Title / Subject</th>
-                  <th [ngClass]="'reports-cell' | cls">Date Received</th>
-                  <th [ngClass]="'reports-cell' | cls">From Office</th>
-                  <th [ngClass]="'reports-cell' | cls">Initial Receiver</th>
-                  <th [ngClass]="'reports-cell' | cls">Current Holder</th>
-                  <th [ngClass]="'reports-cell' | cls">Final Outcome</th>
-                  
-                  <th [ngClass]="'reports-cell' | cls">Last Activity</th>
-                  <th [ngClass]="'reports-cell reports-historyTh' | cls">Full History</th>
-                </tr>
-              </thead>
-              <tbody [ngClass]="'reports-tableBody' | cls">
-                @for (document of filteredDocuments(); track document.id) {
-                  @let latestRoute = latestRouteOf(document);
-                  @let events = eventsFor(document);
-                  @let lastEvent = events.length ? events[events.length - 1] : null;
-                  @let finalOutcome = finalOutcomeOf(document, events);
-                  <tr [ngClass]="'reports-row' | cls">
-                    <td [ngClass]="'reports-routeCell' | cls">{{ document.routeNo || document.trackingNumber }}</td>
-                    <td [ngClass]="'reports-titleCell' | cls">
-                      <div [ngClass]="'reports-documentTitle' | cls">{{ document.title }}</div>
-                      <div [ngClass]="'reports-mutedLine' | cls">{{ document.subject }}</div>
-                    </td>
-                    <td [ngClass]="'reports-nowrapCell' | cls">{{ formatDate(document.dateReceived) }}</td>
-                    <td [ngClass]="'reports-cell' | cls">{{ document.originatingOffice }}</td>
-                    <td [ngClass]="'reports-strongCell' | cls">{{ document.createdBy }}</td>
-                    <td [ngClass]="'reports-cell' | cls">
-                      <div [ngClass]="'reports-bold' | cls">
-                        {{ latestRoute?.toUser || document.assignedUser || 'Unassigned' }}
-                      </div>
-                      <div [ngClass]="'reports-mutedLine' | cls">
-                        {{ latestRoute?.toDivision || document.currentDivision }}
-                      </div>
-                    </td>
-                    <td [ngClass]="'reports-cell' | cls">
-                      <span [ngClass]="outcomeBadgeClass(finalOutcome)">{{ finalOutcome }}</span>
-                    </td>
-                    <td [ngClass]="'reports-activityCell' | cls">
-                      @if (lastEvent) {
-                        <div [ngClass]="'reports-bold' | cls">
-                          {{ lastEvent.event }} by {{ lastEvent.actor }}
-                        </div>
-                        <div [ngClass]="'reports-mutedLine' | cls">{{ formatDate(lastEvent.timestamp) }}</div>
-                      } @else {
-                        No activity recorded
-                      }
-                    </td>
-                    <td [ngClass]="'reports-cell reports-historyTd' | cls">
-                      <ion-button type="button" [ngClass]="'reports-historyButton' | cls" (click)="toggleHistory(document.id)">
-                        {{ expandedRouteId() === document.id ? 'Hide' : 'History (' + events.length + ')' }}
-                      </ion-button>
-                    </td>
-                  </tr>
-                  @if (expandedRouteId() === document.id) {
-                    <tr [ngClass]="'reports-historyRow' | cls">
-                      <td colspan="9" [ngClass]="'reports-historyCell' | cls">
-                        <div [ngClass]="'reports-historyTitle' | cls">
-                          Route History - {{ document.routeNo || document.trackingNumber }}
-                        </div>
-                        @if (routeHistoryFor(document).length) {
-                          <div [ngClass]="'reports-historyList' | cls">
-                            @for (row of routeHistoryFor(document); track row.id; let i = $index) {
-                              <div [ngClass]="'reports-historyEvent' | cls">
-                                <div [ngClass]="'reports-eventNumber' | cls">#{{ i + 1 }}</div>
-                                <div>
-                                  <span [ngClass]="'reports-muted' | cls">Date:</span>
-                                  <div [ngClass]="'reports-bold' | cls">{{ row.date }}</div>
-                                </div>
-                                <div>
-                                  <span [ngClass]="'reports-muted' | cls">From:</span>
-                                  <div [ngClass]="'reports-bold' | cls">{{ row.from }}</div>
-                                </div>
-                                <div>
-                                  <span [ngClass]="'reports-muted' | cls">To:</span>
-                                  <div [ngClass]="'reports-bold' | cls">{{ row.to }}</div>
-                                </div>
-                                <div>
-                                  <span [ngClass]="'reports-muted' | cls">Action:</span>
-                                  <div [ngClass]="'reports-bold' | cls">{{ row.action }}</div>
-                                </div>
-                                <div>
-                                  <span [ngClass]="'reports-muted' | cls">Remarks:</span>
-                                  <div [ngClass]="'reports-eventDetails' | cls">{{ row.remarks }}</div>
-                                </div>
-                              </div>
-                            }
-                          </div>
-                        } @else {
-                          <div [ngClass]="'reports-noEvents' | cls">No routing events recorded yet.</div>
-                        }
-                      </td>
-                    </tr>
-                  }
-                }
-              </tbody>
-            </table>
-          }
-          @if (visibleCount() === 0) {
-            <div [ngClass]="'reports-empty' | cls">No records match this report filter.</div>
-          }
-        </div>
+      <div [ngClass]="'reports-heroActions' | cls">
+        <ion-button type="button" [ngClass]="'reports-printButton' | cls" (click)="printActiveReport()">
+          <ion-icon name="print" [ngClass]="'reports-buttonIcon' | cls"></ion-icon>
+          Print Report
+        </ion-button>
+        <ion-button type="button" [ngClass]="'reports-exportButton' | cls" (click)="exportActiveReport()">
+          <ion-icon name="download" [ngClass]="'reports-buttonIcon' | cls"></ion-icon>
+          Export Current Report
+        </ion-button>
+        <ion-button type="button" [ngClass]="'reports-folderButton' | cls" (click)="chooseAutoSaveDirectory()">
+          <ion-icon name="folder-open" [ngClass]="'reports-buttonIcon' | cls"></ion-icon>
+          {{ folderButtonLabel() }}
+        </ion-button>
       </div>
     </div>
-  
+  </div>
+
+  @if (statusMessage()) {
+  <div [ngClass]="'reports-statusMessage' | cls">{{ statusMessage() }}</div>
+  }
+
+  @if (!reportType) {
+  <div [ngClass]="'reports-reportTabs' | cls">
+    @for (tab of reportTabs(); track tab.type) {
+    <ion-button type="button" [ngClass]="tabClass(tab.type)" (click)="selectReport(tab.type)">
+      <div [ngClass]="'reports-tabHeader' | cls">
+        <ion-icon [name]="tab.icon" [ngClass]="'reports-tabIcon' | cls"></ion-icon>
+        <span [ngClass]="'reports-tabCount' | cls">{{ tab.count }}</span>
+      </div>
+      <div [ngClass]="'reports-tabLabel' | cls">{{ reportLabel(tab.type) }} Report</div>
+    </ion-button>
+    }
+  </div>
+  }
+
+  <div [ngClass]="'reports-filters' | cls">
+    <div [ngClass]="'reports-searchField' | cls">
+      <input [ngClass]="'reports-searchInput' | cls" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)"
+        placeholder="Search route number, title, sender, recipient, or details..." />
+    </div>
+    <ion-select interface="popover" [ngClass]="'reports-monthSelect' | cls" [ngModel]="monthFilter()"
+      (ngModelChange)="monthFilter.set($event)">
+      <ion-select-option value="ALL">All Months</ion-select-option>
+      @for (month of availableMonths(); track month) {
+      <ion-select-option [value]="month">{{ monthLabel(month) }}</ion-select-option>
+      }
+    </ion-select>
+  </div>
+
+  <div [ngClass]="'reports-tableCard' | cls">
+    <div [ngClass]="'reports-tableTitle' | cls">
+      {{ reportLabel(activeReport()) }} &bull; {{ visibleCount() }} record(s)
+    </div>
+    <div [ngClass]="'reports-tableScroll' | cls" class="reports-desktop-table">
+      @if (activeReport() === 'ENVELOPE') {
+      <table [ngClass]="'reports-envelopeTable' | cls">
+        <thead [ngClass]="'reports-tableHead' | cls">
+          <tr>
+            <th [ngClass]="'reports-cell' | cls">Timestamp</th>
+            <th [ngClass]="'reports-cell' | cls">Route No.</th>
+            <th [ngClass]="'reports-cell' | cls">Released By</th>
+            <th [ngClass]="'reports-cell' | cls">Dispatch Details</th>
+          </tr>
+        </thead>
+        <tbody [ngClass]="'reports-tableBody' | cls">
+          @for (log of filteredEnvelopeLogs(); track log.id) {
+          <tr [ngClass]="'reports-row' | cls">
+            <td [ngClass]="'reports-nowrapCell' | cls">{{ formatDate(log.timestamp) }}</td>
+            <td [ngClass]="'reports-routeCell' | cls">{{ log.documentTrackingNumber || 'N/A' }}</td>
+            <td [ngClass]="'reports-strongCell' | cls">{{ log.userName }}</td>
+            <td [ngClass]="'reports-detailsCell' | cls">
+              @if (getDispatchDetailItems(log.details).length > 1) {
+              <ul class="reports-detailBulletList">
+                @for (detail of getDispatchDetailItems(log.details); track $index) {
+                <li class="reports-detailBulletItem">{{ detail }}</li>
+                }
+              </ul>
+              } @else {
+              {{ log.details }}
+              }
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+      } @else {
+      <table [ngClass]="'reports-documentTable' | cls">
+        <thead [ngClass]="'reports-tableHead' | cls">
+          <tr>
+            <th [ngClass]="'reports-cell' | cls">Route No.</th>
+            <th [ngClass]="'reports-cell' | cls">Title / Subject</th>
+            <th [ngClass]="'reports-cell' | cls">Date Received</th>
+            <th [ngClass]="'reports-cell' | cls">From Office</th>
+            <th [ngClass]="'reports-cell' | cls">Initial Receiver</th>
+            <th [ngClass]="'reports-cell' | cls">Current Holder</th>
+            <th [ngClass]="'reports-cell' | cls">Final Outcome</th>
+            <th [ngClass]="'reports-cell' | cls">Last Activity</th>
+            <th [ngClass]="'reports-cell reports-historyTh' | cls">Full History</th>
+          </tr>
+        </thead>
+        <tbody [ngClass]="'reports-tableBody' | cls">
+          @for (document of filteredDocuments(); track document.id) {
+          @let latestRoute = latestRouteOf(document);
+          @let events = eventsFor(document);
+          @let lastEvent = events.length ? events[events.length - 1] : null;
+          @let finalOutcome = finalOutcomeOf(document, events);
+          <tr [ngClass]="'reports-row' | cls">
+            <td [ngClass]="'reports-routeCell' | cls">{{ document.routeNo || document.trackingNumber }}</td>
+            <td [ngClass]="'reports-titleCell' | cls">
+              <div [ngClass]="'reports-documentTitle' | cls">{{ document.title }}</div>
+              <div [ngClass]="'reports-mutedLine' | cls">{{ document.subject }}</div>
+            </td>
+            <td [ngClass]="'reports-nowrapCell' | cls">{{ formatDate(document.dateReceived) }}</td>
+            <td [ngClass]="'reports-cell' | cls">{{ document.originatingOffice }}</td>
+            <td [ngClass]="'reports-strongCell' | cls">{{ document.createdBy }}</td>
+            <td [ngClass]="'reports-cell' | cls">
+              <div [ngClass]="'reports-bold' | cls">
+                {{ latestRoute?.toUser || document.assignedUser || 'Unassigned' }}
+              </div>
+              <div [ngClass]="'reports-mutedLine' | cls">
+                {{ latestRoute?.toDivision || document.currentDivision }}
+              </div>
+            </td>
+            <td [ngClass]="'reports-cell' | cls">
+              <span [ngClass]="outcomeBadgeClass(finalOutcome)">{{ finalOutcome }}</span>
+            </td>
+            <td [ngClass]="'reports-activityCell' | cls">
+              @if (lastEvent) {
+              <div [ngClass]="'reports-bold' | cls">
+                {{ lastEvent.event }} by {{ lastEvent.actor }}
+              </div>
+              <div [ngClass]="'reports-mutedLine' | cls">{{ formatDate(lastEvent.timestamp) }}</div>
+              } @else {
+              No activity recorded
+              }
+            </td>
+            <td [ngClass]="'reports-cell reports-historyTd' | cls">
+              <ion-button type="button" [ngClass]="'reports-historyButton' | cls" (click)="toggleHistory(document.id)"
+                [attr.aria-expanded]="expandedRouteId() === document.id">
+                <ion-icon [name]="expandedRouteId() === document.id ? 'chevron-up-outline' : 'time-outline'"
+                  class="reports-historyBtnIcon"></ion-icon>
+                <span>{{ expandedRouteId() === document.id ? 'Hide' : 'History (' + routeHistoryFor(document).length +
+                  ')' }}</span>
+              </ion-button>
+            </td>
+          </tr>
+          @if (expandedRouteId() === document.id) {
+          <tr [ngClass]="'reports-historyRow' | cls">
+            <td colspan="9" [ngClass]="'reports-historyCell' | cls">
+              <div class="reports-history-container">
+                <div class="reports-history-header">
+                  <div class="reports-history-header-left">
+                    <ion-icon name="git-network-outline" class="reports-history-icon"></ion-icon>
+                    <h4 class="reports-history-main-title">Route History &amp; Actions</h4>
+                    <span class="reports-history-count-badge">{{ routeHistoryFor(document).length }} step{{
+                      routeHistoryFor(document).length === 1 ? '' : 's' }}</span>
+                  </div>
+
+                </div>
+
+                @if (routeHistoryFor(document).length) {
+                <div class="reports-historyList">
+                  @for (row of routeHistoryFor(document); track row.id; let i = $index) {
+                  <div class="reports-historyEvent">
+                    <div class="reports-eventRail">
+                      <div class="reports-eventBadge">{{ i + 1 }}</div>
+                      @if (i < routeHistoryFor(document).length - 1) {
+                        <span class="reports-eventLine" aria-hidden="true"></span>
+                      }
+                    </div>
+                    <div class="reports-eventContent">
+                      <div class="reports-eventTopline">
+                        <span class="reports-actionTitle">{{ row.action }}</span>
+                        <time class="reports-eventDate">{{ row.date }}</time>
+                      </div>
+                      <div class="reports-routeMovement">
+                        <div class="reports-routeParty">
+                          <span class="reports-muted">From</span>
+                          <strong class="reports-officeText" [title]="row.from">{{ row.from }}</strong>
+                        </div>
+                        <ion-icon name="arrow-forward-outline" class="reports-routeArrow"></ion-icon>
+                        <div class="reports-routeParty">
+                          <span class="reports-muted">To</span>
+                          <strong class="reports-officeText" [title]="row.to">{{ row.to }}</strong>
+                        </div>
+                        @if (hasCleanRemarks(row.remarks)) {
+                          <div class="reports-remarksPill reports-remarksPill--inline" [title]="row.remarks">
+                            <span class="reports-noteLabel">Note:</span>
+                            <span>{{ getCleanRemarks(row.remarks) }}</span>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                  }
+                </div>
+                } @else {
+                <div class="reports-no-history">No movement records logged for this document yet.</div>
+                }
+              </div>
+            </td>
+          </tr>
+          }
+          }
+        </tbody>
+      </table>
+      }
+      @if (visibleCount() === 0) {
+      <div [ngClass]="'reports-empty' | cls">No records match this report filter.</div>
+      }
+    </div>
+
+    <!-- Modern Mobile Reports Feed (Card-based, Clean & Readable) -->
+    <div class="reports-mobile-cards-feed" role="feed" aria-label="Reports mobile records feed">
+      @if (activeReport() === 'ENVELOPE') {
+      @for (log of filteredEnvelopeLogs(); track log.id) {
+      <article class="reports-m-card reports-m-env-card">
+        <div class="reports-m-card-top">
+          <div class="reports-m-route">
+            <ion-icon name="mail-outline"></ion-icon>
+            <strong>{{ log.documentTrackingNumber || 'N/A' }}</strong>
+          </div>
+          <span class="reports-m-time-pill">{{ formatDate(log.timestamp) }}</span>
+        </div>
+        <div class="reports-m-body">
+          <div class="reports-m-meta-col">
+            <span class="reports-m-meta-label">Released By:</span>
+            <strong class="reports-m-meta-val">{{ log.userName }}</strong>
+          </div>
+          <div class="reports-m-dispatch-box">
+            <span class="reports-m-meta-label">Dispatch Details:</span>
+            @if (getDispatchDetailItems(log.details).length > 1) {
+            <ul class="reports-detailBulletList">
+              @for (detail of getDispatchDetailItems(log.details); track $index) {
+              <li class="reports-detailBulletItem">{{ detail }}</li>
+              }
+            </ul>
+            } @else {
+            <p class="reports-m-dispatch-text">{{ log.details }}</p>
+            }
+          </div>
+        </div>
+      </article>
+      }
+      } @else {
+      @for (document of filteredDocuments(); track document.id) {
+      @let events = eventsFor(document);
+      @let finalOutcome = finalOutcomeOf(document, events);
+      <article class="reports-m-card">
+        <!-- Top Row: Route No & Final Outcome -->
+        <div class="reports-m-card-top">
+          <div class="reports-m-route">
+            <ion-icon name="qr-code-outline"></ion-icon>
+            <strong>{{ document.routeNo || document.trackingNumber }}</strong>
+          </div>
+          <span [ngClass]="outcomeBadgeClass(finalOutcome)">{{ finalOutcome }}</span>
+        </div>
+
+        <!-- Title & Subject -->
+        <div class="reports-m-body">
+          <h4 class="reports-m-title">{{ document.title }}</h4>
+          @if (document.subject) {
+          <p class="reports-m-subject">{{ document.subject }}</p>
+          }
+        </div>
+
+        <!-- Metadata Grid -->
+        <div class="reports-m-meta-grid">
+          <div class="reports-m-meta-col">
+            <span class="reports-m-meta-label">Origin:</span>
+            <span class="reports-m-meta-val">{{ document.originatingOffice }}</span>
+          </div>
+          <div class="reports-m-meta-col">
+            <span class="reports-m-meta-label">Date:</span>
+            <span class="reports-m-meta-val">{{ formatDate(document.dateReceived) }}</span>
+          </div>
+          <div class="reports-m-meta-col">
+            <span class="reports-m-meta-label">Current Holder:</span>
+            <span class="reports-m-meta-val">
+              {{ latestRouteOf(document)?.toUser || document.assignedUser || 'Unassigned' }}
+              <small class="reports-m-div-hint">({{ latestRouteOf(document)?.toDivision || document.currentDivision
+                }})</small>
+            </span>
+          </div>
+          <div class="reports-m-meta-col">
+            <span class="reports-m-meta-label">Initial Receiver:</span>
+            <span class="reports-m-meta-val">{{ document.createdBy }}</span>
+          </div>
+        </div>
+
+        <!-- History Action Button -->
+        <div class="reports-m-card-footer">
+          <button type="button" class="reports-m-history-btn" (click)="toggleHistory(document.id)"
+            [attr.aria-expanded]="expandedRouteId() === document.id">
+            <ion-icon [name]="expandedRouteId() === document.id ? 'chevron-up-outline' : 'time-outline'"></ion-icon>
+            <span>{{ expandedRouteId() === document.id ? 'Hide History' : 'View History (' +
+              routeHistoryFor(document).length + ')' }}</span>
+          </button>
+        </div>
+
+        <!-- Expanded History on Mobile (Clean Route Events with Remark beside Action) -->
+        @if (expandedRouteId() === document.id) {
+        <div class="reports-history-container">
+          <div class="reports-history-header">
+            <div class="reports-history-header-left">
+              <ion-icon name="git-network-outline" class="reports-history-icon"></ion-icon>
+              <h4 class="reports-history-main-title">Route History</h4>
+            </div>
+            <span class="reports-history-count-badge">{{ routeHistoryFor(document).length }} step{{
+              routeHistoryFor(document).length === 1 ? '' : 's' }}</span>
+          </div>
+          @if (routeHistoryFor(document).length) {
+          <div class="reports-historyList">
+            @for (row of routeHistoryFor(document); track row.id; let i = $index) {
+            <div class="reports-m-historyEvent">
+              <div class="reports-m-historyTop">
+                <span class="reports-eventBadge">#{{ i + 1 }}</span>
+                <span class="reports-m-historyDate">{{ row.date }}</span>
+              </div>
+              <div class="reports-m-historyFlow">
+                <span class="reports-bold">{{ row.from }}</span>
+                <ion-icon name="arrow-forward-outline" class="reports-m-arrow"></ion-icon>
+                <span class="reports-bold">{{ row.to }}</span>
+                @if (hasCleanRemarks(row.remarks)) {
+                <span class="reports-remarksPill reports-remarksPill--inline" [title]="row.remarks">
+                  <span class="reports-noteLabel">Note:</span>
+                  <span>{{ getCleanRemarks(row.remarks) }}</span>
+                </span>
+                }
+              </div>
+              <div class="reports-actionWithRemarks">
+                <span class="reports-bold reports-actionTitle">{{ row.action }}</span>
+              </div>
+            </div>
+            }
+          </div>
+          } @else {
+          <div class="reports-no-history">No history recorded yet for this document.</div>
+          }
+        </div>
+        }
+      </article>
+      }
+      }
+      @if (visibleCount() === 0) {
+      <div [ngClass]="'reports-empty' | cls">No records match this report filter.</div>
+      }
+    </div>
+  </div>
+</div>

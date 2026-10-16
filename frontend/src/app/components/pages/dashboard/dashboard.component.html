@@ -246,7 +246,7 @@
 
       <div class="workload-total-pill">
         <span class="pill-label">Total Active:</span>
-        <strong class="pill-count">{{ totalDivisionWorkload() }}</strong>
+        <strong class="pill-count">{{ totalActiveDocuments() }}</strong>
         <span class="pill-unit">docs</span>
       </div>
     </div>
@@ -254,7 +254,7 @@
     <!-- Simple Vertical Bar Chart Container -->
     <div class="workload-chart-scroll">
       <div class="workload-chart">
-        @for (item of stats.divisionBreakdown; track item.division) {
+        @for (item of divisionBreakdown(); track item.division) {
           <div
             class="bar-track-col group"
             [title]="getDivisionFullName(item.division) + ': ' + item.count + ' active documents (' + getDivisionPercentage(item.count) + '%)'">

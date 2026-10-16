@@ -108,26 +108,62 @@ export class DashboardComponent implements OnChanges {
     });
   }
 
-  totalDivisionWorkload = computed(() => {
+  readonly primaryDivisions = ['ORD', 'LAOD', 'ITMS', 'LTOD', 'FD', 'LU', 'AD'];
+
+  divisionBreakdown = computed(() => {
     this.inputRevision();
-    return (this.stats?.divisionBreakdown || []).reduce((acc, curr) => acc + curr.count, 0);
+    // Calculate involved functional divisions from active documents
+    const activeDocs = this.documents.filter(d => d.currentStatus !== 'COMPLETED');
+    if (activeDocs.length > 0) {
+      const divMap: Record<string, number> = {};
+      this.primaryDivisions.forEach(code => { divMap[code] = 0; });
+      activeDocs.forEach(doc => {
+        const involved = new Set<string>();
+        if (doc.currentDivision) involved.add(doc.currentDivision);
+        const creator = this.users.find(u => u.id === doc.createdByUserId);
+        if (creator?.divisionCode) involved.add(creator.divisionCode);
+        (doc.routes || []).forEach(r => {
+          if (r.toDivision) involved.add(r.toDivision);
+          if (r.fromDivision) involved.add(r.fromDivision);
+        });
+        involved.forEach(code => {
+          if (divMap[code] !== undefined) divMap[code]++;
+        });
+      });
+      return this.primaryDivisions.map(code => ({ division: code, count: divMap[code] || 0 }));
+    }
+    if (this.stats?.divisionBreakdown?.length) {
+      return this.stats.divisionBreakdown;
+    }
+    return this.primaryDivisions.map(code => ({ division: code, count: 0 }));
+  });
+
+  totalDivisionWorkload = computed(() => {
+    return this.divisionBreakdown().reduce((acc, curr) => acc + curr.count, 0);
+  });
+
+  totalActiveDocuments = computed(() => {
+    this.inputRevision();
+    const active = this.documents.filter(d => d.currentStatus !== 'COMPLETED').length;
+    return active > 0 ? active : (this.totalDivisionWorkload() > 0 ? 1 : 0);
   });
 
   topDivision = computed(() => {
-    this.inputRevision();
-    if (!this.stats?.divisionBreakdown?.length) return null;
-    return [...this.stats.divisionBreakdown].sort((a, b) => b.count - a.count)[0];
+    const list = this.divisionBreakdown();
+    if (!list.length) return null;
+    return [...list].sort((a, b) => b.count - a.count)[0];
   });
 
   getDivisionPercentage(count: number): number {
-    const total = this.totalDivisionWorkload();
+    const total = this.totalActiveDocuments();
     if (!total || total === 0) return 0;
-    return Math.round((count / total) * 100);
+    return Math.min(100, Math.round((count / total) * 100));
   }
 
   barPercentage(count: number): number {
-    if (!this.stats?.divisionBreakdown?.length || count === 0) return 0;
-    const max = Math.max(...this.stats.divisionBreakdown.map(d => d.count), 1);
+    const list = this.divisionBreakdown();
+    if (!list.length || count === 0) return 0;
+    const max = Math.max(...list.map(d => d.count), 1);
     return Math.max(8, Math.round((count / max) * 100));
   }
 
@@ -212,7 +248,12 @@ export class DashboardComponent implements OnChanges {
   recentTransactions = computed(() => {
     this.inputRevision();
     return this.documents
-      .filter(doc => isDocumentParticipant(doc, this.currentUser, this.auditLogs))
+      .filter(doc =>
+        this.currentUser.role === 'SYSTEM_ADMIN' ||
+        this.currentUser.role === 'ORD' ||
+        this.currentUser.permissions?.canViewAllDocuments ||
+        isDocumentParticipant(doc, this.currentUser, this.auditLogs)
+      )
       .sort((a, b) => this.documentActivityTime(b) - this.documentActivityTime(a));
   });
 
@@ -307,7 +348,13 @@ export class DashboardComponent implements OnChanges {
       return false;
     });
 
-    if (this.currentUser.role === 'SYSTEM_ADMIN') return candidates;
+    if (
+      this.currentUser.role === 'SYSTEM_ADMIN' ||
+      this.currentUser.role === 'ORD' ||
+      this.currentUser.permissions?.canViewAllDocuments
+    ) {
+      return candidates;
+    }
 
     // Personnel cards only contain transactions the account created, received,
     // or routed.
@@ -334,7 +381,12 @@ export class DashboardComponent implements OnChanges {
 
   getCardVisibleRoutes(document: DocumentRecord): GroupedRouteTransaction[] {
     const grouped = this.groupRouteTransactions(document);
-    if (grouped.length <= 1) {
+    if (
+      grouped.length <= 1 ||
+      this.currentUser.role === 'SYSTEM_ADMIN' ||
+      this.currentUser.role === 'ORD' ||
+      this.currentUser.permissions?.canViewAllRoutes
+    ) {
       return grouped;
     }
 
@@ -402,8 +454,9 @@ export class DashboardComponent implements OnChanges {
   }
 
   barHeight(count: number): number {
-    if (!this.stats.divisionBreakdown.length) return 8;
-    const max = Math.max(...this.stats.divisionBreakdown.map(d => d.count), 1);
+    const list = this.divisionBreakdown();
+    if (!list.length) return 8;
+    const max = Math.max(...list.map(d => d.count), 1);
     return Math.max(8, Math.round((count / max) * 160));
   }
 

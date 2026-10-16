@@ -154,7 +154,7 @@ table {
 
   .app-content {
     padding: 0.75rem !important;
-    padding-bottom: calc(0.75rem + var(--app-safe-bottom)) !important;
+    padding-bottom: calc(84px + env(safe-area-inset-bottom, 16px)) !important;
   }
 
   .app-content > * {
@@ -230,6 +230,7 @@ table {
 @media (max-width: 479px) {
   .app-content {
     padding: 0.625rem !important;
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 16px)) !important;
   }
 
   h1 {

@@ -22,28 +22,144 @@
         }
 
         <div class="document-detail-panel flex flex-col w-full overflow-hidden bg-white text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-slate-100">
-          <div class="document-detail-content max-h-[calc(88vh-4.5rem)] space-y-5 overflow-y-auto bg-slate-50/60 p-4 sm:space-y-6 sm:p-6 dark:bg-slate-950/30">
-            <header class="document-detail-hero p-4 sm:p-6" aria-labelledby="tracking-title">
-                <div class="flex flex-wrap items-center justify-between gap-4">
+          <div class="document-detail-content max-h-[calc(88vh-4.5rem)] space-y-3.5 overflow-y-auto bg-slate-50/60 p-3 sm:space-y-4 sm:p-4.5 dark:bg-slate-950/30">
+            @if (isQrEnlarged()) {
+              <div class="qr-enlarge-overlay" (click)="isQrEnlarged.set(false)">
+                <div class="qr-enlarge-card" (click)="$event.stopPropagation()">
+                  <div class="qr-enlarge-header">
+                    <h3>Official Document QR Code</h3>
+                    <button type="button" class="qr-enlarge-close-btn" (click)="isQrEnlarged.set(false)" aria-label="Close QR popup">
+                      <ion-icon name="close"></ion-icon>
+                    </button>
+                  </div>
+                  <div class="qr-enlarge-body">
+                    <img [src]="docQrDataUrl()" [alt]="document.routeNo || 'Document QR Code'" class="qr-enlarge-img" />
+                    <p class="qr-enlarge-route">{{ document.routeNo || document.trackingNumber }}</p>
+                    <p class="qr-enlarge-title">{{ document.title }}</p>
+                  </div>
+                  <div class="qr-enlarge-actions">
+                    <button type="button" class="qr-enlarge-dl-btn" (click)="downloadDocQr()">
+                      <ion-icon name="download-outline"></ion-icon>
+                      <span>Download QR PNG</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            }
+
+            @if (isDecisionRequired()) {
+              <section class="decision-required-card" aria-labelledby="decision-required-title">
+                <div class="decision-required-accent" aria-hidden="true"></div>
+
+                <div class="decision-required-inner">
+                  <div class="decision-required-header">
+                    <div class="decision-beacon-icon">
+                      <ion-icon name="shield-checkmark"></ion-icon>
+                    </div>
+
+                    <div class="decision-title-group">
+                      <div class="decision-tag-pill">
+                        <span class="decision-pulse-dot" aria-hidden="true"></span>
+                        <span>Action Required Before Proceeding</span>
+                      </div>
+                      <h3 id="decision-required-title" class="decision-banner-title">
+                        Document Routed to You &mdash; Decision Required
+                      </h3>
+                      <p class="decision-banner-subtitle">
+                        You can review the full document details, attachments, and visual trail below. You cannot proceed with routing without taking an action: Approve, Disapprove, or Close.
+                      </p>
+                    </div>
+                  </div>
+
+                  @if (decisionRouteDetails(); as details) {
+                    <div class="decision-meta-row">
+                      <div class="decision-meta-chip">
+                        <span class="decision-chip-label">Forwarded by:</span>
+                        <span class="decision-chip-value">{{ details.fromUser }}{{ details.fromDivision ? ' (' + details.fromDivision + ')' : '' }}</span>
+                      </div>
+
+                      <div class="decision-meta-chip">
+                        <span class="decision-chip-label">Action Requested:</span>
+                        <span class="decision-chip-value highlight">{{ details.actionRequested }}</span>
+                      </div>
+
+                      @if (details.remarks) {
+                        <div class="decision-meta-chip full-width">
+                          <span class="decision-chip-label">Routing Remarks:</span>
+                          <span class="decision-chip-value italic">&ldquo;{{ details.remarks }}&rdquo;</span>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              </section>
+            }
+
+            @if (document.currentStatus === 'NOT_YET_ROUTED' || ((document.routes || []).length === 0 && document.currentStatus !== 'COMPLETED')) {
+              <section class="unrouted-notice-card" aria-labelledby="unrouted-notice-title">
+                <div class="unrouted-notice-accent" aria-hidden="true"></div>
+
+                <div class="unrouted-notice-inner">
+                  <div class="unrouted-notice-header">
+                    <div class="unrouted-beacon-icon">
+                      <ion-icon name="paper-plane-outline"></ion-icon>
+                    </div>
+
+                    <div class="unrouted-title-group">
+                      <div class="unrouted-tag-pill">
+                        <span class="unrouted-pulse-dot" aria-hidden="true"></span>
+                        <span>Registered &bull; Not Yet Routed</span>
+                      </div>
+                      <h3 id="unrouted-notice-title" class="unrouted-banner-title">
+                        Document Registered &mdash; Initial Routing Pending
+                      </h3>
+                      <p class="unrouted-banner-subtitle">
+                        This document was recorded into the system via <strong>Register Only</strong>. It currently has no assigned handler or recipient division. When ready, click below to dispatch it into the workflow.
+                      </p>
+                    </div>
+
+                    @if (canRouteDocument()) {
+                      <div class="unrouted-action-group">
+                        <button
+                          type="button"
+                          (click)="handleOpenRouteDoc()"
+                          class="unrouted-route-btn cursor-pointer"
+                        >
+                          <ion-icon name="paper-plane" class="h-4 w-4"></ion-icon>
+                          <span>Route Document Now</span>
+                        </button>
+                      </div>
+                    }
+                  </div>
+                </div>
+              </section>
+            }
+
+            <!-- UNIFIED DOCUMENT OVERVIEW CARD (Routing & Tracking Header + Title/Subject + Details/Files) -->
+            <article class="document-unified-card" aria-labelledby="document-information-title">
+              <!-- TOP SECTION: Routing & Tracking Header -->
+              <!-- TOP SECTION: Routing & Tracking Header -->
+              <header class="unified-card-header p-3 sm:p-4" aria-labelledby="tracking-title">
+                <div class="flex flex-wrap items-center justify-between gap-3">
                   <div class="min-w-0 flex-1">
-                    <div class="doc-hero-eyebrow flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.14em]">
-                      <ion-icon name="git-network" class="h-4 w-4"></ion-icon>
+                    <div class="doc-hero-eyebrow flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.14em]">
+                      <ion-icon name="git-network" class="h-3.5 w-3.5"></ion-icon>
                       Routing &amp; Tracking
                     </div>
-                    <h1 id="tracking-title" class="tracking-title mt-1.5 text-2xl font-black sm:text-[28px]">Tracking Documents</h1>
-                    <p class="doc-hero-sub mt-1.5 max-w-xl text-[13px] font-medium leading-relaxed">Follow the document from registration to completion - check each recipient's latest status, response, and next action.</p>
+                    <h1 id="tracking-title" class="tracking-title mt-1 text-lg font-black sm:text-xl">Tracking Documents</h1>
+                    <p class="doc-hero-sub mt-0.5 max-w-xl text-xs font-medium leading-normal">Follow the document from registration to completion &mdash; check each recipient's latest status, response, and next action.</p>
 
-                    <div class="mt-3 flex flex-wrap items-center gap-2">
+                    <div class="mt-2.5 flex flex-wrap items-center gap-2">
                       <span
-                        class="doc-hero-chip inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wide"
+                        class="doc-hero-chip inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide"
                         [class.doc-hero-chip-unrouted]="document.currentStatus === 'NOT_YET_ROUTED'"
                       >
-                        <ion-icon name="radio-button-on" class="h-3.5 w-3.5"></ion-icon>
+                        <ion-icon name="radio-button-on" class="h-3 w-3"></ion-icon>
                         {{ document.currentStatus.replaceAll('_', ' ') }}
                       </span>
-                      <button type="button" (click)="scrollToFlow()" class="doc-hero-btn inline-flex min-h-[36px] items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold cursor-pointer">
+                      <button type="button" (click)="scrollToFlow()" class="doc-hero-btn inline-flex min-h-[30px] items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold cursor-pointer">
                         <span>View flow</span>
-                        <ion-icon name="chevron-down" class="h-4 w-4"></ion-icon>
+                        <ion-icon name="chevron-down" class="h-3.5 w-3.5"></ion-icon>
                       </button>
                     </div>
                   </div>
@@ -68,186 +184,124 @@
                     </div>
                   }
                 </div>
+
+                <!-- 4-Stage Transaction Lifecycle Progress Bar -->
+                <div class="unified-tracking-progress mt-3 pt-2.5 border-t border-slate-200/70 dark:border-slate-800">
+                  <ol class="grid list-none gap-1.5 p-0 m-0 sm:grid-cols-4" aria-label="Transaction progress">
+                    @for (stage of transactionStages(); track stage.label; let i = $index) {
+                      <li class="min-w-0" [attr.aria-current]="stage.active ? 'step' : null">
+                        <div [ngClass]="('mb-1 h-1 rounded-full ' + stage.barClass) | cls"></div>
+                        <span class="transaction-stage-label" [ngClass]="('block text-[10px] font-bold ' + stage.textClass) | cls">{{ i + 1 }}. {{ stage.label }}</span>
+                        @if (stage.active) {
+                          <span [ngClass]="('text-[9.5px] font-semibold ' + stage.subTextClass) | cls">{{ stage.subLabel }}</span>
+                        }
+                      </li>
+                    }
+                  </ol>
+                  @if (nextActionText()) {
+                    <p class="mt-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">{{ nextActionText() }}</p>
+                  }
+                </div>
               </header>
 
-              @if (isQrEnlarged()) {
-                <div class="qr-enlarge-overlay" (click)="isQrEnlarged.set(false)">
-                  <div class="qr-enlarge-card" (click)="$event.stopPropagation()">
-                    <div class="qr-enlarge-header">
-                      <h3>Official Document QR Code</h3>
-                      <button type="button" class="qr-enlarge-close-btn" (click)="isQrEnlarged.set(false)" aria-label="Close QR popup">
-                        <ion-icon name="close"></ion-icon>
-                      </button>
-                    </div>
-                    <div class="qr-enlarge-body">
-                      <img [src]="docQrDataUrl()" [alt]="document.routeNo || 'Document QR Code'" class="qr-enlarge-img" />
-                      <p class="qr-enlarge-route">{{ document.routeNo || document.trackingNumber }}</p>
-                      <p class="qr-enlarge-title">{{ document.title }}</p>
-                    </div>
-                    <div class="qr-enlarge-actions">
-                      <button type="button" class="qr-enlarge-dl-btn" (click)="downloadDocQr()">
-                        <ion-icon name="download-outline"></ion-icon>
-                        <span>Download QR PNG</span>
-                      </button>
-                    </div>
-                  </div>
+              <!-- MIDDLE SECTION: Document Information (Title, Subject & Details) -->
+              <div class="unified-card-info p-3 sm:p-4 border-t border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900">
+                <div class="mb-2">
+                  <span class="text-[9.5px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Document Title</span>
+                  <h2 id="document-information-title" class="overflow-wrap-anywhere text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 mt-0.5 leading-snug">{{ document.title }}</h2>
                 </div>
-              }
 
-              @if (isDecisionRequired()) {
-                <section class="decision-required-card" aria-labelledby="decision-required-title">
-                  <div class="decision-required-accent" aria-hidden="true"></div>
+                <div class="mt-2.5">
+                  <span class="text-[9.5px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Document Subject / Content</span>
+                  <p class="document-subject mt-0.5 rounded-lg border border-slate-200/80 bg-slate-50/70 p-2.5 text-xs sm:text-[13px] font-medium leading-relaxed text-slate-800 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-200 whitespace-pre-wrap overflow-wrap-anywhere">
+                    {{ document.subject || 'No detailed description provided.' }}
+                  </p>
+                </div>
 
-                  <div class="decision-required-inner">
-                    <div class="decision-required-header">
-                      <div class="decision-beacon-icon">
-                        <ion-icon name="shield-checkmark"></ion-icon>
-                      </div>
-
-                      <div class="decision-title-group">
-                        <div class="decision-tag-pill">
-                          <span class="decision-pulse-dot" aria-hidden="true"></span>
-                          <span>Action Required Before Proceeding</span>
-                        </div>
-                        <h3 id="decision-required-title" class="decision-banner-title">
-                          Document Routed to You &mdash; Decision Required
-                        </h3>
-                        <p class="decision-banner-subtitle">
-                          You can review the full document details, attachments, and visual trail below. You cannot proceed with routing without taking an action: Approve, Disapprove, or Close.
-                        </p>
-                      </div>
-                    </div>
-
-                    @if (decisionRouteDetails(); as details) {
-                      <div class="decision-meta-row">
-                        <div class="decision-meta-chip">
-                          <span class="decision-chip-label">Forwarded by:</span>
-                          <span class="decision-chip-value">{{ details.fromUser }}{{ details.fromDivision ? ' (' + details.fromDivision + ')' : '' }}</span>
-                        </div>
-
-                        <div class="decision-meta-chip">
-                          <span class="decision-chip-label">Action Requested:</span>
-                          <span class="decision-chip-value highlight">{{ details.actionRequested }}</span>
-                        </div>
-
-                        @if (details.remarks) {
-                          <div class="decision-meta-chip full-width">
-                            <span class="decision-chip-label">Routing Remarks:</span>
-                            <span class="decision-chip-value italic">&ldquo;{{ details.remarks }}&rdquo;</span>
-                          </div>
-                        }
+                <!-- Document Details Grid (placed directly inside Document Title card at the bottom) -->
+                <div class="mt-2.5 pt-2 border-t border-slate-200/70 dark:border-slate-800">
+                  <h4 class="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Document Details</h4>
+                  <dl class="m-0 mt-1.5 grid gap-x-4 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+                    @for (field of documentSummaryFields(); track field.label) {
+                      <div class="grid gap-0.5 sm:grid-cols-[100px_minmax(0,1fr)] sm:gap-1.5">
+                        <dt class="text-[10px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">{{ field.label }}</dt>
+                        <dd class="document-field-value m-0 overflow-wrap-anywhere text-xs font-semibold leading-normal text-slate-900 dark:text-slate-100">{{ field.value || 'Not recorded' }}</dd>
                       </div>
                     }
-                  </div>
-                </section>
-              }
-
-              @if (document.currentStatus === 'NOT_YET_ROUTED' || ((document.routes || []).length === 0 && document.currentStatus !== 'COMPLETED')) {
-                <section class="unrouted-notice-card" aria-labelledby="unrouted-notice-title">
-                  <div class="unrouted-notice-accent" aria-hidden="true"></div>
-
-                  <div class="unrouted-notice-inner">
-                    <div class="unrouted-notice-header">
-                      <div class="unrouted-beacon-icon">
-                        <ion-icon name="paper-plane-outline"></ion-icon>
-                      </div>
-
-                      <div class="unrouted-title-group">
-                        <div class="unrouted-tag-pill">
-                          <span class="unrouted-pulse-dot" aria-hidden="true"></span>
-                          <span>Registered &bull; Not Yet Routed</span>
-                        </div>
-                        <h3 id="unrouted-notice-title" class="unrouted-banner-title">
-                          Document Registered &mdash; Initial Routing Pending
-                        </h3>
-                        <p class="unrouted-banner-subtitle">
-                          This document was recorded into the system via <strong>Register Only</strong>. It currently has no assigned handler or recipient division. When ready, click below to dispatch it into the workflow.
-                        </p>
-                      </div>
-
-                      @if (canRouteDocument()) {
-                        <div class="unrouted-action-group">
-                          <button
-                            type="button"
-                            (click)="handleOpenRouteDoc()"
-                            class="unrouted-route-btn cursor-pointer"
-                          >
-                            <ion-icon name="paper-plane" class="h-4 w-4"></ion-icon>
-                            <span>Route Document Now</span>
-                          </button>
-                        </div>
-                      }
-                    </div>
-                  </div>
-                </section>
-              }
-
-              <header class="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:p-4" aria-labelledby="document-information-title">
-                <div class="mb-2.5">
-                  <div class="min-w-0">
-                    <h2 id="document-information-title" class="overflow-wrap-anywhere text-xl font-bold">{{ document.title }}</h2>
-                    <p class="mt-0.5 text-[14px] text-slate-500">Document information &amp; files</p>
-                  </div>
+                  </dl>
                 </div>
-                <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_310px] xl:grid-cols-[minmax(0,1fr)_320px]">
-                  <div class="min-w-0">
-                    <h4 class="mb-1.5 text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Document Subject / Content</h4>
-                    <p class="document-subject mb-4 rounded-xl border border-slate-200/80 bg-slate-50/60 p-3.5 text-sm sm:text-[15px] font-medium leading-relaxed text-slate-800 dark:border-slate-800 dark:bg-slate-800/30 dark:text-slate-200 whitespace-pre-wrap overflow-wrap-anywhere">
-                      {{ document.subject || 'No detailed description provided.' }}
-                    </p>
-                    <dl class="m-0 grid gap-2.5 sm:grid-cols-2">
-                      @for (field of documentFields(); track field.label) {
-                        <div class="rounded-xl border border-slate-200/70 bg-slate-50/60 p-3 transition-colors hover:border-blue-300 dark:border-slate-800 dark:bg-slate-800/40 dark:hover:border-blue-800">
-                          <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">{{ field.label }}</dt>
-                          <dd class="document-field-value mt-1 text-[13.5px] font-bold text-slate-900 dark:text-slate-100 overflow-wrap-anywhere m-0">{{ field.value || 'Not recorded' }}</dd>
-                        </div>
-                      }
-                    </dl>
-                  </div>
-                  <section class="min-w-0 bg-slate-50 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 dark:bg-slate-800/40" aria-labelledby="document-files-title">
-                    <div class="mb-1 flex flex-wrap items-center justify-between gap-1.5">
-                      <h4 id="document-files-title" class="text-base font-semibold">Original Document Attachments ({{ sharedDocumentFiles().length }})</h4>
+              </div>
+
+              <!-- BOTTOM SECTION: Compact Details (Parties & Attachments) -->
+              <div class="unified-card-details p-3 sm:p-4 border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20">
+                <div class="grid gap-2.5 sm:gap-3">
+                  <!-- Parties Involved: Sender & Addressee -->
+                  <dl class="m-0 grid gap-2 sm:grid-cols-2">
+                    @for (field of documentPartyFields(); track field.label) {
+                      <div class="rounded-lg border border-slate-200/80 bg-white p-2.5 shadow-2xs transition-colors hover:border-blue-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-800">
+                        <dt class="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">{{ field.label }}</dt>
+                        <dd class="document-field-value m-0 mt-1.5 grid gap-1">
+                          @for (detail of field.details; track detail.label) {
+                            <div class="grid gap-0.5 sm:grid-cols-[68px_minmax(0,1fr)] sm:gap-1.5">
+                              <span class="text-[10px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">{{ detail.label }}</span>
+                              <span class="overflow-wrap-anywhere text-xs font-semibold leading-normal text-slate-900 dark:text-slate-100">{{ detail.value }}</span>
+                            </div>
+                          }
+                        </dd>
+                      </div>
+                    }
+                  </dl>
+
+                  <!-- Original Document Attachments -->
+                  <section class="rounded-lg border border-slate-200/80 bg-white p-2.5 sm:p-3 shadow-2xs dark:border-slate-800 dark:bg-slate-900" aria-labelledby="document-files-title">
+                    <div class="mb-2 flex flex-wrap items-center justify-between gap-1.5">
+                      <div>
+                        <h4 id="document-files-title" class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                          Original Document Attachments ({{ sharedDocumentFiles().length }})
+                        </h4>
+                        <p class="text-[10.5px] text-slate-400">Official document files &amp; scanned copies (available to all viewers)</p>
+                      </div>
                       @if (isDocumentParticipant()) {
-                        <label class="inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-md border border-slate-300 px-3 py-2 text-sm font-bold transition-colors hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" [class.opacity-50]="isUploading()" [class.pointer-events-none]="isUploading()">
-                          <ion-icon name="cloud-upload" class="h-[17px] w-[17px]"></ion-icon>
+                        <label class="inline-flex min-h-[30px] cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" [class.opacity-50]="isUploading()" [class.pointer-events-none]="isUploading()">
+                          <ion-icon name="cloud-upload" class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400"></ion-icon>
                           {{ isUploading() ? 'Uploading...' : 'Add files' }}
                           <input class="visually-hidden-file-input" type="file" multiple (change)="handleFileUpload($event)" [disabled]="isUploading()" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" tabindex="-1" />
                         </label>
                       }
                     </div>
-                    <p class="mb-2 text-[13px] text-slate-500">Official document files &amp; scanned copies (available to all viewers)</p>
+
                     @if (!sharedDocumentFiles().length) {
-                      <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-2.5 dark:border-slate-700 dark:bg-slate-800/50">
-                        <ion-icon name="attach" class="h-[22px] w-[22px] text-slate-400"></ion-icon>
-                        <p class="mt-1 text-[15px] font-semibold">No files attached</p>
-                        <p class="mt-0.5 text-sm text-slate-500">{{ isDocumentParticipant() ? 'Use Add files to attach supporting documents.' : 'No digital files are available for this document.' }}</p>
+                      <div class="rounded-lg border border-dashed border-slate-200 bg-slate-50/60 p-2.5 text-center dark:border-slate-700 dark:bg-slate-800/40">
+                        <ion-icon name="attach" class="h-4 w-4 text-slate-400 mx-auto"></ion-icon>
+                        <p class="mt-0.5 text-xs font-bold text-slate-700 dark:text-slate-300">No files attached</p>
+                        <p class="text-[10.5px] text-slate-400">{{ isDocumentParticipant() ? 'Use Add files to attach supporting documents.' : 'No digital files are available for this document.' }}</p>
                       </div>
                     } @else {
-                      <ul class="m-0 list-none p-0">
+                      <ul class="m-0 list-none p-0 divide-y divide-slate-100 dark:divide-slate-800">
                         @for (file of sharedDocumentFiles(); track file.id) {
-                          <li class="border-t border-slate-200 py-2 dark:border-slate-700">
-                            <div class="flex items-start gap-1.25">
-                              <ion-icon name="document-text" class="mt-[3px] h-5 w-5 shrink-0 text-slate-500"></ion-icon>
+                          <li class="flex flex-wrap items-center justify-between gap-2 py-1.5 first:pt-0.5 last:pb-0">
+                            <div class="flex min-w-0 items-start gap-1.5">
+                              <ion-icon name="document-text" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400"></ion-icon>
                               <div class="min-w-0">
-                                <p class="attachment-name overflow-wrap-anywhere text-[15px] font-semibold">{{ file.fileName }}</p>
-                                <p class="mt-0.5 text-[13px] text-slate-500">{{ file.fileSize || 'Size not recorded' }}{{ file.uploadDate ? ' - ' + formatDate(file.uploadDate) : '' }}</p>
+                                <p class="attachment-name overflow-wrap-anywhere text-xs font-bold text-slate-800 dark:text-slate-200">{{ file.fileName }}</p>
+                                <p class="text-[10px] text-slate-400">{{ file.fileSize || 'Size not recorded' }}{{ file.uploadDate ? ' &bull; ' + formatDate(file.uploadDate) : '' }}</p>
                               </div>
                             </div>
-                            <div class="mt-1 flex flex-wrap gap-1">
-                              <button type="button" (click)="handleViewAttachment(file)" [disabled]="!file.url" class="inline-flex min-h-[44px] items-center gap-1.5 rounded-md border border-slate-300 px-3.5 py-2.5 text-sm font-bold transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800" [attr.aria-label]="'View ' + file.fileName">
-                                <ion-icon name="eye" class="h-4 w-4"></ion-icon> View
+                            <div class="flex flex-wrap gap-1">
+                              <button type="button" (click)="handleViewAttachment(file)" [disabled]="!file.url" class="inline-flex min-h-[28px] items-center gap-1 rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 cursor-pointer" [attr.aria-label]="'View ' + file.fileName">
+                                <ion-icon name="eye" class="h-3 w-3 text-slate-500"></ion-icon> View
                               </button>
-                              <button type="button" (click)="handleDownloadAttachment(file)" [disabled]="!file.url" class="inline-flex min-h-[44px] items-center gap-1.5 rounded-md border border-slate-300 px-3.5 py-2.5 text-sm font-bold transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800" [attr.aria-label]="'Download ' + file.fileName">
-                                <ion-icon name="download" class="h-4 w-4"></ion-icon> Download
+                              <button type="button" (click)="handleDownloadAttachment(file)" [disabled]="!file.url" class="inline-flex min-h-[28px] items-center gap-1 rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 cursor-pointer" [attr.aria-label]="'Download ' + file.fileName">
+                                <ion-icon name="download" class="h-3 w-3 text-slate-500"></ion-icon> Download
                               </button>
                               @if (isPdfFile(file)) {
-                                <button type="button" (click)="handlePrintAttachment(file.url)" [disabled]="!file.url" class="inline-flex min-h-[44px] items-center gap-1.5 rounded-md border border-slate-300 px-3.5 py-2.5 text-sm font-bold transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800" [attr.aria-label]="'Print ' + file.fileName">
-                                  <ion-icon name="print" class="h-4 w-4"></ion-icon> Print
+                                <button type="button" (click)="handlePrintAttachment(file.url)" [disabled]="!file.url" class="inline-flex min-h-[28px] items-center gap-1 rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 cursor-pointer" [attr.aria-label]="'Print ' + file.fileName">
+                                  <ion-icon name="print" class="h-3 w-3 text-slate-500"></ion-icon> Print
                                 </button>
                               }
                             </div>
                             @if (!file.url) {
-                              <p class="mt-0.5 text-[13px] text-slate-500">File link unavailable.</p>
+                              <p class="mt-0.5 text-xs text-slate-500">File link unavailable.</p>
                             }
                           </li>
                         }
@@ -255,39 +309,8 @@
                     }
                   </section>
                 </div>
-              </header>
-
-              <div class="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Document Tracking</p>
-                    <h3 class="text-base font-semibold">{{ formatReadableStatus(document.currentStatus) }}</h3>
-                  </div>
-                  <button type="button" (click)="scrollToFlow()" class="inline-flex min-h-[44px] items-center rounded-md border border-slate-300 px-3.5 py-2.5 text-sm font-bold transition-colors hover:bg-slate-50 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800">View routing timeline</button>
-                </div>
-                <ol class="my-2 grid list-none gap-1 p-0 sm:grid-cols-4" aria-label="Transaction progress">
-                  @for (stage of transactionStages(); track stage.label; let i = $index) {
-                    <li class="min-w-0" [attr.aria-current]="stage.active ? 'step' : null">
-                      <div [ngClass]="('mb-1 h-1 rounded-sm ' + stage.barClass) | cls"></div>
-                      <span class="transaction-stage-label" [ngClass]="('block text-[11px] ' + stage.textClass) | cls">{{ i + 1 }}. {{ stage.label }}</span>
-                      @if (stage.active) {
-                        <span [ngClass]="('text-[11px] ' + stage.subTextClass) | cls">{{ stage.subLabel }}</span>
-                      }
-                    </li>
-                  }
-                </ol>
-                <p class="mt-1.5 text-sm text-slate-700 dark:text-slate-300">{{ nextActionText() }}</p>
-                <dl class="m-0 mt-2 grid gap-2 sm:grid-cols-2">
-                  <div>
-                    <dt class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Assigned on document record</dt>
-                    <dd class="m-0 text-sm">{{ resolveUserName(document.assignedUserId, document.assignedUser) || 'No named handler' }} &bull; {{ document.currentDivision }}</dd>
-                  </div>
-                  <div>
-                    <dt class="text-[11px] font-bold uppercase tracking-wide text-slate-500">Target date</dt>
-                    <dd class="m-0 text-sm">{{ document.targetCompletionDate ? formatDate(document.targetCompletionDate) : 'Not set' }}</dd>
-                  </div>
-                </dl>
               </div>
+            </article>
 
               <!-- COMPLETED PARTS / COMPLETION LIST (PLACED DIRECTLY BELOW DOCUMENT TRACKING) -->
               @if (completedPartsList().length > 0) {
@@ -385,51 +408,51 @@
                 </div>
               }
 
-              <section id="document-routing-history" class="border-t border-slate-200 pt-5 text-sm leading-relaxed dark:border-slate-800">
+              <section id="document-routing-history" class="border-t border-slate-200 pt-3 text-sm leading-relaxed dark:border-slate-800">
                 <!-- Enhanced Flow Header & KPIs -->
-                <div class="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5">
-                  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="mb-3 rounded-xl border border-slate-200 bg-white p-3 shadow-xs dark:border-slate-800 dark:bg-slate-900 sm:p-3.5">
+                  <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <div class="flex items-center gap-2">
-                        <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400">
-                          <ion-icon name="git-network" class="h-4 w-4"></ion-icon>
+                        <span class="inline-flex h-6 w-6 items-center justify-center rounded bg-blue-600/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400">
+                          <ion-icon name="git-network" class="h-3.5 w-3.5"></ion-icon>
                         </span>
-                        <h3 class="text-base font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-lg">Document Workflow &amp; Transaction Trail</h3>
+                        <h3 class="text-sm font-bold tracking-tight text-slate-900 dark:text-white sm:text-base">Document Workflow &amp; Transaction Trail</h3>
                       </div>
-                      <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      <p class="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                         Tracks all routing steps, user handoffs, decisions, and system audit logs from the database.
                       </p>
                     </div>
                   </div>
 
                   <!-- Executive KPI Summary Bar -->
-                  <div class="mt-3.5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-                    <div class="rounded-xl border border-slate-200/60 bg-slate-50/70 p-2.5 dark:border-slate-800 dark:bg-slate-800/40">
-                      <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Handoffs</span>
-                      <p class="text-sm font-black text-slate-800 dark:text-slate-100">{{ (document.routes || []).length }} Recorded</p>
+                  <div class="mt-2.5 grid grid-cols-2 gap-1.5 sm:grid-cols-4 sm:gap-2">
+                    <div class="rounded-lg border border-slate-200/60 bg-slate-50/70 p-2 dark:border-slate-800 dark:bg-slate-800/40">
+                      <span class="text-[9.5px] font-bold uppercase tracking-wider text-slate-400">Total Handoffs</span>
+                      <p class="text-xs font-bold text-slate-800 dark:text-slate-100">{{ (document.routes || []).length }} Recorded</p>
                     </div>
-                    <div class="rounded-xl border border-slate-200/60 bg-slate-50/70 p-2.5 dark:border-slate-800 dark:bg-slate-800/40">
-                      <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Current Custodian</span>
-                      <p class="truncate text-sm font-black text-slate-800 dark:text-slate-100" [title]="currentCustodian().name">
+                    <div class="rounded-lg border border-slate-200/60 bg-slate-50/70 p-2 dark:border-slate-800 dark:bg-slate-800/40">
+                      <span class="text-[9.5px] font-bold uppercase tracking-wider text-slate-400">Current Custodian</span>
+                      <p class="truncate text-xs font-bold text-slate-800 dark:text-slate-100" [title]="currentCustodian().name">
                         {{ currentCustodian().name }}
                       </p>
                     </div>
-                    <div class="rounded-xl border border-slate-200/60 bg-slate-50/70 p-2.5 dark:border-slate-800 dark:bg-slate-800/40">
-                      <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Office Custody</span>
-                      <p class="truncate text-sm font-black text-slate-800 dark:text-slate-100">{{ currentCustodian().office || document.currentDivision }}</p>
+                    <div class="rounded-lg border border-slate-200/60 bg-slate-50/70 p-2 dark:border-slate-800 dark:bg-slate-800/40">
+                      <span class="text-[9.5px] font-bold uppercase tracking-wider text-slate-400">Office Custody</span>
+                      <p class="truncate text-xs font-bold text-slate-800 dark:text-slate-100">{{ currentCustodian().office || document.currentDivision }}</p>
                     </div>
-                    <div class="rounded-xl border border-slate-200/60 bg-slate-50/70 p-2.5 dark:border-slate-800 dark:bg-slate-800/40">
-                      <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Workflow Status</span>
-                      <p class="text-sm font-black text-blue-600 dark:text-blue-400">{{ formatReadableStatus(document.currentStatus) }}</p>
+                    <div class="rounded-lg border border-slate-200/60 bg-slate-50/70 p-2 dark:border-slate-800 dark:bg-slate-800/40">
+                      <span class="text-[9.5px] font-bold uppercase tracking-wider text-slate-400">Workflow Status</span>
+                      <p class="text-xs font-bold text-blue-600 dark:text-blue-400">{{ formatReadableStatus(document.currentStatus) }}</p>
                     </div>
                   </div>
                 </div>
 
                 <!-- VISUAL WORKFLOW GRAPH -->
                   <!-- Flow Routing Grid & Details Inspector -->
-                  <div class="mt-2 grid gap-5 xl:grid-cols-[minmax(0,1.75fr)_minmax(380px,1.2fr)] lg:grid-cols-[minmax(0,1.45fr)_minmax(340px,1.1fr)]">
-                    <nav class="rounded-2xl bg-slate-50/80 p-4 sm:p-5 border border-slate-200/80 dark:bg-slate-900/60 dark:border-slate-800 overflow-hidden flex flex-col" aria-label="Document recipient flow">
-                      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <div class="mt-2 grid gap-3 xl:grid-cols-[minmax(0,1.75fr)_minmax(380px,1.2fr)] lg:grid-cols-[minmax(0,1.45fr)_minmax(340px,1.1fr)]">
+                    <nav class="rounded-xl bg-slate-50/80 p-3 sm:p-3.5 border border-slate-200/80 dark:bg-slate-900/60 dark:border-slate-800 overflow-hidden flex flex-col" aria-label="Document recipient flow">
+                      <div class="mb-2.5 flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <p class="text-sm font-extrabold text-slate-800 dark:text-slate-100">
                             Your Involvements &amp; Routing Flow
@@ -463,7 +486,7 @@
 
                       @if (flowRoots().length > 0) {
                         <div class="flow-tree-scroll">
-                          <div class="flow-tree-canvas" [style.--roots-count]="flowRoots().length" [style.min-width.px]="flowRoots().length * 320">
+                          <div class="flow-tree-canvas" [style.--roots-count]="flowRoots().length" [style.min-width.px]="flowRoots().length > 1 ? flowRoots().length * 280 : null">
                             <div class="flow-root-connectors" aria-hidden="true">
                               @for (root of flowRoots(); track root.id; let first = $first; let last = $last) {
                                 <div class="flow-root-connector" [class.is-first]="first" [class.is-last]="last">
@@ -541,43 +564,21 @@
                           </div>
                         }
 
-                        <dl class="mt-3 grid gap-2">
-                          @for (field of selectedDetailFields(); track field.label) {
-                            <div class="rounded-lg bg-slate-50 p-2 dark:bg-slate-800/50">
-                              <dt class="text-[11px] font-bold text-slate-400">{{ field.label }}</dt>
-                              <dd class="m-0 mt-0.5 whitespace-pre-wrap text-xs font-medium text-slate-800 dark:text-slate-200">{{ field.value }}</dd>
-                            </div>
-                          }
-                        </dl>
-
-                        @if (selectedDecision()) {
-                          <div class="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-800/60 dark:bg-emerald-950/30">
-                            <div class="flex items-center gap-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                              <ion-icon name="checkmark-circle" class="h-4 w-4"></ion-icon>
-                              <span>Official Decision: {{ formatReadableStatus(getRouteDecision(selectedDecision()!)) }}</span>
-                            </div>
-                            <p class="mt-0.5 text-[11px] text-emerald-700/80 dark:text-emerald-400">{{ formatDate(selectedDecision()!.createdAt) }}</p>
-                            @if (selectedDecision()!.remarks) {
-                              <p class="mt-1 text-xs text-slate-700 dark:text-slate-300">{{ displayRouteRemarks(selectedDecision()!.remarks) }}</p>
-                            }
-                          </div>
-                        }
-
                         <!-- Attached Files for this Step / Handoff (Reply / Step Files) -->
-                        @if (selectedStepAttachmentMessages().length > 0) {
-                          <div class="mt-4 rounded-xl border border-blue-200/80 bg-blue-50/40 p-3 dark:border-blue-900/60 dark:bg-blue-950/20">
-                            <div class="flex items-center justify-between">
-                              <div class="flex items-center gap-1.5">
-                                <ion-icon name="attach" class="text-blue-600 dark:text-blue-400 text-sm"></ion-icon>
-                                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">Step Conversation &amp; Attachments ({{ selectedStepFiles().length }})</h4>
-                              </div>
-                              <span class="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-black text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                                <ion-icon name="lock-closed" class="text-[9px]"></ion-icon>
-                                Step Reply
-                              </span>
+                        <div class="mt-4 rounded-xl border border-blue-200/80 bg-blue-50/40 p-3 dark:border-blue-900/60 dark:bg-blue-950/20">
+                          <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-1.5">
+                              <ion-icon name="attach" class="text-blue-600 dark:text-blue-400 text-sm"></ion-icon>
+                              <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">Step Conversation &amp; Attachments ({{ selectedStepFiles().length }})</h4>
                             </div>
+                            <span class="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-black text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                              <ion-icon name="lock-closed" class="text-[9px]"></ion-icon>
+                              Step Reply
+                            </span>
+                          </div>
 
-                            @if (canAccessSelectedStepFiles()) {
+                          @if (canAccessSelectedStepFiles()) {
+                            @if (selectedStepAttachmentMessages().length > 0) {
                               <div class="mt-3 space-y-3">
                                 @for (message of selectedStepAttachmentMessages(); track message.id) {
                                   <div class="flex" [class.justify-end]="message.isReply">
@@ -638,18 +639,22 @@
                                 }
                               </div>
                             } @else {
-                              <div class="mt-2 rounded-lg border border-amber-200/80 bg-amber-50/70 p-2.5 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
-                                <div class="flex items-center gap-1.5 font-bold">
-                                  <ion-icon name="lock-closed" class="text-amber-600 dark:text-amber-400"></ion-icon>
-                                  <span>Confidential Step Attachment</span>
-                                </div>
-                                <p class="mt-1 text-[11px] text-amber-800/90 dark:text-amber-300/90">
-                                  This file was attached during this confidential recipient step and is only accessible to the sender, recipient, and authorized officers.
-                                </p>
+                              <div class="mt-2.5 rounded-lg border border-dashed border-slate-200/90 bg-white/70 p-2.5 text-center dark:border-slate-800 dark:bg-slate-900/50">
+                                <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">No step replies or attachment messages logged for this step.</p>
                               </div>
                             }
-                          </div>
-                        }
+                          } @else {
+                            <div class="mt-2 rounded-lg border border-amber-200/80 bg-amber-50/70 p-2.5 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+                              <div class="flex items-center gap-1.5 font-bold">
+                                <ion-icon name="lock-closed" class="text-amber-600 dark:text-amber-400"></ion-icon>
+                                <span>Confidential Step Attachment</span>
+                              </div>
+                              <p class="mt-1 text-[11px] text-amber-800/90 dark:text-amber-300/90">
+                                This file was attached during this confidential recipient step and is only accessible to the sender, recipient, and authorized officers.
+                              </p>
+                            </div>
+                          }
+                        </div>
 
                         <!-- Remove Recipient Action (If routed by mistake) -->
                         @if (canRemoveRoute(selectedRoute()!)) {

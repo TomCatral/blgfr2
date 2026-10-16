@@ -44,6 +44,18 @@ interface RouteHistoryRow {
   remarks: string;
 }
 
+export interface CleanHistoryItem {
+  id: string;
+  title: string;
+  note?: string;
+  noteDisplay?: string;
+  actor: string;
+  timestamp: string;
+  date: string;
+  timeAgo: string;
+}
+
+
 
 
 const formatReportDate = (value: string) => {
@@ -338,24 +350,174 @@ export class ReportsViewComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   routeHistoryFor(document: DocumentRecord): RouteHistoryRow[] {
-    return (document.routes || [])
-      .map((route) => ({
+    const removalLogs = (this.auditLogs || []).filter((log) => {
+      const isThisDoc =
+        log.documentTrackingNumber === document.trackingNumber ||
+        (Boolean(document.routeNo) && log.documentTrackingNumber === document.routeNo) ||
+        (Boolean(document.id) && log.documentTrackingNumber === document.id);
+      return isThisDoc && (log.details || '').toLowerCase().includes('removed recipient');
+    });
+
+    const activeRoutes = (document.routes || []).filter((route) => {
+      if (removalLogs.length === 0) return true;
+      return !removalLogs.some((remLog) => {
+        const match = remLog.details.match(/removed recipient\s+([^|(]+?)(?:\s*\(([^)]+)\))?\s+from transaction/i);
+        if (!match) return false;
+        const removedName = match[1].trim().toLowerCase();
+        const matches =
+          (route.toUser && route.toUser.trim().toLowerCase() === removedName) ||
+          (route.fromUser && route.fromUser.trim().toLowerCase() === removedName);
+        if (!matches) return false;
+        return new Date(route.createdAt).getTime() <= new Date(remLog.timestamp).getTime();
+      });
+    });
+
+    const list: RouteHistoryRow[] = activeRoutes.map((route) => {
+      const fromName = route.fromDivision
+        ? `${route.fromDivision}${route.fromUser ? ' (' + route.fromUser + ')' : ''}`
+        : (route.fromUser || 'Originating Office');
+      const toName = route.toDivision
+        ? `${route.toDivision}${route.toUser ? ' (' + route.toUser + ')' : ''}`
+        : (route.toUser || 'Assigned Division');
+      return {
         id: `route-${route.id}`,
         timestamp: route.processedAt || route.createdAt,
         date: formatReportDate(route.processedAt || route.createdAt),
-        from: route.fromUser || 'System',
-        to: route.toUser || route.toDivision || 'Unassigned',
+        from: fromName,
+        to: toName,
         action: routeActionLabel(route),
         remarks:
           route.remarks ||
           route.actionTaken ||
           route.actionRequested ||
-          'No remarks provided',
-      }))
-      .sort(
-        (first, second) =>
-          new Date(first.timestamp).getTime() - new Date(second.timestamp).getTime(),
-      );
+          '',
+      };
+    });
+
+    if (list.length === 0 && (document.dateReceived || document.createdAt)) {
+      const regTime = document.dateReceived || document.createdAt;
+      list.push({
+        id: `reg-${document.id}`,
+        timestamp: regTime,
+        date: formatReportDate(regTime),
+        from: document.originatingOffice || 'Originating Office',
+        to: document.createdBy || document.currentDivision || 'Records Unit',
+        action: 'Received & Logged',
+        remarks: document.subject ? `Subject: ${document.subject}` : '',
+      });
+    }
+
+    return list.sort(
+      (first, second) =>
+        new Date(first.timestamp).getTime() - new Date(second.timestamp).getTime(),
+    );
+  }
+
+  hasCleanRemarks(remarks?: string): boolean {
+    if (!remarks) return false;
+    const trimmed = remarks.trim();
+    return (
+      trimmed.length > 0 &&
+      !['No remarks provided', 'None', 'N/A', 'null', 'undefined', '-'].includes(trimmed)
+    );
+  }
+
+  getCleanRemarks(remarks?: string): string {
+    if (!remarks) return '';
+    let trimmed = remarks.trim();
+    if (/^note\s*:\s*/i.test(trimmed)) {
+      trimmed = trimmed.replace(/^note\s*:\s*/i, '');
+    }
+    if (/^remarks?\s*:\s*/i.test(trimmed)) {
+      trimmed = trimmed.replace(/^remarks?\s*:\s*/i, '');
+    }
+    return trimmed;
+  }
+
+  formatTimeAgo(isoDate: string): string {
+    if (!isoDate) return '';
+    const diff = Math.max(0, Date.now() - new Date(isoDate).getTime());
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    const months = Math.floor(days / 30);
+
+    if (months >= 1) return months === 1 ? 'about 1 month' : `${months} months`;
+    if (days >= 1) return `${days} day${days === 1 ? '' : 's'}`;
+    if (hours >= 1) return `${hours} hr${hours === 1 ? '' : 's'}`;
+    if (minutes >= 1) return `${minutes} min${minutes === 1 ? '' : 's'}`;
+    return 'Just now';
+  }
+
+  formatHistoryNote(note: string): string {
+    const trimmed = (note || '').trim();
+    if (!trimmed) return '';
+    if (/^note\s*:\s*/i.test(trimmed)) {
+      return trimmed;
+    }
+    if (/^remark\s*:\s*/i.test(trimmed)) {
+      return trimmed.replace(/^remark\s*:\s*/i, 'Note: ');
+    }
+    return `Note: ${trimmed}`;
+  }
+
+  getCleanHistoryTimeline(document: DocumentRecord): CleanHistoryItem[] {
+    const items: CleanHistoryItem[] = [];
+
+    // 1. Each route step
+    (document.routes || []).forEach((route, index) => {
+      const fromOffice = route.fromDivision ? `${route.fromDivision}` : (route.fromUser ? `Office of ${route.fromUser}` : 'Originating Office');
+      const toOffice = route.toDivision ? `${route.toDivision}` : (route.toUser || 'Assigned Division');
+
+      // Release / Forwarding step
+      const noteText = (route.remarks || route.actionRequested || '').trim();
+      const isCleanNote = noteText && !['No remarks provided', 'None', 'N/A', 'null'].includes(noteText);
+      items.push({
+        id: `rel-${route.id || index}`,
+        title: `Released by ${fromOffice}`,
+        note: isCleanNote ? noteText : undefined,
+        noteDisplay: isCleanNote ? this.formatHistoryNote(noteText) : undefined,
+        actor: route.fromUser || 'Authorized Personnel',
+        timestamp: route.createdAt,
+        date: formatReportDate(route.createdAt),
+        timeAgo: this.formatTimeAgo(route.createdAt),
+      });
+
+      // Receipt / Processed step
+      if (route.processedAt) {
+        const procNote = (route.actionTaken || route.remarks || '').trim();
+        const isCleanProcNote = procNote && !['No remarks provided', 'None', 'N/A', 'null'].includes(procNote);
+        items.push({
+          id: `rec-${route.id || index}`,
+          title: `Received by ${toOffice}`,
+          note: isCleanProcNote && procNote !== noteText ? procNote : undefined,
+          noteDisplay: isCleanProcNote && procNote !== noteText ? this.formatHistoryNote(procNote) : undefined,
+          actor: route.toUser || toOffice,
+          timestamp: route.processedAt,
+          date: formatReportDate(route.processedAt),
+          timeAgo: this.formatTimeAgo(route.processedAt),
+        });
+      }
+    });
+
+    // 2. Initial Document Receipt & Logging step
+    if (document.dateReceived || document.createdAt) {
+      const regTime = document.dateReceived || document.createdAt;
+      const subjNote = (document.subject || '').trim();
+      items.push({
+        id: `reg-${document.id}`,
+        title: `Received & Registered by ${document.originatingOffice || document.currentDivision || 'Records Unit'}`,
+        note: subjNote ? subjNote : undefined,
+        noteDisplay: subjNote ? (subjNote.toLowerCase().startsWith('subject:') ? subjNote : `Subject: ${subjNote}`) : undefined,
+        actor: document.createdBy || 'Records Officer',
+        timestamp: regTime,
+        date: formatReportDate(regTime),
+        timeAgo: this.formatTimeAgo(regTime),
+      });
+    }
+
+    // Return newest first (Reverse-chronological order matching user screenshot)
+    return items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }
 
   eventsFor(document: DocumentRecord): ReportEvent[] {

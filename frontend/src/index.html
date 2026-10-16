@@ -5,11 +5,11 @@
     <title>BLGF DTS</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#3f3f46" />
+    <meta name="theme-color" content="#0f2d59" />
     <meta name="description" content="BLGF Region II Document Tracking System" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="BLGF DTS" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
@@ -19,6 +19,75 @@
     <link rel="icon" href="/blgflogo.jpg" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <script>
+      (function() {
+        try {
+          if (typeof window !== 'undefined') {
+            var genUUID = function() {
+              try {
+                if (window.crypto && window.crypto.getRandomValues) {
+                  var buf = new Uint8Array(16);
+                  window.crypto.getRandomValues(buf);
+                  buf[6] = (buf[6] & 0x0f) | 0x40;
+                  buf[8] = (buf[8] & 0x3f) | 0x80;
+                  var hex = [];
+                  for (var i = 0; i < 16; i++) {
+                    var h = buf[i].toString(16);
+                    hex.push(h.length === 1 ? '0' + h : h);
+                  }
+                  return hex.slice(0, 4).join('') + '-' + hex.slice(4, 6).join('') + '-' + hex.slice(6, 8).join('') + '-' + hex.slice(8, 10).join('') + '-' + hex.slice(10, 16).join('');
+                }
+              } catch (e) {}
+              var s = [];
+              var hexDigits = '0123456789abcdef';
+              for (var j = 0; j < 36; j++) {
+                s[j] = hexDigits.substr(Math.floor(Math.random() * 0x10), 1);
+              }
+              s[14] = '4';
+              s[19] = hexDigits.substr((s[19] & 0x3) | 0x8, 1);
+              s[8] = s[13] = s[18] = s[23] = '-';
+              return s.join('');
+            };
+
+            if (window.Crypto && window.Crypto.prototype) {
+              try {
+                Object.defineProperty(window.Crypto.prototype, 'randomUUID', {
+                  value: genUUID,
+                  writable: true,
+                  configurable: true,
+                  enumerable: true
+                });
+              } catch (e) {
+                try { window.Crypto.prototype.randomUUID = genUUID; } catch (err) {}
+              }
+            }
+
+            if (!window.crypto) {
+              window.crypto = {};
+            }
+            try {
+              Object.defineProperty(window.crypto, 'randomUUID', {
+                value: genUUID,
+                writable: true,
+                configurable: true,
+                enumerable: true
+              });
+            } catch (e) {
+              try { window.crypto.randomUUID = genUUID; } catch (err) {}
+            }
+
+            if (typeof globalThis !== 'undefined' && globalThis.crypto) {
+              try {
+                Object.defineProperty(globalThis.crypto, 'randomUUID', {
+                  value: genUUID,
+                  writable: true,
+                  configurable: true,
+                  enumerable: true
+                });
+              } catch (e) {}
+            }
+          }
+        } catch (e) {}
+      })();
       (function() {
         try {
           var saved = localStorage.getItem('blgf_theme');
@@ -43,35 +112,35 @@
         'serviceWorker' in navigator &&
         (window.isSecureContext || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
       ) {
+        var isReloading = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          if (!isReloading) {
+            isReloading = true;
+            window.location.reload();
+          }
+        });
+        navigator.serviceWorker.addEventListener('message', function (e) {
+          if (e.data && e.data.type === 'BLGF_SW_UPDATED' && !isReloading) {
+            isReloading = true;
+            window.location.reload();
+          }
+        });
+
         window.addEventListener('load', function () {
           navigator.serviceWorker
-            .register('/service-worker.js', { scope: '/', updateViaCache: 'none' })
-            .then(function (registration) {
-              registration.update().catch(function () {});
-              if (registration.waiting) {
-                registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-              }
-              registration.addEventListener('updatefound', function () {
-                var worker = registration.installing;
-                if (!worker) return;
-                worker.addEventListener('statechange', function () {
-                  if (worker.state === 'installed' && navigator.serviceWorker.controller) {
-                    worker.postMessage({ type: 'SKIP_WAITING' });
-                  }
-                });
+            .register('/service-worker.js', { scope: '/' })
+            .then(function (reg) {
+              try { reg.update(); } catch (e) {}
+              // Check for app updates when app comes to foreground on mobile
+              document.addEventListener('visibilitychange', function () {
+                if (document.visibilityState === 'visible') {
+                  try { reg.update(); } catch (e) {}
+                }
               });
             })
             .catch(function (err) {
-              console.warn('BLGF DTS ServiceWorker registration error:', err);
+              console.warn('BLGF DTS ServiceWorker registration notice:', err);
             });
-        });
-
-        var refreshingForUpdate = false;
-        navigator.serviceWorker.addEventListener('controllerchange', function () {
-          if (refreshingForUpdate || sessionStorage.getItem('blgf_sw_refreshed_v13') === '1') return;
-          refreshingForUpdate = true;
-          sessionStorage.setItem('blgf_sw_refreshed_v13', '1');
-          window.location.reload();
         });
       }
     </script>

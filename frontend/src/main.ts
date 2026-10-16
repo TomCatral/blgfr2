@@ -1,3 +1,68 @@
+// Polyfill crypto.randomUUID for non-secure / HTTP contexts
+if (typeof window !== 'undefined') {
+  const genUUID = function (): `${string}-${string}-${string}-${string}-${string}` {
+    try {
+      if (window.crypto && window.crypto.getRandomValues) {
+        const buf = new Uint8Array(16);
+        window.crypto.getRandomValues(buf);
+        buf[6] = (buf[6] & 0x0f) | 0x40;
+        buf[8] = (buf[8] & 0x3f) | 0x80;
+        const hex: string[] = [];
+        for (let i = 0; i < 16; i++) {
+          const h = buf[i].toString(16);
+          hex.push(h.length === 1 ? '0' + h : h);
+        }
+        return (hex.slice(0, 4).join('') +
+          '-' +
+          hex.slice(4, 6).join('') +
+          '-' +
+          hex.slice(6, 8).join('') +
+          '-' +
+          hex.slice(8, 10).join('') +
+          '-' +
+          hex.slice(10, 16).join('')) as `${string}-${string}-${string}-${string}-${string}`;
+      }
+    } catch {}
+    const s: string[] = [];
+    const hexDigits = '0123456789abcdef';
+    for (let i = 0; i < 36; i++) {
+      s[i] = hexDigits.substr(Math.floor(Math.random() * 0x10), 1);
+    }
+    s[14] = '4';
+    s[19] = hexDigits.substr(((s[19] as any) & 0x3) | 0x8, 1);
+    s[8] = s[13] = s[18] = s[23] = '-';
+    return s.join('') as `${string}-${string}-${string}-${string}-${string}`;
+  };
+
+  const w = window as any;
+  if (w.Crypto && w.Crypto.prototype) {
+    try {
+      Object.defineProperty(w.Crypto.prototype, 'randomUUID', {
+        value: genUUID,
+        writable: true,
+        configurable: true,
+        enumerable: true,
+      });
+    } catch {
+      try { w.Crypto.prototype.randomUUID = genUUID; } catch {}
+    }
+  }
+
+  if (!w.crypto) {
+    w.crypto = {};
+  }
+  try {
+    Object.defineProperty(w.crypto, 'randomUUID', {
+      value: genUUID,
+      writable: true,
+      configurable: true,
+      enumerable: true,
+    });
+  } catch {
+    try { w.crypto.randomUUID = genUUID; } catch {}
+  }
+}
+
 import { bootstrapApplication } from '@angular/platform-browser';
 import { appConfig } from './app/app.config';
 import { AppComponent } from './app/app.component';
@@ -244,6 +309,7 @@ addIcons({
   'bookmark-outline': bookmarkOutline,
   print,
   qrCode,
+  'qr-code': qrCode,
   receipt,
   'receipt-outline': receiptOutline,
   refresh,
