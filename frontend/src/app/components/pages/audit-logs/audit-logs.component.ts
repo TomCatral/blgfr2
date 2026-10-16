@@ -15,8 +15,12 @@ import { formatDate } from '../../../utils/status-utils';
 import * as XLSX from 'xlsx';
 import { IonicModule } from '@ionic/angular';
 
-const normalizeActionDetailItem = (item: string) =>
-  item.startsWith('To:') ? item.replace(/\s+\([^)]*\)\s*$/, '') : item;
+const normalizeActionDetailItem = (item: string) => {
+  if (item.startsWith('To:') || item.startsWith('Recipient:')) {
+    return item.replace(/\s+\([^)]*\)\s*$/, '').trim();
+  }
+  return item;
+};
 
 const getActionDetailItems = (details: string): string[] => {
   const normalized = details.trim();
@@ -295,7 +299,7 @@ export class AuditLogsComponent implements OnChanges, OnDestroy {
       'User Role': log.userRole,
       'Action Type': log.action,
       'Document Route No.': log.documentTrackingNumber || 'N/A',
-      'Action Details': log.details,
+      'Action Details': getActionDetailItems(log.details).join(' | ') || log.details,
       'IP Address': log.ipAddress || 'N/A',
     }));
   }
@@ -440,7 +444,7 @@ export class AuditLogsComponent implements OnChanges, OnDestroy {
         log.userRole,
         log.action,
         log.documentTrackingNumber || 'N/A',
-        '"' + log.details.replace(/"/g, '""') + '"',
+        '"' + (getActionDetailItems(log.details).join(' | ') || log.details).replace(/"/g, '""') + '"',
         log.ipAddress || 'N/A',
       ]);
 

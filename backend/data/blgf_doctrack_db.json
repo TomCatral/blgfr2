@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-16T11:35:57.635Z",
+  "updatedAt": "2026-10-16T11:45:10.628Z",
   "divisions": [
     {
       "id": "DIV-0001",
@@ -481,6 +481,67 @@
     }
   ],
   "documents": [
+    {
+      "id": "DOC-0007",
+      "trackingNumber": "BLGFR2-2026-10-OUT-05",
+      "routeNo": "BLGFR2-2026-10-OUT-05",
+      "direction": "OUTGOING",
+      "title": "BLGF Memorandum Circular No. 005-2025 dated 08 January 2025",
+      "subject": "Data Request Directly at the Regional Office Level",
+      "category": "Treasury Circular",
+      "originatingOffice": "Bureau of Local Government Finance - Regional Office II",
+      "destinationOffice": "Philippine Statistics Authority RSSO II; Basco Municipality Government",
+      "senderName": "ATTY. JULAIDA T. CADDAWAN-PANCHO",
+      "senderPosition": "Regional Director",
+      "senderAddress": "Regional Government Center, Carig Sur, Tuguegarao City",
+      "recipientName": "Girme M. Bayucan, Ma. Cristina A. Caccam",
+      "recipientPosition": "OIC Regional Director, Municipal Treasurer",
+      "recipientOffice": "Philippine Statistics Authority RSSO II; Basco Municipality Government",
+      "recipientAddress": "Dalan na Pappabalo, Regional Government Center, Carig Sur, Tuguegarao City, Cagayan",
+      "priority": "ROUTINE",
+      "currentStatus": "COMPLETED",
+      "currentDivision": "Other Agencies",
+      "assignedUser": "Girme M. Bayucan, Ma. Cristina A. Caccam",
+      "dateReceived": "2026-10-16T11:43:26.955Z",
+      "targetCompletionDate": "2026-10-19T11:43:26.952Z",
+      "tags": [],
+      "attachments": [
+        {
+          "id": "ATT-0006",
+          "fileName": "BLGF-MC-No.-005.2025-Data-Request-Directly-at-the-Regional-Office-Level.pdf",
+          "fileSize": "0.65 MB",
+          "fileType": "application/pdf",
+          "uploadDate": "2026-10-16T11:43:17.570Z",
+          "url": "/api/storage/files/documentAttachments/1792150997515_BLGF-MC-No.-005.2025-Data-Request-Directly-at-the-Regional-Office-Level.pdf",
+          "attachmentScope": "DOCUMENT",
+          "uploadedByUserId": "USR-0002"
+        }
+      ],
+      "actionRequested": "Dispatched / Recorded (Outside Office)",
+      "routes": [
+        {
+          "id": "RTE-0023",
+          "documentId": "DOC-0007",
+          "stepNumber": 1,
+          "routeNo": "BLGFR2-2026-10-OUT-05",
+          "fromDivision": "AD",
+          "fromUserId": "USR-0002",
+          "fromUser": "Jay ann M. Mangoba",
+          "toDivision": "Other Agencies",
+          "toUser": "Girme M. Bayucan, Ma. Cristina A. Caccam",
+          "actionRequested": "Dispatched / Recorded (Outside Office)",
+          "remarks": "For compliance",
+          "statusBefore": "PENDING",
+          "statusAfter": "COMPLETED",
+          "receivedAt": "2026-10-16T11:43:26.955Z",
+          "createdAt": "2026-10-16T11:43:26.955Z"
+        }
+      ],
+      "createdBy": "Jay ann M. Mangoba",
+      "createdByUserId": "USR-0002",
+      "createdAt": "2026-10-16T11:43:26.955Z",
+      "updatedAt": "2026-10-16T11:43:26.955Z"
+    },
     {
       "id": "DOC-0005",
       "trackingNumber": "BLGFR2-2026-10-IN-02",
@@ -1067,6 +1128,17 @@
   ],
   "auditLogs": [
     {
+      "id": "LOG-0111",
+      "timestamp": "2026-10-16T11:43:26.956Z",
+      "userId": "USR-0002",
+      "userName": "Jay ann M. Mangoba",
+      "userRole": "STAFF",
+      "action": "CREATE_DOC",
+      "documentTrackingNumber": "BLGFR2-2026-10-OUT-05",
+      "details": "Created by: Jay ann M. Mangoba | Document: BLGF Memorandum Circular No. 005-2025 dated 08 January 2025 [BLGFR2-2026-10-OUT-05] | Direction: OUTGOING | Status: COMPLETED | Subject: Data Request Directly at the Regional Office Level | Sender: ATTY. JULAIDA T. CADDAWAN-PANCHO | Position: Regional Director | Originating office: Bureau of Local Government Finance - Regional Office II | Address: Regional Government Center, Carig Sur, Tuguegarao City | Recipient: Girme M. Bayucan, Ma. Cristina A. Caccam | Recipient Address: Dalan na Pappabalo, Regional Government Center, Carig Sur, Tuguegarao City, Cagayan | Action: Dispatched / Recorded (Outside Office) | Remarks: For compliance",
+      "ipAddress": "127.0.0.1"
+    },
+    {
       "id": "LOG-0110",
       "timestamp": "2026-10-16T11:35:57.498Z",
       "userId": "USR-0008",
@@ -1578,7 +1650,7 @@
       "userRole": "SYSTEM_ADMIN",
       "action": "CREATE_DOC",
       "documentTrackingNumber": "BLGFR2-2026-10-OUT-02",
-      "details": "Created by: Tom tom G. Catral | Document: BLGF MEMORANDUM CIRCULAR No. 019-2025 DATED 24 October 2025 [BLGFR2-2026-10-OUT-02] | Direction: OUTGOING | Status: COMPLETED | Subject: Revised Guidelines on the Criteria for the Hall of Fame Award for Top-Performing Local Government Units (LGUs) | Sender: ATTY. JULAIDA T. CADDAWAN-PANCHO | Position: Regional Director | Originating office: Bureau of Local Government Finance - Regional Office II | Address: Regional Government Center, Carig Sur, Tuguegarao City | Recipient: Juanito Y. Abengaña, Mila Q. Mallonga, Maria Theresa Araneta-Flores, Rhoda B. Soriano-Moreno, Fe B. Mangaccat, Ma. Cristina A. Caccam, Rosanna H. Ugali, Henry E. Cabuco, Flora A. Fagar, Hino Jesus I. Cielo, Buenaventura F. Lagundi, Elizabeth D. Baylon, Edna C. Morales, Janie C. Ursulum, Romarico T. Panaga, Emerita O. Alonzo, Pacita E. Cusili, Marcelo A. Pataueg, Isabelita C. Fronda, Violeta T. Tajon, Tomas M. Binasoy, Ana T. Gammad, Teresita T. Lamusao, Carlito B. Andres, Delia A. Pararuan, Elizabeth A. Casabar, Lourdes B. Guingab, Cenita M. Cariaga, Flora C. Mariano, Judy T. Palitayan, Josefa U. Gumpal, Ferdinand G. Baggao, Eufemia G. Fernandez, Narciso G. Balabbo, Rodante R. Madriaga, Luzviminda M. Galamgam, Rozaida L. Bueno, Celerina D. Padilla, Richard B. Paguirigan, Teresita R. Cruz, Cesar B. Lagutao, Marites U. Gayo, Jolly L. Piligan, Carmelo P. Laureta, Dolores C. Soldevilla, Saturnina A. Tamang, Marygine M. Salvador, Armie R. Soriano, Lea C. Cureg, Efren C. Guiyab, William N. Pacunana, Gloria G. Fontanilla, Gliceria R. Basco, Gilbert G. Pagulayan (Batanes Province Government; Cagayan Province Government; Isabela Province Government; Nueva Vizcaya Province Government; Quirino Province Government; Basco Municipality Government; Itbayat Municipality Government; Ivana Municipality Government; Mahatao Municipality Government; Sabtang Municipality Government; Tuguegarao City City Government; Abulug Municipality Government; Alcala Municipality Government; Allacapan Municipality Government; Aparri Municipality Government; Ballesteros Municipality Government; Buguey Municipality Government; Calayan Municipality Government; Camalaniugan Municipality Government; Claveria Municipality Government; Enrile Municipality Government; Gattaran Municipality Government; Iguig Municipality Government; Cauayan City City Government; City of Ilagan City Government; Santiago City City Government; Cabagan Municipality Government; Cabatuan Municipality Government; Cordon Municipality Government; Dinapigue Municipality Government; Echague Municipality Government; Gamu Municipality Government; Luna Municipality Government; Maconacon Municipality Government; Delfin Albano Municipality Government; Mallig Municipality Government; Naguilian Municipality Government; Quezon Municipality Government; Quirino Municipality Government; Ramon Municipality Government; Reina Mercedes Municipality Government; Roxas Municipality Government; San Guillermo Municipality Government; San Isidro Municipality Government; San Manuel Municipality Government; San Mariano Municipality Government; San Mateo Municipality Government; San Pablo Municipality Government; Santa Maria Municipality Government; Santo Tomas Municipality Government; Tumauini Municipality Government; Maddela Municipality Government; Saguday Municipality Government; Nagtipunan Municipality Government) | Recipient Address: Basco, Batanes | Action: Dispatched / Recorded (Outside Office) | Remarks: For compliance",
+      "details": "Created by: Tom tom G. Catral | Document: BLGF MEMORANDUM CIRCULAR No. 019-2025 DATED 24 October 2025 [BLGFR2-2026-10-OUT-02] | Direction: OUTGOING | Status: COMPLETED | Subject: Revised Guidelines on the Criteria for the Hall of Fame Award for Top-Performing Local Government Units (LGUs) | Sender: ATTY. JULAIDA T. CADDAWAN-PANCHO | Position: Regional Director | Originating office: Bureau of Local Government Finance - Regional Office II | Address: Regional Government Center, Carig Sur, Tuguegarao City | Recipient: Juanito Y. Abengaña, Mila Q. Mallonga, Maria Theresa Araneta-Flores, Rhoda B. Soriano-Moreno, Fe B. Mangaccat, Ma. Cristina A. Caccam, Rosanna H. Ugali, Henry E. Cabuco, Flora A. Fagar, Hino Jesus I. Cielo, Buenaventura F. Lagundi, Elizabeth D. Baylon, Edna C. Morales, Janie C. Ursulum, Romarico T. Panaga, Emerita O. Alonzo, Pacita E. Cusili, Marcelo A. Pataueg, Isabelita C. Fronda, Violeta T. Tajon, Tomas M. Binasoy, Ana T. Gammad, Teresita T. Lamusao, Carlito B. Andres, Delia A. Pararuan, Elizabeth A. Casabar, Lourdes B. Guingab, Cenita M. Cariaga, Flora C. Mariano, Judy T. Palitayan, Josefa U. Gumpal, Ferdinand G. Baggao, Eufemia G. Fernandez, Narciso G. Balabbo, Rodante R. Madriaga, Luzviminda M. Galamgam, Rozaida L. Bueno, Celerina D. Padilla, Richard B. Paguirigan, Teresita R. Cruz, Cesar B. Lagutao, Marites U. Gayo, Jolly L. Piligan, Carmelo P. Laureta, Dolores C. Soldevilla, Saturnina A. Tamang, Marygine M. Salvador, Armie R. Soriano, Lea C. Cureg, Efren C. Guiyab, William N. Pacunana, Gloria G. Fontanilla, Gliceria R. Basco, Gilbert G. Pagulayan | Recipient Address: Basco, Batanes | Action: Dispatched / Recorded (Outside Office) | Remarks: For compliance",
       "ipAddress": "127.0.0.1"
     },
     {
@@ -2178,7 +2250,7 @@
       "userRole": "STAFF",
       "action": "CREATE_DOC",
       "documentTrackingNumber": "BLGFR2-2026-10-OUT-01",
-      "details": "Created by: Jay ann M. Mangoba | Document: kj [BLGFR2-2026-10-OUT-01] | Direction: OUTGOING | Status: PENDING | Subject: csd | Sender: Jay ann M. Mangoba | Position: AO I | Originating office: Bureau of Local Government Finance Regional Office II | Address: Regional Government Center, Carig Sur, Tuguegarao City, Cagayan | Recipient: Rona Lagasca (BLGF Regional Office II) | Recipient Address: Regional Government Center, Carig Sur, Tuguegarao City | Action: Appropriate Action | Remarks: Completed - Recorded as Outside Office Outgoing Dispatch",
+      "details": "Created by: Jay ann M. Mangoba | Document: kj [BLGFR2-2026-10-OUT-01] | Direction: OUTGOING | Status: PENDING | Subject: csd | Sender: Jay ann M. Mangoba | Position: AO I | Originating office: Bureau of Local Government Finance Regional Office II | Address: Regional Government Center, Carig Sur, Tuguegarao City, Cagayan | Recipient: Rona Lagasca | Recipient Address: Regional Government Center, Carig Sur, Tuguegarao City | Action: Appropriate Action | Remarks: Completed - Recorded as Outside Office Outgoing Dispatch",
       "ipAddress": "127.0.0.1"
     }
   ],

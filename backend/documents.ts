@@ -553,7 +553,7 @@ export function createDocumentsRouter(
           `Position: ${body.senderPosition || 'N/A'}`,
           `Originating office: ${body.originatingOffice || 'N/A'}`,
           `Address: ${body.senderAddress || 'N/A'}`,
-          body.recipientName ? `Recipient: ${body.recipientName} (${body.recipientOffice || 'External Office'})` : '',
+          body.recipientName ? `Recipient: ${body.recipientName}` : '',
           body.recipientAddress ? `Recipient Address: ${body.recipientAddress}` : '',
           `Action: ${isOutside ? 'Dispatched / Recorded (Outside Office)' : (body.initialAction || 'Appropriate Action')}`,
           `Remarks: ${completedRemarks}`,
