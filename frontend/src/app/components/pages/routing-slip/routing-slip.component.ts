@@ -374,8 +374,26 @@ export class RoutingSlipComponent implements OnInit, OnChanges {
   sortedVisibleRoutes = computed(() => {
     const doc = this.activeDoc();
     if (!doc) return [];
-    const canViewAllRoutes = this.currentUser.permissions?.canViewAllRoutes ??
-      DEFAULT_ROLE_PERMISSIONS[this.currentUser.role]?.canViewAllRoutes;
+    const isOriginalDispatcher =
+      this.currentUser.role === 'SYSTEM_ADMIN' ||
+      this.currentUser.role === 'ORD' ||
+      doc.createdByUserId === this.currentUser.id ||
+      (Boolean(doc.createdBy) && doc.createdBy.trim().toLowerCase() === this.currentUser.fullName.trim().toLowerCase()) ||
+      (Boolean(doc.senderName) && doc.senderName.trim().toLowerCase() === this.currentUser.fullName.trim().toLowerCase()) ||
+      doc.routes?.[0]?.fromUserId === this.currentUser.id ||
+      (Boolean(doc.routes?.[0]?.fromUser) && doc.routes[0].fromUser.trim().toLowerCase() === this.currentUser.fullName.trim().toLowerCase());
+
+    const canViewAllRoutes =
+      isOriginalDispatcher ||
+      Boolean(
+        this.currentUser.permissions?.canViewAllRoutes ??
+        DEFAULT_ROLE_PERMISSIONS[this.currentUser.role]?.canViewAllRoutes
+      ) ||
+      Boolean(
+        this.currentUser.permissions?.canViewConfidentialSteps ??
+        DEFAULT_ROLE_PERMISSIONS[this.currentUser.role]?.canViewConfidentialSteps
+      );
+
     const routes = (doc.routes || []).filter(r =>
       canViewAllRoutes || r.fromUserId === this.currentUser.id || r.toUserId === this.currentUser.id
     );

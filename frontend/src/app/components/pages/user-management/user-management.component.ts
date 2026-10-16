@@ -1109,6 +1109,16 @@ canDeleteUsers(): boolean {
     });
   }
 
+  toggleCanViewConfidentialSteps(roleName: Role): void {
+    this.rolePermissions.update((prev) => {
+      const current = prev[roleName] || DEFAULT_ROLE_PERMISSIONS[roleName];
+      return {
+        ...prev,
+        [roleName]: { ...current, canViewConfidentialSteps: !current.canViewConfidentialSteps },
+      };
+    });
+  }
+
   toggleCanDelete(roleName: Role): void {
     this.rolePermissions.update((prev) => {
       const current = prev[roleName] || DEFAULT_ROLE_PERMISSIONS[roleName];
@@ -1307,6 +1317,11 @@ canDeleteUsers(): boolean {
     this.isUserPermDirty.set(true);
   }
 
+  toggleUserCanViewConfidentialSteps(): void {
+    this.userPermForm.update((p) => ({ ...p, canViewConfidentialSteps: !p.canViewConfidentialSteps }));
+    this.isUserPermDirty.set(true);
+  }
+
   toggleUserCanDelete(): void {
     this.userPermForm.update((p) => ({ ...p, canDelete: !p.canDelete }));
     this.isUserPermDirty.set(true);
@@ -1382,6 +1397,7 @@ canDeleteUsers(): boolean {
       .filter((id) => isSysAdmin || !this.isActionRestrictedToAdmin(id));
     this.userPermForm.set({
       canViewAllRoutes: true,
+      canViewConfidentialSteps: true,
       canViewAllDocuments: true,
       canDelete: true,
       mainMenu: true,
@@ -1396,6 +1412,7 @@ canDeleteUsers(): boolean {
   revokeAllUserPermissions(): void {
     this.userPermForm.set({
       canViewAllRoutes: false,
+      canViewConfidentialSteps: false,
       canViewAllDocuments: false,
       canDelete: false,
       mainMenu: false,

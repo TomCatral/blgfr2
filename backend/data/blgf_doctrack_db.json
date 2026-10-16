@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-16T09:38:50.043Z",
+  "updatedAt": "2026-10-16T09:59:35.417Z",
   "divisions": [
     {
       "id": "DIV-0001",
@@ -404,7 +404,7 @@
       "divisionCode": "AD",
       "designation": "LTOO II",
       "contactNo": "0917-000-0000",
-      "avatarUrl": null,
+      "avatarUrl": "",
       "permissions": {
         "mainMenu": true,
         "management": false,
@@ -498,9 +498,9 @@
       "recipientAddress": "",
       "priority": "ROUTINE",
       "currentStatus": "IN_PROGRESS",
-      "currentDivision": "ITMS",
-      "assignedUser": "Tom tom G. Catral",
-      "assignedUserId": "USR-0008",
+      "currentDivision": "FD",
+      "assignedUser": "Dominick Catral",
+      "assignedUserId": "USR-0005",
       "dateReceived": "2026-10-16T09:25:11.910Z",
       "targetCompletionDate": "2026-10-19T09:25:11.908Z",
       "tags": [],
@@ -577,7 +577,9 @@
           "statusAfter": "PENDING",
           "isMultiRoute": true,
           "receivedAt": "2026-10-16T09:25:11.910Z",
-          "createdAt": "2026-10-16T09:25:11.910Z"
+          "createdAt": "2026-10-16T09:25:11.910Z",
+          "actionTaken": "APPROVED",
+          "processedAt": "2026-10-16T09:45:30.268Z"
         },
         {
           "id": "RTE-0013",
@@ -643,12 +645,30 @@
           "statusAfter": "IN_PROGRESS",
           "receivedAt": "2026-10-16T09:29:54.827Z",
           "createdAt": "2026-10-16T09:29:54.827Z"
+        },
+        {
+          "id": "RTE-0019",
+          "documentId": "DOC-0004",
+          "stepNumber": 7,
+          "routeNo": "BLGFR2-2026-10-OUT-03",
+          "fromDivision": "AD",
+          "fromUserId": "USR-0009",
+          "fromUser": "Robert Bermudez",
+          "toDivision": "ITMS",
+          "toUser": "Tom tom G. Catral",
+          "toUserId": "USR-0008",
+          "actionRequested": "APPROVED",
+          "remarks": "Approved; proceed with routing.",
+          "statusBefore": "IN_PROGRESS",
+          "statusAfter": "IN_PROGRESS",
+          "receivedAt": "2026-10-16T09:45:30.268Z",
+          "createdAt": "2026-10-16T09:45:30.268Z"
         }
       ],
       "createdBy": "Tom tom G. Catral",
       "createdByUserId": "USR-0008",
       "createdAt": "2026-10-16T09:25:11.910Z",
-      "updatedAt": "2026-10-16T09:29:54.827Z"
+      "updatedAt": "2026-10-16T09:49:02.361Z"
     },
     {
       "id": "DOC-0003",
@@ -729,8 +749,8 @@
       "recipientAddress": "",
       "priority": "ROUTINE",
       "currentStatus": "IN_PROGRESS",
-      "currentDivision": "AD",
-      "assignedUser": "Robert Bermudez",
+      "currentDivision": "LU",
+      "assignedUser": "Raymond C. Rosete",
       "dateReceived": "2026-10-16T09:02:44.419Z",
       "targetCompletionDate": "2026-10-19T09:02:44.413Z",
       "tags": [],
@@ -803,14 +823,34 @@
           "statusBefore": "IN_PROGRESS",
           "statusAfter": "IN_PROGRESS",
           "receivedAt": "2026-10-16T09:38:16.015Z",
-          "createdAt": "2026-10-16T09:38:16.015Z"
+          "createdAt": "2026-10-16T09:38:16.015Z",
+          "actionTaken": "APPROVED",
+          "processedAt": "2026-10-16T09:45:28.738Z"
+        },
+        {
+          "id": "RTE-0018",
+          "documentId": "DOC-0002",
+          "stepNumber": 4,
+          "routeNo": "BLGFR2-2026-10-IN-01",
+          "fromDivision": "AD",
+          "fromUserId": "USR-0009",
+          "fromUser": "Robert Bermudez",
+          "toDivision": "LU",
+          "toUser": "Raymond C. Rosete",
+          "toUserId": "USR-0003",
+          "actionRequested": "APPROVED",
+          "remarks": "Approved; proceed with routing.",
+          "statusBefore": "IN_PROGRESS",
+          "statusAfter": "IN_PROGRESS",
+          "receivedAt": "2026-10-16T09:45:28.738Z",
+          "createdAt": "2026-10-16T09:45:28.738Z"
         }
       ],
       "createdBy": "Tom tom G. Catral",
       "createdByUserId": "USR-0008",
       "createdAt": "2026-10-16T09:02:44.419Z",
-      "updatedAt": "2026-10-16T09:38:16.015Z",
-      "assignedUserId": "USR-0009"
+      "updatedAt": "2026-10-16T09:45:28.738Z",
+      "assignedUserId": "USR-0003"
     },
     {
       "id": "DOC-0001",
@@ -941,6 +981,80 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "LOG-0079",
+      "timestamp": "2026-10-16T09:49:02.361Z",
+      "userId": "USR-0002",
+      "userName": "Jay ann M. Mangoba",
+      "userRole": "STAFF",
+      "action": "ROUTE_DOC",
+      "documentTrackingNumber": "BLGFR2-2026-10-OUT-03",
+      "details": "Removed recipient Raymond C. Rosete (LU) from transaction by Jay ann M. Mangoba. Reason: Routing mistake / recalled",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0078",
+      "timestamp": "2026-10-16T09:48:48.624Z",
+      "userId": "USR-0002",
+      "userName": "Jay ann M. Mangoba",
+      "userRole": "STAFF",
+      "action": "LOGIN",
+      "details": "User Jay ann M. Mangoba (STAFF) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0077",
+      "timestamp": "2026-10-16T09:47:24.721Z",
+      "userId": "USR-0009",
+      "userName": "Robert Bermudez",
+      "userRole": "STAFF",
+      "action": "ROUTE_DOC",
+      "documentTrackingNumber": "BLGFR2-2026-10-OUT-03",
+      "details": "Routed by: Robert Bermudez | Document: BLGF Memorandum Circular No. 017-2025 dated 01 October 2025 [BLGFR2-2026-10-OUT-03] | Subject: Recognition of Top-Performing Local Government Units (LGUs) in Strengthening Local Government Finance for FY2024 | From: ITMS | To: Raymond C. Rosete | Action: Appropriate Action | Remarks: Please take action on this on my behalf. Thanks. | Status: IN_PROGRESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0076",
+      "timestamp": "2026-10-16T09:45:30.268Z",
+      "userId": "USR-0009",
+      "userName": "Robert Bermudez",
+      "userRole": "STAFF",
+      "action": "UPDATE_STATUS",
+      "documentTrackingNumber": "BLGFR2-2026-10-OUT-03",
+      "details": "APPROVED by Robert Bermudez | Remarks: Approved; proceed with routing.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0075",
+      "timestamp": "2026-10-16T09:45:28.738Z",
+      "userId": "USR-0009",
+      "userName": "Robert Bermudez",
+      "userRole": "STAFF",
+      "action": "UPDATE_STATUS",
+      "documentTrackingNumber": "BLGFR2-2026-10-IN-01",
+      "details": "APPROVED by Robert Bermudez | Remarks: Approved; proceed with routing.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0074",
+      "timestamp": "2026-10-16T09:45:26.859Z",
+      "userId": "USR-0009",
+      "userName": "Robert Bermudez",
+      "userRole": "STAFF",
+      "action": "LOGIN",
+      "details": "User Robert Bermudez (STAFF) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0073",
+      "timestamp": "2026-10-16T09:45:20.088Z",
+      "userId": "USR-0008",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "UPDATE_USER",
+      "details": "Updated account details and changed the database login password for Robert Bermudez",
+      "ipAddress": "127.0.0.1"
+    },
     {
       "id": "LOG-0072",
       "timestamp": "2026-10-16T09:38:49.888Z",
@@ -1694,16 +1808,6 @@
       "id": "NTF-0008",
       "createdAt": "2026-10-16T09:25:11.912Z",
       "userId": "USR-0005",
-      "title": "New Document for Multiple Divisions",
-      "message": "Document BLGFR2-2026-10-OUT-03 (BLGF Memorandum Circular No. 017-2025 dated 01 October 2025) was routed to multiple divisions.",
-      "documentId": "DOC-0004",
-      "trackingNumber": "BLGFR2-2026-10-OUT-03",
-      "type": "ACTION_REQUIRED"
-    },
-    {
-      "id": "NTF-0009",
-      "createdAt": "2026-10-16T09:25:11.912Z",
-      "userId": "USR-0009",
       "title": "New Document for Multiple Divisions",
       "message": "Document BLGFR2-2026-10-OUT-03 (BLGF Memorandum Circular No. 017-2025 dated 01 October 2025) was routed to multiple divisions.",
       "documentId": "DOC-0004",

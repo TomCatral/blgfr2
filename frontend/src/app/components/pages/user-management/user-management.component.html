@@ -734,6 +734,29 @@
                 }
               </tr>
 
+              <!-- View Confidential Step Replies & Attachments -->
+              <tr class="ua-matrix-data-row">
+                <td class="ua-matrix-feature-cell">
+                  <div class="ua-feature-text">
+                    <span class="ua-feature-title">View Confidential Step Replies &amp; Attachments</span>
+                    <span class="ua-feature-desc">Access confidential step conversations, recipient replies, instructions, and step attachments across all transactions</span>
+                  </div>
+                </td>
+                @for (r of allRoles; track r.role) {
+                  <td class="ua-matrix-toggle-cell">
+                    <ion-button
+                      type="button"
+                      (click)="toggleCanViewConfidentialSteps(r.role)"
+                      class="ua-toggle-box"
+                      [class.checked]="activePerm(r.role).canViewConfidentialSteps"
+                      [title]="'Toggle View Confidential Step Replies & Attachments for ' + r.role"
+                    >
+                      <ion-icon name="checkmark"></ion-icon>
+                    </ion-button>
+                  </td>
+                }
+              </tr>
+
               <!-- Delete Permission (Unified) -->
               <tr class="ua-matrix-data-row">
                 <td class="ua-matrix-feature-cell">
@@ -1204,6 +1227,24 @@
                       </span>
                       <span class="ua-perm-toggle-desc">
                         Access full routing history and step trail across all regional divisions
+                      </span>
+                    </div>
+                  </label>
+
+                  <!-- canViewConfidentialSteps -->
+                  <label class="ua-perm-toggle-row">
+                    <input
+                      type="checkbox"
+                      [checked]="userPermForm().canViewConfidentialSteps"
+                      (change)="toggleUserCanViewConfidentialSteps()"
+                      class="ua-perm-checkbox"
+                    />
+                    <div class="ua-perm-toggle-text">
+                      <span class="ua-perm-toggle-label">
+                        View Confidential Step Replies &amp; Attachments
+                      </span>
+                      <span class="ua-perm-toggle-desc">
+                        Access confidential step conversations, recipient replies, instructions, and step attachments across all steps
                       </span>
                     </div>
                   </label>

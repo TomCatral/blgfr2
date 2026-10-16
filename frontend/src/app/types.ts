@@ -49,6 +49,7 @@ export interface RolePermission {
   canDelete: boolean; // Unified delete permission: delete/cancel transactions, accounts, and directory staff
   canViewAllDocuments: boolean; // Legacy flag kept for record compatibility. Document visibility is always strictly personal (creator, recipient, or router), so this no longer grants any visibility.
   canViewAllRoutes: boolean; // Whether the role can see the complete routing trail across divisions
+  canViewConfidentialSteps?: boolean; // Whether the role can view confidential step replies, instructions, and attachments
   allowedActions?: string[]; // granular feature actions controlled in User & Role Access Manager
   notificationViewAllConfigured?: boolean; // distinguishes legacy defaults from an explicit role-manager choice
 }
@@ -60,6 +61,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, RolePermission> = {
     canDelete: true,
     canViewAllDocuments: true,
     canViewAllRoutes: true,
+    canViewConfidentialSteps: true,
     allowedActions: [
       'EMPLOYEE_CREATE',
       'EMPLOYEE_EDIT',
@@ -100,6 +102,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, RolePermission> = {
     canDelete: false,
     canViewAllDocuments: false,
     canViewAllRoutes: false,
+    canViewConfidentialSteps: false,
     allowedActions: [],
     allowedViews: [
       'dashboard',
@@ -119,6 +122,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, RolePermission> = {
     canDelete: false,
     canViewAllDocuments: true,
     canViewAllRoutes: true,
+    canViewConfidentialSteps: true,
     allowedActions: [
       'EMPLOYEE_CREATE',
       'EMPLOYEE_EDIT',
@@ -150,6 +154,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, RolePermission> = {
     canDelete: false,
     canViewAllDocuments: false,
     canViewAllRoutes: false,
+    canViewConfidentialSteps: false,
     allowedActions: [
       'ROUTING_MONITOR_VIEW',
       'ROUTING_REMINDER_SEND',
@@ -183,6 +188,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, RolePermission> = {
     canDelete: false,
     canViewAllDocuments: false,
     canViewAllRoutes: false,
+    canViewConfidentialSteps: false,
     allowedActions: [
       'ROUTING_MONITOR_VIEW',
       'ROUTING_REMINDER_SEND',
@@ -211,6 +217,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, RolePermission> = {
     canDelete: false,
     canViewAllDocuments: false,
     canViewAllRoutes: false,
+    canViewConfidentialSteps: false,
     allowedActions: ['DIRECTORY_LGU_VIEW', 'DIRECTORY_OTHER_VIEW'],
     allowedViews: [
       'dashboard',
@@ -233,6 +240,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, RolePermission> = {
     canDelete: false,
     canViewAllDocuments: false,
     canViewAllRoutes: false,
+    canViewConfidentialSteps: false,
     allowedActions: ['DIRECTORY_LGU_VIEW', 'DIRECTORY_OTHER_VIEW'],
     allowedViews: [
       'dashboard',

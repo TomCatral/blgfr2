@@ -422,13 +422,80 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
     return (perms.allowedViews || []).includes('slip');
   }
 
-  canViewAllRoutes = computed<boolean>(() => {
-    if (this.currentUser?.role === 'SYSTEM_ADMIN') return true;
+  isDocumentCreator(): boolean {
+    if (!this.currentUser || !this.document) return false;
+    return this.matchesPerson(
+      this.document.createdByUserId,
+      this.document.createdBy,
+      this.currentUser.id,
+      this.currentUser.fullName,
+    );
+  }
+
+  isOriginalDispatcher = computed<boolean>(() => {
+    if (!this.currentUser || !this.document) return false;
+    const user = this.currentUser;
+
+    // 1. Direct creator check
+    if (this.isDocumentCreator()) return true;
+
+    // 2. Creator user ID or name match
+    if (this.matchesPerson(this.document.createdByUserId, this.document.createdBy, user.id, user.fullName)) {
+      return true;
+    }
+
+    // 3. Sender name match (originating dispatcher / sender)
+    if (this.matchesPerson(undefined, this.document.senderName, user.id, user.fullName)) {
+      return true;
+    }
+
+    // 4. Earliest route (step 0 or root route) sender
+    const firstRoute = (this.document.routes || [])[0];
+    if (firstRoute && this.matchesPerson(firstRoute.fromUserId, firstRoute.fromUser, user.id, user.fullName)) {
+      return true;
+    }
+
+    // 5. Intake route sender
+    if (this.matchesPerson(this.document.createdByUserId || 'origin', this.document.createdBy || 'Originating Office', user.id, user.fullName)) {
+      return true;
+    }
+
+    return false;
+  });
+
+  hasConfidentialStepAccess = computed<boolean>(() => {
+    if (!this.currentUser) return false;
+
+    // System Administrator and ORD have full executive oversight
+    if (this.currentUser.role === 'SYSTEM_ADMIN' || this.currentUser.role === 'ORD') {
+      return true;
+    }
+
+    // Original Dispatcher sees all transactions, replies, notes, and attachments
+    if (this.isOriginalDispatcher()) {
+      return true;
+    }
+
     const perms =
-      this.currentUser?.permissions ||
-      DEFAULT_ROLE_PERMISSIONS[this.currentUser?.role] ||
+      this.currentUser.permissions ||
+      DEFAULT_ROLE_PERMISSIONS[this.currentUser.role] ||
       DEFAULT_ROLE_PERMISSIONS.STAFF;
-    return Boolean(perms.canViewAllRoutes);
+
+    if (perms.canViewConfidentialSteps) return true;
+    if (perms.canViewAllRoutes) return true;
+
+    return false;
+  });
+
+  canViewAllRoutes = computed<boolean>(() => {
+    if (!this.currentUser) return false;
+    if (this.currentUser.role === 'SYSTEM_ADMIN' || this.currentUser.role === 'ORD') return true;
+    if (this.isOriginalDispatcher()) return true;
+    const perms =
+      this.currentUser.permissions ||
+      DEFAULT_ROLE_PERMISSIONS[this.currentUser.role] ||
+      DEFAULT_ROLE_PERMISSIONS.STAFF;
+    return Boolean(perms.canViewAllRoutes || perms.canViewConfidentialSteps);
   });
 
   hasMultipleBranches = computed<boolean>(() => {
@@ -464,14 +531,10 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
 
   isRouteConnectedToUser(route: DocumentRouteStep, allRoutes: DocumentRouteStep[]): boolean {
     if (!this.currentUser) return true;
+    if (this.canViewAllRoutes()) return true;
+    if (this.isOriginalDispatcher()) return true;
 
     if (this.isParticipantInStep(route)) return true;
-
-    if (this.matchesPerson(this.document.createdByUserId, this.document.createdBy, this.currentUser.id, this.currentUser.fullName)) {
-      if (this.matchesPerson(route.fromUserId, route.fromUser, this.currentUser.id, this.currentUser.fullName)) {
-        return true;
-      }
-    }
 
     // Upstream check: does this route lead downstream to a step where user is a participant?
     const leadsToUser = (curr: DocumentRouteStep, visited = new Set<string>()): boolean => {
@@ -570,15 +633,6 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
     return routes;
   });
 
-  isDocumentCreator(): boolean {
-    if (!this.currentUser || !this.document) return false;
-    return this.matchesPerson(
-      this.document.createdByUserId,
-      this.document.createdBy,
-      this.currentUser.id,
-      this.currentUser.fullName,
-    );
-  }
 
   visibleRoutes = computed<DocumentRouteStep[]>(() => {
     return this.rawHistoryRoutes();
@@ -1244,7 +1298,18 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
     if (!route) return false;
     if (!this.currentUser) return false;
 
-    return this.currentUser.role === 'SYSTEM_ADMIN' || this.isParticipantInStep(route);
+    if (this.hasConfidentialStepAccess()) return true;
+
+    // Division Chief of either the sending or receiving division
+    if (
+      this.currentUser.role === 'DIVISION_CHIEF' &&
+      this.currentUser.divisionCode &&
+      (this.currentUser.divisionCode === route.fromDivision || this.currentUser.divisionCode === route.toDivision)
+    ) {
+      return true;
+    }
+
+    return this.isParticipantInStep(route);
   });
 
   selectedStepFiles = computed<DocumentAttachment[]>(() => {
@@ -2093,7 +2158,8 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
     return (
       this.currentUser.role === 'SYSTEM_ADMIN' ||
       Boolean(perm.canDelete) ||
-      this.isDocumentCreator()
+      this.isDocumentCreator() ||
+      this.isOriginalDispatcher()
     );
   }
 
@@ -2275,9 +2341,21 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
 
   canViewFlowNodeNote(id: string): boolean {
     if (!this.currentUser) return false;
-    if (this.currentUser.role === 'SYSTEM_ADMIN') return true;
+    if (this.hasConfidentialStepAccess()) return true;
+
     const route = this.flowRecipients().find((item) => item.id === id);
-    return Boolean(route && this.isParticipantInStep(route));
+    if (!route) return false;
+
+    // Division Chief of either the sending or receiving division
+    if (
+      this.currentUser.role === 'DIVISION_CHIEF' &&
+      this.currentUser.divisionCode &&
+      (this.currentUser.divisionCode === route.fromDivision || this.currentUser.divisionCode === route.toDivision)
+    ) {
+      return true;
+    }
+
+    return Boolean(this.isParticipantInStep(route));
   }
 
   getFlowNodeSenderName(id: string): string {
