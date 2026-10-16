@@ -41,10 +41,14 @@ test('SYSTEM_ADMIN, ITMS, and ORD can track all documents without participating'
   const itmsUser = { id: 'itms-1', role: 'STAFF', divisionCode: 'ITMS' } as User;
   const ordUser = { id: 'ord-1', role: 'ORD' } as User;
   const privileged = { id: 'staff-1', role: 'STAFF', permissions: { canViewAllDocuments: true } } as unknown as User;
+  const withAllRoutes = { id: 'staff-2', role: 'STAFF', permissions: { canViewAllRoutes: true } } as unknown as User;
+  const withoutAllRoutes = { id: 'staff-3', role: 'STAFF', permissions: { canViewAllRoutes: false } } as unknown as User;
   assert.equal(isDocumentParticipant(routed, sysAdmin), true);
   assert.equal(isDocumentParticipant(routed, itmsUser), true);
   assert.equal(isDocumentParticipant(routed, ordUser), true);
   assert.equal(isDocumentParticipant(routed, privileged), true);
+  assert.equal(isDocumentParticipant(routed, withAllRoutes), true);
+  assert.equal(isDocumentParticipant(routed, withoutAllRoutes), false);
 });
 
 test('removed recipient cannot track document even if lingering prior route exists', () => {

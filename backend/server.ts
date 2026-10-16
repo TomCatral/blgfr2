@@ -415,7 +415,18 @@ const storageUpload = multer({
 
 function sanitizeUserPermissionsOnLoad(user: User): User {
   if (user.role === 'SYSTEM_ADMIN' || user.divisionCode === 'ITMS') {
-    return { ...user, role: 'SYSTEM_ADMIN', divisionCode: 'ITMS' as const };
+    return {
+      ...user,
+      role: 'SYSTEM_ADMIN',
+      divisionCode: 'ITMS' as const,
+      permissions: user.permissions
+        ? {
+            ...user.permissions,
+            canViewAllRoutes: true,
+            canViewAllDocuments: true,
+          }
+        : undefined,
+    };
   }
   const adminActions = [
     'USER_ACCOUNT_CREATE',
@@ -423,15 +434,19 @@ function sanitizeUserPermissionsOnLoad(user: User): User {
     'USER_ACCOUNT_DELETE',
     'USER_SYSTEM_ADMIN_MANAGE',
   ];
-  const permissions = user.permissions
-    ? {
-        ...user.permissions,
-        allowedViews: (user.permissions.allowedViews || []).filter((v) => v !== 'users'),
-        allowedActions: (user.permissions.allowedActions || []).filter(
-          (a) => !adminActions.includes(a),
-        ),
-      }
-    : undefined;
+  let permissions = user.permissions;
+  if (permissions) {
+    const canViewAll = Boolean(permissions.canViewAllRoutes);
+    permissions = {
+      ...permissions,
+      canViewAllRoutes: canViewAll,
+      canViewAllDocuments: canViewAll,
+      allowedViews: (permissions.allowedViews || []).filter((v) => v !== 'users'),
+      allowedActions: (permissions.allowedActions || []).filter(
+        (a) => !adminActions.includes(a),
+      ),
+    };
+  }
   return { ...user, permissions };
 }
 

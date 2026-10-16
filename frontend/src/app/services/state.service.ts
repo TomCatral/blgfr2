@@ -113,6 +113,7 @@ private intervals: number[] = [];
       user.role === 'SYSTEM_ADMIN' ||
       user.divisionCode === 'ITMS' ||
       user.role === 'ORD' ||
+      user.permissions?.canViewAllRoutes ||
       user.permissions?.canViewAllDocuments
     ) {
       return this.documents();

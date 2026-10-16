@@ -271,6 +271,9 @@ export function createUsersRouter(
       }
     }
     if (updates.permissions) {
+      if (updates.permissions.canViewAllRoutes !== undefined) {
+        updates.permissions.canViewAllDocuments = updates.permissions.canViewAllRoutes;
+      }
       const currentlyCanManageSystemAdministrators = Boolean(
         usersState[uIdx].permissions?.allowedActions?.includes(
           'USER_SYSTEM_ADMIN_MANAGE',

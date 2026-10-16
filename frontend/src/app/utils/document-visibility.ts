@@ -53,7 +53,8 @@ export const isDocumentParticipant = (
     user.role === 'SYSTEM_ADMIN' ||
     user.divisionCode === 'ITMS' ||
     user.role === 'ORD' ||
-    user.permissions?.canViewAllDocuments
+    Boolean(user.permissions?.canViewAllRoutes) ||
+    Boolean(user.permissions?.canViewAllDocuments)
   ) {
     return true;
   }

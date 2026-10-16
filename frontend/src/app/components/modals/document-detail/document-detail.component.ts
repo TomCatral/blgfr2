@@ -503,7 +503,7 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
       this.currentUser.permissions ||
       DEFAULT_ROLE_PERMISSIONS[this.currentUser.role] ||
       DEFAULT_ROLE_PERMISSIONS.STAFF;
-    return Boolean(perms.canViewAllRoutes || perms.canViewConfidentialSteps);
+    return Boolean(perms.canViewAllRoutes);
   });
 
   hasMultipleBranches = computed<boolean>(() => {
@@ -643,7 +643,11 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
 
 
   visibleRoutes = computed<DocumentRouteStep[]>(() => {
-    return this.rawHistoryRoutes();
+    const raw = this.rawHistoryRoutes();
+    if (this.canViewAllRoutes()) {
+      return raw;
+    }
+    return raw.filter((route) => this.isRouteConnectedToUser(route, raw));
   });
 
   historyRoutes = this.visibleRoutes;

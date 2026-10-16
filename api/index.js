@@ -1663,6 +1663,9 @@ function createUsersRouter(getUsersState, setUsersState, getAuditLogsState, sync
       }
     }
     if (updates.permissions) {
+      if (updates.permissions.canViewAllRoutes !== void 0) {
+        updates.permissions.canViewAllDocuments = updates.permissions.canViewAllRoutes;
+      }
       const currentlyCanManageSystemAdministrators = Boolean(
         usersState2[uIdx].permissions?.allowedActions?.includes(
           "USER_SYSTEM_ADMIN_MANAGE"
@@ -2010,7 +2013,7 @@ var auditNamesRecipient = (details, fullName) => {
 };
 var isDocumentParticipant = (document, user, auditLogs = []) => {
   if (!user || !document) return false;
-  if (user.role === "SYSTEM_ADMIN" || user.divisionCode === "ITMS" || user.role === "ORD" || user.permissions?.canViewAllDocuments) {
+  if (user.role === "SYSTEM_ADMIN" || user.divisionCode === "ITMS" || user.role === "ORD" || Boolean(user.permissions?.canViewAllRoutes) || Boolean(user.permissions?.canViewAllDocuments)) {
     return true;
   }
   if (matchesParticipant(user, document.createdByUserId, document.createdBy) || matchesParticipant(user, void 0, document.senderName)) {
@@ -2132,7 +2135,7 @@ function createDocumentsRouter(getUsersState, getDocumentsState, setDocumentsSta
       console.error("[healStaleReturnedStatus] MySQL write failed:", error);
     });
   };
-  const canViewDocument = (user, document) => user.role === "SYSTEM_ADMIN" || user.divisionCode === "ITMS" || user.role === "ORD" || Boolean(user.permissions?.canViewAllDocuments) || isDocumentParticipant(document, user, getAuditLogsState());
+  const canViewDocument = (user, document) => user.role === "SYSTEM_ADMIN" || user.divisionCode === "ITMS" || user.role === "ORD" || Boolean(user.permissions?.canViewAllRoutes) || Boolean(user.permissions?.canViewAllDocuments) || isDocumentParticipant(document, user, getAuditLogsState());
   const getPendingDecisionRoute = (user, document) => [...document.routes || []].reverse().find((assignedRoute) => {
     if (["APPROVED", "DISAPPROVED"].includes(assignedRoute.actionRequested.toUpperCase())) return false;
     const assignedToUser = assignedRoute.toUserId === user.id || !assignedRoute.toUserId && assignedRoute.toUser?.trim().toLowerCase() === user.fullName.trim().toLowerCase();
@@ -3942,7 +3945,16 @@ var storageUpload = multer({
 });
 function sanitizeUserPermissionsOnLoad(user) {
   if (user.role === "SYSTEM_ADMIN" || user.divisionCode === "ITMS") {
-    return { ...user, role: "SYSTEM_ADMIN", divisionCode: "ITMS" };
+    return {
+      ...user,
+      role: "SYSTEM_ADMIN",
+      divisionCode: "ITMS",
+      permissions: user.permissions ? {
+        ...user.permissions,
+        canViewAllRoutes: true,
+        canViewAllDocuments: true
+      } : void 0
+    };
   }
   const adminActions = [
     "USER_ACCOUNT_CREATE",
@@ -3950,13 +3962,19 @@ function sanitizeUserPermissionsOnLoad(user) {
     "USER_ACCOUNT_DELETE",
     "USER_SYSTEM_ADMIN_MANAGE"
   ];
-  const permissions = user.permissions ? {
-    ...user.permissions,
-    allowedViews: (user.permissions.allowedViews || []).filter((v) => v !== "users"),
-    allowedActions: (user.permissions.allowedActions || []).filter(
-      (a) => !adminActions.includes(a)
-    )
-  } : void 0;
+  let permissions = user.permissions;
+  if (permissions) {
+    const canViewAll = Boolean(permissions.canViewAllRoutes);
+    permissions = {
+      ...permissions,
+      canViewAllRoutes: canViewAll,
+      canViewAllDocuments: canViewAll,
+      allowedViews: (permissions.allowedViews || []).filter((v) => v !== "users"),
+      allowedActions: (permissions.allowedActions || []).filter(
+        (a) => !adminActions.includes(a)
+      )
+    };
+  }
   return { ...user, permissions };
 }
 function initDatabaseStorage() {

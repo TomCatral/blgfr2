@@ -393,10 +393,6 @@ export class RoutingSlipComponent implements OnInit, OnChanges {
       Boolean(
         this.currentUser.permissions?.canViewAllRoutes ??
         DEFAULT_ROLE_PERMISSIONS[this.currentUser.role]?.canViewAllRoutes
-      ) ||
-      Boolean(
-        this.currentUser.permissions?.canViewConfidentialSteps ??
-        DEFAULT_ROLE_PERMISSIONS[this.currentUser.role]?.canViewConfidentialSteps
       );
 
     const routes = (doc.routes || []).filter(r =>

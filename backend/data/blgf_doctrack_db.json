@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-16T10:47:20.604Z",
+  "updatedAt": "2026-10-16T11:05:09.076Z",
   "divisions": [
     {
       "id": "DIV-0001",
@@ -123,8 +123,8 @@
       "contactNo": null,
       "avatarUrl": "/api/storage/files/profilePictures/1790823594744_profile%20_1_.png",
       "permissions": {
-        "canViewAllRoutes": true,
-        "canViewAllDocuments": true,
+        "canViewAllRoutes": false,
+        "canViewAllDocuments": false,
         "canDelete": true,
         "mainMenu": true,
         "management": true,
@@ -1065,6 +1065,117 @@
   ],
   "auditLogs": [
     {
+      "id": "LOG-0100",
+      "timestamp": "2026-10-16T11:03:44.961Z",
+      "userId": "USR-0001",
+      "userName": "Administrator",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "UPDATE_USER",
+      "details": "Updated account details for Jay ann M. Mangoba",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0099",
+      "timestamp": "2026-10-16T11:03:44.894Z",
+      "userId": "USR-0001",
+      "userName": "Administrator",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "UPDATE_USER",
+      "details": "Updated account details for Jay ann M. Mangoba",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0098",
+      "timestamp": "2026-10-16T11:03:44.757Z",
+      "userId": "USR-0008",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0097",
+      "timestamp": "2026-10-16T11:01:02.803Z",
+      "userId": "USR-0008",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "UPDATE_STATUS",
+      "documentTrackingNumber": "BLGFR2-2026-10-IN-01",
+      "details": "Routing reminder sent to Robert Bermudez | Message: Please take action on this routed document.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0096",
+      "timestamp": "2026-10-16T10:58:41.483Z",
+      "userId": "USR-0008",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0095",
+      "timestamp": "2026-10-16T10:58:16.400Z",
+      "userId": "USR-0002",
+      "userName": "Jay ann M. Mangoba",
+      "userRole": "STAFF",
+      "action": "LOGIN",
+      "details": "User Jay ann M. Mangoba (STAFF) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0094",
+      "timestamp": "2026-10-16T10:58:10.216Z",
+      "userId": "USR-0008",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "UPDATE_USER",
+      "details": "Updated account details for Jay ann M. Mangoba",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0093",
+      "timestamp": "2026-10-16T10:55:21.658Z",
+      "userId": "USR-0008",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0092",
+      "timestamp": "2026-10-16T10:55:03.659Z",
+      "userId": "USR-0002",
+      "userName": "Jay ann M. Mangoba",
+      "userRole": "STAFF",
+      "action": "LOGIN",
+      "details": "User Jay ann M. Mangoba (STAFF) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0091",
+      "timestamp": "2026-10-16T10:54:48.013Z",
+      "userId": "USR-0008",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "UPDATE_USER",
+      "details": "Updated account details for Jay ann M. Mangoba",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": "LOG-0090",
+      "timestamp": "2026-10-16T10:54:19.733Z",
+      "userId": "USR-0008",
+      "userName": "Tom tom G. Catral",
+      "userRole": "SYSTEM_ADMIN",
+      "action": "LOGIN",
+      "details": "User Tom tom G. Catral (SYSTEM_ADMIN) logged in successfully.",
+      "ipAddress": "127.0.0.1"
+    },
+    {
       "id": "LOG-0089",
       "timestamp": "2026-10-16T10:30:48.956Z",
       "userId": "USR-0002",
@@ -1979,6 +2090,20 @@
     }
   ],
   "notifications": [
+    {
+      "id": "NTF-0016",
+      "createdAt": "2026-10-16T11:01:02.803Z",
+      "userId": "USR-0009",
+      "title": "Routing Action Reminder",
+      "message": "Please take action on this routed document. - Sent by Tom tom G. Catral",
+      "documentId": "DOC-0002",
+      "trackingNumber": "BLGFR2-2026-10-IN-01",
+      "type": "URGENT",
+      "requiresDecision": false,
+      "reminderSenderName": "Tom tom G. Catral",
+      "reminderHandlerName": "Robert Bermudez",
+      "reminderActionRequested": "Appropriate Action"
+    },
     {
       "id": "NTF-0015",
       "createdAt": "2026-10-16T10:25:32.915Z",
@@ -3720,7 +3845,7 @@
     }
   ],
   "systemSettings": {
-    "login_background_url": null,
-    "explicitRemoved": true
+    "login_background_url": "/api/storage/files/loginBackground/1792148676515_images%20_2_.jpg",
+    "explicitRemoved": false
   }
 }

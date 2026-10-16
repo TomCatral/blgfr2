@@ -1102,9 +1102,14 @@ canDeleteUsers(): boolean {
   toggleCanViewAllRoutes(roleName: Role): void {
     this.rolePermissions.update((prev) => {
       const current = prev[roleName] || DEFAULT_ROLE_PERMISSIONS[roleName];
+      const nextVal = !current.canViewAllRoutes;
       return {
         ...prev,
-        [roleName]: { ...current, canViewAllRoutes: !current.canViewAllRoutes },
+        [roleName]: {
+          ...current,
+          canViewAllRoutes: nextVal,
+          canViewAllDocuments: nextVal,
+        },
       };
     });
   }
@@ -1313,7 +1318,14 @@ canDeleteUsers(): boolean {
   }
 
   toggleUserCanViewAllRoutes(): void {
-    this.userPermForm.update((p) => ({ ...p, canViewAllRoutes: !p.canViewAllRoutes }));
+    this.userPermForm.update((p) => {
+      const nextVal = !p.canViewAllRoutes;
+      return {
+        ...p,
+        canViewAllRoutes: nextVal,
+        canViewAllDocuments: nextVal,
+      };
+    });
     this.isUserPermDirty.set(true);
   }
 

@@ -270,6 +270,7 @@ export class DashboardComponent implements OnChanges {
         this.currentUser.role === 'SYSTEM_ADMIN' ||
         this.currentUser.divisionCode === 'ITMS' ||
         this.currentUser.role === 'ORD' ||
+        this.currentUser.permissions?.canViewAllRoutes ||
         this.currentUser.permissions?.canViewAllDocuments ||
         isDocumentParticipant(doc, this.currentUser, this.auditLogs)
       )
@@ -371,6 +372,7 @@ export class DashboardComponent implements OnChanges {
       this.currentUser.role === 'SYSTEM_ADMIN' ||
       this.currentUser.divisionCode === 'ITMS' ||
       this.currentUser.role === 'ORD' ||
+      this.currentUser.permissions?.canViewAllRoutes ||
       this.currentUser.permissions?.canViewAllDocuments
     ) {
       return candidates;
