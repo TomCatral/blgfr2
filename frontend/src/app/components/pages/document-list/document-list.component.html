@@ -168,6 +168,9 @@
                     </span>
                   } @else {
                     <div [ngClass]="'assignee' | cls" [innerHTML]="highlightText(doc.assignedUser || 'Unassigned', normalizedQuery())"></div>
+                    @if (doc.recipientOffice && doc.isOutside) {
+                      <div class="text-[10px] text-slate-400 dark:text-slate-500 truncate max-w-[200px]" [title]="doc.recipientOffice">{{ doc.recipientOffice }}</div>
+                    }
                   }
                 </td>
                 <td [ngClass]="'dateCell' | cls">
@@ -279,6 +282,9 @@
                   <span class="unrouted-custodian-pill">Not Routed</span>
                 } @else if (doc.assignedUser) {
                   <span class="m-assignee">&bull; {{ doc.assignedUser }}</span>
+                  @if (doc.recipientOffice && doc.isOutside) {
+                    <span class="m-office text-[10px] text-slate-400 dark:text-slate-500 max-w-[180px] truncate" [title]="doc.recipientOffice">({{ doc.recipientOffice }})</span>
+                  }
                 }
               </div>
             </div>

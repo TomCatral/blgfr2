@@ -302,10 +302,15 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
     const isOriginalRecipient = rawReceiverName.trim().toLowerCase() === this.document.recipientName?.trim().toLowerCase();
     let latestReceiverName = rawReceiverName;
     let latestReceiverPosition = latestUser?.designation?.trim() || (isOriginalRecipient ? this.document.recipientPosition?.trim() : '') || 'Not recorded';
-    let latestReceiverOffice = latestRoute?.toDivision
-      ? (DIVISION_OFFICE_NAMES[latestRoute.toDivision] || latestRoute.toDivision)
-      : this.document.recipientOffice?.trim() || this.document.destinationOffice?.trim() || 'Not recorded';
-    let latestReceiverAddress = isOriginalRecipient ? this.document.recipientAddress?.trim() || 'Not recorded' : 'Not recorded';
+    let latestReceiverOffice =
+      this.document.recipientOffice?.trim() ||
+      (this.document.destinationOffice?.trim() && !['External Office', 'BLGF Region II', 'BLGF Regional Office II'].includes(this.document.destinationOffice.trim()) ? this.document.destinationOffice.trim() : '') ||
+      (latestUser?.divisionCode ? (DIVISION_OFFICE_NAMES[latestUser.divisionCode] || latestUser.divisionCode) : '') ||
+      (latestRoute?.toDivision && latestRoute.toDivision !== 'Other Agencies' ? (DIVISION_OFFICE_NAMES[latestRoute.toDivision] || latestRoute.toDivision) : '') ||
+      (latestRoute?.toDivision ? (DIVISION_OFFICE_NAMES[latestRoute.toDivision] || latestRoute.toDivision) : '') ||
+      this.document.destinationOffice?.trim() ||
+      'Not recorded';
+    let latestReceiverAddress = this.document.recipientAddress?.trim() || (isOriginalRecipient ? this.document.recipientAddress?.trim() : '') || 'Not recorded';
 
     const names = rawReceiverName.split(/\s*,\s*/).map((n) => n.trim()).filter(Boolean);
     const posStr = `${this.document.recipientPosition || ''} ${rawReceiverName}`.toLowerCase();
@@ -326,28 +331,28 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
       if (hasProvincial && hasMunicipal && hasPartner) {
         latestReceiverName = 'All Provincial Treasurer, Municipal Treasurer, Other Agencies';
         latestReceiverPosition = 'Provincial Treasurer, Municipal Treasurer, Other Agencies';
-        latestReceiverOffice = 'Provincial & Municipal Treasury Offices - Region II; Other Agencies';
-        latestReceiverAddress = 'Various LGUs / Partner Offices, Region II';
+        latestReceiverOffice = this.document.recipientOffice?.trim() || 'Provincial & Municipal Treasury Offices - Region II; Other Agencies';
+        latestReceiverAddress = this.document.recipientAddress?.trim() || 'Various LGUs / Partner Offices, Region II';
       } else if (hasProvincial && hasMunicipal) {
         latestReceiverName = 'All Provincial Treasurer, Municipal Treasurer';
         latestReceiverPosition = 'Provincial Treasurer, Municipal Treasurer';
-        latestReceiverOffice = 'Provincial & Municipal Treasury Offices - Region II';
-        latestReceiverAddress = 'Various LGUs, Region II';
+        latestReceiverOffice = this.document.recipientOffice?.trim() || 'Provincial & Municipal Treasury Offices - Region II';
+        latestReceiverAddress = this.document.recipientAddress?.trim() || 'Various LGUs, Region II';
       } else if (hasProvincial) {
         latestReceiverName = 'All Provincial Treasurer';
         latestReceiverPosition = 'Provincial Treasurer';
-        latestReceiverOffice = 'Provincial Treasury Offices - Region II';
-        latestReceiverAddress = 'Various Provinces, Region II';
+        latestReceiverOffice = this.document.recipientOffice?.trim() || 'Provincial Treasury Offices - Region II';
+        latestReceiverAddress = this.document.recipientAddress?.trim() || 'Various Provinces, Region II';
       } else if (hasMunicipal) {
         latestReceiverName = 'Municipal Treasurer';
         latestReceiverPosition = 'Municipal Treasurer';
-        latestReceiverOffice = 'Municipal Treasury Offices - Region II';
-        latestReceiverAddress = 'Various Municipalities, Region II';
+        latestReceiverOffice = this.document.recipientOffice?.trim() || 'Municipal Treasury Offices - Region II';
+        latestReceiverAddress = this.document.recipientAddress?.trim() || 'Various Municipalities, Region II';
       } else if (hasPartner) {
         latestReceiverName = 'Other Agencies';
         latestReceiverPosition = 'Agency Head / Representative';
-        latestReceiverOffice = 'Other Agencies (Partner & External Offices)';
-        latestReceiverAddress = 'Various Offices, Region II';
+        latestReceiverOffice = this.document.recipientOffice?.trim() || 'Other Agencies (Partner & External Offices)';
+        latestReceiverAddress = this.document.recipientAddress?.trim() || 'Various Offices, Region II';
       }
     } else if (
       this.document.routeAllDivisions ||
@@ -1100,13 +1105,38 @@ export class DocumentDetailComponent implements OnInit, OnChanges {
 
   selectedDecision = computed(() => (this.selectedRoute() ? this.getHandlerDecision(this.selectedRoute()!) : undefined));
 
+  selectedRouteOffice = computed(() => {
+    const route = this.selectedRoute();
+    if (!route) return '';
+    const recipientUser = this.users.find((u) =>
+      (route.toUserId && u.id === route.toUserId) ||
+      (route.toUser && u.fullName.trim().toLowerCase() === route.toUser.trim().toLowerCase())
+    );
+    if (recipientUser?.divisionCode) {
+      return DIVISION_OFFICE_NAMES[recipientUser.divisionCode] || recipientUser.divisionCode;
+    }
+    if (this.document.recipientOffice?.trim()) {
+      return this.document.recipientOffice.trim();
+    }
+    if (this.document.destinationOffice?.trim() && !['External Office', 'BLGF Region II', 'BLGF Regional Office II'].includes(this.document.destinationOffice.trim())) {
+      return this.document.destinationOffice.trim();
+    }
+    return route.toDivision ? (DIVISION_OFFICE_NAMES[route.toDivision] || route.toDivision) : '';
+  });
+
   selectedDetailFields = computed(() => {
     const route = this.selectedRoute();
     if (!route) return [];
 
+    const recipientOffice =
+      this.document.recipientOffice?.trim() ||
+      (this.document.destinationOffice?.trim() && !['External Office', 'BLGF Region II', 'BLGF Regional Office II'].includes(this.document.destinationOffice.trim()) ? this.document.destinationOffice.trim() : undefined) ||
+      (route.toDivision && route.toDivision !== 'Other Agencies' ? (DIVISION_OFFICE_NAMES[route.toDivision] || route.toDivision) : undefined) ||
+      route.toDivision;
+
     const fields: { label: string; value?: string }[] = [
       { label: 'From', value: this.resolveUserName(route.fromUserId, route.fromUser) },
-      { label: 'Office', value: route.toDivision },
+      { label: 'Office', value: recipientOffice },
       { label: 'Received', value: formatDate(route.createdAt) },
       { label: 'Requested action', value: route.actionRequested },
     ];
