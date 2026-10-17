@@ -55,12 +55,20 @@ const HOST = process.env.HOST || '0.0.0.0';
 const IS_VERCEL = Boolean(process.env.VERCEL);
 // Server start
 const adminPasswordResetRequests = new Map<string, number>();
+const LOGIN_MAX_FAILED_ATTEMPTS = 3;
+const LOGIN_LOCK_DURATIONS_SECONDS = [30, 40, 60] as const;
+const loginAttemptState = new Map<string, {
+  failedAttempts: number;
+  lockLevel: number;
+  lockedUntil: number;
+}>();
 // JSON files under backend/data are recovery snapshots only. MySQL is the
 // authoritative database and always replaces this in-memory bootstrap state.
 const BUNDLED_DATA_DIR = path.join(process.cwd(), 'backend', 'data');
 const DATA_DIR = IS_VERCEL
   ? path.join(os.tmpdir(), 'blgf-data')
   : path.join(process.cwd(), 'backend', 'data');
+const MOBILE_PUBLIC_URL_FILE = path.join(DATA_DIR, '.mobile-public-url.json');
 const DB_FILE = path.join(DATA_DIR, 'blgf_doctrack_db.json');
 const ENVELOPE_LOG_DB_FILE = path.join(DATA_DIR, 'blgf_envelope_logs_db.json');
 type StorageKind =
@@ -83,6 +91,19 @@ const RECORDS_METADATA_FILE = path.join(
   '.file-metadata.json',
 );
 let RECORD_CATEGORIES = ['memo', 'letter', 'circular', 'report', 'other'];
+
+function readRuntimeMobilePublicUrl(): string {
+  if (IS_VERCEL || !fs.existsSync(MOBILE_PUBLIC_URL_FILE)) return '';
+  try {
+    const value = JSON.parse(fs.readFileSync(MOBILE_PUBLIC_URL_FILE, 'utf8')) as {
+      publicUrl?: unknown;
+    };
+    const publicUrl = String(value.publicUrl || '').trim();
+    return /^https:\/\/[a-z0-9.-]+(?:\/.*)?$/i.test(publicUrl) ? publicUrl : '';
+  } catch {
+    return '';
+  }
+}
 const RECORD_FILE_EXTENSIONS = [
   '.pdf',
   '.doc',
@@ -1323,7 +1344,8 @@ export async function createApp() {
       const currentOrigin = `${protocol}://${hostHeader}`;
 
       const publicDomain = process.env.PUBLIC_DOMAIN || 'blgfdts.duckdns.org';
-      const publicUrl = process.env.PUBLIC_URL || `https://${publicDomain}/login`;
+      const runtimeMobileUrl = readRuntimeMobilePublicUrl();
+      const publicUrl = runtimeMobileUrl || process.env.PUBLIC_URL || `https://${publicDomain}/login`;
       const publicIp = process.env.PUBLIC_IP || '124.6.177.154';
       const hostname = os.hostname().toLowerCase();
 
@@ -1340,6 +1362,7 @@ export async function createApp() {
         publicIp,
         publicDomain,
         currentOrigin,
+        mobileTunnelActive: Boolean(runtimeMobileUrl),
         isVercel: IS_VERCEL,
         allIps: addresses,
       });
@@ -1409,14 +1432,78 @@ export async function createApp() {
         .json({ error: 'Account is deactivated. Contact Admin.' });
     }
 
-    const user = matchingUsers.find(
+    const activeCandidates = matchingUsers.filter((candidate) => candidate.active);
+    const attemptKey = activeCandidates[0]?.id || username;
+    const attemptState = loginAttemptState.get(attemptKey);
+    if (attemptState?.lockedUntil && attemptState.lockedUntil > Date.now()) {
+      const retryAfterSeconds = Math.max(
+        1,
+        Math.ceil((attemptState.lockedUntil - Date.now()) / 1000),
+      );
+      res.setHeader('Retry-After', String(retryAfterSeconds));
+      return res.status(429).json({
+        error: `Sign-in is locked. Try again in ${retryAfterSeconds} seconds.`,
+        code: 'LOGIN_LOCKED',
+        retryAfterSeconds,
+        redirectToForgotPassword: false,
+      });
+    }
+    if (attemptState?.lockedUntil && attemptState.lockedUntil <= Date.now()) {
+      loginAttemptState.set(attemptKey, { ...attemptState, lockedUntil: 0 });
+    }
+
+    const user = activeCandidates.find(
       (candidate) =>
-        candidate.active &&
         typeof candidate.password === 'string' &&
         candidate.password === password,
     );
     if (!user) {
-      return res.status(401).json({ error: 'Incorrect password.' });
+      const currentState = loginAttemptState.get(attemptKey) || {
+        failedAttempts: 0,
+        lockLevel: 0,
+        lockedUntil: 0,
+      };
+
+      if (currentState.lockLevel >= LOGIN_LOCK_DURATIONS_SECONDS.length) {
+        return res.status(423).json({
+          error: 'The password is still incorrect after the final lock period. Account recovery is now required.',
+          code: 'RECOVERY_REQUIRED',
+          redirectToForgotPassword: true,
+        });
+      }
+
+      const failedAttempts = currentState.failedAttempts + 1;
+      const attemptsRemaining = Math.max(0, LOGIN_MAX_FAILED_ATTEMPTS - failedAttempts);
+      const shouldApplyLock = currentState.lockLevel > 0 || failedAttempts >= LOGIN_MAX_FAILED_ATTEMPTS;
+
+      if (shouldApplyLock) {
+        const lockSeconds = LOGIN_LOCK_DURATIONS_SECONDS[currentState.lockLevel];
+        const lockedUntil = Date.now() + lockSeconds * 1000;
+        const nextLockLevel = currentState.lockLevel + 1;
+        loginAttemptState.set(attemptKey, {
+          failedAttempts: 0,
+          lockLevel: nextLockLevel,
+          lockedUntil,
+        });
+        res.setHeader('Retry-After', String(lockSeconds));
+        return res.status(429).json({
+          error: `Incorrect password. Sign-in is locked for ${lockSeconds} seconds.`,
+          code: 'LOGIN_LOCKED',
+          retryAfterSeconds: lockSeconds,
+          redirectToForgotPassword: false,
+        });
+      }
+
+      loginAttemptState.set(attemptKey, {
+        failedAttempts,
+        lockLevel: currentState.lockLevel,
+        lockedUntil: 0,
+      });
+      return res.status(401).json({
+        error: `Incorrect password. ${attemptsRemaining} ${attemptsRemaining === 1 ? 'attempt' : 'attempts'} remaining before a 30-second lock.`,
+        code: 'INCORRECT_PASSWORD',
+        attemptsRemaining,
+      });
     }
     if (
       user.temporaryPasswordExpiresAt &&
@@ -1426,6 +1513,8 @@ export async function createApp() {
         error: 'Temporary password expired. Request a new temporary password.',
       });
     }
+
+    loginAttemptState.delete(attemptKey);
 
     addAuditLog(auditLogsState, {
       userId: user.id,
@@ -1611,6 +1700,7 @@ export async function createApp() {
         console.warn('[AUTH] Direct MySQL password update warning:', databaseError);
       }
       adminPasswordResetRequests.set(targetUser.id, Date.now());
+      loginAttemptState.delete(targetUser.id);
 
       addAuditLog(auditLogsState, {
         userId: targetUser.id,

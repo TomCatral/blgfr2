@@ -472,6 +472,26 @@ export class DashboardComponent implements OnChanges {
     return formatDate(dateString);
   }
 
+  activityDateParts(document: DocumentRecord): { date: string; time: string } {
+    const value = document.createdAt || document.dateReceived;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return { date: 'Not recorded', time: '' };
+
+    return {
+      date: parsed.toLocaleDateString('en-US', {
+        timeZone: 'Asia/Manila',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }),
+      time: parsed.toLocaleTimeString('en-US', {
+        timeZone: 'Asia/Manila',
+        hour: 'numeric',
+        minute: '2-digit'
+      })
+    };
+  }
+
   latestAction(doc: DocumentRecord): string {
     return [...(doc.routes || [])].sort((a, b) => b.stepNumber - a.stepNumber)[0]?.actionRequested || doc.actionRequested || 'N/A';
   }

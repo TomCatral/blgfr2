@@ -45,7 +45,7 @@ async function resolveDevPort(startPort = Number(process.env.PORT || DEFAULT_POR
   }
 
   throw new Error(
-    `No usable port found from ${searchBase} to ${searchBase + MAX_ATTEMPTS - 1}.`,
+    `No usable port found from ${firstPort} to ${firstPort + MAX_ATTEMPTS - 1}.`,
   );
 }
 

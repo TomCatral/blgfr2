@@ -281,7 +281,7 @@
 
         <ion-button
           type="submit"
-          [disabled]="loading"
+          [disabled]="loading || lockSecondsRemaining > 0"
           class="login-btn-primary"
         >
           @if (loading) {
@@ -289,7 +289,7 @@
             <span>Authenticating Credentials...</span>
           } @else {
             <ion-icon slot="start" name="log-in"></ion-icon>
-            <span>Sign In to System</span>
+            <span>{{ lockSecondsRemaining > 0 ? 'Try again in ' + lockSecondsRemaining + 's' : 'Sign In to System' }}</span>
           }
         </ion-button>
 

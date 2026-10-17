@@ -66,13 +66,22 @@ Run the following while the laptop has internet access:
 npm.cmd run mobile
 ```
 
-The launcher starts the local JSON server, creates a temporary secure HTTPS
-link through Cloudflare Tunnel, and writes a scannable QR image to
+The launcher starts the production backend (using configured MySQL when
+available, with the local recovery store as fallback), creates a temporary
+secure HTTPS link through Cloudflare Tunnel, and writes a scannable QR image to
 `output/mobile-install-qr.png`. Keep the command window and laptop open while
 the phone is using or synchronizing with the system. The tunnel URL changes
 whenever the command is restarted. Mobile browsers always require the user to
 confirm **Install app** or **Add to Home Screen**; operating systems do not
 permit silent installation.
+
+The HTTPS tunnel works across different Wi-Fi and mobile-data connections and
+does not require router port forwarding or a fixed public IP. The laptop must
+remain powered on, connected to the internet, and running `npm run mobile`.
+Password-recovery email also works through the same backend when the SMTP
+settings in `.env` are valid and the laptop has internet access. `localhost`
+continues to work only on the laptop itself; phones use the generated public
+HTTPS URL or QR code.
 
 Production is hosted on Vercel and reads/writes a MySQL database through
 Prisma. Configure `MYSQL_DATABASE_URL` (recommended) or the individual `MYSQL_*`

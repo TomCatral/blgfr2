@@ -2188,6 +2188,10 @@ div[role="dialog"] {
   &.dash-th-action {
     text-align: right;
   }
+
+  &.dash-th-started {
+    min-width: 8.5rem;
+  }
 }
 
 .dash-th-content {
@@ -2232,6 +2236,32 @@ div[role="dialog"] {
     text-align: right;
     white-space: nowrap;
   }
+
+  &.dash-td-started {
+    white-space: nowrap;
+  }
+}
+
+.dash-started-date {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #334155;
+  font-size: 0.75rem;
+  font-weight: 700;
+
+  ion-icon {
+    color: #3b82f6;
+    font-size: 0.85rem;
+  }
+}
+
+.dash-started-time {
+  margin-top: 0.15rem;
+  padding-left: 1.2rem;
+  color: #94a3b8;
+  font-size: 0.6875rem;
+  font-weight: 600;
 }
 
 .dash-route-btn {
@@ -2624,6 +2654,18 @@ div[role="dialog"] {
 
   .dash-doc-subject {
     color: #94a3b8;
+  }
+
+  .dash-started-date {
+    color: #e2e8f0;
+
+    ion-icon {
+      color: #60a5fa;
+    }
+  }
+
+  .dash-started-time {
+    color: #64748b;
   }
 
   .dash-agency-sender {

@@ -35,6 +35,8 @@ export class LoginComponent implements OnInit, OnDestroy {
   recoveryEmailSent = false;
   recoveredUsername = '';
   recoveredEmail = '';
+  lockSecondsRemaining = 0;
+  private lockCountdownId: ReturnType<typeof setInterval> | null = null;
 
   // Background image managed from User Accounts. Falls back to the themed
   // gradient when no image has been uploaded yet. Cached in localStorage so
@@ -67,6 +69,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.clearLockCountdown();
     if (typeof window !== 'undefined') {
       if (this.pwaInstallListener) window.removeEventListener('blgf-pwa-installable', this.pwaInstallListener);
       if (this.pwaInstalledListener) window.removeEventListener('blgf-pwa-installed', this.pwaInstalledListener);
@@ -134,6 +137,28 @@ export class LoginComponent implements OnInit, OnDestroy {
       }
       this.session.login(result.user);
     } catch (error: unknown) {
+      const loginError = error as Error & {
+        code?: string;
+        retryAfterSeconds?: number;
+        redirectToForgotPassword?: boolean;
+      };
+      if (loginError.code === 'LOGIN_LOCKED') {
+        this.password = '';
+        this.resetIdentifier = this.username.trim();
+        this.showForgotPassword = false;
+        this.startLockCountdown(loginError.retryAfterSeconds || 30);
+        return;
+      }
+      if (loginError.code === 'RECOVERY_REQUIRED' || loginError.redirectToForgotPassword) {
+        this.clearLockCountdown();
+        this.lockSecondsRemaining = 0;
+        this.password = '';
+        this.resetIdentifier = this.username.trim();
+        this.showForgotPassword = true;
+        this.recoveryEmailSent = false;
+        this.errorMsg = 'Maximum login attempts reached. Please recover your account using your registered email.';
+        return;
+      }
       this.errorMsg =
         error instanceof Error ? error.message : 'Unable to sign in.';
     } finally {
@@ -246,5 +271,33 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.showForgotPassword = false;
     this.recoveryEmailSent = false;
     this.errorMsg = '';
+  }
+
+  private startLockCountdown(seconds: number): void {
+    this.clearLockCountdown();
+    this.lockSecondsRemaining = Math.max(1, Math.ceil(seconds));
+    this.updateLockMessage();
+    this.lockCountdownId = setInterval(() => {
+      this.lockSecondsRemaining = Math.max(0, this.lockSecondsRemaining - 1);
+      if (this.lockSecondsRemaining === 0) {
+        this.clearLockCountdown();
+        this.errorMsg = '';
+        this.successMsg = 'The sign-in lock has ended. You may try your password again.';
+        return;
+      }
+      this.updateLockMessage();
+    }, 1000);
+  }
+
+  private updateLockMessage(): void {
+    this.successMsg = '';
+    this.errorMsg = `Sign-in is temporarily locked. Try again in ${this.lockSecondsRemaining} seconds.`;
+  }
+
+  private clearLockCountdown(): void {
+    if (this.lockCountdownId) {
+      clearInterval(this.lockCountdownId);
+      this.lockCountdownId = null;
+    }
   }
 }

@@ -403,6 +403,12 @@
                 <span>Status</span>
               </div>
             </th>
+            <th class="dash-th dash-th-started">
+              <div class="dash-th-content">
+                <ion-icon name="calendar-outline"></ion-icon>
+                <span>Started</span>
+              </div>
+            </th>
             <th class="dash-th dash-th-action">
               <span>Action</span>
             </th>
@@ -411,7 +417,7 @@
         <tbody class="dash-tbody">
           @if (filteredTransactions().length === 0) {
             <tr>
-              <td colspan="7" class="dash-empty-cell">
+              <td colspan="8" class="dash-empty-cell">
                 <div class="dash-empty-wrap">
                   <ion-icon name="file-tray-outline" class="dash-empty-icon"></ion-icon>
                   <p class="dash-empty-text">No transactions match your current view.</p>
@@ -505,6 +511,17 @@
                   <span class="dash-status-dot"></span>
                   <span>{{ statusCfg(doc.currentStatus)?.label || doc.currentStatus }}</span>
                 </span>
+              </td>
+
+              <!-- Transaction Start Date -->
+              <td class="dash-td dash-td-started">
+                <div class="dash-started-date">
+                  <ion-icon name="calendar-clear-outline"></ion-icon>
+                  <span>{{ activityDateParts(doc).date }}</span>
+                </div>
+                <div class="dash-started-time">
+                  {{ activityDateParts(doc).time }}
+                </div>
               </td>
 
               <!-- Action -->

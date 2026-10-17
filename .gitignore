@@ -12,6 +12,7 @@ coverage/
 backend/storage/
 backend/data/storage/
 backend/data/storage-settings.json
+backend/data/.mobile-public-url.json
 
 .vercel
 

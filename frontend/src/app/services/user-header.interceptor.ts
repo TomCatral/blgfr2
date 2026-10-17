@@ -8,7 +8,14 @@ const withReadableApiErrors = (request$: Observable<HttpEvent<unknown>>) =>
         return throwError(() => error);
       }
 
-      const responseBody = error.error as { error?: unknown; message?: unknown } | string | null;
+      const responseBody = error.error as {
+        error?: unknown;
+        message?: unknown;
+        code?: unknown;
+        retryAfterSeconds?: unknown;
+        attemptsRemaining?: unknown;
+        redirectToForgotPassword?: unknown;
+      } | string | null;
       const apiMessage =
         typeof responseBody === 'string'
           ? responseBody
@@ -17,8 +24,22 @@ const withReadableApiErrors = (request$: Observable<HttpEvent<unknown>>) =>
         apiMessage || (error.status === 0
           ? 'Unable to connect to the server. Check that the backend is running.'
           : 'The request could not be completed. Please try again.'),
-      ) as Error & { status?: number };
+      ) as Error & {
+        status?: number;
+        code?: string;
+        retryAfterSeconds?: number;
+        attemptsRemaining?: number;
+        redirectToForgotPassword?: boolean;
+      };
       readableError.status = error.status;
+      if (responseBody && typeof responseBody !== 'string') {
+        if (typeof responseBody.code === 'string') readableError.code = responseBody.code;
+        if (typeof responseBody.retryAfterSeconds === 'number') readableError.retryAfterSeconds = responseBody.retryAfterSeconds;
+        if (typeof responseBody.attemptsRemaining === 'number') readableError.attemptsRemaining = responseBody.attemptsRemaining;
+        if (typeof responseBody.redirectToForgotPassword === 'boolean') {
+          readableError.redirectToForgotPassword = responseBody.redirectToForgotPassword;
+        }
+      }
       return throwError(() => readableError);
     }),
   );

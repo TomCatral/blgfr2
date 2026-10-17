@@ -4,6 +4,7 @@ const { spawn } = require('node:child_process');
 const { resolveDevPort, waitForBlgfServer } = require('./free_ports.cjs');
 
 const projectRoot = path.resolve(__dirname, '..');
+const runtimePublicUrlFile = path.join(projectRoot, 'backend', 'data', '.mobile-public-url.json');
 const cloudflaredCandidates = process.platform === 'win32'
   ? [
       'C:\\Program Files (x86)\\cloudflared\\cloudflared.exe',
@@ -32,6 +33,21 @@ function stop(child) {
   } catch {}
 }
 
+function clearRuntimePublicUrl() {
+  try {
+    if (fs.existsSync(runtimePublicUrlFile)) fs.unlinkSync(runtimePublicUrlFile);
+  } catch {}
+}
+
+function saveRuntimePublicUrl(publicUrl) {
+  fs.mkdirSync(path.dirname(runtimePublicUrlFile), { recursive: true });
+  fs.writeFileSync(
+    runtimePublicUrlFile,
+    JSON.stringify({ publicUrl: `${publicUrl.replace(/\/$/, '')}/login`, updatedAt: new Date().toISOString() }, null, 2),
+    'utf8',
+  );
+}
+
 async function writeQr(url) {
   const qrModulePath = path.join(projectRoot, 'frontend', 'node_modules', 'qrcode');
   const QRCode = require(qrModulePath);
@@ -48,6 +64,7 @@ async function writeQr(url) {
 }
 
 async function main() {
+  clearRuntimePublicUrl();
   const serverFile = path.join(projectRoot, 'dist', 'backend', 'server.cjs');
   const frontendFile = path.join(projectRoot, 'dist', 'frontend', 'index.html');
   if (!fs.existsSync(serverFile) || !fs.existsSync(frontendFile)) {
@@ -62,7 +79,7 @@ async function main() {
     env: {
       ...process.env,
       PORT: String(port),
-      BLGF_OFFLINE_MODE: '1',
+      BLGF_MOBILE_MODE: '1',
       NODE_ENV: 'production',
     },
     stdio: ['ignore', 'inherit', 'inherit'],
@@ -87,11 +104,15 @@ async function main() {
     if (!match || announced) return;
     announced = true;
     const mobileUrl = match[0];
-    const qrPath = await writeQr(mobileUrl);
+    const mobileLoginUrl = `${mobileUrl.replace(/\/$/, '')}/login`;
+    saveRuntimePublicUrl(mobileUrl);
+    const qrPath = await writeQr(mobileLoginUrl);
     console.log('\n=======================================================');
     console.log('BLGF DTS MOBILE INSTALL LINK');
-    console.log(mobileUrl);
+    console.log(mobileLoginUrl);
     console.log(`QR image: ${qrPath}`);
+    console.log('The public link uses this laptop backend and works across different Wi-Fi/mobile networks.');
+    console.log('Password-recovery email remains available when SMTP is configured and this laptop has internet.');
     console.log('Keep this window open while phones use or sync the app.');
     console.log('=======================================================\n');
   };
@@ -102,6 +123,7 @@ async function main() {
   });
 
   const cleanup = () => {
+    clearRuntimePublicUrl();
     stop(tunnel);
     stop(server);
   };
@@ -120,6 +142,7 @@ async function main() {
 }
 
 main().catch((error) => {
+  clearRuntimePublicUrl();
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
 });
